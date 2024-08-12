@@ -1,0 +1,17 @@
+boto3
+botocore
+numpy
+pandas
+julian
+pyarrow
+pandera
+pydantic
+pyproj
+pymap3d
+tqdm
+earthscope-sdk
+earthscope-cli
+ipywidgets
+matplotlib
+seaborn
+folium

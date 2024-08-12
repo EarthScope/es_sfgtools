@@ -1,0 +1,9 @@
+include:
+  - project: earthscope/infrastructure/gitlab-ci
+    ref: "latest"
+    file: project-template-library-python.yml
+
+variables:
+  CONTAINER_REGISTRY_PLATFORM: "AWS-PUB"
+
+

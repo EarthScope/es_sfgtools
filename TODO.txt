@@ -1,0 +1,11 @@
+- SV2 processing 
+    --Change dfpo00 processing to use validation from SV1 processing
+    --Adjust Ping/Return time units to be seconds of the day
+    --Test garpos pipeline on SV2 data
+
+- JupyterHub
+    -- Create data-loader/catalogger class that handles merging/visuals
+    -- Integrate intermediate file processing with the generalized data handler
+        --- Test out intermediate to final processing with functions in dev_datahandler
+
+- Make downloading multithreaded
