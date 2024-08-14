@@ -3,11 +3,14 @@ from pathlib import Path
 import os
 import urllib.request
 import ssl
+import logging
 
 ssl._create_default_https_context = ssl._create_stdlib_context
 
 from earthscope_sdk.auth.device_code_flow import DeviceCodeFlowSimple
 from earthscope_sdk.auth.auth_flow import NoTokensError
+
+logger = logging.getLogger(__name__)
 
 def retrieve_token(token_path="."):
     """
@@ -140,12 +143,11 @@ def download_file_list_from_gage_data(file_urls: list, dest_dir='./files', token
         print(f"Failed to download {len(failed_files)} files.")
         print(failed_files)
 
-def generate_gage_data_survey_url(network, station, survey):
-    url = f'https://gage-data.earthscope.org/archive/seafloor/{network}/{station}/{survey}/raw'
+def generate_gage_data_survey_url(network, station, survey, level='raw'):
+    url = f'https://gage-data.earthscope.org/archive/seafloor/{network}/{station}/{survey}/{level}'
     return url
 
-def get_survey_file_dict(url):
-    file_list = list_files_from_gage_data(url)
+def list_file_counts_by_type(file_list, url=None):
     file_dict = {}
     for file in file_list:
         if 'master' in file:
@@ -153,24 +155,41 @@ def get_survey_file_dict(url):
         elif 'lever_arms' in file:
             file_dict.setdefault('lever_arms', []).append(file)
         elif 'bcsonardyne' in file:
-            file_dict.setdefault('bcsonardyne', []).append(file)
+            file_dict.setdefault('sonardyne', []).append(file)
         elif 'bcnovatel' in file:
-            file_dict.setdefault('bcnovatel', []).append(file)
+            file_dict.setdefault('novatel', []).append(file)
+        elif 'bcoffload' in file:
+            file_dict.setdefault('offload', []).append(file)
         elif file.endswith('NOV770.raw'):
             file_dict.setdefault('NOV770', []).append(file)
         elif file.endswith('DFOP00.raw'):
             file_dict.setdefault('DFOP00', []).append(file)
         elif file.endswith('NOV000.bin'):
             file_dict.setdefault('NOV000', []).append(file)
+        elif "ctd" in file:
+            file_dict.setdefault('ctd', []).append(file)
 
-    file_dict['ctd'] = list_files_from_gage_data(f'{url}/ctd')
-
-    print('Found:')
+    if url is not None:
+        logger.info(f'Found under {url}:')
+    else:
+        logger.info('Found:')
     for k,v in file_dict.items():
-        print(f'    {len(v)} {k} file(s)')  
-
+        logger.info(f'    {len(v)} {k} file(s)')
     return file_dict  
 
+def get_survey_file_dict(url):
+    file_list = list_files_from_gage_data(url)
+    return list_file_counts_by_type(file_list)
+
+def list_survey_files(network: str, 
+                      station: str, 
+                      survey: str) -> list:
+    url = generate_gage_data_survey_url(network, station, survey)
+    file_list = list_files_from_gage_data(url)
+    file_list += list_files_from_gage_data(f'{url}/ctd')
+    list_file_counts_by_type(file_list=file_list, url=url)
+    return file_list
+    
 
 if __name__ == "__main__":    
     # Example usage 

@@ -2,6 +2,7 @@ boto3
 botocore
 numpy
 pandas
+scipy
 julian
 pyarrow
 pandera
