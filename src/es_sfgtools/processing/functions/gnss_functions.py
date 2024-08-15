@@ -19,7 +19,8 @@ from pathlib import Path
 
 from ..schemas.files.file_schemas import NovatelFile,RinexFile,KinFile,Novatel770File
 
-logger = logging.getLogger(os.path.basename(__file__))
+#logger = logging.getLogger(os.path.basename(__file__))
+logger = logging.getLogger(__name__)
 
 NOVATEL2RINEX_BINARIES = Path(__file__).resolve().parent / "binaries/"
 
@@ -118,6 +119,7 @@ class PridePPP(BaseModel):
 
 
 def get_metadata(site: str):
+    #TODO: these are placeholder values, need to use real metadata
     return {
         "markerName": site,
         "markerType": "WATER_CRAFT",
@@ -142,7 +144,7 @@ def get_metadata(site: str):
 
 
 def _novatel_to_rinex(
-    source:Union[NovatelFile,Novatel770File],site: str, year: str = None,**kwargs
+    source:Union[NovatelFile,Novatel770File],site: str, year: str = None,show_details: bool=False,**kwargs
 ) -> RinexFile:
     """
     Batch convert Novatel files to RINEX
@@ -186,7 +188,12 @@ def _novatel_to_rinex(
             rinex_outfile,
         ]
         cmd.extend([file_tmp_dest])
-        subprocess.run(cmd, check=True)
+        result = subprocess.run(cmd, check=True, capture_output=True)
+        if show_details:
+            # logger.info("showing details")
+            if len(result.stdout.decode()):
+                print(f"{os.path.basename(source.location)}: {result.stdout.decode().rstrip()}")
+            #print(result.stderr.decode())
         logger.info(f"Converted Novatel files to RINEX: {rinex_outfile}")
         rinex_data = RinexFile(parent_id=source.uuid)
         rinex_data.read(rinex_outfile)
@@ -194,13 +201,13 @@ def _novatel_to_rinex(
        
     return rinex_data
 
-def novatel_to_rinex(source:NovatelFile, site: str, year: str = None,outdir:str=None,**kwargs) -> RinexFile:
+def novatel_to_rinex(source:NovatelFile, site: str, year: str = None,outdir:str=None,show_details: bool=False,**kwargs) -> RinexFile:
     assert isinstance(source, NovatelFile), "Invalid source file type"
-    return _novatel_to_rinex(source,site,year,outdir=outdir,**kwargs)
+    return _novatel_to_rinex(source,site,year,outdir=outdir,show_details=show_details,**kwargs)
 
-def novatel770_to_rinex(source:Novatel770File, site: str, year: str = None,**kwargs) -> RinexFile:
+def novatel770_to_rinex(source:Novatel770File, site: str, year: str = None,show_details: bool=False,**kwargs) -> RinexFile:
     assert isinstance(source, Novatel770File), "Invalid source file type"
-    return _novatel_to_rinex(source,site,year,**kwargs)
+    return _novatel_to_rinex(source,site,year,show_details=show_details,**kwargs)
 
 def rinex_to_kin(source: RinexFile, site: str = "IVB1") -> KinFile:
     """
