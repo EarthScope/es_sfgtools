@@ -193,3 +193,9 @@ class MasterFile(BaseSite):
         src.processing.functions.site_functions.masterfile_to_siteconfig
     """
     name:str = "master"
+
+class QCPinFile(BaseObservable):
+    name:str = "qcpin"
+
+class NovatelPinFile(BaseObservable):
+    name:str = "novatelpin"

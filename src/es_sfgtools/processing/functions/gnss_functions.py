@@ -17,7 +17,7 @@ import json
 import platform
 from pathlib import Path
 
-from ..schemas.files.file_schemas import NovatelFile,RinexFile,KinFile,Novatel770File
+from ..schemas.files.file_schemas import NovatelFile,RinexFile,KinFile,Novatel770File,DFPO00RawFile,QCPinFile,NovatelPinFile
 
 #logger = logging.getLogger(os.path.basename(__file__))
 logger = logging.getLogger(__name__)
@@ -144,7 +144,7 @@ def get_metadata(site: str):
 
 
 def _novatel_to_rinex(
-    source:Union[NovatelFile,Novatel770File],site: str, year: str = None,show_details: bool=False,**kwargs
+    source:Union[NovatelFile,Novatel770File,NovatelPinFile],site: str, year: str = None,show_details: bool=False,**kwargs
 ) -> RinexFile:
     """
     Batch convert Novatel files to RINEX
@@ -293,3 +293,23 @@ def kin_to_gnssdf(source:KinFile) -> pd.DataFrame:
     logger.info(log_response)
     dataframe["time"] = dataframe["time"].dt.tz_localize("UTC")
     return dataframe
+
+def qcpin_to_novatelpin(source:QCPinFile,outpath:Path) -> NovatelPinFile:
+    with open(source.location) as file:
+        pin_data = json.load(file)
+
+    range_headers = []
+
+    for data in pin_data.values():   
+        range_headers.append(
+            data.get("observations").get("NOV_RANGE")
+        )
+
+    
+    with open(outpath,"w") as file:
+        for header in range_headers:
+            file.write(header)
+            file.write("\n")
+    
+    novatel_pin = NovatelPinFile(location=outpath)
+    return novatel_pin
