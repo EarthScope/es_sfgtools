@@ -61,6 +61,9 @@ class AcousticDataFrame(pa.DataFrameModel):
     CorrelationScore: Series[int] = pa.Field(
         ge=0, le=100, coerce=True, description="Correlation score"
     )
+    SignalToNoise: Series[float] = pa.Field(
+        ge=0.0, le=100.0, coerce=True, description="Signal to noise ratio"
+    )
 
     # TODO include snr - signal to noise ratio
 

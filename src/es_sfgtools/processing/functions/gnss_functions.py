@@ -17,7 +17,7 @@ import json
 import platform
 from pathlib import Path
 
-from ..schemas.files.file_schemas import NovatelFile,RinexFile,KinFile,Novatel770File
+from ..schemas.files.file_schemas import NovatelFile,RinexFile,KinFile,Novatel770File,DFPO00RawFile,QCPinFile,NovatelPinFile
 
 logger = logging.getLogger(os.path.basename(__file__))
 
@@ -142,7 +142,7 @@ def get_metadata(site: str):
 
 
 def _novatel_to_rinex(
-    source:Union[NovatelFile,Novatel770File],site: str, year: str = None,**kwargs
+    source:Union[NovatelFile,Novatel770File,NovatelPinFile],site: str, year: str = None,**kwargs
 ) -> RinexFile:
     """
     Batch convert Novatel files to RINEX
@@ -201,6 +201,11 @@ def novatel_to_rinex(source:NovatelFile, site: str, year: str = None,outdir:str=
 def novatel770_to_rinex(source:Novatel770File, site: str, year: str = None,**kwargs) -> RinexFile:
     assert isinstance(source, Novatel770File), "Invalid source file type"
     return _novatel_to_rinex(source,site,year,**kwargs)
+
+def novatelpin_to_rinex(source:NovatelPinFile, site: str, year: str = None,**kwargs) -> RinexFile:
+    # assert isinstance(source, NovatelPinFile), "Invalid source file type"
+    # return _novatel_to_rinex(source,site,year,**kwargs)
+    raise NotImplementedError
 
 def rinex_to_kin(source: RinexFile, site: str = "IVB1") -> KinFile:
     """
@@ -286,3 +291,23 @@ def kin_to_gnssdf(source:KinFile) -> pd.DataFrame:
     logger.info(log_response)
     dataframe["time"] = dataframe["time"].dt.tz_localize("UTC")
     return dataframe
+
+def qcpin_to_novatelpin(source:QCPinFile,outpath:Path) -> NovatelPinFile:
+    with open(source.location) as file:
+        pin_data = json.load(file)
+
+    range_headers = []
+
+    for data in pin_data.values():   
+        range_headers.append(
+            data.get("observations").get("NOV_RANGE")
+        )
+
+    
+    with open(outpath,"w") as file:
+        for header in range_headers:
+            file.write(header)
+            file.write("\n")
+    
+    novatel_pin = NovatelPinFile(location=outpath)
+    return novatel_pin

@@ -10,7 +10,7 @@ import os
 import json
 import pymap3d as pm
 
-from ..schemas.files.file_schemas import NovatelFile, DFPO00RawFile
+from ..schemas.files.file_schemas import NovatelFile, DFPO00RawFile,QCPinFile
 
 logger = logging.getLogger(os.path.basename(__file__))
 
@@ -65,7 +65,6 @@ class INSPVA(BaseModel):
             )
 
             return ValidationError(error_msg)
-
 
 
 def novatel_to_imudf(source:NovatelFile) -> pd.DataFrame:
@@ -144,4 +143,24 @@ def dfpo00_to_imudf(source:DFPO00RawFile) -> pd.DataFrame:
     # Drop duplicates found along time column
     imu_df = imu_df.drop_duplicates(subset=["Time"]).reset_index(drop=True)
 
+    return imu_df
+
+def qcpin_to_imudf(source:QCPinFile) -> pd.DataFrame:
+    with open(source.location) as file:
+        pin_data = json.load(file)
+
+    imu_data_entries = []
+
+    for data in pin_data.values():
+
+        imu_data = data.get("observations").get("NOV_INS")
+
+        imu_data_dict = {
+            "Time":datetime.fromtimestamp(imu_data.get("time").get("common")),
+            "Azimuth":imu_data.get("h"),
+            "Pitch":imu_data.get("p"),
+            "Roll":imu_data.get("r")}
+        imu_data_entries.append(imu_data_dict)
+
+    imu_df = pd.DataFrame(imu_data_entries)
     return imu_df

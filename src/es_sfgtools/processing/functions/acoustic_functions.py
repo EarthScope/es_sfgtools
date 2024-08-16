@@ -8,7 +8,7 @@ import pandas as pd
 from pydantic import BaseModel, Field,ValidationError
 import pandera as pa
 from pandera.typing import Series
-from typing import List, Dict,Union
+from typing import List, Dict,Union,Optional
 from enum import Enum
 from datetime import datetime, timezone, timedelta
 import julian
@@ -18,7 +18,7 @@ import julian
 import logging
 import json
 import pdb
-from ..schemas.files import SonardyneFile,DFPO00RawFile
+from ..schemas.files import SonardyneFile,DFPO00RawFile,QCPinFile
 
 logger = logging.getLogger(os.path.basename(__file__))
 
@@ -27,6 +27,7 @@ GNSS_START_TIME_JULIAN = julian.to_jd(GNSS_START_TIME.replace(tzinfo=None), "mjd
 GNSS_START_TIME_JULIAN_BOUNDS = julian.to_jd(
     GNSS_START_TIME.replace(tzinfo=None) + timedelta(days=365 * 500), "mjd"
 )
+TRIGGER_DELAY_SV3 = 0.2  # SV3 trigger delay in seconds
 TRIGGER_DELAY_SV2 = 0.1  # SV2 trigger delay in seconds
 ADJ_LEAP = 1.0  # this is the leap second adjustment TODO Ask James why this is there
 
@@ -110,16 +111,20 @@ class TransponderData(BaseModel):
         CorrelationScore (int): Correlation score.
     """
 
-    TransponderID: str  # Transponder ID
+    TransponderID: str = Field(alias='cn') # Transponder ID
     TwoWayTravelTime: float = Field(ge=0.0, le=600)  # Two-way Travel time [seconds]
     ReturnTime: float = Field(
-        ge=0, le=3600*24
+        ge=0, le=3600*24,alias="Range"
     )  # Return time since the start of day (modified Julian day) [days]
     DecibalVoltage: int = Field(
         ge=-100, le=100
     )  # Signal relative to full scale voltage [dB]
     CorrelationScore: int = Field(ge=0, le=100)  # Correlation score
 
+    SignalToNoise: float = Field(ge=0, le=100)  # Signal to noise ratio
+
+    TurnAroundTime: Optional[float] = Field(ge=0, le=100)  # Turn around time [ms]
+    
     def correct_travel_time(self, offset: float):
         """
         Corrects the travel time by applying the given offset.
@@ -453,4 +458,42 @@ def dfpo00_to_acousticdf(source: DFPO00RawFile) -> pd.DataFrame:
                    }
                 )
     df = pd.DataFrame(processed)
+    return df
+
+def qcpin_to_acousticdf(source:QCPinFile) -> pd.DataFrame:
+    with open(source.location) as f:
+        data = json.load(f)
+
+    shot_data = []
+    for key in data.keys():
+        if key != "interrogation":
+            range_data = data.get(key).get("range")
+            time_data = data.get(key).get("time")
+
+            id: str = range_data.get("cn", "").replace("IR", "")
+            travel_time: float = range_data.get("range", 0)
+            tat: float = range_data.get("tat", 0)
+            travel_time_true = (
+                travel_time - (tat/1000) # TODO might need to acct. for trig delay?
+            )
+            xc = range_data.get("diag").get("xc")[0]
+            dbv = range_data.get("diag").get("dbv")[0]
+            snr = range_data.get("diag").get("snr")[0]
+            trigger_time: float = time_data.get("common", 0)
+            trigger_time_dt = datetime.fromtimestamp(trigger_time)
+            ping_time = trigger_time_dt + timedelta(seconds=TRIGGER_DELAY_SV3)
+
+            shot_data.append(
+                {
+                    "TriggerTime": trigger_time_dt,
+                    "TransponderID": id,
+                    "TwoWayTravelTime": travel_time_true,
+                    "ReturnTime": ping_time,
+                    "DecibalVoltage": dbv,
+                    "CorrelationScore": xc,
+                    "PingTime": ping_time,
+                    "SignalToNoise": snr
+                }
+            )
+    df = pd.DataFrame(shot_data)
     return df
