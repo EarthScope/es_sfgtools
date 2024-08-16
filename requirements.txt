@@ -16,4 +16,4 @@ ipywidgets
 matplotlib
 seaborn
 folium
-"garpos @ git+https://github.com/EarthScope/garpos.git"
+garpos @ git+https://github.com/EarthScope/garpos.git

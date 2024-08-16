@@ -203,11 +203,17 @@ def _novatel_to_rinex(
 
 def novatel_to_rinex(source:NovatelFile, site: str, year: str = None,outdir:str=None,show_details: bool=False,**kwargs) -> RinexFile:
     assert isinstance(source, NovatelFile), "Invalid source file type"
-    return _novatel_to_rinex(source,site,year,outdir=outdir,show_details=show_details,**kwargs)
+    rinex = _novatel_to_rinex(source,site,year,show_details=show_details,**kwargs)
+    if outdir:
+        rinex.write(outdir)
+    return rinex
 
-def novatel770_to_rinex(source:Novatel770File, site: str, year: str = None,show_details: bool=False,**kwargs) -> RinexFile:
+def novatel770_to_rinex(source:Novatel770File, site: str, year: str = None,outdir:str=None,show_details: bool=False,**kwargs) -> RinexFile:
     assert isinstance(source, Novatel770File), "Invalid source file type"
-    return _novatel_to_rinex(source,site,year,show_details=show_details,**kwargs)
+    rinex = _novatel_to_rinex(source,site,year,show_details=show_details,**kwargs)
+    if outdir:
+        rinex.write(outdir)
+    return rinex
 
 def rinex_to_kin(source: RinexFile, site: str = "IVB1") -> KinFile:
     """

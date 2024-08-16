@@ -4,8 +4,7 @@ from .gnss_functions import (
     novatel770_to_rinex,
     rinex_to_kin,
     kin_to_gnssdf,
-    qcpin_to_novatelpin,
-    novatelpin_to_rinex
+    qcpin_to_novatelpin
 )
 from .imu_functions import novatel_to_imudf,dfpo00_to_imudf,qcpin_to_imudf
 from .seabird_functions import seabird_to_soundvelocity
