@@ -16,13 +16,10 @@ from scipy.stats import hmean as harmonic_mean
 
 from es_sfgtools.processing.schemas.observables import AcousticDataFrame, IMUDataFrame, PositionDataFrame, SoundVelocityDataFrame
 from es_sfgtools.processing.schemas.site_config import PositionENU,ATDOffset,Transponder,PositionLLH,SiteConfig
-from es_sfgtools.garpos_tools.schemas import GarposInput,GarposObservation,GarposSite,GarposFixed,InversionParams,InversionType,ObservationData
+from src.es_sfgtools.modeling.garpos_tools.schemas import GarposInput,GarposObservation,GarposSite,GarposFixed,InversionParams,InversionType,ObservationData
 
-# from ..processing.schemas.observables import AcousticDataFrame, IMUDataFrame, PositionDataFrame, SoundVelocityDataFrame
-# from ..processing.schemas.site_config import PositionENU,ATDOffset,Transponder,PositionLLH,SiteConfig
-# from .schemas import GarposInput,GarposObservation,GarposSite,GarposFixed,InversionParams,InversionType,ObservationData
 
-from garpos.bin.garpos_v102.garpos_main import drive_garpos
+from garpos import drive_garpos
 
 ECEF = "epsg:4978"
 LLH = "epsg:4326"
