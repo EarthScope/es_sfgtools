@@ -20,9 +20,10 @@ import  folium
 import json
 warnings.filterwarnings("ignore")
 seaborn.set_theme(style="whitegrid")
-from es_sfgtools.utils.gage_data import get_file_from_gage_data
+from es_sfgtools.utils.archive_pull import download_file_from_archive
 from es_sfgtools.processing import functions as proc_funcs
 from es_sfgtools.processing import schemas as proc_schemas
+
 
 logger = logging.getLogger(__name__)
 
@@ -192,11 +193,17 @@ class DataHandler:
         except:
             return None
 
+    def load_catalog_from_csv(self):
+        self.consolidate_entries()
+        self.catalog_data = pd.read_csv(self.catalog, parse_dates=['timestamp'])
+        self.catalog_data['timestamp'] = self.catalog_data['timestamp'].astype('datetime64[ns]')
+
     def get_local_counts(self):
         try:
+            self.load_catalog_from_csv()
             local_files = self.catalog_data[self.catalog_data['local_location'].notnull()]
             data_type_counts = local_files.type.value_counts()
-        except (AttributeError, KeyError):
+        except (AttributeError, KeyError, FileNotFoundError):
             data_type_counts = pd.Series()   
         return data_type_counts
     
@@ -279,7 +286,8 @@ class DataHandler:
                                survey:str,
                                file_type: str,
                                override:bool=False,
-                               from_s3:bool=False):
+                               from_s3:bool=False,
+                               show_details:bool=True):
         """
         Retrieves and catalogs data from the remote locations stored in the catalog.
 
@@ -289,13 +297,15 @@ class DataHandler:
             survey (str): The survey name.
             file_type (str): The type of file to download
             override (bool): Whether to download the data even if it already exists
-            from_s3 (bool): Use S3 download functionality if remote resourses are in an s3 bucket  
+            from_s3 (bool): Use S3 download functionality if remote resourses are in an s3 bucket
+            show_details (bool): Log details of each file downloaded  
 
         Raises:
             Exception: If no matching data found in catalog.
         """
         # TODO make multithreaded
         # Find all entries in the catalog that match the params
+
         local_counts = self.get_local_counts()
         try:
             local_files_of_type = local_counts[file_type]    
@@ -308,13 +318,14 @@ class DataHandler:
             & (self.catalog_data.survey == survey)
             & (self.catalog_data.type == file_type)
         ]
-        logger.info(f"Downloading {entries.shape[0]-local_files_of_type} missing files of type {file_type}")
+        missing_files = entries.shape[0]-local_files_of_type
+        logger.info(f"Downloading {missing_files} missing files of type {file_type}")
         if entries.shape[0] < 1:
             raise Exception('No matching data found in catalog')
         if from_s3:
             client = boto3.client('s3')
         count = 0
-        for entry in entries.itertuples(index=True):
+        for entry in tqdm(entries.itertuples(index=True), total=missing_files):
             if pd.isna(entry.remote_filepath):
                 continue
             local_location = self.raw_dir / Path(entry.remote_filepath).name
@@ -331,7 +342,7 @@ class DataHandler:
                 # Check if the entry is from an S3 location or gage-data
                 else:
                     is_download = self._download_https(
-                        remote_url=entry.remote_filepath, destination_dir=self.raw_dir
+                        remote_url=entry.remote_filepath, destination_dir=self.raw_dir, show_details=show_details
                     )
         
                 if is_download:
@@ -339,16 +350,19 @@ class DataHandler:
                     assert local_location.exists(), "Downloaded file not found"
                     self.catalog_data.at[entry.Index,"local_location"] = str(local_location)
                     count += 1
+                    #add a duplicate entry but with local_location
+                    entry_dict = self.catalog_data[self.catalog_data.index==entry.Index].to_dict('records')[0]
+                    entry_dict['local_location'] = str(local_location)
+                    self.add_entry(entry_dict)
                 else:
                     raise Warning(f'File not downloaded to {str(local_location)}')
         if count == 0:
             response = f"No files downloaded"
             logger.error(response)
-            #print(response)
         else:
             logger.info(f"Downloaded {count} files")
 
-        self.catalog_data.to_csv(self.catalog,index=False)
+        #self.catalog_data.to_csv(self.catalog,index=False)
 
     def add_campaign_data_s3(self, network: str, station: str, survey: str, bucket: str, prefixes: List[str], **kwargs):
         """
@@ -430,6 +444,9 @@ class DataHandler:
         """
         # TODO make multithreaded
         # Find all entries in the catalog that match the params
+        
+        self.load_catalog_from_csv()
+        
         entries = self.catalog_data[
             (self.catalog_data.network == network)
             & (self.catalog_data.station == station)
@@ -455,13 +472,17 @@ class DataHandler:
         if count == 0:
             response = f"No files downloaded"
             logger.error(response)
-            print(response)
+            # print(response)
 
         logger.info(f"Downloaded {count} files to {str(self.raw_dir)}")
 
         self.catalog_data.to_csv(self.catalog,index=False)
     
-    def _download_https(self, remote_url: Path, destination_dir: Path, token_path='.'):
+    def _download_https(self, 
+                        remote_url: Path, 
+                        destination_dir: Path, 
+                        token_path='.',
+                        show_details: bool=True):
         """
         Downloads a file from the specified https url on gage-data
 
@@ -474,16 +495,17 @@ class DataHandler:
         """
         try:
             #local_location = destination_dir / Path(remote_url).name
-            get_file_from_gage_data(url=remote_url, 
+            download_file_from_archive(url=remote_url, 
                                     dest_dir=destination_dir, 
-                                    token_path=token_path)
+                                    token_path=token_path,
+                                    show_details=show_details)
             #logger.info(f"Downloaded {str(remote_url)} to {str(local_location)}")
             return True
         except Exception as e:
             response = f"Error downloading {str(remote_url)} \n {e}"
             response += "\n HINT: Check authentication credentials"
             logger.error(response)
-            print(response)
+            # print(response)
             return False
         
     def _download_boto(self, client: boto3.client, bucket: str, remote_url: Path, destination: Path):
@@ -507,7 +529,7 @@ class DataHandler:
             response = f"Error downloading {str(remote_url)} \n {e}"
             response += "\n HINT: $ aws sso login"
             logger.error(response)
-            print(response)
+            # print(response)
             return False
 
     def clear_raw_processed_data(self, network: str, station: str, survey: str):
@@ -601,7 +623,6 @@ class DataHandler:
                 entry_str += ","
         
         with self.catalog.open("a") as f:
-            print(entry_str)
             f.write(entry_str)
 
     def consolidate_entries(self):
@@ -675,7 +696,7 @@ class DataHandler:
         return stack[::-1]
 
     def _process_targeted(
-        self, parent: dict, child_type: Union[FILE_TYPE, DATA_TYPE]
+        self, parent: dict, child_type: Union[FILE_TYPE, DATA_TYPE], show_details: bool=False
     ) -> dict:
         #TODO: implement multithreaded logging, had to switch to print statement below
         if isinstance(parent, dict):
@@ -683,9 +704,10 @@ class DataHandler:
 
         # if parent.processed:
         #     return None
-        print(
-            f"Attemping to process {os.path.basename(parent.local_location)} ({parent.uuid}) of Type {parent.type} to {child_type.value}"
-        )
+        if show_details:
+            print(
+                f"Processing {os.path.basename(parent.local_location)} ({parent.uuid}) of Type {parent.type} to {child_type.value}"
+            )
         child_map = TARGET_MAP.get(FILE_TYPE(parent.type))
         if child_map is None:
             response = (
@@ -695,6 +717,7 @@ class DataHandler:
             raise ValueError(response)
 
         process_func = child_map.get(child_type)
+        logger.info(process_func)
         source = SCHEMA_MAP[FILE_TYPE(parent.type)](
             location=Path(parent.local_location),
             uuid=parent.uuid,
@@ -707,7 +730,7 @@ class DataHandler:
 
             if process_func == proc_funcs.novatel_to_rinex:
                 processed = process_func(
-                    source, site=parent.station, year=parent.timestamp.year
+                    source, site=parent.station, year=parent.timestamp.year, show_details=show_details
                 )
             elif process_func == proc_funcs.rinex_to_kin:
                 processed = process_func(source, site=parent.station)
@@ -757,10 +780,7 @@ class DataHandler:
                     "source_uuid": parent.uuid,
                     "processed": is_processed,
                 }
-                print(f"Successful Processing: {str(processed_meta)}")
-                if is_processed == True:
-                    self.update_entry(processed_meta)
-                    #self.add_entry(processed_meta)
+                logger.info(f"Successful Processing: {str(processed_meta)}")
                 return processed_meta
 
     def _process_data_link(self,
@@ -769,7 +789,8 @@ class DataHandler:
                            survey:str,
                            target:Union[FILE_TYPE,DATA_TYPE],
                            source:List[FILE_TYPE],
-                           override:bool=False) -> None:
+                           override:bool=False,
+                           show_details:bool=False) -> None:
         """
         Process data from a source to a target.
 
@@ -788,16 +809,17 @@ class DataHandler:
             (self.catalog_data.network == network)
             & (self.catalog_data.station == station)
             & (self.catalog_data.survey == survey)
+            & (self.catalog_data.local_location.notna())
             & np.logical_or(
                 (self.catalog_data.processed == False),override
                 )
             & (self.catalog_data.type.isin([x.value for x in source]))
         ]
-
+        
         if parent_entries.shape[0] < 1:
             response = f"No unprocessed data found in catalog for types {[x.value for x in source]}"
             logger.error(response)
-            print(response)
+            #print(response)
             return
         child_entries = self.catalog_data[
             (self.catalog_data.network == network)
@@ -810,13 +832,12 @@ class DataHandler:
 
         if parent_entries_to_process.shape[0] > 0:
             logger.info(f"Processing {parent_entries_to_process.shape[0]} Parent Files to {target.value} Data")
-
-            process_func_partial = partial(self._process_targeted,child_type=target)
+            process_func_partial = partial(self._process_targeted,child_type=target,show_details=show_details)
 
             meta_data_list = []
             with Pool(processes=cpu_count()) as pool:
                 for meta_data in tqdm(
-                    pool.map(
+                    pool.imap(
                         process_func_partial,
                         parent_entries_to_process.to_dict(orient="records"),
                     ),
@@ -824,8 +845,8 @@ class DataHandler:
                     desc=f"Processing {parent_entries_to_process.type.unique()} To {target.value}",
                 ):
                     if meta_data is not None:
-                        self.update_entry(meta_data)
-                        #self.add_entry(meta_data)
+                        #self.update_entry(meta_data)
+                        self.add_entry(meta_data)
                         meta_data_list.append(meta_data)
 
             parent_entries_processed = parent_entries_to_process[
@@ -837,57 +858,73 @@ class DataHandler:
             self.consolidate_entries()
             return parent_entries_processed
 
-    def _process_data_graph(self, network: str, station: str, survey: str,child_type:Union[FILE_TYPE,DATA_TYPE],override:bool=False):
+    def _process_data_graph(self, 
+                            network: str, 
+                            station: str, 
+                            survey: str,
+                            child_type:Union[FILE_TYPE,DATA_TYPE],
+                            override:bool=False,
+                            show_details:bool=False):
+        self.load_catalog_from_csv()
         processing_queue = self.get_parent_stack(child_type=child_type)
-        #logger.info(f"processing queue: {processing_queue}")
+        if show_details:
+            logger.info(f"processing queue: {[item.value for item in processing_queue]}")
         while processing_queue:
             parent = processing_queue.pop(0)
-            #logger.info(f"parent: {parent}")
-            children:dict = TARGET_MAP.get(parent,{})
-            #logger.info(f"children: {children}")
-            children_to_process = [k for k in children.keys() if k in processing_queue]
-            #logger.info(f"children to process: {children_to_process}")
-            for child in children_to_process:
-                #logger.info(f"child:{child}")
-                processed_parents:pd.DataFrame = self._process_data_link(network,station,survey,target=child,source=[parent],override=override)
-                # Check if all children of this parent have been processed
-                if processed_parents is not None:
-                    for entry in processed_parents.itertuples(index=True):
-                        self.catalog_data.at[entry.Index, "processed"] = self.catalog_data[
-                            (self.catalog_data.source_uuid == entry.uuid)
-                            & (self.catalog_data.type.isin([x.value for x in children.keys()]))
-                        ].shape[0] == len(children)
-                    self.catalog_data.to_csv(self.catalog,index=False)
-                else:
-                    response = f"All available instances of processing type {parent.value} to type {child.value} have been processed"
-                    logger.info(response)
-                    print(response)
+            if parent != child_type:
+                if show_details:
+                    logger.info(f"parent: {parent.value}")
+                children:dict = TARGET_MAP.get(parent,{})
+                if show_details:
+                    logger.info(f"children: {[item.value for item in children]}")
+                children_to_process = [k for k in children.keys() if k in processing_queue]
+                if show_details:
+                    logger.info(f"children to process: {[item.value for item in children_to_process]}")
+                for child in children_to_process:
+                    if show_details:
+                        logger.info(f"processing child:{child.value}")
+                    processed_parents:pd.DataFrame = self._process_data_link(network,station,survey,target=child,source=[parent],override=override,show_details=show_details)
+                    # Check if all children of this parent have been processed
+                    if processed_parents is not None:
+                        self.load_catalog_from_csv()
+                        for entry in processed_parents.itertuples(index=True):
+                            self.catalog_data.at[entry.Index, "processed"] = self.catalog_data[
+                                (self.catalog_data.source_uuid == entry.uuid)
+                                & (self.catalog_data.type.isin([x.value for x in children.keys()]))
+                            ].shape[0] == len(children)
+                        # logger.info("saving data to catalog")
+                        # logger.info(self.catalog_data)
+                        self.catalog_data.to_csv(self.catalog,index=False)
+                    else:
+                        response = f"All available instances of processing type {parent.value} to type {child.value} have been processed"
+                        logger.info(response)
+                        #print(response)
 
         #     self._process_data_link(network,station,survey,DATA_TYPE.ACOUSTIC,[FILE_TYPE.SONARDYNE,FILE_TYPE.DFPO00],override=override)
         # self._process_data_link(network,station,survey,DATA_TYPE.ACOUSTIC,[FILE_TYPE.SONARDYNE,FILE_TYPE.DFPO00],override=override)
 
-    def process_acoustic_data(self, network: str, station: str, survey: str,override:bool=False):
-        self._process_data_graph(network,station,survey,DATA_TYPE.ACOUSTIC,override=override)
+    def process_acoustic_data(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=False):
+        self._process_data_graph(network,station,survey,DATA_TYPE.ACOUSTIC,override=override, show_details=show_details)
 
-    def process_imu_data(self, network: str, station: str, survey: str,override:bool=False):
-        self._process_data_graph(network,station,survey,DATA_TYPE.IMU,override=override)
+    def process_imu_data(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=False):
+        self._process_data_graph(network,station,survey,DATA_TYPE.IMU,override=override, show_details=show_details)
 
-    def process_rinex(self, network: str, station: str, survey: str,override:bool=False):
-        self._process_data_graph(network,station,survey,FILE_TYPE.RINEX,override=override)
+    def process_rinex(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=False):
+        self._process_data_graph(network,station,survey,FILE_TYPE.RINEX,override=override, show_details=show_details)
 
-    def process_gnss_data_kin(self, network: str, station: str, survey: str,override:bool=False):
-        self._process_data_graph(network,station,survey,FILE_TYPE.KIN,override=override)
+    def process_gnss_data_kin(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=False):
+        self._process_data_graph(network,station,survey,FILE_TYPE.KIN,override=override, show_details=show_details)
 
-    def process_gnss_data(self, network: str, station: str, survey: str,override:bool=False):
-        self._process_data_graph(network,station,survey,DATA_TYPE.GNSS,override=override)
+    def process_gnss_data(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=False):
+        self._process_data_graph(network,station,survey,DATA_TYPE.GNSS,override=override, show_details=show_details)
 
-    def process_siteconfig(self, network: str, station: str, survey: str,override:bool=False):
-        self._process_data_graph(network,station,survey,DATA_TYPE.SITECONFIG,override=override)
-        self._process_data_graph(network,station,survey,DATA_TYPE.ATDOFFSET,override=override)
-        self._process_data_graph(network,station,survey,DATA_TYPE.SVP,override=override)
+    def process_siteconfig(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=False):
+        self._process_data_graph(network,station,survey,DATA_TYPE.SITECONFIG,override=override, show_details=show_details)
+        self._process_data_graph(network,station,survey,DATA_TYPE.ATDOFFSET,override=override, show_details=show_details)
+        self._process_data_graph(network,station,survey,DATA_TYPE.SVP,override=override, show_details=show_details)
 
     def process_campaign_data(
-        self, network: str, station: str, survey: str, override: bool = False
+        self, network: str, station: str, survey: str, override: bool = False, show_details: bool=False
     ):
         """
         Process all data for a given network, station, and survey, generating child entries where applicable.
@@ -901,10 +938,10 @@ class DataHandler:
         Raises:
             Exception: If no matching data is found in the catalog.
         """
-        self.process_acoustic_data(network,station,survey,override=override)
-        self.process_imu_data(network,station,survey,override=override)
-        self.process_gnss_data(network,station,survey,override=override)
-        self.process_siteconfig(network,station,survey,override=override)
+        self.process_acoustic_data(network,station,survey,override=override, show_details=show_details)
+        self.process_imu_data(network,station,survey,override=override, show_details=show_details)
+        self.process_gnss_data(network,station,survey,override=override, show_details=show_details)
+        self.process_siteconfig(network,station,survey,override=override, show_details=show_details)
 
         logger.info(
             f"Network {network} Station {station} Survey {survey} Preprocessing complete"
