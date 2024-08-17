@@ -12,15 +12,8 @@ import importlib.util
 
 from ...processing.schemas.observables import SoundVelocityDataFrame
 from ...processing.schemas.site_config import ATDOffset, PositionENU, PositionLLH, Transponder
-import garpos
 
-DIR = Path(importlib.util.find_spec("garpos").submodule_search_locations[0])
-for path in DIR.rglob('*'):
-    if path.is_dir() and path.name == 'f90lib':
-        LIB_DIRECTORY = str(path)
-        break
-
-LIB_RAYTRACE = "lib_raytrace.so"
+from garpos import LIB_DIRECTORY,LIB_RAYTRACE
 
 
 class ObservationData(pa.DataFrameModel):
@@ -36,24 +29,24 @@ class ObservationData(pa.DataFrameModel):
     4,S01,L01,M11,2.218846,0.0,0.0,0.0,False,30103.4862,-23.57701,1384.73242,14.65861,192.62,-0.14,-1.5,30106.766555,-24.0478,1377.09283,14.68464,193.04,0.59,-1.81
     """
 
-    set: Optional[Series[str]] = pa.Field(
-        description="Set name", alias="SET", default="S01"
+    SET: Series[str] = pa.Field(
+        description="Set name", default="S01"
     )
-    line: Optional[Series[str]] = pa.Field(
-        description="Line name", alias="LN", default="L01"
+    LN: Optional[Series[str]] = pa.Field(
+        description="Line name", default="L01"
     )
-    transponder_id: Series[str] = pa.Field(
-        description="Station name", alias="MT", coerce=True
-    )
-
-    travel_time: Series[float] = pa.Field(description="Travel time [sec]", alias="TT")
-
-    transmission_time: Series[float] = pa.Field(
-        description="Time of transmission of the acoustic signal in MJD [s]", alias="ST"
+    MT: Series[str] = pa.Field(
+        description="Station name", coerce=True
     )
 
-    reception_time: Series[float] = pa.Field(
-        description="Time of reception of the acoustic signal in MJD [s]", alias="RT"
+    TT: Series[float] = pa.Field(description="Travel time [sec]")
+
+    ST: Series[float] = pa.Field(
+        description="Time of transmission of the acoustic signal in MJD [s]"
+    )
+
+    RT: Series[float] = pa.Field(
+        description="Time of reception of the acoustic signal in MJD [s]"
     )
 
     ant_e0: Series[float] = pa.Field(
@@ -129,19 +122,20 @@ class ObservationData(pa.DataFrameModel):
     class Config:
         coerce = True
         add_missing_columns = True
+    
 
 class GarposObservationOutput(pa.DataFrameModel):
-    transponder_id: Series[str] = pa.Field(
-        description="Station name", alias="MT", coerce=True
+    MT: Series[str] = pa.Field(
+        description="Station name", coerce=True
     )
 
-    travel_time: Series[float] = pa.Field(description="Travel time [sec]", alias="TT")
+    TT: Series[float] = pa.Field(description="Travel time [sec]")
 
-    transmission_time: Series[float] = pa.Field(
-        description="Time of transmission of the acoustic signal in MJD [s]", alias="ST"
+    ST: Series[float] = pa.Field(
+        description="Time of transmission of the acoustic signal in MJD [s]"
     )
-    reception_time: Series[float] = pa.Field(
-        description="Time of reception of the acoustic signal in MJD [s]", alias="RT"
+    RT: Series[float] = pa.Field(
+        description="Time of reception of the acoustic signal in MJD [s]"
     )
 
     flag: Series[bool] = pa.Field(

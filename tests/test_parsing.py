@@ -211,8 +211,3 @@ class TestRinexParsing:
         assert os.path.exists(rinex_file.location), f"File {rinex_file.location} not found"
         os.remove(rinex_file.location)
 
-
-if __name__ == "__main__":
-    _ = TestRinexParsing()
-    _.test_sonardyne()
-    

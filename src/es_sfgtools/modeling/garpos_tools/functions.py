@@ -16,7 +16,7 @@ from scipy.stats import hmean as harmonic_mean
 
 from es_sfgtools.processing.schemas.observables import AcousticDataFrame, IMUDataFrame, PositionDataFrame, SoundVelocityDataFrame
 from es_sfgtools.processing.schemas.site_config import PositionENU,ATDOffset,Transponder,PositionLLH,SiteConfig
-from src.es_sfgtools.modeling.garpos_tools.schemas import GarposInput,GarposObservation,GarposSite,GarposFixed,InversionParams,InversionType,ObservationData
+from es_sfgtools.modeling.garpos_tools.schemas import GarposInput,GarposObservation,GarposSite,GarposFixed,InversionParams,InversionType,ObservationData,GarposResults
 
 
 from garpos import drive_garpos
@@ -415,8 +415,8 @@ def garposinput_to_datafile(garpos_input:GarposInput,path:Path):
     garpos_input.observation.shot_data.MT = garpos_input.observation.shot_data.MT.apply(
             lambda x: "M" + str(x) if x[0].isdigit() else x
         )
-    garpos_input.observation.shot_data.to_csv(garpos_input.shot_data_file, index=False)
-    garpos_input.observation.sound_speed_data.to_csv(garpos_input.sound_speed_file, index=False)
+    garpos_input.observation.shot_data.to_csv(garpos_input.shot_data_file)
+    garpos_input.observation.sound_speed_data.to_csv(garpos_input.sound_speed_file)
 
     # Write the data file
     center_enu: List[float] = garpos_input.site.center_enu.get_position()
@@ -533,15 +533,16 @@ def datafile_to_garposinput(path:Path) -> GarposInput:
     shot_data_file = data_section["datacsv"]
     sound_speed_file = observation_section["soundspeed"]
 
-    df = pd.read_csv(shot_data_file, skiprows=1, index_col=0)
-    shot_data_results = ObservationData.validate(df, lazy=True)
+    df = pd.read_csv(shot_data_file)
+    shot_data_results = ObservationData.validate(df)
     sound_speed_results = SoundVelocityDataFrame(pd.read_csv(sound_speed_file))
 
     # Populate GarposObservation
+   
     observation = GarposObservation(
         campaign=observation_section["campaign"],
-        date_utc=datetime.strptime(observation_section["date(utc)"], "%Y-%m-%d"),
-        date_mjd=observation_section["date(jday)"],
+        date_utc=(date_utc := datetime.strptime(observation_section["date(UTC)"], "%Y-%m-%d")),
+        date_mjd=julian.to_jd(date_utc, fmt="jd"),
         ref_frame=observation_section["ref.frame"],
         shot_data=shot_data_results,
         sound_speed_data=sound_speed_results,
@@ -625,7 +626,7 @@ def garposfixed_from_datafile(path:Path) -> GarposFixed:
         knotint1=int(inv_parameters["knotint1"]),
         knotint2=int(inv_parameters["knotint2"]),
         rejectcriteria=float(inv_parameters["RejectCriteria"]),
-        inversiontype=InversionType(int(inv_parameters["inversiontype"])),
+        inversiontype=InversionType(int(inv_parameters.get("inversiontype",0))),
         traveltimescale=float(inv_parameters["traveltimescale"]),
         maxloop=int(inv_parameters["maxloop"]),
         convcriteria=float(inv_parameters["ConvCriteria"]),
