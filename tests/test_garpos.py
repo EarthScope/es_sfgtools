@@ -2,6 +2,7 @@ from pathlib import Path
 import pandas as pd
 from es_sfgtools.modeling.garpos_tools import GarposInput,GarposResults,GarposFixed
 from es_sfgtools.modeling.garpos_tools.functions import main,datafile_to_garposinput,garposinput_to_datafile,garposfixed_to_datafile,garposfixed_from_datafile
+from es_sfgtools.modeling.garpos_tools.schemas import ObservationData 
 
 from garpos import LIB_DIRECTORY,LIB_RAYTRACE
 
@@ -29,8 +30,8 @@ class TestGarpos:
         garpos_fixed = garposfixed_from_datafile(TEST_GARPOS_FIXED)
         garpos_fixed.lib_directory = str(LIB_DIRECTORY)
         garpos_fixed.lib_raytrace = str(LIB_RAYTRACE)
-        # garpos_input.observation.shot_data = pd.read_csv(TEST_GARPOS_SHOTDATA,skiprows=1)
-        # garpos_input.observation.sound_speed_data = pd.read_csv(TEST_GARPOS_SVP)
+        garpos_input.observation.shot_data = ObservationData.validate(pd.read_csv(TEST_GARPOS_SHOTDATA))
+        garpos_input.observation.sound_speed_data = pd.read_csv(TEST_GARPOS_SVP)
         garpos_results = main(input=garpos_input, fixed=garpos_fixed)
 
         assert isinstance(garpos_results, GarposResults), "GarposResults object not created"

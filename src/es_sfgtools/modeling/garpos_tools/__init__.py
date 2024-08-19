@@ -2,4 +2,4 @@
 from .hyper_params import InversionParams,InversionType
 from .model_io import GarposInput,GarposFixed,GarposResults
 from .functions import *
-from .schemas import GarposObservation,GarposSite,ObservationData,GarposResults
+from .schemas import GarposObservation,GarposSite,ObservationData,GarposResults,GarposObservationOutput

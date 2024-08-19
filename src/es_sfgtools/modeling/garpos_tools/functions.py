@@ -16,7 +16,17 @@ from scipy.stats import hmean as harmonic_mean
 
 from es_sfgtools.processing.schemas.observables import AcousticDataFrame, IMUDataFrame, PositionDataFrame, SoundVelocityDataFrame
 from es_sfgtools.processing.schemas.site_config import PositionENU,ATDOffset,Transponder,PositionLLH,SiteConfig
-from es_sfgtools.modeling.garpos_tools.schemas import GarposInput,GarposObservation,GarposSite,GarposFixed,InversionParams,InversionType,ObservationData,GarposResults
+from es_sfgtools.modeling.garpos_tools.schemas import (
+    GarposInput,
+    GarposObservation,
+    GarposSite,
+    GarposFixed,
+    InversionParams,
+    InversionType,
+    ObservationData,
+    GarposObservationOutput,
+    GarposResults
+)
 
 
 from garpos import drive_garpos
@@ -533,8 +543,10 @@ def datafile_to_garposinput(path:Path) -> GarposInput:
     shot_data_file = data_section["datacsv"]
     sound_speed_file = observation_section["soundspeed"]
 
-    df = pd.read_csv(shot_data_file)
-    shot_data_results = ObservationData.validate(df)
+    try:
+        shot_data_results = ObservationData.validate(pd.read_csv(shot_data_file))
+    except:
+        shot_data_results = ObservationData(pd.read_csv(shot_data_file,skiprows=1))
     sound_speed_results = SoundVelocityDataFrame(pd.read_csv(sound_speed_file))
 
     # Populate GarposObservation
@@ -891,8 +903,6 @@ def main(
     rf = drive_garpos(str(input_path), str(fixed_path), str(results_dir), "test", 13)
 
     results = datafile_to_garposinput(rf)
-
-    print(rf)
     proc_results = process_garpos_results(results)
 
     return proc_results

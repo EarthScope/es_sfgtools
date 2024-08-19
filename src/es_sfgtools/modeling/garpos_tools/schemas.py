@@ -32,7 +32,7 @@ class ObservationData(pa.DataFrameModel):
     SET: Series[str] = pa.Field(
         description="Set name", default="S01"
     )
-    LN: Optional[Series[str]] = pa.Field(
+    LN: Series[str] = pa.Field(
         description="Line name", default="L01"
     )
     MT: Series[str] = pa.Field(
