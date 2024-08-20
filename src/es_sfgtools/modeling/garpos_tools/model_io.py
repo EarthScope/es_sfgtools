@@ -14,19 +14,15 @@ from configparser import ConfigParser
 import matplotlib.pyplot as plt
 import logging
 
+from  garpos import LIB_DIRECTORY,LIB_RAYTRACE
 # Local Imports
 
-from ...es_sfgtools.schemas.generics import Point, PositionENU, PositionLLH,ATDOffset,Transponder
-from ...es_sfgtools.schemas import AcousticDataFrame, SoundVelocityProfile
-from .observation import GarposObservation, GarposSite,ObservationData 
-from .hyper_params import InversionParams, InversionType
+from ...processing.schemas import ATDOffset
 
+from .hyper_params import InversionParams, InversionType
+from .schemas import GarposObservation,GarposSite,ObservationData,GarposResults
 logger = logging.getLogger(__name__)
 
-
-DIR = os.environ.get("GARPOS_DIR")
-LIB_DIRECTORY = os.path.join(DIR, "bin/garpos_v101/f90lib/")
-LIB_RAYTRACE = "lib_raytrace.so"
 
 
 class GarposInput(BaseModel):
