@@ -5,7 +5,7 @@ from .gnss_functions import (
     rinex_to_kin,
     kin_to_gnssdf,
     qcpin_to_novatelpin,
-    novatelpin_to_rinex
+    #novatelpin_to_rinex
 )
 from .imu_functions import novatel_to_imudf,dfpo00_to_imudf,qcpin_to_imudf
 from .seabird_functions import seabird_to_soundvelocity
