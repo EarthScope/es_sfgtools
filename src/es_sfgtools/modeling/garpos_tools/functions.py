@@ -13,6 +13,9 @@ import pymap3d as pm
 import math
 import julian
 from scipy.stats import hmean as harmonic_mean
+from sklearn.gaussian_process import GaussianProcessRegressor
+from sklearn.gaussian_process.kernels import RBF
+from sklearn.ensemble import RandomForestRegressor
 
 from es_sfgtools.processing.schemas.observables import AcousticDataFrame, IMUDataFrame, PositionDataFrame, SoundVelocityDataFrame
 from es_sfgtools.processing.schemas.site_config import PositionENU,ATDOffset,Transponder,PositionLLH,SiteConfig
@@ -206,207 +209,91 @@ class CoordTransformer:
 
         return e, n, u
 
-def merge_to_shotdata(
-    acoustic: DataFrame[AcousticDataFrame],
-    imu: DataFrame[IMUDataFrame],
-    gnss: DataFrame[PositionDataFrame],
-) -> pd.DataFrame:
+def merge_to_shotdata(acoustic: DataFrame[AcousticDataFrame], imu: DataFrame[IMUDataFrame], gnss: DataFrame[PositionDataFrame]) -> DataFrame[ObservationData]:
+    """
+    Merge acoustic, imu, and gnss data to create observation data.
+    Args:
+        acoustic (DataFrame[AcousticDataFrame]): Acoustic data frame.
+        imu (DataFrame[IMUDataFrame]): IMU data frame.
+        gnss (DataFrame[PositionDataFrame]): GNSS data frame.
+    Returns:
+        DataFrame[ObservationData]: Merged observation data frame.
+    """
 
     acoustic = acoustic.reset_index()
     acoustic.columns = acoustic.columns.str.lower()
     imu.columns = imu.columns.str.lower()
     gnss.columns = gnss.columns.str.lower()
-
-    # create a column for returntime in acoustic thats in datetime format
-    # modified julian date -> datetime
-    acoustic["time"] = acoustic["triggertime"]
-
+    acoustic["triggertime"] = pd.to_datetime(acoustic["triggertime"])
     gnss["time"] = pd.to_datetime(gnss["time"])
     imu["time"] = pd.to_datetime(imu["time"])
-    acoustic["time"] = pd.to_datetime(acoustic["time"])
 
-    acoustic_day_start = acoustic["time"].apply(lambda x: x.replace(hour=0, minute=0, second=0,microsecond=0))
-    acoustic["returntime_dt"] = acoustic["returntime"].apply(
-        lambda x: pd.Timedelta(seconds=x)
-    ) + acoustic_day_start
-    acoustic["pingtime_dt"] = acoustic["pingtime"].apply(
-        lambda x: pd.Timedelta(seconds=x)
-    ) + acoustic_day_start
 
-    """
-            IMU:
-            ,Time,Latitude,Longitude,Height,NorthVelocity,EastVelocity,UpVelocity,Roll,Pitch,Azimuth
-            0,2018-06-05 00:00:00.050,54.33236627535,-158.46946390983,12.6195,-0.0078,0.2226,-0.2324,-0.537771604,7.053161625,60.43386426
-            1,2018-06-05 00:00:00.100,54.33236624129,-158.46946374432,12.6089,-0.0972,0.1926,-0.1779,-0.174584708,7.267122425,60.364148634
-            2,2018-06-05 00:00:00.150,54.33236617274,-158.46946360741,12.6013,-0.188,0.1696,-0.1188,0.411828413,7.418472712,60.36250395
-            3,2018-06-05 00:00:00.200,54.33236606896,-158.46946349718,12.5963,-0.2655,0.1306,-0.0671,1.123918267,7.526855965,60.388641956
-            4,2018-06-05 00:00:00.250,54.33236593335,-158.46946342109,12.5938,-0.3355,0.0833,-0.0197,1.869285234,7.608214088,60.424503402
-            5,2018-06-05 00:00:00.300,54.33236577218,-158.46946338987,12.5935,-0.391,0.0248,0.0265,2.563764239,7.672790742,60.466341231
-            6,2018-06-05 00:00:00.350,54.33236558986,-158.46946340787,12.5957,-0.4335,-0.0411,0.0764,3.122817073,7.71598298,60.49379062
-            7,2018-06-05 00:00:00.400,54.33236539136,-158.46946347742,12.6007,-0.4673,-0.1119,0.1269,3.490824818,7.730072669,60.49884816
-            8,2018-06-05 00:00:00.450,54.33236518435,-158.46946360571,12.6088,-0.4808,-0.1876,0.1932,3.576496104,7.689833437,60.467685238
-            9,2018-06-05 00:00:00.500,54.3323649729,-158.46946378839,12.6208,-0.4871,-0.2585,0.2708,3.396767019,7.563953759,60.409343007
-            10,2018-06-05 00:00:00.550,54.33236476027,-158.46946402185,12.6369,-0.4891,-0.3229,0.3485,2.973482584,7.32876294,60.332332277
+    # Step 1. Create predictive functions for the GNSS and IMU data
+    # GNSS
+    gnss_time = gnss["time"].apply(lambda x: x.timestamp())
+    gnss_y = gnss[['x', 'y', 'z']].to_numpy()
+    position_predictor = RandomForestRegressor(n_estimators=100,random_state=100)
+    position_predictor.fit(gnss_time.values.reshape(-1,1), gnss_y)
 
-            Acoustic:
-            TriggerTime,TransponderID,PingTime,ReturnTime,TwoWayTravelTime,DecibalVoltage,CorrelationScore
-            2018-06-05 00:00:14,5209,58274.000174768735,58274.00022122925,4.014189,-12,55
-            2018-06-05 00:00:14,5210,58274.000174768735,58274.00022204121,4.084342,-12,50
-            2018-06-05 00:00:14,5211,58274.000174768735,58274.000174768735,0.0,0,25
-            2018-06-05 00:00:14,5212,58274.000174768735,58274.000174768735,0.0,0,25
-            2018-06-05 00:00:29,5209,58274.000348379835,58274.00039485291,4.015274,-9,60
-            2018-06-05 00:00:29,5210,58274.000348379835,58274.00039566915,4.085797,-9,40
-            2018-06-05 00:00:29,5211,58274.000348379835,58274.00039847627,4.328332,-12,65
-            2018-06-05 00:00:29,5212,58274.000348379835,58274.000348379835,0.0,0,25
-            2018-06-05 00:00:44,5209,58274.000521990936,58274.000568462034,4.015103,-9,55
-
-            GNSS:
-            ,x,y,z,latitude,longitude,height,number_of_satellites,pdop,time
-            0,-3467151.069,-1367881.2187,5158410.5605,54.33236416081,201.53052300364,10.6455,8,1.69,2018-06-05 00:00:00.199999
-            1,-3467151.1217,-1367881.249,5158410.5177,54.33236349803,201.53052313896,10.6457,8,1.69,2018-06-05 00:00:00.399998
-            2,-3467151.2402,-1367881.2424,5158410.5137,54.33236269053,201.53052237697,10.7054,8,1.69,2018-06-05 00:00:00.599997
-            3,-3467151.4095,-1367881.211,5158410.5603,54.33236186872,201.53052097264,10.8283,8,1.69,2018-06-05 00:00:00.799996
-            4,-3467151.6101,-1367881.1993,5158410.6043,54.33236076895,201.53051967334,10.9704,8,1.69,2018-06-05 00:00:00.999995
-            5,-3467151.8074,-1367881.1811,5158410.6112,54.33235951384,201.53051830044,11.0791,8,1.69,2018-06-05 00:00:01.199993
-
-            --->
-            OUTPUT:
-            ,SET,LN,MT,TT,ResiTT,TakeOff,gamma,flag,ST,ant_e0,ant_n0,ant_u0,head0,pitch0,roll0,RT,ant_e1,ant_n1,ant_u1,head1,pitch1,roll1
-            0,S01,L01,M11,2.289306,0.0,0.0,0.0,False,30072.395125,-27.85291,1473.14423,14.73469,176.47,0.59,-1.39,30075.74594,-26.70998,1462.01803,14.32703,177.07,-0.5,-1.1
-            1,S01,L01,M13,3.12669,0.0,0.0,0.0,False,30092.395725,-22.08296,1412.88729,14.59827,188.24,0.41,-2.13,30096.58392,-22.3514,1401.77938,14.65401,190.61,-0.1,-2.14
-            2,S01,L01,M14,2.702555,0.0,0.0,0.0,False,30093.48579,-22.25377,1409.87685,14.67772,188.93,0.15,-1.7,30097.24985,-22.38458,1399.96509,14.55534,190.82,-0.39,-2.21
-            3,S01,L01,M14,2.68107,0.0,0.0,0.0,False,30102.396135,-23.25514,1387.38992,14.75355,192.39,0.1,-1.79,30106.13871,-23.96613,1378.4627,14.58135,192.92,0.21,-1.7
-
-    """
-
-    # Merge GNSS and IMU data
-    merged_gnss_imu = pd.merge_asof(
-        left=gnss, right=imu.loc[:, ["time", "roll", "pitch", "azimuth"]], on="time"
-    ).loc[
-        :,
-        [
-            "time",
-            "x",
-            "y",
-            "z",
-            "latitude",
-            "longitude",
-            "height",
-            "roll",
-            "pitch",
-            "azimuth",
-        ],
-    ]
-
-    shot_trigger_merged = pd.merge_asof(
-        left=acoustic.sort_values(by="pingtime_dt").drop(columns=["time"]),
-        right=merged_gnss_imu,
-        left_on="pingtime_dt",
-        right_on="time",
+    # IMU
+    imu_time = imu["time"].apply(lambda x: x.timestamp())
+    imu_y = imu[['roll', 'pitch', 'azimuth']].to_numpy()
+    attitude_predictor = RandomForestRegressor(n_estimators=100, random_state=100)
+    attitude_predictor.fit(
+        imu_time.values.reshape(-1, 1), imu_y
     )
-    shot_return_merged = pd.merge_asof(
-        left=acoustic.sort_values(by="returntime_dt").drop(columns=["time"]),
-        right=merged_gnss_imu,
-        left_on="returntime_dt",
-        right_on="time",
+
+    # Convert pingtime and return time to datetime (units are seconds of day)
+    acoustic_day_start = acoustic["time"].apply(lambda x: x.replace(hour=0, minute=0, second=0,microsecond=0))
+    acoustic_return_dt = (acoustic["returntime"].apply(
+        lambda x: pd.Timedelta(seconds=x)
+    ) + acoustic_day_start)
+    acoustic_ping_dt = acoustic["pingtime"].apply(
+        lambda x: pd.Timedelta(seconds=x)
+    ) + acoustic_day_start
+
+    # Step 2. Get the start postition and attitude of the glider at the time of the ping
+    ping_xyz:np.ndarray = position_predictor.predict(acoustic_ping_dt.apply(lambda x: x.timestamp()).values.reshape(-1,1))
+    ping_attitude:np.ndarray = attitude_predictor.predict(acoustic_ping_dt.apply(lambda x: x.timestamp()).values.reshape(-1,1))
+
+    ping_xyz_series = pd.DataFrame({"Time":acoustic_ping_dt,"ant_e0":ping_xyz[:,0],"ant_n0":ping_xyz[:,1],"ant_u0":ping_xyz[:,2]})
+    ping_attitude_series = pd.DataFrame({"Time":acoustic_ping_dt,"head0":ping_attitude[:,0],"pitch0":ping_attitude[:,1],"roll0":ping_attitude[:,2]})
+    ping_processed = pd.merge_asof(ping_xyz_series,ping_attitude_series,on="Time")
+
+    # Step 3. Get the end position and attitude of the glider at the time of the return
+    return_xyz:np.ndarray = position_predictor.predict(acoustic_return_dt.apply(lambda x: x.timestamp()).values.reshape(-1,1))
+    return_attitude:np.ndarray = attitude_predictor.predict(acoustic_return_dt.apply(lambda x: x.timestamp()).values.reshape(-1,1))
+
+    return_xyz_series = pd.DataFrame({"Time":acoustic_return_dt,"ant_e1":return_xyz[:,0],"ant_n1":return_xyz[:,1],"ant_u1":return_xyz[:,2]}).sort_values("Time")
+    return_attitude_series = pd.DataFrame({"Time":acoustic_return_dt,"head1":return_attitude[:,0],"pitch1":return_attitude[:,1],"roll1":return_attitude[:,2]}).sort_values("Time")
+    return_processed = pd.merge_asof(return_xyz_series,return_attitude_series,on="Time")
+
+    # Step 4. Merge the ping and return data
+    merged_ping_return = pd.merge_asof(
+        left=ping_processed,
+        right=return_processed,
+        on="Time",
+    ).rename(columns={"Time":"triggertime"})
+
+    # Step 5. Merge the acoustic data with the merged ping and return data
+    output_df = pd.merge_asof(
+        left=acoustic,
+        right=merged_ping_return,
+        on="triggertime",
     )
 
     # rename shot_trigger columns
-    shot_trigger_merged.rename(
+    output_df.rename(
         columns={
             "transponderid": "MT",
             "twowaytraveltime": "TT",
-            "x": "ant_e0",
-            "y": "ant_n0",
-            "z": "ant_u0",
-            "azimuth": "head0",
-            "pitch": "pitch0",
-            "roll": "roll0",
             "pingtime": "ST",
             "returntime": "RT",
         },
         inplace=True,
     )
-    shot_return_merged.rename(
-        columns={
-            "transponderid": "MT",
-            "twowaytraveltime": "TT",
-            "x": "ant_e1",
-            "y": "ant_n1",
-            "z": "ant_u1",
-            "azimuth": "head1",
-            "pitch": "pitch1",
-            "roll": "roll1",
-            "returntime": "RT",
-            "pingtime": "ST",
-        },
-        inplace=True,
-    )
-
-    # shot_return_merged["time"] = shot_return_merged[
-    #     "returntime_dt"
-    # ] - shot_return_merged.RT.apply(lambda x: pd.Timedelta(seconds=x))
-    # shot_trigger_merged["time"] = shot_trigger_merged["pingtime_dt"]
-
-    output_df = pd.merge(
-        left=shot_trigger_merged.loc[
-            :,
-            [
-                "latitude",
-                "longitude",
-                "height",
-                "ant_e0",
-                "ant_n0",
-                "ant_u0",
-                "head0",
-                "pitch0",
-                "roll0",
-                "triggertime",
-                "MT",
-                "TT",
-            ],
-        ],
-        right=shot_return_merged,
-        how="left",
-        on=["triggertime", "MT", "TT"],
-    ).dropna()
-
-    # remove _x from lattitude and longitude
-    output_df = output_df.rename(
-        columns={
-            "latitude_x": "latitude",
-            "longitude_x": "longitude",
-            "height_x": "height",
-        }
-    )
-
-    output_df = output_df.loc[
-        :,
-        [   "triggertime",
-            "MT",
-            "ST",
-            "RT",
-            "TT",
-            "ant_e0",
-            "ant_n0",
-            "ant_u0",
-            "head0",
-            "pitch0",
-            "roll0",
-            "ant_e1",
-            "ant_n1",
-            "ant_u1",
-            "head1",
-            "pitch1",
-            "roll1",
-            "latitude",
-            "longitude",
-            "height",
-        ],
-    ]
-    output_df = output_df.reset_index(drop=True)
-    output_df["SET"] = "S01"
-    output_df["LN"] = "L01"
+    
     return output_df
 
 
@@ -880,25 +767,19 @@ def process_garpos_results(results:GarposInput) -> GarposResults:
     return results_out
 
 def main(
-    input: GarposInput, fixed: GarposFixed
-) -> Tuple:
-    # Convert the observation and site data to the desired format
-    #garpos_path = os.environ["GARPOS_DIR"]
+    input: GarposInput, fixed: GarposFixed,working_dir:Path=Path("/tmp/garpos/")
+) -> GarposObservationOutput:
+   
+    working_dir.mkdir(exist_ok=True)
 
-    tmp_dir = Path("/tmp/garpos/")
-    tmp_dir.mkdir(exist_ok=True)
-
-
-    results_dir = tmp_dir / "results"
+    results_dir = working_dir / "results"
     results_dir.mkdir(exist_ok=True)
 
-    input_path = tmp_dir/"observation.ini" 
-    fixed_path = tmp_dir/"settings.ini"
+    input_path = working_dir / "observation.ini"
+    fixed_path = working_dir / "settings.ini"
 
-    
     garposinput_to_datafile(input, input_path)
     garposfixed_to_datafile(fixed, fixed_path)
-
 
     rf = drive_garpos(str(input_path), str(fixed_path), str(results_dir), "test", 13)
 

@@ -16,4 +16,5 @@ ipywidgets
 matplotlib
 seaborn
 folium
+scikit-learn
 garpos @ git+https://github.com/EarthScope/garpos.git
