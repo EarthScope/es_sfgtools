@@ -45,7 +45,7 @@ class PositionDataFrame(pa.DataFrameModel):
     Data frame Schema for GNSS Position Data
     """
 
-    time: Series[datetime] = pa.Field(
+    time: Series[pd.Timestamp] = pa.Field(
         ge=GNSS_START_TIME.replace(tzinfo=None),
         coerce=True,
 
@@ -90,3 +90,7 @@ class PositionDataFrame(pa.DataFrameModel):
         coerce=True,  # todo unsure of the full range, below 4 is great, 4-8 acceptable, above 8 is poor (should we throw these out?)
         description="Position Dilution of Precision",
     )
+
+    @pa.parser("time")
+    def parse_time(cls, series: pd.Series) -> pd.Series:
+        return pd.to_datetime(series,unit="ms")

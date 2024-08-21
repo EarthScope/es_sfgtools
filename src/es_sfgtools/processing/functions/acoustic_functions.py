@@ -7,7 +7,7 @@ Email: franklyn.dunbar@earthscope.org
 import pandas as pd
 from pydantic import BaseModel, Field,ValidationError
 import pandera as pa
-from pandera.typing import Series
+from pandera.typing import Series,DataFrame
 from typing import List, Dict,Union,Optional
 from enum import Enum
 from datetime import datetime, timezone, timedelta
@@ -19,7 +19,7 @@ import logging
 import json
 import pdb
 from ..schemas.files import SonardyneFile,DFPO00RawFile,QCPinFile
-
+from ..schemas.observables import AcousticDataFrame
 logger = logging.getLogger(os.path.basename(__file__))
 
 GNSS_START_TIME = datetime(1980, 1, 6, tzinfo=timezone.utc)  # GNSS start time
@@ -280,8 +280,8 @@ def get_transponder_offsets(line: str) -> Dict[str, float]:
     offset_dict[transponder_id] = offset
     return offset_dict
 
-
-def sonardyne_to_acousticdf(source: SonardyneFile) -> pd.DataFrame:
+@pa.check_types
+def sonardyne_to_acousticdf(source: SonardyneFile) -> DataFrame[AcousticDataFrame]:
     """
     Read data from a file and return a validated dataframe.
 
@@ -416,7 +416,8 @@ def sonardyne_to_acousticdf(source: SonardyneFile) -> pd.DataFrame:
     # acoustic_df.ReturnTime = acoustic_df.ReturnTime.dt.tz_localize("UTC")
     return acoustic_df
 
-def dfpo00_to_acousticdf(source: DFPO00RawFile) -> pd.DataFrame:
+@pa.check_types
+def dfpo00_to_acousticdf(source: DFPO00RawFile) -> DataFrame[AcousticDataFrame]:
     processed = []
     with open(source.location) as f:
         lines = f.readlines()
@@ -460,7 +461,8 @@ def dfpo00_to_acousticdf(source: DFPO00RawFile) -> pd.DataFrame:
     df = pd.DataFrame(processed)
     return df
 
-def qcpin_to_acousticdf(source:QCPinFile) -> pd.DataFrame:
+@pa.check_types
+def qcpin_to_acousticdf(source:QCPinFile) -> DataFrame[AcousticDataFrame]:
     with open(source.location) as f:
         data = json.load(f)
 

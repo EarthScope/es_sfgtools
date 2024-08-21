@@ -62,11 +62,19 @@ class AcousticDataFrame(pa.DataFrameModel):
         ge=0, le=100, coerce=True, description="Correlation score"
     )
     SignalToNoise: Series[float] = pa.Field(
-        ge=0.0, le=100.0, coerce=True, description="Signal to noise ratio"
+        ge=0.0, le=100.0, coerce=True,default=100, nullable=True,description="Signal to noise ratio"
     )
 
     # TODO include snr - signal to noise ratio
 
     class Config:
-        drop_invalid_rows = True
         coerce = True
+        add_missing_columns = True
+
+    @pa.parser("TriggerTime")
+    def parse_trigger_time(cls, series: pd.Series) -> pd.Series:
+        return pd.to_datetime(series,unit='ms')
+    
+    @pa.parser("TwoWayTravelTime")
+    def parse_two_way_travel_time(cls, series: pd.Series) -> pd.Series:
+        return series.apply(lambda x: max(x, 0))

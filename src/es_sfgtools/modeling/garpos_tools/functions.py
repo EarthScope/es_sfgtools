@@ -1,3 +1,4 @@
+import pandera as pa
 from pandera.typing import DataFrame
 from pathlib import Path
 from typing import List,Tuple
@@ -13,8 +14,6 @@ import pymap3d as pm
 import math
 import julian
 from scipy.stats import hmean as harmonic_mean
-from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import RBF
 from sklearn.ensemble import RandomForestRegressor
 
 from es_sfgtools.processing.schemas.observables import AcousticDataFrame, IMUDataFrame, PositionDataFrame, SoundVelocityDataFrame
@@ -209,6 +208,7 @@ class CoordTransformer:
 
         return e, n, u
 
+@pa.check_types
 def merge_to_shotdata(acoustic: DataFrame[AcousticDataFrame], imu: DataFrame[IMUDataFrame], gnss: DataFrame[PositionDataFrame]) -> DataFrame[ObservationData]:
     """
     Merge acoustic, imu, and gnss data to create observation data.

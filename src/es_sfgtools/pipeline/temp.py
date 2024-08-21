@@ -38,6 +38,8 @@ class FILE_TYPE(Enum):
     NOVATEL770 = "novatel770"
     DFPO00 = "dfpo00"
     OFFLOAD = "offload"
+    QCPIN = "pin"
+    NOVATELPIN = "novatelpin"
 
     @classmethod
     def to_schema(cls):
@@ -62,6 +64,8 @@ class DATA_TYPE(Enum):
 DATA_TYPES = [x.value for x in DATA_TYPE]
 
 TARGET_MAP = {
+    FILE_TYPE.QCPIN:{DATA_TYPE.IMU:proc_funcs.qcpin_to_imudf,DATA_TYPE.ACOUSTIC:proc_funcs.qcpin_to_acousticdf,FILE_TYPE.NOVATELPIN:proc_funcs.qcpin_to_novatelpin},
+    FILE_TYPE.NOVATELPIN:{FILE_TYPE.RINEX:proc_funcs.novatelpin_to_rinex},
     FILE_TYPE.NOVATEL:{FILE_TYPE.RINEX:proc_funcs.novatel_to_rinex, DATA_TYPE.IMU:proc_funcs.novatel_to_imudf},
     FILE_TYPE.RINEX:{FILE_TYPE.KIN:proc_funcs.rinex_to_kin},
     FILE_TYPE.KIN:{DATA_TYPE.GNSS:proc_funcs.kin_to_gnssdf},
