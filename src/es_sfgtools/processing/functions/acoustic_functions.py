@@ -462,7 +462,7 @@ def dfpo00_to_acousticdf(source: DFPO00RawFile) -> DataFrame[AcousticDataFrame]:
     return df
 
 @pa.check_types
-def qcpin_to_acousticdf(source:QCPinFile) -> DataFrame[AcousticDataFrame]:
+def qcpin_to_acousticdf(source:QCPinFile) -> Union[None,DataFrame[AcousticDataFrame]]:
     with open(source.location) as f:
         data = json.load(f)
 
@@ -484,6 +484,8 @@ def qcpin_to_acousticdf(source:QCPinFile) -> DataFrame[AcousticDataFrame]:
             trigger_time: float = time_data.get("common", 0)
             trigger_time_dt = datetime.fromtimestamp(trigger_time)
             ping_time = trigger_time_dt + timedelta(seconds=TRIGGER_DELAY_SV3)
+            # convert pingtime to seconds of day
+            ping_time = (ping_time - datetime(ping_time.year,ping_time.month,ping_time.day)).total_seconds()
 
             shot_data.append(
                 {
@@ -497,5 +499,7 @@ def qcpin_to_acousticdf(source:QCPinFile) -> DataFrame[AcousticDataFrame]:
                     "SignalToNoise": snr
                 }
             )
+    if not shot_data:
+        return 
     df = pd.DataFrame(shot_data)
     return df

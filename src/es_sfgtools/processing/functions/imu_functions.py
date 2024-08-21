@@ -147,7 +147,7 @@ def dfpo00_to_imudf(source:DFPO00RawFile) -> DataFrame[IMUDataFrame]:
     return imu_df
 
 @pa.check_types
-def qcpin_to_imudf(source:QCPinFile) -> DataFrame[IMUDataFrame]:
+def qcpin_to_imudf(source:QCPinFile) -> Union[None,DataFrame[IMUDataFrame]]:
     with open(source.location) as file:
         pin_data = json.load(file)
 

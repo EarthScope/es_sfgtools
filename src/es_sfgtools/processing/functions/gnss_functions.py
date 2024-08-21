@@ -20,7 +20,7 @@ from pathlib import Path
 from ..schemas.files.file_schemas import NovatelFile,RinexFile,KinFile,Novatel770File,DFPO00RawFile,QCPinFile,NovatelPinFile
 from ..schemas.observables import PositionDataFrame
 
-#logger = logging.getLogger(os.path.basename(__file__))
+# logger = logging.getLogger(os.path.basename(__file__))
 logger = logging.getLogger(__name__)
 
 NOVATEL2RINEX_BINARIES = Path(__file__).resolve().parent / "binaries/"
@@ -255,7 +255,7 @@ def rinex_to_kin(source: RinexFile, site: str = "IVB1") -> KinFile:
         return kin_file
     except:
         return None
-                
+
 
 @pa.check_types        
 def kin_to_gnssdf(source:KinFile) -> DataFrame[PositionDataFrame]:
@@ -312,13 +312,16 @@ def qcpin_to_novatelpin(source:QCPinFile,outpath:Path) -> NovatelPinFile:
             data.get("observations").get("NOV_RANGE")
         )
 
-    
-    with open(outpath,"w") as file:
+    file_path = outpath/(source.uuid+"_novpin.txt")
+    with tempfile.NamedTemporaryFile(mode="w+", delete=True) as temp_file:
         for header in range_headers:
-            file.write(header)
-            file.write("\n")
+            temp_file.write(header)
+            temp_file.write("\n")
+        temp_file.seek(0)
+        novatel_pin = NovatelPinFile(location=temp_file.name)
+        novatel_pin.read(path=temp_file.name)
+
     
-    novatel_pin = NovatelPinFile(location=outpath)
     return novatel_pin
 
 def novatelpin_to_rinex(source:NovatelPinFile, site: str, year: str = None,outdir:str=None,show_details: bool=False,**kwargs) -> RinexFile:
