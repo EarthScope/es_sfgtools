@@ -213,7 +213,10 @@ def _novatel_to_rinex(
 
 def novatel_to_rinex(source:NovatelFile, site: str, year: str = None,outdir:str=None,show_details: bool=False,**kwargs) -> RinexFile:
     assert isinstance(source, NovatelFile), "Invalid source file type"
-    return _novatel_to_rinex(source,site,year,outdir=outdir,show_details=show_details,**kwargs)
+    rinex = _novatel_to_rinex(source,site,year,show_details=show_details,**kwargs)
+    if outdir:
+        rinex.write(outdir)
+    return rinex
 
 def nov770_to_rinex(source:Nov770File, site: str, year: str = None,show_details: bool=False,**kwargs) -> RinexFile:
     assert isinstance(source, Nov770File), "Invalid source file type"

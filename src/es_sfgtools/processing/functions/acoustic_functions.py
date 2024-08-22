@@ -111,19 +111,19 @@ class TransponderData(BaseModel):
         CorrelationScore (int): Correlation score.
     """
 
-    TransponderID: str = Field(alias='cn') # Transponder ID
+    TransponderID: str # Transponder ID
     TwoWayTravelTime: float = Field(ge=0.0, le=600)  # Two-way Travel time [seconds]
     ReturnTime: float = Field(
-        ge=0, le=3600*24,alias="Range"
+        ge=0, le=3600*24
     )  # Return time since the start of day (modified Julian day) [days]
     DecibalVoltage: int = Field(
         ge=-100, le=100
     )  # Signal relative to full scale voltage [dB]
     CorrelationScore: int = Field(ge=0, le=100)  # Correlation score
 
-    SignalToNoise: float = Field(ge=0, le=100)  # Signal to noise ratio
+    SignalToNoise: Optional[float] = Field(ge=0, le=100,default=0)  # Signal to noise ratio
 
-    TurnAroundTime: Optional[float] = Field(ge=0, le=100)  # Turn around time [ms]
+    TurnAroundTime: Optional[float] = Field(ge=0, le=100,default=0)  # Turn around time [ms]
     
     def correct_travel_time(self, offset: float):
         """

@@ -1,0 +1,22 @@
+2018-06-01 00:00:00
+3
+     0    16       54.316094952    -158.461771055    -2096.780      0.200000d0       1479.900
+     1    17       54.335093588    -158.497431581    -2078.949      0.320000d0       1479.568
+     2    18       54.344116381    -158.447751737    -2129.844      0.440000d0       1479.900
+6378137.d0  298.257222101d0   ! ellipsoid parameters  WGS84
+0.1d0              ! Maximum 3-D GPS positional sigma (m)
+0                   ! Input GPS positional uncertainties given as: if std. dev. = 0, if var. = 1
+n                   ! Constrain buoy-buoy baselines
+y                   ! Hold PXP geometry and orientation fixed
+n                   ! Hold PXP baseline lenghts fixed
+n                   ! Hold ellipsoid heights constant
+n                   ! Constrain PXP to move together vertically
+n                   ! Estimate body frame offsets
+n                   ! Compute residuals only
+0                   ! Correction to tabluated acoustic times (sec.)
++10.300d0           ! Geoid undulation at sea surface point
+x                   ! =0 scale factor, =1 1-D ray trace
+1.d-10              ! xacc tolerance for ray trace bisection
+54.3324d0 -158.4692d0   ! Latitude/Longitude array center (decimal degrees)
+1.d-10              ! Variance (s**2) of PXP two-way travel time measurement
+0.1d0               ! Transponder Wait Time (seconds); ship = 0.0s, WG = 0.1s

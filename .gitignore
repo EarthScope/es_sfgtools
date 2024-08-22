@@ -32,3 +32,6 @@ notebooks/.ipynb_checkpoints
 src/garpos_tools/garpos/
 src/garpos_tools/build/
 *.egg-info
+build/*
+.vscode/
+

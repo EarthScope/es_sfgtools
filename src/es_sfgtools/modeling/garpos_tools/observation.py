@@ -26,7 +26,7 @@ import julian
 import pymap3d as pm
 
 # Local Imports
-from ..schemas.generics import PositionENU, PositionLLH, SoundVelocityProfile,Transponder,ATDOffset
+from .schemas import PositionENU, PositionLLH, SoundVelocityProfile,Transponder,ATDOffset
 from ..schemas import AcousticDataFrame, IMUDataFrame, PositionDataFrame
 from ..schemas.file_schemas import MasterFile,SeaBirdFile,NovatelFile,RinexFile,SonardyneFile,LeverArmFile,KinFile
 from ..utils import CoordTransformer
