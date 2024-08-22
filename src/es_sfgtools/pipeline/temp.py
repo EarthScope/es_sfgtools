@@ -346,7 +346,7 @@ class DataHandler:
                                network:str,
                                station:str,
                                survey:str,
-                               file_type: str,
+                               file_type: str="all",
                                override:bool=False,
                                from_s3:bool=False,
                                show_details:bool=True):
@@ -378,8 +378,9 @@ class DataHandler:
             (self.catalog_data.network == network)
             & (self.catalog_data.station == station)
             & (self.catalog_data.survey == survey)
-            & (self.catalog_data.type == file_type)
         ]
+        if file_type != "all":
+            entries = entries[entries.type == file_type]
         missing_files = entries.shape[0]-local_files_of_type
         logger.info(f"Downloading {missing_files} missing files of type {file_type}")
         if entries.shape[0] < 1:
