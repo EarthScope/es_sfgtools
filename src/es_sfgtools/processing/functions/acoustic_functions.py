@@ -18,7 +18,7 @@ import julian
 import logging
 import json
 import pdb
-from ..schemas.files import SonardyneFile,DFPO00RawFile,QCPinFile
+from ..schemas.files import SonardyneFile,DFOP00RawFile,QCPinFile
 
 logger = logging.getLogger(os.path.basename(__file__))
 
@@ -385,6 +385,7 @@ def sonardyne_to_acousticdf(source: SonardyneFile) -> pd.DataFrame:
                             simultaneous_interrogation_set.append(si_data)
 
                         except ValidationError as e:
+                            logger.exception(e)
                             response = f"Error parsing into SimultaneousInterrogation from line {line_number} in {source}\n "
                             response += f"Line: {next_line}"
                             logger.error(response)
@@ -416,47 +417,55 @@ def sonardyne_to_acousticdf(source: SonardyneFile) -> pd.DataFrame:
     # acoustic_df.ReturnTime = acoustic_df.ReturnTime.dt.tz_localize("UTC")
     return acoustic_df
 
-def dfpo00_to_acousticdf(source: DFPO00RawFile) -> pd.DataFrame:
+def dfop00_to_acousticdf(source: DFOP00RawFile) -> pd.DataFrame:
     processed = []
     with open(source.location) as f:
         lines = f.readlines()
         for line in lines:
-            data = json.loads(line)
-            if data.get("event") == "range":
-                range_data = data.get("range", None)
-                time_data = data.get("time", None)
-                if range_data and time_data:
-                    id: str = range_data.get("cn", "").replace("IR", "")
-                    travel_time: float = range_data.get("range", 0)  # travel time [s]
-                    tat: float = range_data.get("tat", 0)  # turn around time [ms]
-                    travel_time_true = (
-                        travel_time - (tat/1000) - TRIGGER_DELAY_SV2
-                    )  # travel time corrected for turn around time and trigger delay
+            try:
+                data = json.loads(line)
+                if data.get("event") == "range":
+                    range_data = data.get("range", None)
+                    time_data = data.get("time", None)
+                    if range_data and time_data:
+                        id: str = range_data.get("cn", "").replace("IR", "")
+                        travel_time: float = range_data.get("range", 0)  # travel time [s]
+                        tat: float = range_data.get("tat", 0)  # turn around time [ms]
+                        travel_time_true = (
+                            travel_time - (tat/1000) - TRIGGER_DELAY_SV2
+                        )  # travel time corrected for turn around time and trigger delay
+                        try:
+                            dbv = range_data.get("diag").get("dbv")[0]
+                            xc = range_data.get("diag").get("xc")[0]
+                        except AttributeError:
+                            logger.warning(f"{os.path.basename(source.location)} No diagnostic info for line {line}")
+                            dbv = None
+                            xc = None
+                        trigger_time: float = time_data.get(
+                            "common", 0
+                        )  # Time since GNSS start [s]
+                        trigger_time_dt = datetime.fromtimestamp(trigger_time)
+                        ping_time = trigger_time_dt + timedelta(seconds=ADJ_LEAP)
+                        # Convert to Julian date
+                        ping_time_julian = julian.to_jd(ping_time, "mjd")
+                        travel_time_true_fdays = travel_time_true / 86400.000
+                        return_time = ping_time_julian + travel_time_true_fdays
 
-                    dbv = range_data.get("diag").get("dbv")[0]
-                    xc = range_data.get("diag").get("xc")[0]
-                    trigger_time: float = time_data.get(
-                        "common", 0
-                    )  # Time since GNSS start [s]
-                    trigger_time_dt = datetime.fromtimestamp(trigger_time)
-                    ping_time = trigger_time_dt + timedelta(seconds=ADJ_LEAP)
-                    # Convert to Julian date
-                    ping_time_julian = julian.to_jd(ping_time, "mjd")
-                    travel_time_true_fdays = travel_time_true / 86400.000
-                    return_time = ping_time_julian + travel_time_true_fdays
-
-                processed.append(
-                   
-                   {
-                    "TriggerTime": trigger_time_dt,
-                    "TransponderID": id,
-                    "TwoWayTravelTime": travel_time_true,
-                    "ReturnTime": return_time,
-                    "DecibalVoltage": dbv,
-                    "CorrelationScore": xc,
-                    "PingTime": ping_time_julian
-                   }
-                )
+                    processed.append(
+                    
+                    {
+                        "TriggerTime": trigger_time_dt,
+                        "TransponderID": id,
+                        "TwoWayTravelTime": travel_time_true,
+                        "ReturnTime": return_time,
+                        "DecibalVoltage": dbv,
+                        "CorrelationScore": xc,
+                        "PingTime": ping_time_julian
+                    }
+                    )
+            except AttributeError as e:
+                logger.exception(e)
+                logger.error(f"on line {line}")
     df = pd.DataFrame(processed)
     return df
 

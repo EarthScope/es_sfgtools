@@ -1,5 +1,5 @@
 - SV2 processing 
-    --Change dfpo00 processing to use validation from SV1 processing
+    --Change dfop00 processing to use validation from SV1 processing
     --Adjust Ping/Return time units to be seconds of the day
     --Test garpos pipeline on SV2 data
 

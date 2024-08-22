@@ -4,11 +4,11 @@ import platform
 from setuptools import setup, Extension,find_packages
 from setuptools.command.build_ext import build_ext
 from setuptools.command.install import install 
-import numpy 
+#import numpy 
 from distutils.dist import Distribution
 from setuptools.dist import Distribution as Distribution
 import shutil
-import tempfile
+#import tempfile
 import glob 
 
 class CustomBuildCommand(build_ext):

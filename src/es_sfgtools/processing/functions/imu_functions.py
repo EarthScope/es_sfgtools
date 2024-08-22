@@ -10,7 +10,7 @@ import os
 import json
 import pymap3d as pm
 
-from ..schemas.files.file_schemas import NovatelFile, DFPO00RawFile,QCPinFile
+from ..schemas.files.file_schemas import NovatelFile, DFOP00RawFile,QCPinFile
 
 logger = logging.getLogger(os.path.basename(__file__))
 
@@ -113,9 +113,9 @@ def novatel_to_imudf(source:NovatelFile) -> pd.DataFrame:
     logger.info(log_respnse)
     return dataframe
 
-def dfpo00_to_imudf(source:DFPO00RawFile) -> pd.DataFrame:
+def dfop00_to_imudf(source:DFOP00RawFile) -> pd.DataFrame:
     """
-    Create an IMUDataFrame from a DFPO00 file
+    Create an IMUDataFrame from a DFOP00 file
     """
     imu_data = []
     with open(source.location) as f:
@@ -123,22 +123,24 @@ def dfpo00_to_imudf(source:DFPO00RawFile) -> pd.DataFrame:
         for line in lines:
             data = json.loads(line)
             if data.get("event") in ["interrogation","range"]:
-                heading_data = data.get("observations").get("AHRS")
+                heading_data = data.get("observations", {}).get("AHRS",{})
                 
                 if heading_data:
-                    azimuth = heading_data.get("h",None)
-                    pitch = heading_data.get("p",None)
-                    roll = heading_data.get("r",None)
-                    time = heading_data.get("time").get("common")
-                    time_dt = datetime.fromtimestamp(time)
-                    imu_data_dict = {
-                        "Time":time_dt,
-                        "Azimuth":azimuth,
-                        "Pitch":pitch,
-                        "Roll":roll,
-                    }
-
-                    imu_data.append(imu_data_dict)
+                    try:
+                        azimuth = heading_data.get("h",None)
+                        pitch = heading_data.get("p",None)
+                        roll = heading_data.get("r",None)
+                        time = heading_data.get("time").get("common")
+                        time_dt = datetime.fromtimestamp(time)
+                        imu_data_dict = {
+                            "Time":time_dt,
+                            "Azimuth":azimuth,
+                            "Pitch":pitch,
+                            "Roll":roll,
+                        }
+                        imu_data.append(imu_data_dict)
+                    except AttributeError as e:
+                        logger.warning(f"WARNING: {os.path.basename(source.location)} no heading data in line {line}")
     imu_df = pd.DataFrame(imu_data)
     # Drop duplicates found along time column
     imu_df = imu_df.drop_duplicates(subset=["Time"]).reset_index(drop=True)

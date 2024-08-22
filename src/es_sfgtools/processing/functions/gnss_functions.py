@@ -16,8 +16,9 @@ import shutil
 import json
 import platform
 from pathlib import Path
+import math
 
-from ..schemas.files.file_schemas import NovatelFile,RinexFile,KinFile,Novatel770File,DFPO00RawFile,QCPinFile,NovatelPinFile
+from ..schemas.files.file_schemas import NovatelFile,RinexFile,KinFile,Nov770File,DFOP00RawFile,QCPinFile,NovatelPinFile
 
 #logger = logging.getLogger(os.path.basename(__file__))
 logger = logging.getLogger(__name__)
@@ -144,7 +145,7 @@ def get_metadata(site: str):
 
 
 def _novatel_to_rinex(
-    source:Union[NovatelFile,Novatel770File,NovatelPinFile],site: str, year: str = None,show_details: bool=False,**kwargs
+    source:Union[NovatelFile,Nov770File,NovatelPinFile],site: str, year: str = None,show_details: bool=False,**kwargs
 ) -> RinexFile:
     """
     Batch convert Novatel files to RINEX
@@ -162,8 +163,19 @@ def _novatel_to_rinex(
     
     if isinstance(source,NovatelFile):
         binary_path = RINEX_BIN_PATH[f"{system}_{arch}"]
+        file_date = os.path.splitext(os.path.basename(source.location))[0].split("_")[1]
+
+    elif isinstance(source,Nov770File):
+        binary_path = RINEX_BIN_PATH_BINARY[f"{system}_{arch}"]
+        basename = os.path.basename(source.location)
+        file_date = basename.split('_')[2] + basename.split('_')[3]
+
     else:
         binary_path = RINEX_BIN_PATH_BINARY[f"{system}_{arch}"]
+        #TODO: parse filedate for NovatelPinFile name structure
+    
+    if year is None or math.isnan(year):
+        year = file_date[2:4]
 
     assert os.path.exists(binary_path), f"Binary not found: {binary_path}"
 
@@ -174,9 +186,7 @@ def _novatel_to_rinex(
         with open(metadata_path, "w") as f:
             json_object = json.dumps(metadata, indent=4)
             f.write(json_object)
-        file_date = os.path.splitext(os.path.basename(source.location))[0].split("_")[1]
-        if year is None:
-            year = file_date[2:4]
+        
         rinex_outfile = os.path.join(workdir, f"{site}_{file_date}_rinex.{year}O")
         file_tmp_dest = shutil.copy(source.location, os.path.join(workdir, os.path.basename(source.location)))
 
@@ -205,8 +215,8 @@ def novatel_to_rinex(source:NovatelFile, site: str, year: str = None,outdir:str=
     assert isinstance(source, NovatelFile), "Invalid source file type"
     return _novatel_to_rinex(source,site,year,outdir=outdir,show_details=show_details,**kwargs)
 
-def novatel770_to_rinex(source:Novatel770File, site: str, year: str = None,show_details: bool=False,**kwargs) -> RinexFile:
-    assert isinstance(source, Novatel770File), "Invalid source file type"
+def nov770_to_rinex(source:Nov770File, site: str, year: str = None,show_details: bool=False,**kwargs) -> RinexFile:
+    assert isinstance(source, Nov770File), "Invalid source file type"
     return _novatel_to_rinex(source,site,year,show_details=show_details,**kwargs)
 
 def rinex_to_kin(source: RinexFile, site: str = "IVB1") -> KinFile:

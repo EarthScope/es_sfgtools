@@ -35,8 +35,9 @@ class FILE_TYPE(Enum):
     MASTER= "master"    
     LEVERARM = "leverarm"
     SEABIRD = "svpavg"
-    NOVATEL770 = "novatel770"
-    DFPO00 = "dfpo00"
+    NOV770 = "nov770"
+    NOV000 = "nov000"
+    DFOP00 = "dfop00"
     OFFLOAD = "offload"
 
     @classmethod
@@ -69,8 +70,8 @@ TARGET_MAP = {
     FILE_TYPE.MASTER:{DATA_TYPE.SITECONFIG:proc_funcs.masterfile_to_siteconfig},
     FILE_TYPE.LEVERARM:{DATA_TYPE.ATDOFFSET:proc_funcs.leverarmfile_to_atdoffset},
     FILE_TYPE.SEABIRD:{DATA_TYPE.SVP:proc_funcs.seabird_to_soundvelocity},
-    FILE_TYPE.NOVATEL770:{FILE_TYPE.RINEX:proc_funcs.novatel770_to_rinex},
-    FILE_TYPE.DFPO00:{DATA_TYPE.IMU:proc_funcs.dfpo00_to_imudf, DATA_TYPE.ACOUSTIC:proc_funcs.dfpo00_to_acousticdf}
+    FILE_TYPE.NOV770:{FILE_TYPE.RINEX:proc_funcs.nov770_to_rinex},
+    FILE_TYPE.DFOP00:{DATA_TYPE.IMU:proc_funcs.dfop00_to_imudf, DATA_TYPE.ACOUSTIC:proc_funcs.dfop00_to_acousticdf}
 }
 
 
@@ -91,8 +92,8 @@ SCHEMA_MAP = {
     FILE_TYPE.MASTER:proc_schemas.MasterFile,
     FILE_TYPE.LEVERARM:proc_schemas.LeverArmFile,
     FILE_TYPE.SEABIRD:proc_schemas.SeaBirdFile,
-    FILE_TYPE.NOVATEL770:proc_schemas.Novatel770File,
-    FILE_TYPE.DFPO00:proc_schemas.DFPO00RawFile,
+    FILE_TYPE.NOV770:proc_schemas.Nov770File,
+    FILE_TYPE.DFOP00:proc_schemas.DFOP00RawFile,
     DATA_TYPE.IMU:proc_schemas.IMUDataFrame,
     DATA_TYPE.GNSS:proc_schemas.PositionDataFrame,
     DATA_TYPE.ACOUSTIC:proc_schemas.AcousticDataFrame,
@@ -175,20 +176,23 @@ class DataHandler:
             self.catalog_data = pd.DataFrame()
         logger.info(f"Data Handler initialized, data will be stored in {self.working_dir}")
 
-    def _get_timestamp(self,remote_prefix:str) -> pd.Timestamp:
+    def _get_timestamp(self,remote_prefix:str, file_type:str) -> pd.Timestamp:
         """
         Get the timestamp from the remote file prefix.
 
         Args:
             remote_prefix (str): The remote prefix.
+            file_type (str): The type of file, required to determine appropriate file name parsing
 
         Returns:
             pd.Timestamp: The timestamp extracted from the remote prefix.
         """
         basename = Path(remote_prefix).name
-
         try:
-            date_str = basename.split("_")[1].split(".")[0]
+            if file_type in [FILE_TYPE.SONARDYNE.value, FILE_TYPE.NOVATEL.value]:
+                date_str = basename.split("_")[1].split(".")[0]
+            elif file_type in [FILE_TYPE.DFOP00.value, FILE_TYPE.NOV770.value, FILE_TYPE.NOV000.value]:
+                date_str = basename.split('_')[2] + basename.split('_')[3]
             return pd.to_datetime(date_str,format="%Y%m%d%H%M%S")
         except:
             return None
@@ -237,14 +241,16 @@ class DataHandler:
         for file in remote_filepaths:
             discovered_file_type = None
             for file_type in FILE_TYPES:
-                if file_type in file.replace("_", ""):
+                if file_type.upper() in file.replace("_", "").upper():
                     discovered_file_type = file_type
                     break
             
             if discovered_file_type is None:
                 logger.error(f"File type not recognized for {file}")
                 continue
-
+            
+            timestamp = self._get_timestamp(file,discovered_file_type)
+            
             file_data = {
                 "uuid": uuid.uuid4().hex,
                 "network": network,
@@ -252,7 +258,7 @@ class DataHandler:
                 "survey": survey,
                 "remote_filepath": file,
                 "type": discovered_file_type,
-                "timestamp": self._get_timestamp(file)
+                "timestamp": timestamp
             }
             incoming.append(file_data)
 
@@ -728,7 +734,7 @@ class DataHandler:
             return None
         else:
 
-            if process_func == proc_funcs.novatel_to_rinex:
+            if process_func in [proc_funcs.novatel_to_rinex, proc_funcs.nov770_to_rinex]:
                 processed = process_func(
                     source, site=parent.station, year=parent.timestamp.year, show_details=show_details
                 )
@@ -900,8 +906,8 @@ class DataHandler:
                         logger.info(response)
                         #print(response)
 
-        #     self._process_data_link(network,station,survey,DATA_TYPE.ACOUSTIC,[FILE_TYPE.SONARDYNE,FILE_TYPE.DFPO00],override=override)
-        # self._process_data_link(network,station,survey,DATA_TYPE.ACOUSTIC,[FILE_TYPE.SONARDYNE,FILE_TYPE.DFPO00],override=override)
+        #     self._process_data_link(network,station,survey,DATA_TYPE.ACOUSTIC,[FILE_TYPE.SONARDYNE,FILE_TYPE.DFOP00],override=override)
+        # self._process_data_link(network,station,survey,DATA_TYPE.ACOUSTIC,[FILE_TYPE.SONARDYNE,FILE_TYPE.DFOP00],override=override)
 
     def process_acoustic_data(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=False):
         self._process_data_graph(network,station,survey,DATA_TYPE.ACOUSTIC,override=override, show_details=show_details)
@@ -961,6 +967,7 @@ class DataHandler:
         Query the catalog
         """
 
+        self.load_catalog_from_csv()
         if not isinstance(type,list):
             type = [type]
 
@@ -982,6 +989,7 @@ class DataHandler:
 
     def get_observation_session_data(self,network:str,station:str,survey:str,plot:bool=False) -> pd.DataFrame:
 
+        self.load_catalog_from_csv()
         time_groups = self.catalog_data[self.catalog_data.type.isin(['gnss','acoustic','imu'])].groupby('timestamp')
         valid_groups = [group for name, group in time_groups if set(group['type']) == {'gnss', 'acoustic', 'imu'}]
         result = pd.concat(valid_groups)
@@ -1016,6 +1024,8 @@ class DataHandler:
         return result
 
     def group_observation_session_data(self,data:pd.DataFrame,timespan:str="DAY") -> pd.DataFrame:
+        
+        self.load_catalog_from_csv()
         # Create a group of dataframes for each timestamp
         assert timespan in ['HOUR','DAY'], "Timespan must be either 'HOUR' or 'DAY'"
         if timespan == 'HOUR':
@@ -1047,6 +1057,7 @@ class DataHandler:
             Exception: If no matching data is found in the catalog.
         """
 
+        self.load_catalog_from_csv()
         data_type_to_plot = [DATA_TYPE.IMU.value,DATA_TYPE.GNSS.value,DATA_TYPE.ACOUSTIC.value]
 
         entries = self.catalog_data[
@@ -1106,6 +1117,7 @@ class DataHandler:
             Exception: If no matching data is found in the catalog.
         """
 
+        self.load_catalog_from_csv()
         data_type_to_plot = [DATA_TYPE.SITECONFIG.value]
 
         entries = self.catalog_data[
@@ -1138,6 +1150,7 @@ class DataHandler:
             Exception: If no matching data is found in the catalog.
         """
 
+        self.load_catalog_from_csv()
         entries = self.catalog_data[
             (self.catalog_data.network == network)
             & (self.catalog_data.station == station)
@@ -1166,6 +1179,7 @@ class DataHandler:
             Exception: If no matching data is found in the catalog.
         """
 
+        self.load_catalog_from_csv()
         entries = self.catalog_data[
             (self.catalog_data.network == network)
             & (self.catalog_data.station == station)

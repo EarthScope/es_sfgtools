@@ -91,22 +91,22 @@ class NovatelFile(BaseObservable):
     name:str = "novatel"
 
 
-class Novatel770File(BaseObservable):
+class Nov770File(BaseObservable):
     """
-    Represents a Novatel700 file from SV3.
+    Represents a Nov770 file from SV3.
 
     This class provides methods and attributes to handle Novatel files in the SeaFloorGeodesy project.
     Used to get acoustic/IMU data from Novatel files.
 
     Processing Functions:
-        src.processing.functions.gnss_functions.novatel700_to_rinex
+        src.processing.functions.gnss_functions.nov770_to_rinex
        
 
     """
-    name:str = "novatel770"
+    name:str = "nov770"
 
 
-class DFPO00RawFile(BaseObservable):
+class DFOP00RawFile(BaseObservable):
     """
 
     The DFOP00.raw file contains the real time amalgamation of all sensors using the common JSON style format. 
@@ -115,10 +115,10 @@ class DFPO00RawFile(BaseObservable):
     TIME data from when the acoustic signal is transmitted.
 
     processing functions:
-        src.processing.functions.acoustic_functions.dfpo00_to_imudf
-        src.processing.functions.acoustic_functions.dfpo00_to_acousticdf
+        src.processing.functions.acoustic_functions.dfop00_to_imudf
+        src.processing.functions.acoustic_functions.dfop00_to_acousticdf
     """
-    name:str = "dfpo00"
+    name:str = "dfop00"
 
 
 class SonardyneFile(BaseObservable):
