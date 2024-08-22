@@ -80,12 +80,17 @@ class PridePPP(BaseModel):
     number_of_satellites: int = Field(
         default=1, ge=0, le=125
     )  # Average Number of available satellites
-    pdop: float = Field(default=0, ge=0, le=20)  # Position Dilution of Precision
+    pdop: float = Field(default=0, ge=0, le=100)  # Position Dilution of Precision
     time: Optional[datetime] = None
 
     class Config:
         coerce = True
 
+    @model_validator(mode="before")
+    def validate_time(cls, values):
+        values["pdop"] = float(values["pdop"])
+        return values
+    
     @model_validator(mode="after")
     def populate_time(cls, values):
         """Convert from modified julian date and seconds of day to standard datetime format"""
@@ -294,7 +299,7 @@ def kin_to_gnssdf(source:KinFile) -> DataFrame[PositionDataFrame]:
         logger.error(error_msg)
         return None
     dataframe = pd.DataFrame([dict(pride_ppp) for pride_ppp in data])
-    dataframe.drop(columns=["modified_julian_date", "second_of_day"], inplace=True)
+    #dataframe.drop(columns=["modified_julian_date", "second_of_day"], inplace=True)
 
     log_response = f"GNSS Parser: {dataframe.shape[0]} shots from FILE {source.location}"
     logger.info(log_response)
