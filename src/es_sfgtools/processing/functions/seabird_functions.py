@@ -2,11 +2,15 @@ import re
 import pandas as pd
 import logging
 import os
+import pandera as pa
+from pandera.typing import DataFrame
 from ..schemas.files.file_schemas import SeaBirdFile
+from ..schemas.observables import SoundVelocityDataFrame
 
 logger = logging.getLogger(os.path.basename(__file__))
 
-def seabird_to_soundvelocity(source:SeaBirdFile) -> pd.DataFrame:
+@pa.check_types
+def seabird_to_soundvelocity(source:SeaBirdFile) -> DataFrame[SoundVelocityDataFrame]:
     """
     Read the sound velocity profile from a file
     fmt = [ Depth [m], Latitude [deg],Longitude [deg],Temperatures [deg C], Salinity [PSU] ,Speed [m/s]]

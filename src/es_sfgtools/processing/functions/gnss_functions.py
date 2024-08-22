@@ -1,7 +1,7 @@
 import pandas as pd
 from pydantic import BaseModel, Field, model_validator, ValidationError
 import pandera as pa
-from pandera.typing import Series
+from pandera.typing import DataFrame
 from datetime import datetime
 from typing import List, Optional, Union
 import logging
@@ -18,9 +18,10 @@ import platform
 from pathlib import Path
 import math
 
-from ..schemas.files.file_schemas import NovatelFile,RinexFile,KinFile,Nov770File,DFOP00RawFile,QCPinFile,NovatelPinFile
+from ..schemas.files.file_schemas import NovatelFile,RinexFile,KinFile,Novatel770File,DFPO00RawFile,QCPinFile,NovatelPinFile
+from ..schemas.observables import PositionDataFrame
 
-#logger = logging.getLogger(os.path.basename(__file__))
+# logger = logging.getLogger(os.path.basename(__file__))
 logger = logging.getLogger(__name__)
 
 NOVATEL2RINEX_BINARIES = Path(__file__).resolve().parent / "binaries/"
@@ -261,10 +262,10 @@ def rinex_to_kin(source: RinexFile, site: str = "IVB1") -> KinFile:
         return kin_file
     except:
         return None
-                
-  
-                
-def kin_to_gnssdf(source:KinFile) -> pd.DataFrame:
+
+
+@pa.check_types        
+def kin_to_gnssdf(source:KinFile) -> DataFrame[PositionDataFrame]:
     """
     Create an PositionDataFrame from a kin file from PRIDE-PPP
 
@@ -318,11 +319,22 @@ def qcpin_to_novatelpin(source:QCPinFile,outpath:Path) -> NovatelPinFile:
             data.get("observations").get("NOV_RANGE")
         )
 
-    
-    with open(outpath,"w") as file:
+    file_path = outpath/(source.uuid+"_novpin.txt")
+    with tempfile.NamedTemporaryFile(mode="w+", delete=True) as temp_file:
         for header in range_headers:
-            file.write(header)
-            file.write("\n")
+            temp_file.write(header)
+            temp_file.write("\n")
+        temp_file.seek(0)
+        novatel_pin = NovatelPinFile(location=temp_file.name)
+        novatel_pin.read(path=temp_file.name)
+
     
-    novatel_pin = NovatelPinFile(location=outpath)
     return novatel_pin
+
+def novatelpin_to_rinex(source:NovatelPinFile, site: str, year: str = None,outdir:str=None,show_details: bool=False,**kwargs) -> RinexFile:
+    raise NotImplementedError("Conversion from Novatel Pin to RINEX is not yet implemented")
+    # assert isinstance(source, NovatelPinFile), "Invalid source file type"
+    # rinex = _novatel_to_rinex(source,site,year,show_details=show_details,**kwargs)
+    # if outdir:
+    #     rinex.write(outdir)
+    # return rinex
