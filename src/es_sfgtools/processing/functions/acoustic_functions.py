@@ -18,7 +18,7 @@ import julian
 import logging
 import json
 import pdb
-from ..schemas.files import SonardyneFile,DFPO00RawFile,QCPinFile
+from ..schemas.files import SonardyneFile,DFOP00RawFile,QCPinFile
 from ..schemas.observables import AcousticDataFrame
 logger = logging.getLogger(os.path.basename(__file__))
 
@@ -121,7 +121,7 @@ class TransponderData(BaseModel):
     )  # Signal relative to full scale voltage [dB]
     CorrelationScore: int = Field(ge=0, le=100)  # Correlation score
 
-    SignalToNoise: Optional[float] = Field(ge=0, le=100,default=0)  # Signal to noise ratio
+    SignalToNoise: Optional[float] = Field(ge=0, le=100)# Signal to noise ratio
 
     TurnAroundTime: Optional[float] = Field(ge=0, le=100,default=0)  # Turn around time [ms]
     
@@ -418,7 +418,7 @@ def sonardyne_to_acousticdf(source: SonardyneFile) -> DataFrame[AcousticDataFram
     return acoustic_df
 
 @pa.check_types
-def dfpo00_to_acousticdf(source: DFPO00RawFile) -> DataFrame[AcousticDataFrame]:
+def dfop00_to_acousticdf(source: DFOP00RawFile) -> DataFrame[AcousticDataFrame]:
     processed = []
     with open(source.location) as f:
         lines = f.readlines()

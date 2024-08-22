@@ -18,7 +18,7 @@ import platform
 from pathlib import Path
 import math
 
-from ..schemas.files.file_schemas import NovatelFile,RinexFile,KinFile,Novatel770File,DFPO00RawFile,QCPinFile,NovatelPinFile
+from ..schemas.files.file_schemas import NovatelFile,RinexFile,KinFile,Nov770File,DFOP00RawFile,QCPinFile,NovatelPinFile
 from ..schemas.observables import PositionDataFrame
 
 # logger = logging.getLogger(os.path.basename(__file__))
