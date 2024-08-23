@@ -18,3 +18,8 @@ seaborn
 folium
 scikit-learn
 garpos @ git+https://github.com/EarthScope/garpos.git
+sphinx
+sphinx-rtd-theme
+myst-parser
+sphinxcontrib-apidoc
+sphinx_pyproject
