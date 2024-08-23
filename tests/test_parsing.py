@@ -211,3 +211,5 @@ class TestRinexParsing:
         assert os.path.exists(rinex_file.location), f"File {rinex_file.location} not found"
         os.remove(rinex_file.location)
 
+
+TestAcousticParsing().test_sonardyne()
