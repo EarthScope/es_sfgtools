@@ -25,3 +25,12 @@ if __name__ == "__main__":
     )
 
     data_handler.process_qc_data(network=network, station=station, survey=survey,update_timestamp=True)
+    
+    qc_entries = data_handler.get_observation_session_data(
+        network=network,
+        station=station,
+        survey=survey
+    )
+
+    qc_hourly = data_handler.group_observation_session_data(qc_entries,timespan='HOUR')
+
