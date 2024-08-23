@@ -1,7 +1,7 @@
 import pandas as pd
 from pydantic import BaseModel, Field, model_validator, ValidationError
 import pandera as pa
-from pandera.typing import Series, Index, DataFrame
+from pandera.typing import DataFrame
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional, Union
 import logging
@@ -11,7 +11,7 @@ import json
 import pymap3d as pm
 
 from ..schemas.files.file_schemas import NovatelFile, DFPO00RawFile,QCPinFile
-
+from ..schemas.observables import IMUDataFrame
 logger = logging.getLogger(os.path.basename(__file__))
 
 INSPVA_LOG_INDEX = {
@@ -66,8 +66,8 @@ class INSPVA(BaseModel):
 
             return ValidationError(error_msg)
 
-
-def novatel_to_imudf(source:NovatelFile) -> pd.DataFrame:
+@pa.check_types
+def novatel_to_imudf(source:NovatelFile) -> DataFrame[IMUDataFrame]:
     if not os.path.exists(source.location):
         raise FileNotFoundError(f"IMU Parsing: The file {source.location} does not exist.")
 
@@ -113,7 +113,8 @@ def novatel_to_imudf(source:NovatelFile) -> pd.DataFrame:
     logger.info(log_respnse)
     return dataframe
 
-def dfpo00_to_imudf(source:DFPO00RawFile) -> pd.DataFrame:
+@pa.check_types
+def dfpo00_to_imudf(source:DFPO00RawFile) -> DataFrame[IMUDataFrame]:
     """
     Create an IMUDataFrame from a DFPO00 file
     """
@@ -145,7 +146,8 @@ def dfpo00_to_imudf(source:DFPO00RawFile) -> pd.DataFrame:
 
     return imu_df
 
-def qcpin_to_imudf(source:QCPinFile) -> pd.DataFrame:
+@pa.check_types
+def qcpin_to_imudf(source:QCPinFile) -> Union[None,DataFrame[IMUDataFrame]]:
     with open(source.location) as file:
         pin_data = json.load(file)
 

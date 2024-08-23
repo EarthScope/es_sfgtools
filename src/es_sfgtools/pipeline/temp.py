@@ -18,6 +18,7 @@ import numpy as np
 import warnings
 import  folium
 import json
+import concurrent.futures
 warnings.filterwarnings("ignore")
 seaborn.set_theme(style="whitegrid")
 from es_sfgtools.utils.archive_pull import download_file_from_archive
@@ -38,6 +39,8 @@ class FILE_TYPE(Enum):
     NOVATEL770 = "novatel770"
     DFPO00 = "dfpo00"
     OFFLOAD = "offload"
+    QCPIN = "pin"
+    NOVATELPIN = "novatelpin"
 
     @classmethod
     def to_schema(cls):
@@ -62,6 +65,8 @@ class DATA_TYPE(Enum):
 DATA_TYPES = [x.value for x in DATA_TYPE]
 
 TARGET_MAP = {
+    FILE_TYPE.QCPIN:{DATA_TYPE.IMU:proc_funcs.qcpin_to_imudf,DATA_TYPE.ACOUSTIC:proc_funcs.qcpin_to_acousticdf,FILE_TYPE.NOVATELPIN:proc_funcs.qcpin_to_novatelpin},
+    # FILE_TYPE.NOVATELPIN:{FILE_TYPE.RINEX:proc_funcs.novatelpin_to_rinex},
     FILE_TYPE.NOVATEL:{FILE_TYPE.RINEX:proc_funcs.novatel_to_rinex, DATA_TYPE.IMU:proc_funcs.novatel_to_imudf},
     FILE_TYPE.RINEX:{FILE_TYPE.KIN:proc_funcs.rinex_to_kin},
     FILE_TYPE.KIN:{DATA_TYPE.GNSS:proc_funcs.kin_to_gnssdf},
@@ -98,6 +103,7 @@ SCHEMA_MAP = {
     DATA_TYPE.ACOUSTIC:proc_schemas.AcousticDataFrame,
     DATA_TYPE.SITECONFIG:proc_schemas.SiteConfig,
     DATA_TYPE.ATDOFFSET:proc_schemas.ATDOffset,
+    FILE_TYPE.QCPIN:proc_schemas.QCPinFile,
 }
 
 class MergeFrequency(Enum):
@@ -118,7 +124,7 @@ class InputURL(pa.DataFrameModel):
         default=None,
         isin=FILE_TYPES + DATA_TYPES + [None],
     )
-    timestamp: pa.typing.Series[pa.DateTime] = pa.Field(description="Timestamp",default=None,nullable=True)
+    timestamp: pa.typing.Series[pa.Timestamp] = pa.Field(description="Timestamp",default=None,nullable=True)
 
     class Config:
         coerce=True
@@ -134,6 +140,10 @@ class DataCatalog(InputURL):
     class Config:
         coerce=True
         add_missing_columns=True
+
+    @pa.parser("timestamp")
+    def parse_timestamp(cls, value):
+        return pd.to_datetime(value,format="%Y%m%d%H%M%S")
 
 
 class DataHandler:
@@ -170,9 +180,17 @@ class DataHandler:
 
         self.catalog = self.working_dir/"catalog.csv"
         if self.catalog.exists():
-            self.catalog_data = DataCatalog.validate(pd.read_csv(self.catalog))
+            try:
+                self.catalog_data = DataCatalog.validate(pd.read_csv(self.catalog))
+            except pd.errors.EmptyDataError:
+                # empty dataframe
+                self.catalog_data = pd.DataFrame()
+              
         else:
             self.catalog_data = pd.DataFrame()
+            self.catalog_data.to_csv(self.catalog,index=False)
+        
+        logging.basicConfig(level=logging.INFO,filename=self.working_dir/"datahandler.log")
         logger.info(f"Data Handler initialized, data will be stored in {self.working_dir}")
 
     def _get_timestamp(self,remote_prefix:str) -> pd.Timestamp:
@@ -214,6 +232,50 @@ class DataHandler:
             data_type_counts = "No data types found"    
         return data_type_counts
     
+    def add_qc_data(self,
+                    network:str,
+                    station:str,
+                    survey:str,
+                    local_filepaths:List[str],
+                    **kwargs):
+        count = 0
+        file_data_list = []
+        for file in local_filepaths:
+            assert Path(file).exists(), f"File {file} does not exist"
+            file_data = {
+                "uuid": uuid.uuid4().hex,
+                "network": network,
+                "station": station,
+                "survey": survey,
+                "local_location": str(file),
+                "type": FILE_TYPE.QCPIN.value,
+                "timestamp": None,
+                "processed": True
+            }
+            file_data_list.append(file_data)
+            count += 1
+        incoming_data = DataCatalog.validate(pd.DataFrame(file_data_list))
+
+        # See if the data is already in the catalog
+        if self.catalog_data.shape[0] > 0:
+            # Match against network, station, survey, type, and timestamp
+            matched = pd.merge(
+                self.catalog_data,
+                incoming_data,
+                how="right",
+                on=["network", "station", "survey", "type", "local_location"],
+                indicator=True
+            )
+
+            # Get uuid's for new data
+            new_data = matched[matched["_merge"] == "right_only"]
+            incoming_data = incoming_data[incoming_data.uuid.isin(new_data.uuid_y)]
+            if incoming_data.shape[0] < 1:
+                warnings.warn("No novel incoming qc data found", UserWarning)
+        self.catalog_data = pd.concat([self.catalog_data, incoming_data])
+        self.catalog_data.to_csv(self.catalog,index=False)
+        logger.info(f"Added {count} QC .pin files to the catalog")
+        
     def add_campaign_data(self, 
                           network: str, 
                           station: str, 
@@ -284,7 +346,7 @@ class DataHandler:
                                network:str,
                                station:str,
                                survey:str,
-                               file_type: str,
+                               file_type: str="all",
                                override:bool=False,
                                from_s3:bool=False,
                                show_details:bool=True):
@@ -316,8 +378,9 @@ class DataHandler:
             (self.catalog_data.network == network)
             & (self.catalog_data.station == station)
             & (self.catalog_data.survey == survey)
-            & (self.catalog_data.type == file_type)
         ]
+        if file_type != "all":
+            entries = entries[entries.type == file_type]
         missing_files = entries.shape[0]-local_files_of_type
         logger.info(f"Downloading {missing_files} missing files of type {file_type}")
         if entries.shape[0] < 1:
@@ -688,22 +751,33 @@ class DataHandler:
             parents: List[Union[FILE_TYPE, DATA_TYPE]] = SOURCE_MAP.get(
                 stack[pointer], []
             )
-            #while parents:
-            #    parent = parents.pop()
             for parent in parents:
                 stack.append(parent)
             pointer += 1
         return stack[::-1]
+    
+    def get_child_stack(
+        self, parent_type: FILE_TYPE) -> List[Union[FILE_TYPE, DATA_TYPE]]:
+        
+        stack = [parent_type]
+        pointer = 0
+        while pointer < len(stack):
+            children: List[Union[FILE_TYPE, DATA_TYPE]] = list(TARGET_MAP.get(stack[pointer],{}).keys())
+            for child in children:
+                stack.append(child)
+            pointer += 1
+        return stack
 
     def _process_targeted(
         self, parent: dict, child_type: Union[FILE_TYPE, DATA_TYPE], show_details: bool=False
-    ) -> dict:
+    ) -> Tuple[dict,dict,bool]:
         #TODO: implement multithreaded logging, had to switch to print statement below
         if isinstance(parent, dict):
             parent = pd.Series(parent)
 
-        # if parent.processed:
-        #     return None
+        # handle the case when the parent timestamp is None
+        child_timestamp = parent.timestamp
+        update_timestamp = False
         if show_details:
             print(
                 f"Processing {os.path.basename(parent.local_location)} ({parent.uuid}) of Type {parent.type} to {child_type.value}"
@@ -725,7 +799,7 @@ class DataHandler:
         )
         if source.location.stat().st_size == 0:
             logger.error(f"File {source.location} is empty")
-            return None
+            return None,None,None
         else:
 
             if process_func == proc_funcs.novatel_to_rinex:
@@ -734,6 +808,9 @@ class DataHandler:
                 )
             elif process_func == proc_funcs.rinex_to_kin:
                 processed = process_func(source, site=parent.station)
+            
+            elif process_func == proc_funcs.qcpin_to_novatelpin:
+                processed = process_func(source,outpath=self.inter_dir)
             else:
                 processed = process_func(source)
             if processed is not None:
@@ -747,6 +824,14 @@ class DataHandler:
                         )
                         processed.to_csv(local_location, index=False)
                         is_processed = True
+                        # handle the case when the child timestamp is None
+                        if child_timestamp is None:
+                            for col in processed.columns:
+                                if pd.api.types.is_datetime64_any_dtype(processed[col]):
+                                    child_timestamp = processed[col].min()
+                                    update_timestamp = True
+                                    break
+                    
                     case proc_schemas.RinexFile:
                         processed.write(self.inter_dir)
                         local_location = processed.location
@@ -768,6 +853,15 @@ class DataHandler:
                         with open(local_location, "w") as f:
                             f.write(processed.model_dump_json())
                         is_processed = True
+                    
+                    case proc_schemas.NovatelPinFile:
+                        local_location = (
+                            self.inter_dir / f"{parent.uuid}_{child_type.value}.txt"
+                        )
+                        processed.location = local_location
+                        processed.write(dir=local_location.parent)
+
+
 
                 processed_meta = {
                     "uuid": child_uuid,
@@ -776,13 +870,14 @@ class DataHandler:
                     "survey": parent.survey,
                     "local_location": str(local_location),
                     "type": child_type.value,
-                    "timestamp": parent.timestamp,
+                    "timestamp": child_timestamp,
                     "source_uuid": parent.uuid,
                     "processed": is_processed,
                 }
                 logger.info(f"Successful Processing: {str(processed_meta)}")
-                return processed_meta
-
+                return processed_meta,dict(parent),update_timestamp
+        return None,None,None
+    
     def _process_data_link(self,
                            network:str,
                            station:str,
@@ -790,6 +885,7 @@ class DataHandler:
                            target:Union[FILE_TYPE,DATA_TYPE],
                            source:List[FILE_TYPE],
                            override:bool=False,
+                           update_timestamp:bool=False,
                            show_details:bool=False) -> None:
         """
         Process data from a source to a target.
@@ -810,9 +906,9 @@ class DataHandler:
             & (self.catalog_data.station == station)
             & (self.catalog_data.survey == survey)
             & (self.catalog_data.local_location.notna())
-            & np.logical_or(
-                (self.catalog_data.processed == False),override
-                )
+            # & np.logical_or(
+            #     (self.catalog_data.processed == False),override
+            #     )
             & (self.catalog_data.type.isin([x.value for x in source]))
         ]
         
@@ -835,19 +931,22 @@ class DataHandler:
             process_func_partial = partial(self._process_targeted,child_type=target,show_details=show_details)
 
             meta_data_list = []
-            with Pool(processes=cpu_count()) as pool:
-                for meta_data in tqdm(
-                    pool.imap(
-                        process_func_partial,
-                        parent_entries_to_process.to_dict(orient="records"),
-                    ),
-                    total=parent_entries_to_process.shape[0],
-                    desc=f"Processing {parent_entries_to_process.type.unique()} To {target.value}",
-                ):
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                futures = [executor.submit(
+                    process_func_partial, parent) 
+                    for parent in parent_entries_to_process.to_dict(orient="records")]
+                for future in tqdm(
+                    concurrent.futures.as_completed(futures),
+                    total=len(futures),
+                    desc=f"Processing {parent_entries_to_process.type.unique()} To {target.value}"):
+                    meta_data,parent,discovered_timestamp = future.result()
                     if meta_data is not None:
-                        #self.update_entry(meta_data)
                         self.add_entry(meta_data)
                         meta_data_list.append(meta_data)
+                        if update_timestamp and discovered_timestamp:
+                            #TODO Debug the timestamp update
+                            self.catalog_data.at[parent["Index"], "timestamp"] = meta_data['timestamp']
+                            self.catalog_data.to_csv(self.catalog,index=False)
 
             parent_entries_processed = parent_entries_to_process[
                 parent_entries_to_process.uuid.isin(
@@ -872,13 +971,12 @@ class DataHandler:
         while processing_queue:
             parent = processing_queue.pop(0)
             if parent != child_type:
-                if show_details:
-                    logger.info(f"parent: {parent.value}")
+
                 children:dict = TARGET_MAP.get(parent,{})
-                if show_details:
-                    logger.info(f"children: {[item.value for item in children]}")
+
                 children_to_process = [k for k in children.keys() if k in processing_queue]
                 if show_details:
+                    logger.info(f"parent: {parent.value}")
                     logger.info(f"children to process: {[item.value for item in children_to_process]}")
                 for child in children_to_process:
                     if show_details:
@@ -900,9 +998,28 @@ class DataHandler:
                         logger.info(response)
                         #print(response)
 
-        #     self._process_data_link(network,station,survey,DATA_TYPE.ACOUSTIC,[FILE_TYPE.SONARDYNE,FILE_TYPE.DFPO00],override=override)
-        # self._process_data_link(network,station,survey,DATA_TYPE.ACOUSTIC,[FILE_TYPE.SONARDYNE,FILE_TYPE.DFPO00],override=override)
-
+    def _process_data_graph_forward(self, 
+                            network: str, 
+                            station: str, 
+                            survey: str,
+                            parent_type:FILE_TYPE,
+                            update_timestamp:bool=False,
+                            override:bool=False,
+                            show_details:bool=False):
+        
+        self.load_catalog_from_csv()
+        processing_queue = [{parent_type:TARGET_MAP.get(parent_type)}]
+        while processing_queue:
+            # process each level of the child graph
+            parent_targets = processing_queue.pop(0)
+            parent_type = list(parent_targets.keys())[0]
+            for child in parent_targets[parent_type].keys():
+                
+                self._process_data_link(network,station,survey,target=child,source=[parent_type],override=override,update_timestamp=update_timestamp,show_details=show_details)
+                child_targets = TARGET_MAP.get(child,{})
+                if child_targets:
+                    processing_queue.append({child:child_targets})
+                            
     def process_acoustic_data(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=False):
         self._process_data_graph(network,station,survey,DATA_TYPE.ACOUSTIC,override=override, show_details=show_details)
 
@@ -947,6 +1064,10 @@ class DataHandler:
             f"Network {network} Station {station} Survey {survey} Preprocessing complete"
         )
 
+    def process_qc_data(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=False,update_timestamp:bool=False):
+        # perform forward processing of qc pin data
+        self._process_data_graph_forward(network,station,survey,FILE_TYPE.QCPIN,override=override, show_details=show_details,update_timestamp=update_timestamp)
+        
     def query_catalog(self,
                       network:str,
                       station:str,

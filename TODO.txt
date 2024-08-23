@@ -9,3 +9,10 @@
         --- Test out intermediate to final processing with functions in dev_datahandler
 
 - Make downloading multithreaded
+
+
+NOTES - install pdp3:
+
+1. clone repo 
+2. run install.sh
+3. symbolic link: 'sudo ln -s /path/to/script/pdp3.sh /usr/local/bin/pdp3 

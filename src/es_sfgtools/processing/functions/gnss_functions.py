@@ -1,7 +1,7 @@
 import pandas as pd
 from pydantic import BaseModel, Field, model_validator, ValidationError
 import pandera as pa
-from pandera.typing import Series
+from pandera.typing import DataFrame
 from datetime import datetime
 from typing import List, Optional, Union
 import logging
@@ -18,8 +18,9 @@ import platform
 from pathlib import Path
 
 from ..schemas.files.file_schemas import NovatelFile,RinexFile,KinFile,Novatel770File,DFPO00RawFile,QCPinFile,NovatelPinFile
+from ..schemas.observables import PositionDataFrame
 
-#logger = logging.getLogger(os.path.basename(__file__))
+# logger = logging.getLogger(os.path.basename(__file__))
 logger = logging.getLogger(__name__)
 
 NOVATEL2RINEX_BINARIES = Path(__file__).resolve().parent / "binaries/"
@@ -79,12 +80,17 @@ class PridePPP(BaseModel):
     number_of_satellites: int = Field(
         default=1, ge=0, le=125
     )  # Average Number of available satellites
-    pdop: float = Field(default=0, ge=0, le=20)  # Position Dilution of Precision
+    pdop: float = Field(default=0, ge=0, le=100)  # Position Dilution of Precision
     time: Optional[datetime] = None
 
     class Config:
         coerce = True
 
+    @model_validator(mode="before")
+    def validate_time(cls, values):
+        values["pdop"] = float(values["pdop"])
+        return values
+    
     @model_validator(mode="after")
     def populate_time(cls, values):
         """Convert from modified julian date and seconds of day to standard datetime format"""
@@ -254,10 +260,10 @@ def rinex_to_kin(source: RinexFile, site: str = "IVB1") -> KinFile:
         return kin_file
     except:
         return None
-                
-  
-                
-def kin_to_gnssdf(source:KinFile) -> pd.DataFrame:
+
+
+@pa.check_types        
+def kin_to_gnssdf(source:KinFile) -> DataFrame[PositionDataFrame]:
     """
     Create an PositionDataFrame from a kin file from PRIDE-PPP
 
@@ -293,7 +299,7 @@ def kin_to_gnssdf(source:KinFile) -> pd.DataFrame:
         logger.error(error_msg)
         return None
     dataframe = pd.DataFrame([dict(pride_ppp) for pride_ppp in data])
-    dataframe.drop(columns=["modified_julian_date", "second_of_day"], inplace=True)
+    #dataframe.drop(columns=["modified_julian_date", "second_of_day"], inplace=True)
 
     log_response = f"GNSS Parser: {dataframe.shape[0]} shots from FILE {source.location}"
     logger.info(log_response)
@@ -311,11 +317,22 @@ def qcpin_to_novatelpin(source:QCPinFile,outpath:Path) -> NovatelPinFile:
             data.get("observations").get("NOV_RANGE")
         )
 
-    
-    with open(outpath,"w") as file:
+    file_path = outpath/(source.uuid+"_novpin.txt")
+    with tempfile.NamedTemporaryFile(mode="w+", delete=True) as temp_file:
         for header in range_headers:
-            file.write(header)
-            file.write("\n")
+            temp_file.write(header)
+            temp_file.write("\n")
+        temp_file.seek(0)
+        novatel_pin = NovatelPinFile(location=temp_file.name)
+        novatel_pin.read(path=temp_file.name)
+
     
-    novatel_pin = NovatelPinFile(location=outpath)
     return novatel_pin
+
+def novatelpin_to_rinex(source:NovatelPinFile, site: str, year: str = None,outdir:str=None,show_details: bool=False,**kwargs) -> RinexFile:
+    raise NotImplementedError("Conversion from Novatel Pin to RINEX is not yet implemented")
+    # assert isinstance(source, NovatelPinFile), "Invalid source file type"
+    # rinex = _novatel_to_rinex(source,site,year,show_details=show_details,**kwargs)
+    # if outdir:
+    #     rinex.write(outdir)
+    # return rinex

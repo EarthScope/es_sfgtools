@@ -7,7 +7,7 @@ Email: franklyn.dunbar@earthscope.org
 import pandas as pd
 from pydantic import BaseModel, Field,ValidationError
 import pandera as pa
-from pandera.typing import Series
+from pandera.typing import Series,DataFrame
 from typing import List, Dict,Union,Optional
 from enum import Enum
 from datetime import datetime, timezone, timedelta
@@ -19,7 +19,7 @@ import logging
 import json
 import pdb
 from ..schemas.files import SonardyneFile,DFPO00RawFile,QCPinFile
-
+from ..schemas.observables import AcousticDataFrame
 logger = logging.getLogger(os.path.basename(__file__))
 
 GNSS_START_TIME = datetime(1980, 1, 6, tzinfo=timezone.utc)  # GNSS start time
@@ -280,8 +280,8 @@ def get_transponder_offsets(line: str) -> Dict[str, float]:
     offset_dict[transponder_id] = offset
     return offset_dict
 
-
-def sonardyne_to_acousticdf(source: SonardyneFile) -> pd.DataFrame:
+@pa.check_types
+def sonardyne_to_acousticdf(source: SonardyneFile) -> DataFrame[AcousticDataFrame]:
     """
     Read data from a file and return a validated dataframe.
 
@@ -416,7 +416,8 @@ def sonardyne_to_acousticdf(source: SonardyneFile) -> pd.DataFrame:
     # acoustic_df.ReturnTime = acoustic_df.ReturnTime.dt.tz_localize("UTC")
     return acoustic_df
 
-def dfpo00_to_acousticdf(source: DFPO00RawFile) -> pd.DataFrame:
+@pa.check_types
+def dfpo00_to_acousticdf(source: DFPO00RawFile) -> DataFrame[AcousticDataFrame]:
     processed = []
     with open(source.location) as f:
         lines = f.readlines()
@@ -460,7 +461,8 @@ def dfpo00_to_acousticdf(source: DFPO00RawFile) -> pd.DataFrame:
     df = pd.DataFrame(processed)
     return df
 
-def qcpin_to_acousticdf(source:QCPinFile) -> pd.DataFrame:
+@pa.check_types
+def qcpin_to_acousticdf(source:QCPinFile) -> Union[None,DataFrame[AcousticDataFrame]]:
     with open(source.location) as f:
         data = json.load(f)
 
@@ -482,6 +484,8 @@ def qcpin_to_acousticdf(source:QCPinFile) -> pd.DataFrame:
             trigger_time: float = time_data.get("common", 0)
             trigger_time_dt = datetime.fromtimestamp(trigger_time)
             ping_time = trigger_time_dt + timedelta(seconds=TRIGGER_DELAY_SV3)
+            # convert pingtime to seconds of day
+            ping_time = (ping_time - datetime(ping_time.year,ping_time.month,ping_time.day)).total_seconds()
 
             shot_data.append(
                 {
@@ -495,5 +499,7 @@ def qcpin_to_acousticdf(source:QCPinFile) -> pd.DataFrame:
                     "SignalToNoise": snr
                 }
             )
+    if not shot_data:
+        return 
     df = pd.DataFrame(shot_data)
     return df
