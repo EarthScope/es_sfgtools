@@ -19,6 +19,7 @@ import warnings
 import  folium
 import json
 import concurrent.futures
+import logging
 warnings.filterwarnings("ignore")
 seaborn.set_theme(style="whitegrid")
 from es_sfgtools.utils.archive_pull import download_file_from_archive
@@ -66,7 +67,7 @@ DATA_TYPES = [x.value for x in DATA_TYPE]
 
 TARGET_MAP = {
     FILE_TYPE.QCPIN:{DATA_TYPE.IMU:proc_funcs.qcpin_to_imudf,DATA_TYPE.ACOUSTIC:proc_funcs.qcpin_to_acousticdf,FILE_TYPE.NOVATELPIN:proc_funcs.qcpin_to_novatelpin},
-    # FILE_TYPE.NOVATELPIN:{FILE_TYPE.RINEX:proc_funcs.novatelpin_to_rinex},
+    FILE_TYPE.NOVATELPIN:{FILE_TYPE.RINEX:proc_funcs.novatelpin_to_rinex},
     FILE_TYPE.NOVATEL:{FILE_TYPE.RINEX:proc_funcs.novatel_to_rinex, DATA_TYPE.IMU:proc_funcs.novatel_to_imudf},
     FILE_TYPE.RINEX:{FILE_TYPE.KIN:proc_funcs.rinex_to_kin},
     FILE_TYPE.KIN:{DATA_TYPE.GNSS:proc_funcs.kin_to_gnssdf},
@@ -104,6 +105,7 @@ SCHEMA_MAP = {
     DATA_TYPE.SITECONFIG:proc_schemas.SiteConfig,
     DATA_TYPE.ATDOFFSET:proc_schemas.ATDOffset,
     FILE_TYPE.QCPIN:proc_schemas.QCPinFile,
+    FILE_TYPE.NOVATELPIN:proc_schemas.NovatelPinFile
 }
 
 class MergeFrequency(Enum):
@@ -811,6 +813,10 @@ class DataHandler:
             
             elif process_func == proc_funcs.qcpin_to_novatelpin:
                 processed = process_func(source,outpath=self.inter_dir)
+            elif process_func == proc_funcs.novatelpin_to_rinex:
+                processed = process_func(
+                    source, site=parent.station, year=parent.timestamp.year, show_details=show_details
+                )
             else:
                 processed = process_func(source)
             if processed is not None:
@@ -825,7 +831,7 @@ class DataHandler:
                         processed.to_csv(local_location, index=False)
                         is_processed = True
                         # handle the case when the child timestamp is None
-                        if child_timestamp is None:
+                        if pd.isna(child_timestamp):
                             for col in processed.columns:
                                 if pd.api.types.is_datetime64_any_dtype(processed[col]):
                                     child_timestamp = processed[col].min()
@@ -945,7 +951,8 @@ class DataHandler:
                         meta_data_list.append(meta_data)
                         if update_timestamp and discovered_timestamp:
                             #TODO Debug the timestamp update
-                            self.catalog_data.at[parent["Index"], "timestamp"] = meta_data['timestamp']
+                            self.catalog_data.loc[self.catalog_data.uuid == parent["uuid"], "timestamp"] = meta_data['timestamp']
+
                             self.catalog_data.to_csv(self.catalog,index=False)
 
             parent_entries_processed = parent_entries_to_process[

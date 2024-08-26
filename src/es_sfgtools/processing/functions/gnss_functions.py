@@ -16,6 +16,7 @@ import shutil
 import json
 import platform
 from pathlib import Path
+import numpy as np
 
 from ..schemas.files.file_schemas import NovatelFile,RinexFile,KinFile,Novatel770File,DFPO00RawFile,QCPinFile,NovatelPinFile
 from ..schemas.observables import PositionDataFrame
@@ -166,7 +167,7 @@ def _novatel_to_rinex(
     if arch not in ["amd64", "arm64"]:
         raise ValueError(f"Unsupported architecture: {arch}")
     
-    if isinstance(source,NovatelFile):
+    if type(source) in [NovatelFile,NovatelPinFile]:
         binary_path = RINEX_BIN_PATH[f"{system}_{arch}"]
     else:
         binary_path = RINEX_BIN_PATH_BINARY[f"{system}_{arch}"]
@@ -220,6 +221,22 @@ def novatel770_to_rinex(source:Novatel770File, site: str, year: str = None,outdi
     if outdir:
         rinex.write(outdir)
     return rinex
+
+
+def novatelpin_to_rinex(
+    source: NovatelPinFile,
+    site: str,
+    year: str = None,
+    outdir: str = None,
+    show_details: bool = False,
+    **kwargs,
+) -> RinexFile:
+    assert isinstance(source, NovatelPinFile), "Invalid source file type"
+    rinex = _novatel_to_rinex(source, site, year, show_details=show_details, **kwargs)
+    if outdir:
+        rinex.write(outdir)
+    return rinex
+
 
 def rinex_to_kin(source: RinexFile, site: str = "IVB1") -> KinFile:
     """
@@ -311,11 +328,16 @@ def qcpin_to_novatelpin(source:QCPinFile,outpath:Path) -> NovatelPinFile:
         pin_data = json.load(file)
 
     range_headers = []
+    time_stamps = []
 
-    for data in pin_data.values():   
-        range_headers.append(
-            data.get("observations").get("NOV_RANGE")
-        )
+    for data in pin_data.values():
+        range_header = data.get("observations").get("NOV_RANGE")
+        time_header = data.get("observations").get("NOV_INS").get("time").get("common")
+        range_headers.append(range_header)
+        time_stamps.append(time_header)
+        
+    time_sorted = np.argsort(time_stamps)
+    range_headers = [range_headers[i] for i in time_sorted]
 
     file_path = outpath/(source.uuid+"_novpin.txt")
     with tempfile.NamedTemporaryFile(mode="w+", delete=True) as temp_file:
@@ -328,11 +350,3 @@ def qcpin_to_novatelpin(source:QCPinFile,outpath:Path) -> NovatelPinFile:
 
     
     return novatel_pin
-
-def novatelpin_to_rinex(source:NovatelPinFile, site: str, year: str = None,outdir:str=None,show_details: bool=False,**kwargs) -> RinexFile:
-    raise NotImplementedError("Conversion from Novatel Pin to RINEX is not yet implemented")
-    # assert isinstance(source, NovatelPinFile), "Invalid source file type"
-    # rinex = _novatel_to_rinex(source,site,year,show_details=show_details,**kwargs)
-    # if outdir:
-    #     rinex.write(outdir)
-    # return rinex
