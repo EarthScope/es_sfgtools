@@ -210,31 +210,31 @@ def _novatel_to_rinex(
             if len(result.stdout.decode()):
                 print(f"{os.path.basename(source.location)}: {result.stdout.decode().rstrip()}")
             #print(result.stderr.decode())
-        logger.info(f"Converted Novatel files to RINEX: {rinex_outfile}")
+            logger.info(f"Converted Novatel data to RINEX: {rinex_outfile}")
         rinex_data = RinexFile(parent_id=source.uuid)
         rinex_data.read(rinex_outfile)
         
-       
     return rinex_data
 
-def novatel_to_rinex(source:NovatelFile, site: str, year: str = None,outdir:str=None,show_details: bool=False,**kwargs) -> RinexFile:
+def novatel_to_rinex(source:NovatelFile, site: str, year: str = None,outdir:str=None,show_details: bool=True,**kwargs) -> RinexFile:
     assert isinstance(source, NovatelFile), "Invalid source file type"
     rinex = _novatel_to_rinex(source,site,year,show_details=show_details,**kwargs)
     if outdir:
         rinex.write(outdir)
     return rinex
 
-def nov770_to_rinex(source:Nov770File, site: str, year: str = None,show_details: bool=False,**kwargs) -> RinexFile:
+def nov770_to_rinex(source:Nov770File, site: str, year: str = None,show_details: bool=True,**kwargs) -> RinexFile:
     assert isinstance(source, Nov770File), "Invalid source file type"
     return _novatel_to_rinex(source,site,year,show_details=show_details,**kwargs)
 
-def rinex_to_kin(source: RinexFile, site: str = "IVB1") -> KinFile:
+def rinex_to_kin(source: RinexFile, site: str = "XXXX",show_details: bool=True) -> KinFile:
     """
     Convert a RINEX file to a position file
     """
     assert isinstance(source, RinexFile), "Invalid source file type"
 
-    logger.info(f"Converting RINEX file {source.location} to kin file")
+    if show_details:
+        logger.info(f"Converting RINEX file {source.location} to kin file")
 
     out = []
 
@@ -261,7 +261,8 @@ def rinex_to_kin(source: RinexFile, site: str = "IVB1") -> KinFile:
                     kin_file = KinFile(parent_id=source.uuid)
                     kin_file.read(source_path)
                     kin_file.location = os.path.basename(source_path)
-                    logger.info(f"Converted RINEX file {source.location} to kin file {kin_file.location}")
+                    if show_details:
+                        logger.info(f"Converted RINEX file {source.location} to kin file {kin_file.location}")
                     break
     try:
         return kin_file

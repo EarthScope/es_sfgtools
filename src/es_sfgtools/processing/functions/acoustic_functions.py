@@ -121,7 +121,7 @@ class TransponderData(BaseModel):
     )  # Signal relative to full scale voltage [dB]
     CorrelationScore: int = Field(ge=0, le=100)  # Correlation score
 
-    SignalToNoise: Optional[float] = Field(ge=0, le=100)# Signal to noise ratio
+    SignalToNoise: Optional[float] = Field(ge=0, le=100,default=0)# Signal to noise ratio
 
     TurnAroundTime: Optional[float] = Field(ge=0, le=100,default=0)  # Turn around time [ms]
     
@@ -281,7 +281,7 @@ def get_transponder_offsets(line: str) -> Dict[str, float]:
     return offset_dict
 
 @pa.check_types
-def sonardyne_to_acousticdf(source: SonardyneFile) -> DataFrame[AcousticDataFrame]:
+def sonardyne_to_acousticdf(source: SonardyneFile, show_details: bool=True) -> DataFrame[AcousticDataFrame]:
     """
     Read data from a file and return a validated dataframe.
 
@@ -410,19 +410,20 @@ def sonardyne_to_acousticdf(source: SonardyneFile) -> DataFrame[AcousticDataFram
         acoustic_df.reset_index()["TransponderID"].unique()
     )
     shot_count: int = int(acoustic_df.shape[0] / len(unique_transponders))
-
-    log_response = f"Acoustic Parser: {acoustic_df.shape[0]} shots from FILE {source.location} | {len(unique_transponders)} transponders | {shot_count} shots per transponder"
-    logger.info(log_response)
+    if show_details:
+        log_response = f"Acoustic Parser: {acoustic_df.shape[0]} shots from FILE {os.path.basename(source.location)} | {len(unique_transponders)} transponders | {shot_count} shots per transponder"
+        logger.info(log_response)
     acoustic_df.TriggerTime = acoustic_df.TriggerTime.dt.tz_localize("UTC")
     # acoustic_df.ReturnTime = acoustic_df.ReturnTime.dt.tz_localize("UTC")
     return acoustic_df
 
 @pa.check_types
-def dfop00_to_acousticdf(source: DFOP00RawFile) -> DataFrame[AcousticDataFrame]:
+def dfop00_to_acousticdf(source: DFOP00RawFile, show_details: bool=True) -> DataFrame[AcousticDataFrame]:
     processed = []
+    missing_diagnostic_lines = 0
     with open(source.location) as f:
         lines = f.readlines()
-        for line in lines:
+        for i, line in enumerate(lines):
             try:
                 data = json.loads(line)
                 if data.get("event") == "range":
@@ -432,16 +433,17 @@ def dfop00_to_acousticdf(source: DFOP00RawFile) -> DataFrame[AcousticDataFrame]:
                         id: str = range_data.get("cn", "").replace("IR", "")
                         travel_time: float = range_data.get("range", 0)  # travel time [s]
                         tat: float = range_data.get("tat", 0)  # turn around time [ms]
-                        travel_time_true = (
+                        travel_time_true = float(
                             travel_time - (tat/1000) - TRIGGER_DELAY_SV2
                         )  # travel time corrected for turn around time and trigger delay
                         try:
                             dbv = range_data.get("diag").get("dbv")[0]
                             xc = range_data.get("diag").get("xc")[0]
                         except AttributeError:
-                            logger.warning(f"{os.path.basename(source.location)} No diagnostic info for line {line}")
-                            dbv = None
-                            xc = None
+                            missing_diagnostic_lines += 1
+                            #logger.warning(f"{os.path.basename(source.location)} No diagnostic info for line {line}")
+                            dbv = 0
+                            xc = 0
                         trigger_time: float = time_data.get(
                             "common", 0
                         )  # Time since GNSS start [s]
@@ -468,6 +470,11 @@ def dfop00_to_acousticdf(source: DFOP00RawFile) -> DataFrame[AcousticDataFrame]:
                 logger.exception(e)
                 logger.error(f"on line {line}")
     df = pd.DataFrame(processed)
+    if show_details:
+        if missing_diagnostic_lines > 0:
+            logger.warning(f"{os.path.basename(source.location)} missing diagnostic info for {missing_diagnostic_lines} of {i+1} lines")
+        logger.info(df)
+        logger.info(df.dtypes)
     return df
 
 @pa.check_types

@@ -775,9 +775,8 @@ class DataHandler:
         return stack
 
     def _process_targeted(
-        self, parent: dict, child_type: Union[FILE_TYPE, DATA_TYPE], show_details: bool=False
+        self, parent: dict, child_type: Union[FILE_TYPE, DATA_TYPE], show_details: bool=True
     ) -> Tuple[dict,dict,bool]:
-        #TODO: implement multithreaded logging, had to switch to print statement below
         if isinstance(parent, dict):
             parent = pd.Series(parent)
 
@@ -785,7 +784,7 @@ class DataHandler:
         child_timestamp = parent.timestamp
         update_timestamp = False
         if show_details:
-            print(
+            logger.info(
                 f"Processing {os.path.basename(parent.local_location)} ({parent.uuid}) of Type {parent.type} to {child_type.value}"
             )
         child_map = TARGET_MAP.get(FILE_TYPE(parent.type))
@@ -797,7 +796,6 @@ class DataHandler:
             raise ValueError(response)
 
         process_func = child_map.get(child_type)
-        logger.info(process_func)
         source = SCHEMA_MAP[FILE_TYPE(parent.type)](
             location=Path(parent.local_location),
             uuid=parent.uuid,
@@ -813,12 +811,12 @@ class DataHandler:
                     source, site=parent.station, year=parent.timestamp.year, show_details=show_details
                 )
             elif process_func == proc_funcs.rinex_to_kin:
-                processed = process_func(source, site=parent.station)
+                processed = process_func(source, site=parent.station, show_details=show_details)
             
             elif process_func == proc_funcs.qcpin_to_novatelpin:
                 processed = process_func(source,outpath=self.inter_dir)
             else:
-                processed = process_func(source)
+                processed = process_func(source, show_details=show_details)
             if processed is not None:
 
                 child_uuid = uuid.uuid4().hex
@@ -880,7 +878,8 @@ class DataHandler:
                     "source_uuid": parent.uuid,
                     "processed": is_processed,
                 }
-                logger.info(f"Successful Processing: {str(processed_meta)}")
+                if show_details:
+                    logger.info(f"Successfuly processed {os.path.basename(parent.local_location)} ({parent.uuid}) of Type {parent.type} to {child_type.value}")
                 return processed_meta,dict(parent),update_timestamp
         return None,None,None
     
@@ -892,7 +891,7 @@ class DataHandler:
                            source:List[FILE_TYPE],
                            override:bool=False,
                            update_timestamp:bool=False,
-                           show_details:bool=False) -> None:
+                           show_details:bool=True) -> None:
         """
         Process data from a source to a target.
 
@@ -945,14 +944,17 @@ class DataHandler:
                     concurrent.futures.as_completed(futures),
                     total=len(futures),
                     desc=f"Processing {parent_entries_to_process.type.unique()} To {target.value}"):
-                    meta_data,parent,discovered_timestamp = future.result()
-                    if meta_data is not None:
-                        self.add_entry(meta_data)
-                        meta_data_list.append(meta_data)
-                        if update_timestamp and discovered_timestamp:
-                            #TODO Debug the timestamp update
-                            self.catalog_data.at[parent["Index"], "timestamp"] = meta_data['timestamp']
-                            self.catalog_data.to_csv(self.catalog,index=False)
+                    try:
+                        meta_data,parent,discovered_timestamp = future.result()
+                        if meta_data is not None:
+                            self.add_entry(meta_data)
+                            meta_data_list.append(meta_data)
+                            if update_timestamp and discovered_timestamp:
+                                #TODO Debug the timestamp update
+                                self.catalog_data.at[parent["Index"], "timestamp"] = meta_data['timestamp']
+                                self.catalog_data.to_csv(self.catalog,index=False)
+                    except Exception as e:
+                        logger.error(e)
 
             parent_entries_processed = parent_entries_to_process[
                 parent_entries_to_process.uuid.isin(
@@ -969,7 +971,7 @@ class DataHandler:
                             survey: str,
                             child_type:Union[FILE_TYPE,DATA_TYPE],
                             override:bool=False,
-                            show_details:bool=False):
+                            show_details:bool=True):
         self.load_catalog_from_csv()
         processing_queue = self.get_parent_stack(child_type=child_type)
         if show_details:
@@ -1011,7 +1013,7 @@ class DataHandler:
                             parent_type:FILE_TYPE,
                             update_timestamp:bool=False,
                             override:bool=False,
-                            show_details:bool=False):
+                            show_details:bool=True):
         
         self.load_catalog_from_csv()
         processing_queue = [{parent_type:TARGET_MAP.get(parent_type)}]
@@ -1026,28 +1028,28 @@ class DataHandler:
                 if child_targets:
                     processing_queue.append({child:child_targets})
                             
-    def process_acoustic_data(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=False):
+    def process_acoustic_data(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=True):
         self._process_data_graph(network,station,survey,DATA_TYPE.ACOUSTIC,override=override, show_details=show_details)
 
-    def process_imu_data(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=False):
+    def process_imu_data(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=True):
         self._process_data_graph(network,station,survey,DATA_TYPE.IMU,override=override, show_details=show_details)
 
-    def process_rinex(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=False):
+    def process_rinex(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=True):
         self._process_data_graph(network,station,survey,FILE_TYPE.RINEX,override=override, show_details=show_details)
 
-    def process_gnss_data_kin(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=False):
+    def process_gnss_data_kin(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=True):
         self._process_data_graph(network,station,survey,FILE_TYPE.KIN,override=override, show_details=show_details)
 
-    def process_gnss_data(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=False):
+    def process_gnss_data(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=True):
         self._process_data_graph(network,station,survey,DATA_TYPE.GNSS,override=override, show_details=show_details)
 
-    def process_siteconfig(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=False):
+    def process_siteconfig(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=True):
         self._process_data_graph(network,station,survey,DATA_TYPE.SITECONFIG,override=override, show_details=show_details)
         self._process_data_graph(network,station,survey,DATA_TYPE.ATDOFFSET,override=override, show_details=show_details)
         self._process_data_graph(network,station,survey,DATA_TYPE.SVP,override=override, show_details=show_details)
 
     def process_campaign_data(
-        self, network: str, station: str, survey: str, override: bool = False, show_details: bool=False
+        self, network: str, station: str, survey: str, override: bool = False, show_details: bool=True
     ):
         """
         Process all data for a given network, station, and survey, generating child entries where applicable.
@@ -1070,7 +1072,7 @@ class DataHandler:
             f"Network {network} Station {station} Survey {survey} Preprocessing complete"
         )
 
-    def process_qc_data(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=False,update_timestamp:bool=False):
+    def process_qc_data(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=True,update_timestamp:bool=False):
         # perform forward processing of qc pin data
         self._process_data_graph_forward(network,station,survey,FILE_TYPE.QCPIN,override=override, show_details=show_details,update_timestamp=update_timestamp)
         
