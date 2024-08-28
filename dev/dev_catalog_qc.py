@@ -7,6 +7,9 @@ sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__))))
 from src.es_sfgtools.pipeline import DataHandler
 
 if __name__ == "__main__":
+    pride_path = Path.home() / ".PRIDE_PPPAR_BIN"
+    # add to path
+    os.environ["PATH"] += os.pathsep + str(pride_path)
     qc_data_dir = Path("/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/Sample_QC_UNI1/")
 
     data_handler = DataHandler(qc_data_dir.parent)
@@ -14,7 +17,7 @@ if __name__ == "__main__":
     pin_files = qc_data_dir.glob("*.pin")
 
     network="QC"
-    station="QC"
+    station="QC1"
     survey="QC"
 
     data_handler.add_qc_data(
@@ -25,7 +28,7 @@ if __name__ == "__main__":
     )
 
     data_handler.process_qc_data(network=network, station=station, survey=survey,update_timestamp=True,
-                                 override=True,show_details=True)
+                                 override=False,show_details=False)
 
     # qc_entries = data_handler.get_observation_session_data(
     #     network=network,

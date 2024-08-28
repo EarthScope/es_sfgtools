@@ -20,6 +20,8 @@ import  folium
 import json
 import concurrent.futures
 import logging
+import multiprocessing
+
 warnings.filterwarnings("ignore")
 seaborn.set_theme(style="whitegrid")
 from es_sfgtools.utils.archive_pull import download_file_from_archive
@@ -38,7 +40,7 @@ class FILE_TYPE(Enum):
     LEVERARM = "leverarm"
     SEABIRD = "svpavg"
     NOVATEL770 = "novatel770"
-    DFPO00 = "dfpo00"
+    DFPO00 = "dfop00"
     OFFLOAD = "offload"
     QCPIN = "pin"
     NOVATELPIN = "novatelpin"
@@ -49,6 +51,9 @@ class FILE_TYPE(Enum):
 
 
 FILE_TYPES = [x.value for x in FILE_TYPE]
+ALIAS_MAP = {
+    "nov770":"novatel770"}
+ALIAS_MAP = ALIAS_MAP | {x:x for x in FILE_TYPES}
 
 class DATA_TYPE(Enum):
     IMU = "imu"
@@ -67,7 +72,7 @@ DATA_TYPES = [x.value for x in DATA_TYPE]
 
 TARGET_MAP = {
     FILE_TYPE.QCPIN:{DATA_TYPE.IMU:proc_funcs.qcpin_to_imudf,DATA_TYPE.ACOUSTIC:proc_funcs.qcpin_to_acousticdf,FILE_TYPE.NOVATELPIN:proc_funcs.qcpin_to_novatelpin},
-    FILE_TYPE.NOVATELPIN:{FILE_TYPE.RINEX:proc_funcs.novatelpin_to_rinex},
+    FILE_TYPE.NOVATELPIN:{FILE_TYPE.RINEX:proc_funcs.novatel_to_rinex},
     FILE_TYPE.NOVATEL:{FILE_TYPE.RINEX:proc_funcs.novatel_to_rinex, DATA_TYPE.IMU:proc_funcs.novatel_to_imudf},
     FILE_TYPE.RINEX:{FILE_TYPE.KIN:proc_funcs.rinex_to_kin},
     FILE_TYPE.KIN:{DATA_TYPE.GNSS:proc_funcs.kin_to_gnssdf},
@@ -75,7 +80,7 @@ TARGET_MAP = {
     FILE_TYPE.MASTER:{DATA_TYPE.SITECONFIG:proc_funcs.masterfile_to_siteconfig},
     FILE_TYPE.LEVERARM:{DATA_TYPE.ATDOFFSET:proc_funcs.leverarmfile_to_atdoffset},
     FILE_TYPE.SEABIRD:{DATA_TYPE.SVP:proc_funcs.seabird_to_soundvelocity},
-    FILE_TYPE.NOVATEL770:{FILE_TYPE.RINEX:proc_funcs.novatel770_to_rinex},
+    FILE_TYPE.NOVATEL770:{FILE_TYPE.RINEX:proc_funcs.novatel_to_rinex},
     FILE_TYPE.DFPO00:{DATA_TYPE.IMU:proc_funcs.dfpo00_to_imudf, DATA_TYPE.ACOUSTIC:proc_funcs.dfpo00_to_acousticdf}
 }
 
@@ -131,21 +136,23 @@ class InputURL(pa.DataFrameModel):
     class Config:
         coerce=True
         add_missing_columns=True
+       
 
 class DataCatalog(InputURL):
-    
+
     local_location: pa.typing.Series[pa.String] = pa.Field(
         description="Local location", default=None,nullable=True
     )
     source_uuid: pa.typing.Series[pa.String] = pa.Field(description="Source identifier",default=None,nullable=True )
     processed: pa.typing.Series[pa.Bool] = pa.Field(description="Child data has been aquired",default=False)
+    timestamp_minted: pa.typing.Series[pa.Timestamp] = pa.Field(description="Timestamp of the catalog entry",default=datetime.datetime.now())
     class Config:
         coerce=True
-        add_missing_columns=True
+        #add_missing_columns=True
 
     @pa.parser("timestamp")
     def parse_timestamp(cls, value):
-        return pd.to_datetime(value,format="%Y%m%d%H%M%S")
+        return pd.to_datetime(value,format="mixed")
 
 
 class DataHandler:
@@ -153,7 +160,7 @@ class DataHandler:
     A class to handle data operations such as adding campaign data, downloading data, and processing data.
     """
 
-    def __init__(self,working_dir:Path) -> None:
+    def __init__(self,working_dir:Union[Path,str]) -> None:
         """
         Initialize the DataHandler object.
 
@@ -168,12 +175,15 @@ class DataHandler:
         Returns:
             None
         """
+        if isinstance(working_dir,str):
+            working_dir = Path(working_dir)
 
         self.working_dir = working_dir
         self.raw_dir = self.working_dir / "raw/"
         self.inter_dir = self.working_dir / "intermediate/"
         self.proc_dir = self.working_dir / "processed/"
-
+        self.pride_dir = self.inter_dir / "Pride"
+        self.pride_dir.mkdir(parents=True,exist_ok=True)
         self.working_dir.mkdir(parents=True,exist_ok=True)
         self.inter_dir.mkdir(exist_ok=True)
         self.proc_dir.mkdir(exist_ok=True)
@@ -183,15 +193,19 @@ class DataHandler:
         self.catalog = self.working_dir/"catalog.csv"
         if self.catalog.exists():
             try:
-                self.catalog_data = DataCatalog.validate(pd.read_csv(self.catalog))
+                catalog_data = pd.read_csv(self.catalog)
+                catalog_data.timestamp = pd.to_datetime(catalog_data.timestamp,format="mixed")
+
+                self.catalog_data = DataCatalog.validate(catalog_data)
+                self.consolidate_entries()
             except pd.errors.EmptyDataError:
                 # empty dataframe
                 self.catalog_data = pd.DataFrame()
-              
+
         else:
             self.catalog_data = pd.DataFrame()
             self.catalog_data.to_csv(self.catalog,index=False)
-        
+
         logging.basicConfig(level=logging.INFO,filename=self.working_dir/"datahandler.log")
         logger.info(f"Data Handler initialized, data will be stored in {self.working_dir}")
 
@@ -226,37 +240,55 @@ class DataHandler:
         except (AttributeError, KeyError, FileNotFoundError):
             data_type_counts = pd.Series()   
         return data_type_counts
-    
+
     def get_dtype_counts(self):
         try:
             data_type_counts = self.catalog_data[self.catalog_data.type.isin(FILE_TYPES)].type.value_counts()
         except AttributeError:
             data_type_counts = "No data types found"    
         return data_type_counts
-    
-    def add_qc_data(self,
+
+    def add_data_local(self,
                     network:str,
                     station:str,
                     survey:str,
                     local_filepaths:List[str],
+                    discover_file_type:bool=False,
                     **kwargs):
         count = 0
         file_data_list = []
         for file in local_filepaths:
             assert Path(file).exists(), f"File {file} does not exist"
+            if discover_file_type:
+                discovered_file_type = None
+                file_path_proc = file.replace("_", "").lower()
+
+                for alias, file_type in ALIAS_MAP.items():
+                    if alias in file_path_proc:
+                        discovered_file_type = file_type
+                        break
+            else:
+                discovered_file_type = FILE_TYPE.QCPIN.value
+
+            if discovered_file_type is None:
+                logger.error(f"File type not recognized for {file}")
+                warnings.warn(f"File type not recognized for {file}", UserWarning)
+                continue
+
             file_data = {
                 "uuid": uuid.uuid4().hex,
                 "network": network,
                 "station": station,
                 "survey": survey,
                 "local_location": str(file),
-                "type": FILE_TYPE.QCPIN.value,
+                "type": discovered_file_type,
                 "timestamp": None,
-                "processed": True
+                "processed": False
             }
             file_data_list.append(file_data)
             count += 1
-        incoming_data = DataCatalog.validate(pd.DataFrame(file_data_list))
+        data = pd.DataFrame(file_data_list)
+        incoming_data = DataCatalog.validate(data,lazy=True)
 
         # See if the data is already in the catalog
         if self.catalog_data.shape[0] > 0:
@@ -277,7 +309,7 @@ class DataHandler:
         self.catalog_data = pd.concat([self.catalog_data, incoming_data])
         self.catalog_data.to_csv(self.catalog,index=False)
         logger.info(f"Added {count} QC .pin files to the catalog")
-        
+
     def add_campaign_data(self, 
                           network: str, 
                           station: str, 
@@ -304,10 +336,10 @@ class DataHandler:
                 if file_type in file.replace("_", ""):
                     discovered_file_type = file_type
                     break
-            
+
             if discovered_file_type is None:
                 logger.error(f"File type not recognized for {file}")
-                continue
+                raise ValueError(f"File type not recognized for {file}")
 
             file_data = {
                 "uuid": uuid.uuid4().hex,
@@ -409,16 +441,16 @@ class DataHandler:
                     is_download = self._download_https(
                         remote_url=entry.remote_filepath, destination_dir=self.raw_dir, show_details=show_details
                     )
-        
+
                 if is_download:
                     # Check if we can find the file
                     assert local_location.exists(), "Downloaded file not found"
                     self.catalog_data.at[entry.Index,"local_location"] = str(local_location)
                     count += 1
-                    #add a duplicate entry but with local_location
+                    # add a duplicate entry but with local_location
                     entry_dict = self.catalog_data[self.catalog_data.index==entry.Index].to_dict('records')[0]
                     entry_dict['local_location'] = str(local_location)
-                    self.add_entry(entry_dict)
+                    self.update_entry(entry_dict)
                 else:
                     raise Warning(f'File not downloaded to {str(local_location)}')
         if count == 0:
@@ -427,7 +459,7 @@ class DataHandler:
         else:
             logger.info(f"Downloaded {count} files")
 
-        #self.catalog_data.to_csv(self.catalog,index=False)
+        # self.catalog_data.to_csv(self.catalog,index=False)
 
     def add_campaign_data_s3(self, network: str, station: str, survey: str, bucket: str, prefixes: List[str], **kwargs):
         """
@@ -509,9 +541,9 @@ class DataHandler:
         """
         # TODO make multithreaded
         # Find all entries in the catalog that match the params
-        
+
         self.load_catalog_from_csv()
-        
+
         entries = self.catalog_data[
             (self.catalog_data.network == network)
             & (self.catalog_data.station == station)
@@ -542,7 +574,7 @@ class DataHandler:
         logger.info(f"Downloaded {count} files to {str(self.raw_dir)}")
 
         self.catalog_data.to_csv(self.catalog,index=False)
-    
+
     def _download_https(self, 
                         remote_url: Path, 
                         destination_dir: Path, 
@@ -559,12 +591,12 @@ class DataHandler:
             bool: True if the file was downloaded successfully, False otherwise.
         """
         try:
-            #local_location = destination_dir / Path(remote_url).name
+            # local_location = destination_dir / Path(remote_url).name
             download_file_from_archive(url=remote_url, 
                                     dest_dir=destination_dir, 
                                     token_path=token_path,
                                     show_details=show_details)
-            #logger.info(f"Downloaded {str(remote_url)} to {str(local_location)}")
+            # logger.info(f"Downloaded {str(remote_url)} to {str(local_location)}")
             return True
         except Exception as e:
             response = f"Error downloading {str(remote_url)} \n {e}"
@@ -572,7 +604,7 @@ class DataHandler:
             logger.error(response)
             # print(response)
             return False
-        
+
     def _download_boto(self, client: boto3.client, bucket: str, remote_url: Path, destination: Path):
         """
         Downloads a file from the specified S3 bucket.
@@ -667,28 +699,24 @@ class DataHandler:
 
         pbar.close()
 
-    def add_entry(self, entry: dict):
-        """
-        Add an entry in the catalog.  This may result in duplicates, which need to be cleaned up via
-        consolidate_entries()
+    # def add_entry(self, entry: dict):
+    #     """
+    #     Add an entry in the catalog.  This may result in duplicates, which need to be cleaned up via
+    #     consolidate_entries()
 
-        Args:
-            entry (dict): The new entry.
+    #     Args:
+    #         entry (dict): The new entry.
 
-        Returns:
-            None
-        """
-        with self.catalog.open("r") as f:
-            keys=list(f.readline().rstrip().split(','))
-        entry_str = "\n"
-        for key in keys:
-            if key in entry:
-                entry_str += f"{str(entry[key])}"
-            if key != keys[-1]:
-                entry_str += ","
-        
-        with self.catalog.open("a") as f:
-            f.write(entry_str)
+    #     Returns:
+    #         None
+    #     """
+    #     # find duplicates
+
+    #     self.catalog_data = pd.concat(
+    #         [self.catalog_data,DataCatalog.validate(pd.DataFrame([entry]),lazy=True)],
+    #         ignore_index=True
+    #     )
+    #     self.catalog_data.to_csv(self.catalog,index=False)
 
     def consolidate_entries(self):
         """
@@ -704,7 +732,7 @@ class DataHandler:
         df=df.sort_values(['count']).drop_duplicates(subset=['uuid'],keep='first').drop(labels='count',axis=1)
         df=df.sort_index()
         df.to_csv(self.catalog,index=False)
-    
+
     def update_entry(self,entry:dict):
         """
         Replace an entry in the catalog with a new entry.
@@ -717,17 +745,14 @@ class DataHandler:
         """
         old_entry = self.catalog_data[
             (self.catalog_data.type == entry["type"])
-            & (self.catalog_data.source_uuid == entry["source_uuid"])
+            & (self.catalog_data.local_location == entry["local_location"])
             & (self.catalog_data.network == entry["network"])
             & (self.catalog_data.station == entry["station"])
             & (self.catalog_data.survey == entry["survey"])
         ]
         if old_entry.shape[0] > 0:
-            try:
-                [Path(x.local_location).unlink() for x in old_entry.itertuples(index=True)]
-            except:
-                pass
-            self.catalog_data = self.catalog_data.drop(old_entry.index)
+            for x in old_entry.itertuples(index=True):
+                self.catalog_data = self.catalog_data.drop(x.Index)
 
         self.catalog_data = pd.concat(
             [self.catalog_data,DataCatalog.validate(pd.DataFrame([entry]),lazy=True)],
@@ -757,10 +782,10 @@ class DataHandler:
                 stack.append(parent)
             pointer += 1
         return stack[::-1]
-    
+
     def get_child_stack(
         self, parent_type: FILE_TYPE) -> List[Union[FILE_TYPE, DATA_TYPE]]:
-        
+
         stack = [parent_type]
         pointer = 0
         while pointer < len(stack):
@@ -773,117 +798,132 @@ class DataHandler:
     def _process_targeted(
         self, parent: dict, child_type: Union[FILE_TYPE, DATA_TYPE], show_details: bool=False
     ) -> Tuple[dict,dict,bool]:
-        #TODO: implement multithreaded logging, had to switch to print statement below
+        
+        # TODO: implement multithreaded logging, had to switch to print statement below
         if isinstance(parent, dict):
             parent = pd.Series(parent)
-
+        response = ""
         # handle the case when the parent timestamp is None
         child_timestamp = parent.timestamp
-        update_timestamp = False
-        if show_details:
-            print(
-                f"Processing {os.path.basename(parent.local_location)} ({parent.uuid}) of Type {parent.type} to {child_type.value}"
-            )
+      
+        response += f"Processing {os.path.basename(parent.local_location)} ({parent.uuid}) of Type {parent.type} to {child_type.value}\n"
+         
         child_map = TARGET_MAP.get(FILE_TYPE(parent.type))
         if child_map is None:
-            response = (
+            response += (
                 f"Child type {child_type.value} not found for parent type {parent.type}"
             )
             logger.error(response)
             raise ValueError(response)
 
         process_func = child_map.get(child_type)
-        logger.info(process_func)
+
         source = SCHEMA_MAP[FILE_TYPE(parent.type)](
             location=Path(parent.local_location),
             uuid=parent.uuid,
             capture_time=parent.timestamp,
         )
-        if source.location.stat().st_size == 0:
-            logger.error(f"File {source.location} is empty")
-            return None,None,None
-        else:
+        # if source.location.stat().st_size == 0:
+        #     logger.error(f"File {source.location} is empty")
+        #     return None,None,None
 
-            if process_func == proc_funcs.novatel_to_rinex:
-                processed = process_func(
-                    source, site=parent.station, year=parent.timestamp.year, show_details=show_details
+        match process_func:
+            case proc_funcs.rinex_to_kin:
+                process_func_p = partial(
+                    process_func, writedir=self.inter_dir,pridedir=self.pride_dir, site=parent.station
                 )
-            elif process_func == proc_funcs.rinex_to_kin:
-                processed = process_func(source, site=parent.station)
-            
-            elif process_func == proc_funcs.qcpin_to_novatelpin:
-                processed = process_func(source,outpath=self.inter_dir)
-            elif process_func == proc_funcs.novatelpin_to_rinex:
-                processed = process_func(
-                    source, site=parent.station, year=parent.timestamp.year, show_details=show_details
+
+            case proc_funcs.novatel_to_rinex:
+                process_func_p = partial(
+                    process_func,site=parent.station,year=parent.timestamp.year,show_details=show_details
                 )
+
+            case proc_funcs.qcpin_to_novatelpin:
+                process_func_p = partial(
+                    process_func,outpath=self.inter_dir
+                )
+            case _:
+                process_func_p = process_func
+
+     
+        if source.location is not None and source.location.exists():
+            if source.location.stat().st_size == 0:
+                logger.error(f"File {source.location} is empty")
+                processed = None
             else:
-                processed = process_func(source)
-            if processed is not None:
+                processed = process_func_p(source)
+        else:
+            processed = None
 
-                child_uuid = uuid.uuid4().hex
+        child_uuid = uuid.uuid4().hex
+        is_processed = True
+  
+        match type(processed):
+            case pd.DataFrame:
+                local_location = self.proc_dir / f"{parent.uuid}_{child_type.value}.csv"
+                processed.to_csv(local_location, index=False)
+
+                # handle the case when the child timestamp is None
+                if pd.isna(child_timestamp):
+                    for col in processed.columns:
+                        if pd.api.types.is_datetime64_any_dtype(processed[col]):
+                            child_timestamp = processed[col].min()
+                            break
+
+            case proc_schemas.RinexFile:
+                processed.write(self.inter_dir)
+                child_timestamp = pd.to_datetime(processed.start_time)
+                local_location = processed.location
+
+            case proc_schemas.KinFile:
+                processed.write(self.inter_dir)
+                local_location = processed.location
+
+            case proc_schemas.SiteConfig:
+                local_location = (
+                    self.proc_dir / f"{parent.uuid}_{child_type.value}.json"
+                )
+                with open(local_location, "w") as f:
+                    f.write(processed.model_dump_json())
+
+            case proc_schemas.ATDOffset:
+                local_location = (
+                    self.proc_dir / f"{parent.uuid}_{child_type.value}.json"
+                )
+                with open(local_location, "w") as f:
+                    f.write(processed.model_dump_json())
+
+            case proc_schemas.NovatelPinFile:
+                local_location = (
+                    self.inter_dir / f"{parent.uuid}_{child_type.value}.txt"
+                )
+                processed.location = local_location
+                processed.write(dir=local_location.parent)
+
+            case _:
                 is_processed = False
-                match type(processed):
-                    case pd.DataFrame:
-                        local_location = (
-                            self.proc_dir / f"{parent.uuid}_{child_type.value}.csv"
-                        )
-                        processed.to_csv(local_location, index=False)
-                        is_processed = True
-                        # handle the case when the child timestamp is None
-                        if pd.isna(child_timestamp):
-                            for col in processed.columns:
-                                if pd.api.types.is_datetime64_any_dtype(processed[col]):
-                                    child_timestamp = processed[col].min()
-                                    update_timestamp = True
-                                    break
-                    
-                    case proc_schemas.RinexFile:
-                        processed.write(self.inter_dir)
-                        local_location = processed.location
-                    case proc_schemas.KinFile:
-                        processed.location += f"_{child_uuid}_{child_type.value}.kin"
-                        processed.write(self.inter_dir)
-                        local_location = processed.location
-                    case proc_schemas.SiteConfig:
-                        local_location = (
-                            self.proc_dir / f"{parent.uuid}_{child_type.value}.json"
-                        )
-                        with open(local_location, "w") as f:
-                            f.write(processed.model_dump_json())
-                        is_processed = True
-                    case proc_schemas.ATDOffset:
-                        local_location = (
-                            self.proc_dir / f"{parent.uuid}_{child_type.value}.json"
-                        )
-                        with open(local_location, "w") as f:
-                            f.write(processed.model_dump_json())
-                        is_processed = True
-                    
-                    case proc_schemas.NovatelPinFile:
-                        local_location = (
-                            self.inter_dir / f"{parent.uuid}_{child_type.value}.txt"
-                        )
-                        processed.location = local_location
-                        processed.write(dir=local_location.parent)
+                local_location = None
+                pass
+        
+        if parent.timestamp is None and child_timestamp is not None:
+            parent.timestamp = child_timestamp
+            response += f"Discovered timestamp: {child_timestamp} for parent {parent.type} uuid {parent.uuid}\n"
 
+        processed_meta = {
+            "uuid": child_uuid,
+            "network": parent.network,
+            "station": parent.station,
+            "survey": parent.survey,
+            "local_location": str(local_location),
+            "type": child_type.value,
+            "timestamp": child_timestamp,
+            "source_uuid": parent.uuid,
+            "processed": is_processed,
+        }
+        logger.info(f"Successful Processing: {str(processed_meta)}")
+        return processed_meta,dict(parent),response
+        # return None,None,None
 
-
-                processed_meta = {
-                    "uuid": child_uuid,
-                    "network": parent.network,
-                    "station": parent.station,
-                    "survey": parent.survey,
-                    "local_location": str(local_location),
-                    "type": child_type.value,
-                    "timestamp": child_timestamp,
-                    "source_uuid": parent.uuid,
-                    "processed": is_processed,
-                }
-                logger.info(f"Successful Processing: {str(processed_meta)}")
-                return processed_meta,dict(parent),update_timestamp
-        return None,None,None
-    
     def _process_data_link(self,
                            network:str,
                            station:str,
@@ -892,7 +932,7 @@ class DataHandler:
                            source:List[FILE_TYPE],
                            override:bool=False,
                            update_timestamp:bool=False,
-                           show_details:bool=False) -> None:
+                           show_details:bool=False) -> pd.DataFrame:
         """
         Process data from a source to a target.
 
@@ -917,11 +957,11 @@ class DataHandler:
             #     )
             & (self.catalog_data.type.isin([x.value for x in source]))
         ]
-        
+
         if parent_entries.shape[0] < 1:
             response = f"No unprocessed data found in catalog for types {[x.value for x in source]}"
             logger.error(response)
-            #print(response)
+            # print(response)
             return
         child_entries = self.catalog_data[
             (self.catalog_data.network == network)
@@ -929,39 +969,53 @@ class DataHandler:
             & (self.catalog_data.survey == survey)
             & (self.catalog_data.type == target.value)
         ]
-
-        parent_entries_to_process = parent_entries[np.logical_or(~parent_entries.uuid.isin(child_entries.source_uuid),override)]
+        processed_parents_filter = parent_entries.uuid.isin(child_entries.source_uuid)
+        to_process_filter = np.logical_or(~processed_parents_filter,override)
+        parent_entries_to_process = parent_entries[to_process_filter]
 
         if parent_entries_to_process.shape[0] > 0:
             logger.info(f"Processing {parent_entries_to_process.shape[0]} Parent Files to {target.value} Data")
             process_func_partial = partial(self._process_targeted,child_type=target,show_details=show_details)
 
             meta_data_list = []
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                futures = [executor.submit(
-                    process_func_partial, parent) 
-                    for parent in parent_entries_to_process.to_dict(orient="records")]
-                for future in tqdm(
-                    concurrent.futures.as_completed(futures),
-                    total=len(futures),
-                    desc=f"Processing {parent_entries_to_process.type.unique()} To {target.value}"):
-                    meta_data,parent,discovered_timestamp = future.result()
-                    if meta_data is not None:
-                        self.add_entry(meta_data)
+            if target is not FILE_TYPE.KIN:
+                with multiprocessing.Pool() as pool:
+                    results = pool.imap_unordered(process_func_partial,parent_entries_to_process.to_dict(orient="records"))
+                    for meta_data,parent,response in tqdm(results,total=parent_entries_to_process.shape[0],desc=f"Processing {parent_entries_to_process.type.unique()} To {target.value}"):
+                        if show_details:
+                            print(response)
+                            logger.info(response)
+
+                        self.update_entry(parent)
+                        self.update_entry(meta_data)
                         meta_data_list.append(meta_data)
-                        if update_timestamp and discovered_timestamp:
-                            #TODO Debug the timestamp update
-                            self.catalog_data.loc[self.catalog_data.uuid == parent["uuid"], "timestamp"] = meta_data['timestamp']
+            else:
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    futures = [executor.submit(
+                        process_func_partial, parent) 
+                        for parent in parent_entries_to_process.to_dict(orient="records")]
+                    for future in tqdm(
+                        concurrent.futures.as_completed(futures),
+                        total=len(futures),
+                        desc=f"Processing {parent_entries_to_process.type.unique()} To {target.value}"):
+                        meta_data,parent,response = future.result()
 
-                            self.catalog_data.to_csv(self.catalog,index=False)
+                        if show_details:
+                            print(response)
+                            logger.info(response)
 
+                        self.update_entry(parent)
+                        self.update_entry(meta_data)
+                        meta_data_list.append(meta_data)
+                        
+                    
             parent_entries_processed = parent_entries_to_process[
                 parent_entries_to_process.uuid.isin(
                     [x["source_uuid"] for x in meta_data_list]
                 )
             ]
             logger.info(f"Processed {len(meta_data_list)} Out of {parent_entries_processed.shape[0]} For {target.value} Files from {parent_entries_processed.shape[0]} Parent Files")
-            self.consolidate_entries()
+            # self.consolidate_entries()
             return parent_entries_processed
 
     def _process_data_graph(self, 
@@ -970,8 +1024,9 @@ class DataHandler:
                             survey: str,
                             child_type:Union[FILE_TYPE,DATA_TYPE],
                             override:bool=False,
-                            show_details:bool=False):
-        self.load_catalog_from_csv()
+                            show_details:bool=False,
+                            update_timestamp:bool=False):
+        # self.load_catalog_from_csv()
         processing_queue = self.get_parent_stack(child_type=child_type)
         if show_details:
             logger.info(f"processing queue: {[item.value for item in processing_queue]}")
@@ -988,10 +1043,16 @@ class DataHandler:
                 for child in children_to_process:
                     if show_details:
                         logger.info(f"processing child:{child.value}")
-                    processed_parents:pd.DataFrame = self._process_data_link(network,station,survey,target=child,source=[parent],override=override,show_details=show_details)
+                    processed_parents:pd.DataFrame = self._process_data_link(
+                        network,
+                        station,
+                        survey,
+                        target=child,
+                        source=[parent],
+                        override=override,show_details=show_details,update_timestamp=update_timestamp)
                     # Check if all children of this parent have been processed
                     if processed_parents is not None:
-                        self.load_catalog_from_csv()
+                        #self.load_catalog_from_csv()
                         for entry in processed_parents.itertuples(index=True):
                             self.catalog_data.at[entry.Index, "processed"] = self.catalog_data[
                                 (self.catalog_data.source_uuid == entry.uuid)
@@ -1003,7 +1064,7 @@ class DataHandler:
                     else:
                         response = f"All available instances of processing type {parent.value} to type {child.value} have been processed"
                         logger.info(response)
-                        #print(response)
+                        # print(response)
 
     def _process_data_graph_forward(self, 
                             network: str, 
@@ -1013,7 +1074,7 @@ class DataHandler:
                             update_timestamp:bool=False,
                             override:bool=False,
                             show_details:bool=False):
-        
+
         self.load_catalog_from_csv()
         processing_queue = [{parent_type:TARGET_MAP.get(parent_type)}]
         while processing_queue:
@@ -1021,34 +1082,34 @@ class DataHandler:
             parent_targets = processing_queue.pop(0)
             parent_type = list(parent_targets.keys())[0]
             for child in parent_targets[parent_type].keys():
-                
+
                 self._process_data_link(network,station,survey,target=child,source=[parent_type],override=override,update_timestamp=update_timestamp,show_details=show_details)
                 child_targets = TARGET_MAP.get(child,{})
                 if child_targets:
                     processing_queue.append({child:child_targets})
-                            
-    def process_acoustic_data(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=False):
-        self._process_data_graph(network,station,survey,DATA_TYPE.ACOUSTIC,override=override, show_details=show_details)
 
-    def process_imu_data(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=False):
-        self._process_data_graph(network,station,survey,DATA_TYPE.IMU,override=override, show_details=show_details)
+    def process_acoustic_data(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=False,update_timestamp:bool=False):
+        self._process_data_graph(network,station,survey,DATA_TYPE.ACOUSTIC,override=override, show_details=show_details,update_timestamp=update_timestamp)
 
-    def process_rinex(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=False):
-        self._process_data_graph(network,station,survey,FILE_TYPE.RINEX,override=override, show_details=show_details)
+    def process_imu_data(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=False,update_timestamp:bool=False):
+        self._process_data_graph(network,station,survey,DATA_TYPE.IMU,override=override, show_details=show_details,update_timestamp=update_timestamp)
 
-    def process_gnss_data_kin(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=False):
-        self._process_data_graph(network,station,survey,FILE_TYPE.KIN,override=override, show_details=show_details)
+    def process_rinex(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=False,update_timestamp:bool=False):
+        self._process_data_graph(network,station,survey,FILE_TYPE.RINEX,override=override, show_details=show_details,update_timestamp=update_timestamp)
 
-    def process_gnss_data(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=False):
-        self._process_data_graph(network,station,survey,DATA_TYPE.GNSS,override=override, show_details=show_details)
+    def process_gnss_data_kin(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=False,update_timestamp:bool=False):
+        self._process_data_graph(network,station,survey,FILE_TYPE.KIN,override=override, show_details=show_details,update_timestamp=update_timestamp)
 
-    def process_siteconfig(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=False):
-        self._process_data_graph(network,station,survey,DATA_TYPE.SITECONFIG,override=override, show_details=show_details)
-        self._process_data_graph(network,station,survey,DATA_TYPE.ATDOFFSET,override=override, show_details=show_details)
-        self._process_data_graph(network,station,survey,DATA_TYPE.SVP,override=override, show_details=show_details)
+    def process_gnss_data(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=False,update_timestamp:bool=False):
+        self._process_data_graph(network,station,survey,DATA_TYPE.GNSS,override=override, show_details=show_details,update_timestamp=update_timestamp)
+
+    def process_siteconfig(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=False,update_timestamp:bool=False):
+        self._process_data_graph(network,station,survey,DATA_TYPE.SITECONFIG,override=override, show_details=show_details,update_timestamp=update_timestamp)
+        self._process_data_graph(network,station,survey,DATA_TYPE.ATDOFFSET,override=override, show_details=show_details,update_timestamp=update_timestamp)
+        self._process_data_graph(network,station,survey,DATA_TYPE.SVP,override=override, show_details=show_details,update_timestamp=update_timestamp)
 
     def process_campaign_data(
-        self, network: str, station: str, survey: str, override: bool = False, show_details: bool=False
+        self, network: str, station: str, survey: str, override: bool = False, show_details: bool=False,update_timestamp:bool=False
     ):
         """
         Process all data for a given network, station, and survey, generating child entries where applicable.
@@ -1062,10 +1123,10 @@ class DataHandler:
         Raises:
             Exception: If no matching data is found in the catalog.
         """
-        self.process_acoustic_data(network,station,survey,override=override, show_details=show_details)
-        self.process_imu_data(network,station,survey,override=override, show_details=show_details)
-        self.process_gnss_data(network,station,survey,override=override, show_details=show_details)
-        self.process_siteconfig(network,station,survey,override=override, show_details=show_details)
+        self.process_acoustic_data(network,station,survey,override=override, show_details=show_details,update_timestamp=update_timestamp)
+        self.process_imu_data(network,station,survey,override=override, show_details=show_details,update_timestamp=update_timestamp)
+        self.process_gnss_data(network,station,survey,override=override, show_details=show_details,update_timestamp=update_timestamp)
+        self.process_siteconfig(network,station,survey,override=override, show_details=show_details,update_timestamp=update_timestamp)
 
         logger.info(
             f"Network {network} Station {station} Survey {survey} Preprocessing complete"
@@ -1074,7 +1135,18 @@ class DataHandler:
     def process_qc_data(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=False,update_timestamp:bool=False):
         # perform forward processing of qc pin data
         self._process_data_graph_forward(network,station,survey,FILE_TYPE.QCPIN,override=override, show_details=show_details,update_timestamp=update_timestamp)
-        
+
+    def reset_ts(self):
+        for index, row in self.catalog_data.iterrows():
+            if ".csv" in row["local_location"]:
+                df = pd.read_csv(row["local_location"])
+                for col in df.columns:
+                    if pd.api.types.is_datetime64_any_dtype(df[col]):
+                        self.catalog_data.at[index, "timestamp"] = df[col].min()
+                        break
+                break
+        self.catalog_data.to_csv(self.catalog,index=False)
+
     def query_catalog(self,
                       network:str,
                       station:str,
@@ -1111,7 +1183,7 @@ class DataHandler:
     def get_observation_session_data(self,network:str,station:str,survey:str,plot:bool=False) -> pd.DataFrame:
 
         time_groups = self.catalog_data[self.catalog_data.type.isin(['gnss','acoustic','imu'])].groupby('timestamp')
-        valid_groups = [group for name, group in time_groups if set(group['type']) == {'gnss', 'acoustic', 'imu'}]
+        valid_groups = [group for name, group in time_groups] #
         result = pd.concat(valid_groups)
         primary_colums = ['network','station','survey','timestamp','type','local_location']
         all_columns = list(result.columns)

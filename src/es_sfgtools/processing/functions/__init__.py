@@ -1,8 +1,6 @@
 from .acoustic_functions import sonardyne_to_acousticdf,dfpo00_to_acousticdf,qcpin_to_acousticdf
 from .gnss_functions import (
     novatel_to_rinex,
-    novatel770_to_rinex,
-    novatelpin_to_rinex,
     rinex_to_kin,
     kin_to_gnssdf,
     qcpin_to_novatelpin

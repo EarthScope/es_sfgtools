@@ -141,8 +141,29 @@ class RinexFile(BaseObservable):
         parent_id (Optional[str]): The ID of the parent file, if any.
     """
     name:str = "rinex"
-    extension:str =".rinex"
     parent_uuid: Optional[str] = None
+    start_time: Optional[datetime] = None 
+    site: Optional[str] = None
+    basename: Optional[str] = None
+    def get_meta(self):
+        with open(self.location) as f:
+            files = f.readlines()
+            for line in files:
+                if "TIME OF FIRST OBS" in line:
+                    time_values = line.split("GPS")[0].strip().split()
+                    start_time = datetime(
+                        year=int(time_values[0]),
+                        month=int(time_values[1]),
+                        day=int(time_values[2]),
+                        hour=int(time_values[3]),
+                        minute=int(time_values[4]),
+                        second=int(float(time_values[5])),
+                    )
+                    file_date = start_time.strftime("%Y%m%H%m%S")
+                    self.start_time = start_time
+                    self.location = f"{self.site}_{file_date}_rinex.{str(start_time.year)[2:]}O"
+                    break
+        
 
 
 class KinFile(BaseObservable):
@@ -159,6 +180,7 @@ class KinFile(BaseObservable):
     name:str = "kin"
     extension:str =".kin"
     parent_uuid: Optional[str] = None
+    start_time: Optional[datetime] = None
 
 
 class SeaBirdFile(BaseSite):
