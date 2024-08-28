@@ -974,8 +974,8 @@ class DataHandler:
                             show_details:bool=True):
         self.load_catalog_from_csv()
         processing_queue = self.get_parent_stack(child_type=child_type)
-        if show_details:
-            logger.info(f"processing queue: {[item.value for item in processing_queue]}")
+        #if show_details:
+        #    logger.info(f"processing queue: {[item.value for item in processing_queue]}")
         while processing_queue:
             parent = processing_queue.pop(0)
             if parent != child_type:
@@ -983,12 +983,11 @@ class DataHandler:
                 children:dict = TARGET_MAP.get(parent,{})
 
                 children_to_process = [k for k in children.keys() if k in processing_queue]
-                if show_details:
-                    logger.info(f"parent: {parent.value}")
-                    logger.info(f"children to process: {[item.value for item in children_to_process]}")
+                #if show_details:
+                #    logger.info(f"Parent: {parent.value}  Children to process: {[item.value for item in children_to_process]}")
                 for child in children_to_process:
-                    if show_details:
-                        logger.info(f"processing child:{child.value}")
+                    # if show_details:
+                    #     logger.info(f"processing child:{child.value}")
                     processed_parents:pd.DataFrame = self._process_data_link(network,station,survey,target=child,source=[parent],override=override,show_details=show_details)
                     # Check if all children of this parent have been processed
                     if processed_parents is not None:
@@ -1043,7 +1042,16 @@ class DataHandler:
     def process_gnss_data(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=True):
         self._process_data_graph(network,station,survey,DATA_TYPE.GNSS,override=override, show_details=show_details)
 
+    def process_atdoffset(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=True):
+        self._process_data_graph(network,station,survey,DATA_TYPE.ATDOFFSET,override=override, show_details=show_details)
+    
+    def process_svp(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=True):
+        self._process_data_graph(network,station,survey,DATA_TYPE.SVP,override=override, show_details=show_details)
+
     def process_siteconfig(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=True):
+        self._process_data_graph(network,station,survey,DATA_TYPE.SITECONFIG,override=override, show_details=show_details)
+    
+    def process_metadata(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=True):
         self._process_data_graph(network,station,survey,DATA_TYPE.SITECONFIG,override=override, show_details=show_details)
         self._process_data_graph(network,station,survey,DATA_TYPE.ATDOFFSET,override=override, show_details=show_details)
         self._process_data_graph(network,station,survey,DATA_TYPE.SVP,override=override, show_details=show_details)

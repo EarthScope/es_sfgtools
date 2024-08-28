@@ -8,5 +8,5 @@ from .gnss_functions import (
 )
 from .imu_functions import novatel_to_imudf,dfop00_to_imudf,qcpin_to_imudf
 from .seabird_functions import seabird_to_soundvelocity
-from .site_functions import masterfile_to_siteconfig,leverarmfile_to_atdoffset
+from .site_functions import masterfile_to_siteconfig
 from .vessel_functions import leverarmfile_to_atdoffset

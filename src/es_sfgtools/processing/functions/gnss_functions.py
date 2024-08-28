@@ -271,7 +271,7 @@ def rinex_to_kin(source: RinexFile, site: str = "XXXX",show_details: bool=True) 
 
 
 @pa.check_types        
-def kin_to_gnssdf(source:KinFile) -> DataFrame[PositionDataFrame]:
+def kin_to_gnssdf(source:KinFile, show_details: bool=True) -> DataFrame[PositionDataFrame]:
     """
     Create an PositionDataFrame from a kin file from PRIDE-PPP
 
