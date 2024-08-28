@@ -16,6 +16,8 @@ import shutil
 import json
 import platform
 from pathlib import Path
+import numpy as np
+import uuid 
 import math
 
 from ..schemas.files.file_schemas import NovatelFile,RinexFile,KinFile,Nov770File,DFOP00RawFile,QCPinFile,NovatelPinFile
@@ -81,7 +83,7 @@ class PridePPP(BaseModel):
     number_of_satellites: int = Field(
         default=1, ge=0, le=125
     )  # Average Number of available satellites
-    pdop: float = Field(default=0, ge=0, le=100)  # Position Dilution of Precision
+    pdop: float = Field(default=0, ge=0, le=1000)  # Position Dilution of Precision
     time: Optional[datetime] = None
 
     class Config:
@@ -89,7 +91,7 @@ class PridePPP(BaseModel):
 
     @model_validator(mode="before")
     def validate_time(cls, values):
-        values["pdop"] = float(values["pdop"])
+        values["pdop"] = float(values.get("pdop", 0.0))
         return values
     
     @model_validator(mode="after")
@@ -166,8 +168,8 @@ def _novatel_to_rinex(
         raise ValueError(f"Unsupported platform: {system}")
     if arch not in ["amd64", "arm64"]:
         raise ValueError(f"Unsupported architecture: {arch}")
-    
-    if isinstance(source,NovatelFile):
+
+    if type(source) in [NovatelFile,NovatelPinFile]:
         binary_path = RINEX_BIN_PATH[f"{system}_{arch}"]
         file_date = os.path.splitext(os.path.basename(source.location))[0].split("_")[1]
 
@@ -209,11 +211,12 @@ def _novatel_to_rinex(
             # logger.info("showing details")
             if len(result.stdout.decode()):
                 print(f"{os.path.basename(source.location)}: {result.stdout.decode().rstrip()}")
-            #print(result.stderr.decode())
-            logger.info(f"Converted Novatel data to RINEX: {rinex_outfile}")
-        rinex_data = RinexFile(parent_id=source.uuid)
+            # print(result.stderr.decode())
+        logger.info(f"Converted Novatel files to RINEX: {rinex_outfile}")
+        rinex_data = RinexFile(parent_id=source.uuid,location=rinex_outfile,site=site)
         rinex_data.read(rinex_outfile)
-        
+        rinex_data.get_meta()
+
     return rinex_data
 
 def novatel_to_rinex(source:NovatelFile, site: str, year: str = None,outdir:str=None,show_details: bool=True,**kwargs) -> RinexFile:
@@ -227,7 +230,7 @@ def nov770_to_rinex(source:Nov770File, site: str, year: str = None,show_details:
     assert isinstance(source, Nov770File), "Invalid source file type"
     return _novatel_to_rinex(source,site,year,show_details=show_details,**kwargs)
 
-def rinex_to_kin(source: RinexFile, site: str = "XXXX",show_details: bool=True) -> KinFile:
+def rinex_to_kin(source: RinexFile, writedir:Path,pridedir:Path, site: str = "XXXX",show_details: bool=True) -> KinFile:
     """
     Convert a RINEX file to a position file
     """
@@ -238,32 +241,52 @@ def rinex_to_kin(source: RinexFile, site: str = "XXXX",show_details: bool=True) 
 
     out = []
 
-    with tempfile.TemporaryDirectory(dir="/tmp/",) as tmpoutdir:
+    # simul link the rinex file to the same file with file_uuid attached at the front
 
-        if not os.path.exists(source.location):
-            logger.error(f"RINEX file {source.location} not found")
-            return None
-        result = subprocess.run(
-            ["pdp3", "-m", "K", "--site", site, source.location],
-            capture_output=True,
-            cwd=tmpoutdir,
-        )
+    if not os.path.exists(source.location):
+        logger.error(f"RINEX file {source.location} not found")
+        return None
+    tag = source.uuid[:4]
+    result = subprocess.run(
+        ["pdp3", "-m", "K", "--site",tag , str(source.location)],
+        capture_output=True,
+        cwd=str(pridedir),
+    )
 
-    
-        if result.stderr:
-            logger.error(result.stderr)
-  
+    if result.stderr:
+        logger.error(result.stderr)
+    if pd.isna(source.capture_time):
+        ts = str(source.location.name).split("_")[1]
+        year = ts[:4]
+        ts = ts[4:]
+        month = ts[:2]
+        ts = ts[2:]
+        day= max(1,int(ts[:2]))
+        ts = ts[2:]
+        hour = ts[-4:-2]
+        minute = ts[-2:]
+        source.capture_time = datetime(year=int(year),month=int(month),day=int(day),hour=int(hour))
 
-        for root, _, files in os.walk(tmpoutdir):
-            for file in files:
-                if "kin_" in file:
-                    source_path = os.path.join(root, file)
-                    kin_file = KinFile(parent_id=source.uuid)
-                    kin_file.read(source_path)
-                    kin_file.location = os.path.basename(source_path)
+    file_pattern = f"{source.capture_time.year}{source.capture_time.timetuple().tm_yday}"
+    tag_files = pridedir.rglob(f"*{tag}*")
+    for tag_file in tag_files:
+        if "kin" in tag_file.name:
+            kin_file = tag_file
+            kin_file_new = str(kin_file).split("_")
+            kin_file_new.insert(1,source.uuid)
+            kin_file_new = "_".join(kin_file_new)
+            kin_file_new = Path(kin_file_new)
+            shutil.move(kin_file,kin_file_new)
+            kin_file = KinFile(parent_id=source.uuid,start_time=source.capture_time,site=site)
+            kin_file.read(kin_file_new)
+            kin_file.write(writedir)
+            kin_file_new.unlink()
                     if show_details:
-                        logger.info(f"Converted RINEX file {source.location} to kin file {kin_file.location}")
-                    break
+                logger.info(f"Converted RINEX file {source.location} to kin file {kin_file.location}")
+            break
+        tag_file.unlink()
+
+
     try:
         return kin_file
     except:
@@ -271,7 +294,7 @@ def rinex_to_kin(source: RinexFile, site: str = "XXXX",show_details: bool=True) 
 
 
 @pa.check_types        
-def kin_to_gnssdf(source:KinFile, show_details: bool=True) -> DataFrame[PositionDataFrame]:
+def kin_to_gnssdf(source:KinFile, show_details: bool=True) -> Union[DataFrame[PositionDataFrame],None]:
     """
     Create an PositionDataFrame from a kin file from PRIDE-PPP
 
@@ -319,11 +342,16 @@ def qcpin_to_novatelpin(source:QCPinFile,outpath:Path) -> NovatelPinFile:
         pin_data = json.load(file)
 
     range_headers = []
+    time_stamps = []
 
-    for data in pin_data.values():   
-        range_headers.append(
-            data.get("observations").get("NOV_RANGE")
-        )
+    for data in pin_data.values():
+        range_header = data.get("observations").get("NOV_RANGE")
+        time_header = data.get("observations").get("NOV_INS").get("time").get("common")
+        range_headers.append(range_header)
+        time_stamps.append(time_header)
+
+    time_sorted = np.argsort(time_stamps)
+    range_headers = [range_headers[i] for i in time_sorted]
 
     file_path = outpath/(source.uuid+"_novpin.txt")
     with tempfile.NamedTemporaryFile(mode="w+", delete=True) as temp_file:
@@ -336,11 +364,3 @@ def qcpin_to_novatelpin(source:QCPinFile,outpath:Path) -> NovatelPinFile:
 
     
     return novatel_pin
-
-def novatelpin_to_rinex(source:NovatelPinFile, site: str, year: str = None,outdir:str=None,show_details: bool=False,**kwargs) -> RinexFile:
-    raise NotImplementedError("Conversion from Novatel Pin to RINEX is not yet implemented")
-    # assert isinstance(source, NovatelPinFile), "Invalid source file type"
-    # rinex = _novatel_to_rinex(source,site,year,show_details=show_details,**kwargs)
-    # if outdir:
-    #     rinex.write(outdir)
-    # return rinex

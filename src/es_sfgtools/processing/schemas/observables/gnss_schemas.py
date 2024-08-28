@@ -54,7 +54,7 @@ class PositionDataFrame(pa.DataFrameModel):
     )
     pdop: Series[float] = pa.Field(
         ge=0,
-        le=200,
+        le=1000,
         coerce=True,  # todo unsure of the full range, below 4 is great, 4-8 acceptable, above 8 is poor (should we throw these out?)
         description="Position Dilution of Precision",
     )

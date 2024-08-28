@@ -1,0 +1,19 @@
+{   
+    "position_llh":{
+        "latitude":"",
+        "longitude":"",
+        "height":""
+    },
+    "transponders":[
+        {
+            "position_llh":{
+                "latitude":"",
+                "longitude":"",
+                "height":""
+            },
+            "id":"",
+            "tat_offset":""
+
+        }
+    ]
+}
