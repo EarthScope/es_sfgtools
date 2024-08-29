@@ -4,10 +4,20 @@ import logging
 import os
 import pandera as pa
 from pandera.typing import DataFrame
-from ..schemas.files.file_schemas import SeaBirdFile
+from ..schemas.files.file_schemas import SeaBirdFile,CTDFile
 from ..schemas.observables import SoundVelocityDataFrame
 
 logger = logging.getLogger(os.path.basename(__file__))
+
+@pa.check_types
+def ctd_to_soundvelocity(source:CTDFile) -> DataFrame[SoundVelocityDataFrame]:
+    df = pd.read_csv(source.location, sep=" ", header=None)
+    df = df.rename(
+       columns={0:"depth",1:"speed"}
+    )
+    df["depth"] *= -1
+    return df 
+
 
 @pa.check_types
 def seabird_to_soundvelocity(source:SeaBirdFile) -> DataFrame[SoundVelocityDataFrame]:

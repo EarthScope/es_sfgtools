@@ -204,7 +204,7 @@ def novatel_to_rinex(
             # print(result.stderr.decode())
         logger.info(f"Converted Novatel files to RINEX: {rinex_outfile}")
         rinex_data = RinexFile(parent_id=source.uuid,location=rinex_outfile,site=site)
-        rinex_data.read(rinex_outfile)
+        rinex_data.read(rinex_outfile) #load into mmap 
         rinex_data.get_meta()
 
     return rinex_data
@@ -254,12 +254,9 @@ def rinex_to_kin(source: RinexFile,writedir:Path,pridedir:Path,site="IVB1") -> K
             kin_file_new = str(kin_file).split("_")
             kin_file_new.insert(1,source.uuid)
             kin_file_new = "_".join(kin_file_new)
-            kin_file_new = Path(kin_file_new)
+            kin_file_new = writedir/kin_file_new
             shutil.move(kin_file,kin_file_new)
-            kin_file = KinFile(parent_id=source.uuid,start_time=source.capture_time,site=site)
-            kin_file.read(kin_file_new)
-            kin_file.write(writedir)
-            kin_file_new.unlink()
+            kin_file = KinFile(parent_id=source.uuid,start_time=source.capture_time,site=site,location=kin_file_new)
             logger.info(f"Converted RINEX file {source.location} to kin file {kin_file.location}")
             break
         tag_file.unlink()

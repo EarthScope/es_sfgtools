@@ -27,13 +27,14 @@ GNSS_START_TIME_JULIAN = julian.to_jd(GNSS_START_TIME.replace(tzinfo=None), "mjd
 GNSS_START_TIME_JULIAN_BOUNDS = julian.to_jd(
     GNSS_START_TIME.replace(tzinfo=None) + timedelta(days=365 * 500), "mjd"
 )
-TRIGGER_DELAY_SV3 = 0.2  # SV3 trigger delay in seconds
+TRIGGER_DELAY_SV3 = 0.13  # SV3 trigger delay in seconds
 TRIGGER_DELAY_SV2 = 0.1  # SV2 trigger delay in seconds
 ADJ_LEAP = 1.0  # this is the leap second adjustment TODO Ask James why this is there
 
 STATION_OFFSETS = {"5209": 200, "5210": 320, "5211": 440, "5212": 560}
 MASTER_STATION_ID = {"0": "5209", "1": "5210", "2": "5211", "3": "5212"}
 
+# NOTE: Remove Trigger delay for SV3, keep as is for SV2 - JOhn Desanto
 
 class PingData(BaseModel):
     """
@@ -431,32 +432,34 @@ def dfpo00_to_acousticdf(source: DFPO00RawFile) -> DataFrame[AcousticDataFrame]:
                     travel_time: float = range_data.get("range", 0)  # travel time [s]
                     tat: float = range_data.get("tat", 0)  # turn around time [ms]
                     travel_time_true = (
-                        travel_time - (tat/1000) - TRIGGER_DELAY_SV2
+                        travel_time - (tat/1000) - TRIGGER_DELAY_SV3
                     )  # travel time corrected for turn around time and trigger delay
 
                     dbv = range_data.get("diag").get("dbv")[0]
                     xc = range_data.get("diag").get("xc")[0]
-                    trigger_time: float = time_data.get(
+                    snr = range_data.get("diag").get("snr")[0]
+                    return_time: float = time_data.get(
                         "common", 0
                     )  # Time since GNSS start [s]
-                    trigger_time_dt = datetime.fromtimestamp(trigger_time)
-                    ping_time = trigger_time_dt + timedelta(seconds=ADJ_LEAP)
-                    # Convert to Julian date
-                    ping_time_julian = julian.to_jd(ping_time, "mjd")
-                    travel_time_true_fdays = travel_time_true / 86400.000
-                    return_time = ping_time_julian + travel_time_true_fdays
+                    return_time_dt: datetime = datetime.fromtimestamp(return_time)
+                    ping_time_dt: datetime = return_time_dt - timedelta(seconds=travel_time) + timedelta(seconds=TRIGGER_DELAY_SV3)
+                    trigger_time_dt = return_time_dt - timedelta(seconds=travel_time)
+
+                    # Convert to seconds of day
+                    ping_time_sod = (ping_time_dt - datetime(ping_time_dt.year,ping_time_dt.month,ping_time_dt.day)).total_seconds()
+                    return_time_sod = (return_time_dt - datetime(return_time_dt.year,return_time_dt.month,return_time_dt.day)).total_seconds()
 
                 processed.append(
-                   
-                   {
-                    "TriggerTime": trigger_time_dt,
-                    "TransponderID": id,
-                    "TwoWayTravelTime": travel_time_true,
-                    "ReturnTime": return_time,
-                    "DecibalVoltage": dbv,
-                    "CorrelationScore": xc,
-                    "PingTime": ping_time_julian
-                   }
+                    {
+                        "TriggerTime": trigger_time_dt,
+                        "TransponderID": id,
+                        "TwoWayTravelTime": travel_time_true,
+                        "ReturnTime": return_time_sod,
+                        "DecibalVoltage": dbv,
+                        "CorrelationScore": xc,
+                        "PingTime": ping_time_sod,
+                        "SignalToNoise": snr,
+                    }
                 )
     df = pd.DataFrame(processed)
     return df
@@ -471,31 +474,36 @@ def qcpin_to_acousticdf(source:QCPinFile) -> Union[None,DataFrame[AcousticDataFr
         if key != "interrogation":
             range_data = data.get(key).get("range")
             time_data = data.get(key).get("time")
-
             id: str = range_data.get("cn", "").replace("IR", "")
             travel_time: float = range_data.get("range", 0)
             tat: float = range_data.get("tat", 0)
             travel_time_true = (
-                travel_time - (tat/1000) # TODO might need to acct. for trig delay?
+                travel_time - (tat/1000) - TRIGGER_DELAY_SV3
             )
             xc = range_data.get("diag").get("xc")[0]
             dbv = range_data.get("diag").get("dbv")[0]
             snr = range_data.get("diag").get("snr")[0]
-            trigger_time: float = time_data.get("common", 0)
-            trigger_time_dt = datetime.fromtimestamp(trigger_time)
-            ping_time = trigger_time_dt + timedelta(seconds=TRIGGER_DELAY_SV3)
-            # convert pingtime to seconds of day
-            ping_time = (ping_time - datetime(ping_time.year,ping_time.month,ping_time.day)).total_seconds()
+
+            return_time: float = time_data.get(
+                "common", 0
+            )  # Time since GNSS start [s]
+            return_time_dt: datetime = datetime.fromtimestamp(return_time)
+            ping_time_dt: datetime = return_time_dt - timedelta(seconds=travel_time) + timedelta(seconds=TRIGGER_DELAY_SV3)
+            trigger_time_dt = return_time_dt - timedelta(seconds=travel_time)
+
+            # Convert to seconds of day
+            ping_time_sod = (ping_time_dt - datetime(ping_time_dt.year,ping_time_dt.month,ping_time_dt.day)).total_seconds()
+            return_time_sod = (return_time_dt - datetime(return_time_dt.year,return_time_dt.month,return_time_dt.day)).total_seconds()
 
             shot_data.append(
                 {
                     "TriggerTime": trigger_time_dt,
                     "TransponderID": id,
                     "TwoWayTravelTime": travel_time_true,
-                    "ReturnTime": ping_time,
+                    "ReturnTime": return_time_sod,
                     "DecibalVoltage": dbv,
                     "CorrelationScore": xc,
-                    "PingTime": ping_time,
+                    "PingTime": ping_time_sod,
                     "SignalToNoise": snr
                 }
             )

@@ -225,9 +225,9 @@ def merge_to_shotdata(acoustic: DataFrame[AcousticDataFrame], imu: DataFrame[IMU
     imu.columns = imu.columns.str.lower()
     gnss.columns = gnss.columns.str.lower()
     acoustic["triggertime"] = pd.to_datetime(acoustic["triggertime"])
+    acoustic["time"] = acoustic["triggertime"]
     gnss["time"] = pd.to_datetime(gnss["time"])
     imu["time"] = pd.to_datetime(imu["time"])
-
 
     # Step 1. Create predictive functions for the GNSS and IMU data
     # GNSS
@@ -259,6 +259,9 @@ def merge_to_shotdata(acoustic: DataFrame[AcousticDataFrame], imu: DataFrame[IMU
 
     ping_xyz_series = pd.DataFrame({"Time":acoustic_ping_dt,"ant_e0":ping_xyz[:,0],"ant_n0":ping_xyz[:,1],"ant_u0":ping_xyz[:,2]})
     ping_attitude_series = pd.DataFrame({"Time":acoustic_ping_dt,"head0":ping_attitude[:,0],"pitch0":ping_attitude[:,1],"roll0":ping_attitude[:,2]})
+
+    ping_xyz_series = ping_xyz_series.sort_values("Time")
+    ping_attitude_series = ping_attitude_series.sort_values("Time")
     ping_processed = pd.merge_asof(ping_xyz_series,ping_attitude_series,on="Time")
 
     # Step 3. Get the end position and attitude of the glider at the time of the return
@@ -267,21 +270,24 @@ def merge_to_shotdata(acoustic: DataFrame[AcousticDataFrame], imu: DataFrame[IMU
 
     return_xyz_series = pd.DataFrame({"Time":acoustic_return_dt,"ant_e1":return_xyz[:,0],"ant_n1":return_xyz[:,1],"ant_u1":return_xyz[:,2]}).sort_values("Time")
     return_attitude_series = pd.DataFrame({"Time":acoustic_return_dt,"head1":return_attitude[:,0],"pitch1":return_attitude[:,1],"roll1":return_attitude[:,2]}).sort_values("Time")
-    return_processed = pd.merge_asof(return_xyz_series,return_attitude_series,on="Time")
+
+    return_xyz_series = return_xyz_series.sort_values("Time")
+    return_attitude_series = return_attitude_series.sort_values("Time")
+    return_processed = pd.merge_asof(return_xyz_series,return_attitude_series,on="Time").reset_index(drop=True)
 
     # Step 4. Merge the ping and return data
     merged_ping_return = pd.merge_asof(
         left=ping_processed,
         right=return_processed,
         on="Time",
-    ).rename(columns={"Time":"triggertime"})
+    ).rename(columns={"Time":"triggertime"}).sort_values("triggertime").reset_index(drop=True)
 
     # Step 5. Merge the acoustic data with the merged ping and return data
     output_df = pd.merge_asof(
-        left=acoustic,
+        left=acoustic.sort_values("triggertime"),
         right=merged_ping_return,
         on="triggertime",
-    )
+    ).reset_index(drop=True)
 
     # rename shot_trigger columns
     output_df.rename(
@@ -293,7 +299,8 @@ def merge_to_shotdata(acoustic: DataFrame[AcousticDataFrame], imu: DataFrame[IMU
         },
         inplace=True,
     )
-    
+
+    output_df = output_df.loc[:, ~output_df.columns.str.contains("^unnamed")].drop(columns=["time"]).dropna().reset_index(drop=True)
     return output_df
 
 

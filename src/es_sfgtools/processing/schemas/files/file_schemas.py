@@ -145,6 +145,7 @@ class RinexFile(BaseObservable):
     start_time: Optional[datetime] = None 
     site: Optional[str] = None
     basename: Optional[str] = None
+
     def get_meta(self):
         with open(self.location) as f:
             files = f.readlines()
@@ -163,7 +164,6 @@ class RinexFile(BaseObservable):
                     self.start_time = start_time
                     self.location = f"{self.site}_{file_date}_rinex.{str(start_time.year)[2:]}O"
                     break
-        
 
 
 class KinFile(BaseObservable):
@@ -193,6 +193,15 @@ class SeaBirdFile(BaseSite):
     """
 
     name:str = "seabird"
+
+class CTDFile(BaseSite):
+    """
+    Represents a CTD file. Used to parse out Conductivity-Temperature-Depth (CTD) data.
+
+    Processing Functions:
+        src.processing.functions.site_functions.ctd_to_ctdprofile
+    """
+    name:str = "ctd"
 
 
 class LeverArmFile(BaseSite):

@@ -136,7 +136,7 @@ class InputURL(pa.DataFrameModel):
     class Config:
         coerce=True
         add_missing_columns=True
-       
+
 
 class DataCatalog(InputURL):
 
@@ -183,12 +183,15 @@ class DataHandler:
         self.inter_dir = self.working_dir / "intermediate/"
         self.proc_dir = self.working_dir / "processed/"
         self.pride_dir = self.inter_dir / "Pride"
+        self.garpos_dir = self.working_dir / "Garpos"
         self.pride_dir.mkdir(parents=True,exist_ok=True)
         self.working_dir.mkdir(parents=True,exist_ok=True)
         self.inter_dir.mkdir(exist_ok=True)
         self.proc_dir.mkdir(exist_ok=True)
         self.raw_dir.mkdir(exist_ok=True)
-        self.working_dir.mkdir(exist_ok=True)
+        self.garpos_dir.mkdir(exist_ok=True)
+        
+
 
         self.catalog = self.working_dir/"catalog.csv"
         if self.catalog.exists():
@@ -197,7 +200,7 @@ class DataHandler:
                 catalog_data.timestamp = pd.to_datetime(catalog_data.timestamp,format="mixed")
 
                 self.catalog_data = DataCatalog.validate(catalog_data)
-                self.consolidate_entries()
+                #self.consolidate_entries()
             except pd.errors.EmptyDataError:
                 # empty dataframe
                 self.catalog_data = pd.DataFrame()
@@ -271,8 +274,8 @@ class DataHandler:
                 discovered_file_type = FILE_TYPE.QCPIN.value
 
             if discovered_file_type is None:
-                logger.error(f"File type not recognized for {file}")
-                warnings.warn(f"File type not recognized for {file}", UserWarning)
+                # logger.error(f"File type not recognized for {file}")
+                # warnings.warn(f"File type not recognized for {file}", UserWarning)
                 continue
 
             file_data = {
@@ -287,28 +290,8 @@ class DataHandler:
             }
             file_data_list.append(file_data)
             count += 1
-        data = pd.DataFrame(file_data_list)
-        incoming_data = DataCatalog.validate(data,lazy=True)
-
-        # See if the data is already in the catalog
-        if self.catalog_data.shape[0] > 0:
-            # Match against network, station, survey, type, and timestamp
-            matched = pd.merge(
-                self.catalog_data,
-                incoming_data,
-                how="right",
-                on=["network", "station", "survey", "type", "local_location"],
-                indicator=True
-            )
-
-            # Get uuid's for new data
-            new_data = matched[matched["_merge"] == "right_only"]
-            incoming_data = incoming_data[incoming_data.uuid.isin(new_data.uuid_y)]
-            if incoming_data.shape[0] < 1:
-                warnings.warn("No novel incoming qc data found", UserWarning)
-        self.catalog_data = pd.concat([self.catalog_data, incoming_data])
-        self.catalog_data.to_csv(self.catalog,index=False)
-        logger.info(f"Added {count} QC .pin files to the catalog")
+        data = DataCatalog(pd.DataFrame(file_data_list))
+        self.update_entry(data)
 
     def add_campaign_data(self, 
                           network: str, 
@@ -699,24 +682,24 @@ class DataHandler:
 
         pbar.close()
 
-    # def add_entry(self, entry: dict):
-    #     """
-    #     Add an entry in the catalog.  This may result in duplicates, which need to be cleaned up via
-    #     consolidate_entries()
+    def add_entry(self, entry: dict):
+        """
+        Add an entry in the catalog.  This may result in duplicates, which need to be cleaned up via
+        consolidate_entries()
 
-    #     Args:
-    #         entry (dict): The new entry.
+        Args:
+            entry (dict): The new entry.
 
-    #     Returns:
-    #         None
-    #     """
-    #     # find duplicates
+        Returns:
+            None
+        """
+        # find duplicates
 
-    #     self.catalog_data = pd.concat(
-    #         [self.catalog_data,DataCatalog.validate(pd.DataFrame([entry]),lazy=True)],
-    #         ignore_index=True
-    #     )
-    #     self.catalog_data.to_csv(self.catalog,index=False)
+        self.catalog_data = pd.concat(
+            [self.catalog_data,DataCatalog.validate(pd.DataFrame([entry]),lazy=True)],
+            ignore_index=True
+        )
+        self.catalog_data.to_csv(str(self.catalog),index=False)
 
     def consolidate_entries(self):
         """
@@ -733,7 +716,7 @@ class DataHandler:
         df=df.sort_index()
         df.to_csv(self.catalog,index=False)
 
-    def update_entry(self,entry:dict):
+    def update_entry(self,entry:Union[dict,pd.DataFrame]):
         """
         Replace an entry in the catalog with a new entry.
 
@@ -743,22 +726,42 @@ class DataHandler:
         Returns:
             None
         """
-        old_entry = self.catalog_data[
-            (self.catalog_data.type == entry["type"])
-            & (self.catalog_data.local_location == entry["local_location"])
-            & (self.catalog_data.network == entry["network"])
-            & (self.catalog_data.station == entry["station"])
-            & (self.catalog_data.survey == entry["survey"])
-        ]
-        if old_entry.shape[0] > 0:
-            for x in old_entry.itertuples(index=True):
-                self.catalog_data = self.catalog_data.drop(x.Index)
+        if isinstance(entry, dict):
+            old_entry = self.catalog_data[
+                (self.catalog_data.uuid == entry["uuid"])
+                & (self.catalog_data.type == entry["type"])
+                & (self.catalog_data.local_location == entry["local_location"])
+                & (self.catalog_data.network == entry["network"])
+                & (self.catalog_data.station == entry["station"])
+                & (self.catalog_data.survey == entry["survey"])
+            ]
+            if old_entry.shape[0] > 0:
+                for x in old_entry.itertuples(index=True):
+                    self.catalog_data.loc[(self.catalog_data.source_uuid == x.uuid),"source_uuid"] = entry["uuid"]
+                    self.catalog_data = self.catalog_data.drop(x.Index)
+            entry = pd.DataFrame([entry])
 
-        self.catalog_data = pd.concat(
-            [self.catalog_data,DataCatalog.validate(pd.DataFrame([entry]),lazy=True)],
-            ignore_index=True
-        )
-        self.catalog_data.to_csv(self.catalog,index=False)
+        elif isinstance(entry, pd.DataFrame):
+            if self.catalog_data.shape[0] > 0:
+                # Match against network, station, survey, type, and timestamp
+                matched = pd.merge(
+                    self.catalog_data,
+                    entry,
+                    how="right",
+                    on=["network", "station", "survey", "type", "local_location"],
+                    indicator=True,
+                )
+                # Get uuid's for new data
+                new_data = matched[matched["_merge"] == "right_only"]
+                entry = entry[entry.uuid.isin(new_data.uuid_y)]
+
+        # If matched, there will be an "id" field
+        if entry.shape[0] > 0:
+            entry = DataCatalog.validate(entry, lazy=True)
+            logger.info(f"Adding {entry.shape[0]} to the current catalog")
+            self.catalog_data = pd.concat([self.catalog_data, entry])
+
+        self.catalog_data.to_csv(self.catalog, index=False)
 
     def get_parent_stack(
         self, child_type: Union[FILE_TYPE, DATA_TYPE]
@@ -798,39 +801,29 @@ class DataHandler:
     def _process_targeted(
         self, parent: dict, child_type: Union[FILE_TYPE, DATA_TYPE], show_details: bool=False
     ) -> Tuple[dict,dict,bool]:
-        
+
         # TODO: implement multithreaded logging, had to switch to print statement below
         if isinstance(parent, dict):
             parent = pd.Series(parent)
-        response = ""
         # handle the case when the parent timestamp is None
         child_timestamp = parent.timestamp
-      
-        response += f"Processing {os.path.basename(parent.local_location)} ({parent.uuid}) of Type {parent.type} to {child_type.value}\n"
-         
-        child_map = TARGET_MAP.get(FILE_TYPE(parent.type))
-        if child_map is None:
-            response += (
-                f"Child type {child_type.value} not found for parent type {parent.type}"
-            )
-            logger.error(response)
-            raise ValueError(response)
-
-        process_func = child_map.get(child_type)
-
+        response = f"Processing {os.path.basename(parent.local_location)} ({parent.uuid}) of Type {parent.type} to {child_type.value}\n"
+        # Get the processing function that converts the parent entry to the child entry
+        process_func = TARGET_MAP.get(FILE_TYPE(parent.type)).get(child_type)
+        # Build the source object from the parent entry
         source = SCHEMA_MAP[FILE_TYPE(parent.type)](
             location=Path(parent.local_location),
             uuid=parent.uuid,
             capture_time=parent.timestamp,
         )
-        # if source.location.stat().st_size == 0:
-        #     logger.error(f"File {source.location} is empty")
-        #     return None,None,None
-
+        # build partial processing function
         match process_func:
             case proc_funcs.rinex_to_kin:
                 process_func_p = partial(
-                    process_func, writedir=self.inter_dir,pridedir=self.pride_dir, site=parent.station
+                    process_func,
+                    writedir=self.inter_dir,
+                    pridedir=self.pride_dir,
+                    site=parent.station,
                 )
 
             case proc_funcs.novatel_to_rinex:
@@ -845,19 +838,17 @@ class DataHandler:
             case _:
                 process_func_p = process_func
 
-     
+        processed = None
         if source.location is not None and source.location.exists():
             if source.location.stat().st_size == 0:
-                logger.error(f"File {source.location} is empty")
+                response += f"File {source.location} is empty\n"
                 processed = None
             else:
                 processed = process_func_p(source)
-        else:
-            processed = None
-
+    
         child_uuid = uuid.uuid4().hex
         is_processed = True
-  
+
         match type(processed):
             case pd.DataFrame:
                 local_location = self.proc_dir / f"{parent.uuid}_{child_type.value}.csv"
@@ -904,8 +895,8 @@ class DataHandler:
                 is_processed = False
                 local_location = None
                 pass
-        
-        if parent.timestamp is None and child_timestamp is not None:
+
+        if pd.isna(parent.timestamp) and child_timestamp is not None:
             parent.timestamp = child_timestamp
             response += f"Discovered timestamp: {child_timestamp} for parent {parent.type} uuid {parent.uuid}\n"
 
@@ -952,9 +943,6 @@ class DataHandler:
             & (self.catalog_data.station == station)
             & (self.catalog_data.survey == survey)
             & (self.catalog_data.local_location.notna())
-            # & np.logical_or(
-            #     (self.catalog_data.processed == False),override
-            #     )
             & (self.catalog_data.type.isin([x.value for x in source]))
         ]
 
@@ -978,37 +966,36 @@ class DataHandler:
             process_func_partial = partial(self._process_targeted,child_type=target,show_details=show_details)
 
             meta_data_list = []
-            if target is not FILE_TYPE.KIN:
-                with multiprocessing.Pool() as pool:
-                    results = pool.imap_unordered(process_func_partial,parent_entries_to_process.to_dict(orient="records"))
-                    for meta_data,parent,response in tqdm(results,total=parent_entries_to_process.shape[0],desc=f"Processing {parent_entries_to_process.type.unique()} To {target.value}"):
-                        if show_details:
-                            print(response)
-                            logger.info(response)
+    
+            with multiprocessing.Pool() as pool:
+                results = pool.imap_unordered(process_func_partial,parent_entries_to_process.to_dict(orient="records"))
+                for meta_data,parent,response in tqdm(results,total=parent_entries_to_process.shape[0],desc=f"Processing {parent_entries_to_process.type.unique()} To {target.value}"):
+                    if show_details:
+                        print(response)
+                        logger.info(response)
 
-                        self.update_entry(parent)
-                        self.update_entry(meta_data)
-                        meta_data_list.append(meta_data)
-            else:
-                with concurrent.futures.ThreadPoolExecutor() as executor:
-                    futures = [executor.submit(
-                        process_func_partial, parent) 
-                        for parent in parent_entries_to_process.to_dict(orient="records")]
-                    for future in tqdm(
-                        concurrent.futures.as_completed(futures),
-                        total=len(futures),
-                        desc=f"Processing {parent_entries_to_process.type.unique()} To {target.value}"):
-                        meta_data,parent,response = future.result()
+                    self.update_entry(parent)
+                    self.add_entry(meta_data)
+                    meta_data_list.append(meta_data)
+       
+                # with concurrent.futures.ThreadPoolExecutor() as executor:
+                #     futures = [executor.submit(
+                #         process_func_partial, parent) 
+                #         for parent in parent_entries_to_process.to_dict(orient="records")]
+                #     for future in tqdm(
+                #         concurrent.futures.as_completed(futures),
+                #         total=len(futures),
+                #         desc=f"Processing {parent_entries_to_process.type.unique()} To {target.value}"):
+                #         meta_data,parent,response = future.result()
 
-                        if show_details:
-                            print(response)
-                            logger.info(response)
+                #         if show_details:
+                #             print(response)
+                #             logger.info(response)
 
-                        self.update_entry(parent)
-                        self.update_entry(meta_data)
-                        meta_data_list.append(meta_data)
-                        
-                    
+                #         self.update_entry(parent)
+                #         self.update_entry(meta_data)
+                #         meta_data_list.append(meta_data)
+
             parent_entries_processed = parent_entries_to_process[
                 parent_entries_to_process.uuid.isin(
                     [x["source_uuid"] for x in meta_data_list]
@@ -1052,7 +1039,7 @@ class DataHandler:
                         override=override,show_details=show_details,update_timestamp=update_timestamp)
                     # Check if all children of this parent have been processed
                     if processed_parents is not None:
-                        #self.load_catalog_from_csv()
+                        # self.load_catalog_from_csv()
                         for entry in processed_parents.itertuples(index=True):
                             self.catalog_data.at[entry.Index, "processed"] = self.catalog_data[
                                 (self.catalog_data.source_uuid == entry.uuid)
@@ -1107,6 +1094,11 @@ class DataHandler:
         self._process_data_graph(network,station,survey,DATA_TYPE.SITECONFIG,override=override, show_details=show_details,update_timestamp=update_timestamp)
         self._process_data_graph(network,station,survey,DATA_TYPE.ATDOFFSET,override=override, show_details=show_details,update_timestamp=update_timestamp)
         self._process_data_graph(network,station,survey,DATA_TYPE.SVP,override=override, show_details=show_details,update_timestamp=update_timestamp)
+    def process_target(self,network:str,station:str,survey:str,parent:str,child:str,override:bool=False,show_details:bool=False):
+        target = DATA_TYPE(child)
+        source = FILE_TYPE(parent)
+        self._process_data_link(network,station,survey,target=target,source=[source],override=override,show_details=show_details)
+
 
     def process_campaign_data(
         self, network: str, station: str, survey: str, override: bool = False, show_details: bool=False,update_timestamp:bool=False
@@ -1215,17 +1207,19 @@ class DataHandler:
 
         return result
 
-    def group_observation_session_data(self,data:pd.DataFrame,timespan:str="DAY") -> pd.DataFrame:
+    def group_observation_session_data(self,data:pd.DataFrame,timespan:str="DAY") -> dict:
         # Create a group of dataframes for each timestamp
         assert timespan in ['HOUR','DAY'], "Timespan must be either 'HOUR' or 'DAY'"
         if timespan == 'HOUR':
-            grouper = pd.Grouper(level="timestamp", freq="h")
+            grouper = pd.Grouper(key="timestamp", freq="h")
         else:
-            grouper = pd.Grouper(level="timestamp", freq="D")
+            grouper = pd.Grouper(key="timestamp", freq="D")
         out = {}
 
         obs_types = [DATA_TYPE.IMU.value, DATA_TYPE.GNSS.value, DATA_TYPE.ACOUSTIC.value]
         for timestamp, group in data.groupby(grouper):
+            if group.shape[0] < 1:
+                continue
             out[timestamp] = {}
             for obs_type in obs_types:
                 out[timestamp][obs_type] = list(group[group.type == obs_type].local_location.values)
