@@ -182,7 +182,11 @@ def novatel_to_rinex(
         with open(metadata_path, "w") as f:
             json_object = json.dumps(metadata, indent=4)
             f.write(json_object)
-        file_date = os.path.splitext(os.path.basename(source.location))[0].split("_")[1]
+
+        try:
+            if source.timestamp_data_start is not None: file_date = source.timestamp_data_start 
+        except:
+            file_date = os.path.splitext(os.path.basename(source.location))[0].split("_")[1]
         if year is None:
             year = file_date[2:4]
         rinex_outfile = os.path.join(workdir, f"{site}_{file_date}_rinex.{year}O")
@@ -234,7 +238,7 @@ def rinex_to_kin(source: RinexFile,writedir:Path,pridedir:Path,site="IVB1") -> K
 
     if result.stderr:
         logger.error(result.stderr)
-    if pd.isna(source.capture_time):
+    if pd.isna(source.timestamp_data_start):
         ts = str(source.location.name).split("_")[1]
         year = ts[:4]
         ts = ts[4:]
@@ -244,9 +248,9 @@ def rinex_to_kin(source: RinexFile,writedir:Path,pridedir:Path,site="IVB1") -> K
         ts = ts[2:]
         hour = ts[-4:-2]
         minute = ts[-2:]
-        source.capture_time = datetime(year=int(year),month=int(month),day=int(day),hour=int(hour))
+        source.timestamp_data_start = datetime(year=int(year),month=int(month),day=int(day),hour=int(hour))
 
-    file_pattern = f"{source.capture_time.year}{source.capture_time.timetuple().tm_yday}"
+    file_pattern = f"{source.timestamp_data_start.year}{source.timestamp_data_start.timetuple().tm_yday}"
     tag_files = pridedir.rglob(f"*{tag}*")
     for tag_file in tag_files:
         if "kin" in tag_file.name:
@@ -256,7 +260,7 @@ def rinex_to_kin(source: RinexFile,writedir:Path,pridedir:Path,site="IVB1") -> K
             kin_file_new = "_".join(kin_file_new)
             kin_file_new = writedir/kin_file_new
             shutil.move(kin_file,kin_file_new)
-            kin_file = KinFile(parent_id=source.uuid,start_time=source.capture_time,site=site,location=kin_file_new)
+            kin_file = KinFile(parent_id=source.uuid,start_time=source.timestamp_data_start,site=site,location=kin_file_new)
             logger.info(f"Converted RINEX file {source.location} to kin file {kin_file.location}")
             break
         tag_file.unlink()
@@ -287,6 +291,10 @@ def kin_to_gnssdf(source:KinFile) -> Union[DataFrame[PositionDataFrame],None]:
 
     # Read data from lines after the end of the header
     data = []
+    if end_header_index is None:
+        error_msg = f"GNSS: No header found in FILE {source.location}"
+        logger.error(error_msg)
+        return None
     for idx,line in enumerate(lines[end_header_index + 2:]):
         split_line = line.strip().split()
         selected_columns = split_line[:9] + [split_line[-1]] # Ignore varying satellite numbers

@@ -36,6 +36,103 @@ MASTER_STATION_ID = {"0": "5209", "1": "5210", "2": "5211", "3": "5212"}
 
 # NOTE: Remove Trigger delay for SV3, keep as is for SV2 - JOhn Desanto
 
+class AHRSData(BaseModel):
+    """
+    Represents AHRS data with timestamps and related attributes.
+
+    Attributes:
+        Time (datetime): Time of the AHRS data [datetime].
+        Roll (float): Roll angle [degrees].
+        Pitch (float): Pitch angle [degrees].
+        Heading (float): Heading angle [degrees].
+    """
+
+    Time: datetime
+    Roll: float
+    Pitch: float
+    Heading: float
+
+    @classmethod
+    def from_dict(cls, dict) -> "AHRSData":
+        """
+        Create an AHRSData instance from a line of text.
+
+        Args:
+            line (str): A line of text containing comma-separated values.
+
+        Returns:
+            AHRSData: An instance of AHRSData created from the provided line.
+
+        """
+        heading = dict.get("h",0)
+        roll = dict.get("r",0)
+        pitch = dict.get("p",0)
+        time = datetime.fromtimestamp(dict.get("time").get("common"))
+        return cls(Time=time, Roll=roll, Pitch=pitch, Heading=heading)
+
+class GNSSData(BaseModel):
+    """
+    Represents GNSS data with timestamps and related attributes.
+
+    Attributes:
+        Time (datetime): Time of the GNSS data [datetime].
+        Latitude (float): Latitude [degrees].
+        Longitude (float): Longitude [degrees].
+        Height (float): Height [m].
+    """
+
+    Time: datetime
+    Latitude: float
+    Longitude: float
+    HAE: Optional[float] = None
+    sdx: Optional[float] = None
+    sdy: Optional[float] = None
+    sdz: Optional[float] = None
+
+    @classmethod
+    def from_dict(cls, dict) -> "GNSSData":
+        """
+        Create a GNSSData instance from a line of text.
+
+        Args:
+            line (str): A line of text containing comma-separated values.
+
+        Returns:
+            GNSSData: An instance of GNSSData created from the provided line.
+
+        """
+        lat = dict.get("latitude",0)
+        lon = dict.get("longitude",0)
+        hae = dict.get("hae",0)
+        sdx = dict.get("sdx",0)
+        sdy = dict.get("sdy",0)
+        sdz = dict.get("sdz",0)
+        time = datetime.fromtimestamp(dict.get("time").get("common"))
+        return cls(Time=time, Latitude=lat, Longitude=lon, HAE=hae, sdx=sdx, sdy=sdy, sdz=sdz)
+
+class RangeData(BaseModel):
+    EventID: int
+    CN:str
+    DBV:float
+    SNR:float
+    XC:float
+    TT:float
+    TAT:float
+    Time:datetime
+
+    @classmethod
+    def from_dict(cls, dict) -> "RangeData":
+        EventID = dict.get("event_id")
+        CN = dict.get("range").get("cn")
+        DBV = dict.get("range").get("diag").get("dbv")[0]
+        SNR = dict.get("range").get("diag").get("snr")[0]
+        XC = dict.get("range").get("diag").get("xc")[0]
+        TT = dict.get("range").get("range") 
+        TAT = dict.get("range").get("tat")
+        Time = datetime.fromtimestamp(dict.get("time").get("common"))
+        return cls(EventID=EventID,CN=CN,DBV=DBV,SNR=SNR,XC=XC,TT=TT,TAT=TAT,Time=Time)
+
+
 class PingData(BaseModel):
     """
     Represents Ping Data with timestamps and related attributes.
@@ -281,7 +378,7 @@ def get_transponder_offsets(line: str) -> Dict[str, float]:
     offset_dict[transponder_id] = offset
     return offset_dict
 
-@pa.check_types
+
 def sonardyne_to_acousticdf(source: SonardyneFile) -> DataFrame[AcousticDataFrame]:
     """
     Read data from a file and return a validated dataframe.
@@ -415,9 +512,9 @@ def sonardyne_to_acousticdf(source: SonardyneFile) -> DataFrame[AcousticDataFram
     logger.info(log_response)
     acoustic_df.TriggerTime = acoustic_df.TriggerTime.dt.tz_localize("UTC")
     # acoustic_df.ReturnTime = acoustic_df.ReturnTime.dt.tz_localize("UTC")
-    return acoustic_df
+    return AcousticDataFrame.validate(acoustic_df,lazy=True)
 
-@pa.check_types
+
 def dfpo00_to_acousticdf(source: DFPO00RawFile) -> DataFrame[AcousticDataFrame]:
     processed = []
     with open(source.location) as f:
@@ -431,6 +528,7 @@ def dfpo00_to_acousticdf(source: DFPO00RawFile) -> DataFrame[AcousticDataFrame]:
                     id: str = range_data.get("cn", "").replace("IR", "")
                     travel_time: float = range_data.get("range", 0)  # travel time [s]
                     tat: float = range_data.get("tat", 0)  # turn around time [ms]
+
                     travel_time_true = (
                         travel_time - (tat/1000) - TRIGGER_DELAY_SV3
                     )  # travel time corrected for turn around time and trigger delay
@@ -442,8 +540,8 @@ def dfpo00_to_acousticdf(source: DFPO00RawFile) -> DataFrame[AcousticDataFrame]:
                         "common", 0
                     )  # Time since GNSS start [s]
                     return_time_dt: datetime = datetime.fromtimestamp(return_time)
-                    ping_time_dt: datetime = return_time_dt - timedelta(seconds=travel_time) + timedelta(seconds=TRIGGER_DELAY_SV3)
-                    trigger_time_dt = return_time_dt - timedelta(seconds=travel_time)
+                    ping_time_dt: datetime = return_time_dt - timedelta(seconds=travel_time) #+ timedelta(seconds=TRIGGER_DELAY_SV3)
+                    trigger_time_dt = ping_time_dt - timedelta(seconds=TRIGGER_DELAY_SV3)
 
                     # Convert to seconds of day
                     ping_time_sod = (ping_time_dt - datetime(ping_time_dt.year,ping_time_dt.month,ping_time_dt.day)).total_seconds()
@@ -459,10 +557,11 @@ def dfpo00_to_acousticdf(source: DFPO00RawFile) -> DataFrame[AcousticDataFrame]:
                         "CorrelationScore": xc,
                         "PingTime": ping_time_sod,
                         "SignalToNoise": snr,
+                        "TurnAroundTime": tat
                     }
                 )
     df = pd.DataFrame(processed)
-    return df
+    return AcousticDataFrame.validate(df,lazy=True)
 
 @pa.check_types
 def qcpin_to_acousticdf(source:QCPinFile) -> Union[None,DataFrame[AcousticDataFrame]]:
@@ -470,8 +569,12 @@ def qcpin_to_acousticdf(source:QCPinFile) -> Union[None,DataFrame[AcousticDataFr
         data = json.load(f)
 
     shot_data = []
+    trigger_time_dt = None
     for key in data.keys():
-        if key != "interrogation":
+        if key == "interrogation":
+            interrogation_data = data.get(key)
+            trigger_time_dt = datetime.fromtimestamp(interrogation_data.get("NOV_INS").get("time").get("common"))
+        if key != "interrogation" and trigger_time_dt is not None:
             range_data = data.get(key).get("range")
             time_data = data.get(key).get("time")
             id: str = range_data.get("cn", "").replace("IR", "")
@@ -489,7 +592,6 @@ def qcpin_to_acousticdf(source:QCPinFile) -> Union[None,DataFrame[AcousticDataFr
             )  # Time since GNSS start [s]
             return_time_dt: datetime = datetime.fromtimestamp(return_time)
             ping_time_dt: datetime = return_time_dt - timedelta(seconds=travel_time) + timedelta(seconds=TRIGGER_DELAY_SV3)
-            trigger_time_dt = return_time_dt - timedelta(seconds=travel_time)
 
             # Convert to seconds of day
             ping_time_sod = (ping_time_dt - datetime(ping_time_dt.year,ping_time_dt.month,ping_time_dt.day)).total_seconds()
@@ -504,10 +606,12 @@ def qcpin_to_acousticdf(source:QCPinFile) -> Union[None,DataFrame[AcousticDataFr
                     "DecibalVoltage": dbv,
                     "CorrelationScore": xc,
                     "PingTime": ping_time_sod,
-                    "SignalToNoise": snr
+                    "SignalToNoise": snr,
+                    "TurnAroundTime": tat
                 }
             )
     if not shot_data:
         return 
     df = pd.DataFrame(shot_data)
     return df
+

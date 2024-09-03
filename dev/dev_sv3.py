@@ -8,6 +8,7 @@ from es_sfgtools.pipeline import DataHandler
 from es_sfgtools.modeling.garpos_tools import merge_to_shotdata
 import os
 import pandas as pd
+from collections import defaultdict
 
 data_dir = Path().home() / "Project/SeaFloorGeodesy/Data/NCB1/HR/"
 data_files = [str(x) for x in data_dir.glob("*")]
@@ -39,48 +40,42 @@ if __name__ == "__main__":
     #     show_details=True
     # )
 
-    # dh.process_target(
-    #     network=network,
-    #     station=station,
-    #     survey=survey,
-    #     parent="kin",
-    #     child="gnss"
-    # )
+    survey_entries = dh.query_catalog(
+        network=network,
+        station=station,
+        survey=survey,
+        type=["gnss", "acoustic", "imu"]
+    )
 
-    entries = dh.catalog_data[
-        dh.catalog_data.type.isin(["gnss", "acoustic", "imu"])
-    ]
-    entries_grouped:dict = dh.group_observation_session_data(
-        data=entries,
+    entries_grouped = dh.group_observation_session_data(
+        data=survey_entries,
         timespan="DAY"
     )
+
     processed = {}
     dtypes = ["gnss", "acoustic", "imu"]
     for key, value in entries_grouped.items():
         merged = {}
         for dtype in dtypes:
-            merged[dtype] = pd.DataFrame()
             for x in value[dtype]:
                 try:
-                    merged[dtype] = pd.concat(
-                        [merged[dtype], pd.read_csv(x)]
-                    )
-            
+                    merged[dtype] = pd.concat([merged.get(dtype,pd.DataFrame()), pd.read_csv(x)])
                 except:
                     pass
-        for k in dtypes:
-            if merged[k].shape[0] == 0:
-                del merged[k]
         if list(merged.keys()) == dtypes:
             processed[key] = merged
 
-print(processed)
+    path_dict = defaultdict(lambda: defaultdict(str))
+    for ts,data in processed.items():
+        for dtype,df in data.items():
+            ts = ts.replace(":","-").replace(" ","-")
+            path_name = f"{ts}_{dtype}.csv"
+            path = dh.garpos_dir / path_name
+            df.to_csv(path)
+            path_dict[ts][dtype] = str(path)
 
-for ts,data in processed.items():
-    for dtype,df in data.items():
-        path_name = f"{ts}_{dtype}.csv"
-        path = dh.garpos_dir / path_name
-        df.to_csv(path)
-        processed[ts][dtype] = str(path)
-with open(dh.garpos_dir / "prep_NCB1.json", "w") as f:
-    json.dump(processed, f)
+    cat_path = dh.garpos_dir / "prep_NCB1_catalog.json"
+    with open(cat_path, "w") as f:
+        json.dump(path_dict, f)
+
+    print(f"Data processed and saved to {str(cat_path)}")

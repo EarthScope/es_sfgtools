@@ -68,6 +68,10 @@ def masterfile_to_siteconfig(source:MasterFile) -> Union[SiteConfig,None]:
         logger.error("Geoid undulation not found in masterfile")
         return
 
+    # subtract geoid undulation from transponder height
+    for transponder in transponders:
+        transponder.position_llh.height += geoid_undulation # TODO John things this might work
+
     site_position_llh = PositionLLH(latitude=center_llh["latitude"],longitude=center_llh["longitude"],height=center_llh["height"])
     site = SiteConfig(
         position_llh=site_position_llh,

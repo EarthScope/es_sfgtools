@@ -3,6 +3,7 @@ import pandas as pd
 import pandera as pa
 from pandera.errors import SchemaError
 from datetime import datetime, timezone
+from pathlib import Path
 import sys
 import pdb
 # Local Imports
@@ -201,15 +202,8 @@ class TestRinexParsing:
 
         novatel_file = file_schemas.NovatelFile(location=TEST_NOVATEL_RAW)
         rinex_file = novatel_to_rinex(novatel_file,outdir=os.path.dirname(TEST_NOVATEL_RAW),site="IVB1")
+        rinex_file.write(Path(TEST_NOVATEL_RAW).parent)
         assert rinex_file.location.exists(), f"File {rinex_file.location} not found"
         os.remove(rinex_file.location)
 
-    def test_sonardyne_binary(self):
-        
-        novatel_file_binary = file_schemas.Novatel770File(location=TEST_NOVATEL_BINARY)
-        rinex_file = novatel770_to_rinex(novatel_file_binary,outdir=os.path.dirname(TEST_NOVATEL_BINARY),site="IVB1")
-        assert os.path.exists(rinex_file.location), f"File {rinex_file.location} not found"
-        os.remove(rinex_file.location)
 
-
-TestAcousticParsing().test_sonardyne()

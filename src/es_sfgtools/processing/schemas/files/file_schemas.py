@@ -13,7 +13,7 @@ class BaseObservable(BaseModel):
         id (Optional[str]): The ID of the object.
         epoch_id (Optional[str]): The ID of the epoch.
         campaign_id (Optional[str]): The ID of the campaign.
-        capture_time (Optional[datetime]): The capture time of the data.
+        timestamp_data_start (Optional[datetime]): The capture time of the data.
         data (Optional[mmap.mmap]): The data object.
 
     Methods:
@@ -29,7 +29,8 @@ class BaseObservable(BaseModel):
     uuid: Optional[str] = Field(default=None)
     epoch_id: Optional[str] = Field(default=None)
     campaign_id: Optional[str] = Field(default=None)
-    capture_time: Optional[datetime] = Field(default=None)
+    timestamp_data_start: Optional[datetime] = Field(default=None)
+    timestamp_data_end: Optional[datetime] = Field(default=None)
     data: Optional[mmap.mmap] = Field(default=None, exclude=True)
 
     class Config:
@@ -68,13 +69,13 @@ class BaseSite(BaseModel):
         id (Optional[str]): The ID of the base site.
         site_id (Optional[str]): The site ID of the base site.
         campaign_id (Optional[str]): The campaign ID of the base site.
-        capture_time (Optional[datetime]): The capture time of the base site.
+        timestamp_data_start (Optional[datetime]): The capture time of the base site.
     """
     location: Union[str, Path]
     uuid: Optional[str] = Field(default=None)
     site_id: Optional[str] = Field(default=None)
     campaign_id: Optional[str] = Field(default=None)
-    capture_time: Optional[datetime] = Field(default=None)
+    timestamp_data_start: Optional[datetime] = Field(default=None)
 
 class NovatelFile(BaseObservable):
     """
@@ -142,27 +143,35 @@ class RinexFile(BaseObservable):
     """
     name:str = "rinex"
     parent_uuid: Optional[str] = None
-    start_time: Optional[datetime] = None 
+   
     site: Optional[str] = None
     basename: Optional[str] = None
 
+ 
+    def _get_time(self,line):
+        time_values = line.split("GPS")[0].strip().split()
+        start_time = datetime(
+            year=int(time_values[0]),
+            month=int(time_values[1]),
+            day=int(time_values[2]),
+            hour=int(time_values[3]),
+            minute=int(time_values[4]),
+            second=int(float(time_values[5])),
+        )
+        return start_time
+    
     def get_meta(self):
         with open(self.location) as f:
             files = f.readlines()
             for line in files:
                 if "TIME OF FIRST OBS" in line:
-                    time_values = line.split("GPS")[0].strip().split()
-                    start_time = datetime(
-                        year=int(time_values[0]),
-                        month=int(time_values[1]),
-                        day=int(time_values[2]),
-                        hour=int(time_values[3]),
-                        minute=int(time_values[4]),
-                        second=int(float(time_values[5])),
-                    )
+                    start_time = self._get_time(line)
                     file_date = start_time.strftime("%Y%m%H%m%S")
-                    self.start_time = start_time
+                    self.timestamp_data_start = start_time
                     self.location = f"{self.site}_{file_date}_rinex.{str(start_time.year)[2:]}O"
+                if "TIME OF LAST OBS" in line:
+                    end_time = self._get_time(line)
+                    self.timestamp_data_end = end_time
                     break
 
 
