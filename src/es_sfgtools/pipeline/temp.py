@@ -125,45 +125,6 @@ class MergeFrequency(Enum):
     HOUR = "h"
     DAY = 'D'
 
-# class InputURL(pa.DataFrameModel):
-#     uuid: pa.typing.Series[pa.String] = pa.Field(
-#         description="Unique identifier", default=None
-#     )
-#     bucket: pa.typing.Series[pa.String] = pa.Field(description="S3 bucket",default=None,nullable=True)
-#     network: pa.typing.Series[pa.String] = pa.Field(description="Network name")
-#     station: pa.typing.Series[pa.String] = pa.Field(description="Station name")
-#     survey: pa.typing.Series[pa.String] = pa.Field(description="Survey name")
-#     remote_prefix: pa.typing.Series[pa.String] = pa.Field(description="Remote S3 URL",default=None,nullable=True)
-#     type: pa.typing.Series[pa.String] = pa.Field(
-#         description="Type of data",
-#         default=None,
-#         isin=FILE_TYPES + DATA_TYPES + [None],
-#     )
-#     timestamp: pa.typing.Series[pa.Timestamp] = pa.Field(description="Timestamp",default=None,nullable=True)
-
-#     class Config:
-#         coerce=True
-#         drop_invalid_rows=True
-
-
-# class DataCatalog(InputURL):
-
-#     local_path: pa.typing.Series[pa.String] = pa.Field(
-#         description="Local location", default=None,nullable=True
-#     )
-#     source_uuid: pa.typing.Series[pa.String] = pa.Field(description="Source identifier",default=pd.NA,nullable=True )
-#     processed: pa.typing.Series[pa.Bool] = pa.Field(description="Child data has been aquired",default=False)
-#     timestamp_minted: pa.typing.Series[pa.Timestamp] = pa.Field(description="Timestamp of the catalog entry",default=datetime.datetime.now())
-#     class Config:
-#         coerce=True
-#         add_missing_columns=True
-#         drop_invalid_rows=True
-
-#     @pa.parser("timestamp")
-#     def parse_timestamp(cls, value):
-#         return pd.to_datetime(value,format="mixed")
-
-
 class DataHandler:
     """
     A class to handle data operations such as adding campaign data, downloading data, and processing data.
@@ -210,36 +171,16 @@ class DataHandler:
         logging.basicConfig(level=logging.INFO,filename=self.working_dir/"datahandler.log")
         logger.info(f"Data Handler initialized, data will be stored in {self.working_dir}")
 
-    def _get_timestamp(self,remote_prefix:str) -> pd.Timestamp:
-        """
-        Get the timestamp from the remote file prefix.
-
-        Args:
-            remote_prefix (str): The remote prefix.
-
-        Returns:
-            pd.Timestamp: The timestamp extracted from the remote prefix.
-        """
-        basename = Path(remote_prefix).name
-
-        try:
-            date_str = basename.split("_")[1].split(".")[0]
-            return pd.to_datetime(date_str,format="%Y%m%d%H%M%S")
-        except:
-            return None
-
-    # def load_catalog_from_csv(self):
-    #     self.consolidate_entries()
-    #     self.catalog_data = pd.read_csv(self.catalog, parse_dates=['timestamp'])
-    #     self.catalog_data['timestamp'] = self.catalog_data['timestamp'].astype('datetime64[ns]')
-
     def get_dtype_counts(self):
 
         with self.engine.begin() as conn:
-            data_type_counts = [dict(row) for row in conn.execute(
-                sa.select([Assets.type,sa.func.count(Assets.type)]).group_by(Assets.type)
+            data_type_counts = [dict(row._mapping) for row in conn.execute(
+                sa.select(sa.func.count(Assets.type),Assets.type).where(Assets.local_path.is_not(None)).group_by(Assets.type)
                 ).fetchall()]
-        return data_type_counts
+            if len(data_type_counts) == 0:
+                return {"No data in catalog":0}
+        return {x["type"]:x["count_1"] for x in data_type_counts}    
+   
 
     def add_data_local(self,
                     network:str,
@@ -264,8 +205,8 @@ class DataHandler:
                 discovered_file_type = FILE_TYPE.QCPIN.value
 
             if discovered_file_type is None:
-                # logger.error(f"File type not recognized for {file}")
-                # warnings.warn(f"File type not recognized for {file}", UserWarning)
+                logger.error(f"File type not recognized for {file}")
+                warnings.warn(f"File type not recognized for {file}", UserWarning)
                 continue
 
             file_data = {
@@ -447,7 +388,7 @@ class DataHandler:
             for entry in s3_entries:
                 _path = Path(entry.remote_path)
                 s3_entries_processed.append({
-                    "bucket":_path.root,
+                    "bucket":(bucket :=_path.root),
                     "prefix":_path.relative_to(bucket)
                 })
             with concurrent.futures.ThreadPoolExecutor() as executor:

@@ -39,6 +39,7 @@ if __name__ == "__main__":
         override=False,
         show_details=True
     )
+    print(dh.get_dtype_counts())
 
     # survey_entries = dh.query_catalog(
     #     network=network,
