@@ -130,65 +130,92 @@ class DataHandler:
     A class to handle data operations such as adding campaign data, downloading data, and processing data.
     """
 
-    def __init__(self,working_dir:Union[Path,str]) -> None:
+    def __init__(self,
+                 network: str,
+                 station:str,
+                 survey:str,
+                 data_dir:Union[Path,str],
+                 show_details:bool=True
+                 ) -> None:
         """
         Initialize the DataHandler object.
 
-        Creates the following directories if they do not exist:
-            - raw/
-            - intermediate/
-            - processed/
+        Creates the following files and directories within the data directory if they do not exist:
+            - catalog.sqlite
+            - <network>/
+                - <station>/
+                    - <survey>/
+                        - raw/
+                        - intermediate/
+                        - processed/
+                        - Garpos
+             - Pride/
 
         Args:
-            working_dir (Path): The working directory path.
+            network (str): The network name.
+            station (str): The station name.
+            survey (str): The survey name.
+            data_dir (Path): The working directory path.
 
         Returns:
             None
         """
-        if isinstance(working_dir,str):
-            working_dir = Path(working_dir)
+        self.network = network
+        self.station = station
+        self.survey = survey
 
-        self.working_dir = working_dir
+        if isinstance(data_dir,str):
+            data_dir = Path(data_dir)
+
+        self.data_dir = data_dir
+        self.working_dir = self.data_dir / self.network / self.station / self.survey
         self.raw_dir = self.working_dir / "raw/"
         self.inter_dir = self.working_dir / "intermediate/"
         self.proc_dir = self.working_dir / "processed/"
-        self.pride_dir = self.inter_dir / "Pride"
+        self.pride_dir = self.data_dir / "Pride"
         self.garpos_dir = self.working_dir / "Garpos"
-        self.pride_dir.mkdir(parents=True,exist_ok=True)
         self.working_dir.mkdir(parents=True,exist_ok=True)
+        self.pride_dir.mkdir(parents=True,exist_ok=True)
         self.inter_dir.mkdir(exist_ok=True)
         self.proc_dir.mkdir(exist_ok=True)
         self.raw_dir.mkdir(exist_ok=True)
         self.garpos_dir.mkdir(exist_ok=True)
 
-        self.db_path = self.working_dir/"catalog.sqlite"
+        self.db_path = self.data_dir/"catalog.sqlite"
         if not self.db_path.exists():
             self.db_path.touch()
 
         self.engine = sa.create_engine(f"sqlite+pysqlite:///{self.db_path}",poolclass=sa.pool.NullPool)
         Base.metadata.create_all(self.engine)
 
-        logging.basicConfig(level=logging.INFO,filename=self.working_dir/"datahandler.log")
-        logger.info(f"Data Handler initialized, data will be stored in {self.working_dir}")
+        logging.basicConfig(level=logging.INFO,
+                            format="{asctime} {message}",
+                            style="{",
+                            datefmt="%Y-%m-%d %H:%M:%S",
+                            filename=self.working_dir/"datahandler.log")
+        response = f"Data Handler initialized, data will be stored in {self.working_dir}"
+        logger.info(response)
+        if show_details:
+            print(response)
 
     def get_dtype_counts(self):
 
         with self.engine.begin() as conn:
             data_type_counts = [dict(row._mapping) for row in conn.execute(
-                sa.select(sa.func.count(Assets.type),Assets.type).where(Assets.local_path.is_not(None)).group_by(Assets.type)
+                sa.select(sa.func.count(Assets.type),Assets.type).where(
+                    Assets.network.in_([self.network]),Assets.station.in_([self.station]),Assets.survey.in_([self.survey]),Assets.local_path.is_not(None)
+                    ).group_by(Assets.type)
                 ).fetchall()]
             if len(data_type_counts) == 0:
-                return {"No data in catalog":0}
+                return {"Local files found":0}
         return {x["type"]:x["count_1"] for x in data_type_counts}    
    
 
     def add_data_local(self,
-                    network:str,
-                    station:str,
-                    survey:str,
-                    local_filepaths:List[str],
-                    discover_file_type:bool=False,
-                    **kwargs):
+                        local_filepaths:List[str],
+                        discover_file_type:bool=False,
+                        show_details:bool=True,
+                        **kwargs):
         count = 0
         file_data_list = []
         for file in local_filepaths:
@@ -210,9 +237,9 @@ class DataHandler:
                 continue
 
             file_data = {
-                "network": network,
-                "station": station,
-                "survey": survey,
+                "network": self.network,
+                "station": self.station,
+                "survey": self.survey,
                 "local_path": str(file),
                 "type": discovered_file_type,
                 "timestamp_created": datetime.datetime.now(),
@@ -225,10 +252,10 @@ class DataHandler:
         with self.engine.begin() as conn:
             # get local file paths under the same network, station, survey
             file_data_map = {x['local_path']:x for x in file_data_list}
-
             existing_files = [row[0] for row in conn.execute(sa.select(Assets.local_path).where(
-                Assets.network.in_([network]),Assets.station.in_([station]),Assets.survey.in_([survey])
-            )).fetchall()]            # remove existing files from the file_data_map
+                Assets.network.in_([self.network]),Assets.station.in_([self.station]),Assets.survey.in_([self.survey])
+            )).fetchall()]            
+            # remove existing files from the file_data_map
             while existing_files:
                 file = existing_files.pop()
                 file_data_map.pop(file,None)
@@ -237,11 +264,11 @@ class DataHandler:
                 response = f"No new files to add"
                 logger.info(response)
                 if bool(os.environ.get("DH_SHOW_DETAILS",False)):
-                    print(response)
+                   print(response)
                 return
             response = f"Adding {len(file_data_map)} new files to the catalog"
             logger.info(response)
-            if bool(os.environ.get("DH_SHOW_DETAILS",False)):
+            if show_details:
                 print(response)
             # now add the new files
             conn.execute(
@@ -249,19 +276,14 @@ class DataHandler:
             )
 
     def add_data_remote(self, 
-                          network: str, 
-                          station: str, 
-                          survey: str, 
                           remote_filepaths: List[str],
                           remote_type:Union[REMOTE_TYPE,str] = REMOTE_TYPE.HTTP,
+                          show_details:bool=True,
                           **kwargs):
         """
         Add campaign data to the catalog.
 
         Args:
-            network (str): The network name.
-            station (str): The station name.
-            survey (str): The survey name.
             remote_filepaths (List[str]): A list of file locations on gage-data.
             remote_type (Union[REMOTE_TYPE,str]): The type of remote location.
             **kwargs: Additional keyword arguments.
@@ -291,9 +313,8 @@ class DataHandler:
                 #raise ValueError(f"File type not recognized for {file}")
 
             file_data = {
-                "network": network,
-                "station": station,
-                "survey": survey,
+                "station": self.station,
+                "survey": self.survey,
                 "remote_path": file,
                 "remote_type": remote_type.value,
                 "type": discovered_file_type,
@@ -303,16 +324,24 @@ class DataHandler:
 
         # See if the data is already in the catalog
         file_data_map = {x['remote_path']:x for x in file_data_list}
+        response = f"Total remote files found {len(file_data_map)}"
+        logger.info(response)
+        if show_details:
+            print(response)
         with self.engine.begin() as conn:
             existing_files = [dict(row._mapping) for row in conn.execute(sa.select(Assets.remote_path).where(
-                Assets.network.in_([network]),Assets.station.in_([station]),Assets.survey.in_([survey])
+                Assets.network.in_([self.network]),Assets.station.in_([self.station]),Assets.survey.in_([self.survey])
             )).fetchall()]
+            response = f"Total files tracked in catalog {len(existing_files)}"
+            logger.info(response)
+            if show_details:
+                print(response)
             # remove existing files from the file_data_map
             for file in existing_files:
                 file_data_map.pop(file['remote_path'],None)
 
             if len(file_data_map) == 0:
-                response = f"No new files to add"
+                response = f"No new files found to add"
                 logger.info(response)
                 print(response)
                 return
@@ -325,9 +354,6 @@ class DataHandler:
             )
 
     def download_data(self,
-                    network:str,
-                    station:str,
-                    survey:str,
                     file_type: str="all",
                     override:bool=False,
                     show_details:bool=True):
@@ -335,9 +361,6 @@ class DataHandler:
         Retrieves and catalogs data from the remote locations stored in the catalog.
 
         Args:
-            network (str): The network name.
-            station (str): The station name.
-            survey (str): The survey name.
             file_type (str): The type of file to download
             override (bool): Whether to download the data even if it already exists
             from_s3 (bool): Use S3 download functionality if remote resourses are in an s3 bucket
@@ -346,7 +369,7 @@ class DataHandler:
         Raises:
             Exception: If no matching data found in catalog.
         """
-        os.environ["DH_SHOW_DETAILS"] = str(show_details)
+        #os.environ["DH_SHOW_DETAILS"] = str(show_details)
         if file_type == 'all':
             file_types = FILE_TYPES
         else:
@@ -354,7 +377,7 @@ class DataHandler:
         with self.engine.begin() as conn:
             entries = [dict(row._mapping) for row in conn.execute(
                 sa.select(Assets).where(
-                    Assets.network.in_([network]),Assets.station.in_([station]),Assets.survey.in_([survey]),Assets.type.in_(file_types)
+                    Assets.network.in_([self.network]),Assets.station.in_([self.station]),Assets.survey.in_([self.survey]),Assets.type.in_(file_types)
                 )
             ).fetchall()]
         if len(entries) == 0:
@@ -378,7 +401,7 @@ class DataHandler:
         if len(entries) == 0:
             response = f"No new files of type {file_type} to download"
             logger.info(response)
-            #print(response)
+            print(response)
             return
         # split the entries into s3 and http
         s3_entries = [x for x in entries if x['remote_type'] == REMOTE_TYPE.S3.value]
@@ -401,32 +424,60 @@ class DataHandler:
                         updated_entries.append(entry)
 
         # download http entries
-        # TODO: add back in tqdm bars
-        if len(http_entries) > 0:
-            _download_func = partial(self._download_https,destination_dir=self.raw_dir)
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                results = executor.map(_download_func,[x['remote_path'] for x in http_entries])
-                for result,entry in zip(results,http_entries):
-                    if result is not None:
-                        entry['local_path'] = str(result)
-                        updated_entries.append(entry)
+        # TODO: add back in tqdm bars, have it update the database after each file not just at the end
+        # the following doesnt work yet
+  
 
-        # update the database
-        with self.engine.begin() as conn:
-            while updated_entries:
-                entry = updated_entries.pop()
-                conn.execute(
-                    sa.update(Assets).where(Assets.remote_path == entry['remote_path']).values(dict(entry))
-                )
+        if len(http_entries) > 0:
+            _download_func = partial(self._download_https,destination_dir=self.raw_dir, show_details=show_details)
+            for entry in tqdm(http_entries, total=len(http_entries), desc=f"Downloading files"):
+                if (local_path :=_download_func(entry['remote_path']))  is not None:
+                    entry["local_path"] = str(local_path)
+                    with self.engine.begin() as conn:
+                        conn.execute(
+                            sa.update(Assets).where(Assets.remote_path == entry['remote_path']).values(dict(entry))
+                        )
+                     
+
+
+                # with concurrent.futures.ThreadPoolExecutor() as executor:
+                #     futures = [executor.submit(_download_func, x['remote_path']) for x in http_entries]
+                #     for future in tqdm(concurrent.futures.as_completed(futures),
+                #                         total=len(futures),
+                #                         desc=f"Downloading files"):
+                #         local_path, remote_path = future.result()
+                #         print(local_path)
+                #         if local_path is not None:
+                #             entry = {"local_path": local_path}
+                #             conn.execute(
+                #                 sa.update(Assets).where(Assets.remote_path == remote_path).values(dict(entry))
+                #             )
+                #             conn.commit()
+  
+        # if len(http_entries) > 0:
+        #     _download_func = partial(self._download_https,destination_dir=self.raw_dir, show_details=show_details)
+        #     with concurrent.futures.ThreadPoolExecutor() as executor:
+        #         results = executor.map(_download_func,[x['remote_path'] for x in http_entries])
+        #         for result,entry in zip(results,http_entries):
+        #             if result is not None:
+        #                 entry['local_path'] = str(result)
+        #                 updated_entries.append(entry)
+
+        # # update the database
+        # with self.engine.begin() as conn:
+        #     while updated_entries:
+        #         entry = updated_entries.pop()
+        #         conn.execute(
+        #             sa.update(Assets).where(Assets.remote_path == entry['remote_path']).values(dict(entry))
+        #         )
 
     def _download_data_s3(self,bucket:str,prefix:str,**kwargs) -> Union[Path,None]:
         """
         Retrieves and catalogs data from the s3 locations stored in the catalog.
 
         Args:
-            network (str): The network name.
-            station (str): The station name.
-            survey (str): The survey name.
+            bucket (str): S3 bucket name
+            prefix (str): S3 object prefix
 
         Raises:
             Exception: If no matching data found in catalog.
@@ -456,7 +507,8 @@ class DataHandler:
     def _download_https(self, 
                         remote_url: Path, 
                         destination_dir: Path, 
-                        token_path='.') -> Union[Path,None]:
+                        token_path='.',
+                        show_details: bool=True) -> Union[Path,None]:
         """
         Downloads a file from the specified https url on gage-data
 
@@ -478,7 +530,7 @@ class DataHandler:
 
             response = f"Downloaded {str(remote_url)} to {str(local_path)}"
             logger.info(response)
-            if os.environ.get("DH_SHOW_DETAILS",False):
+            if show_details:
                 print(response)
             return local_path
 
@@ -486,7 +538,7 @@ class DataHandler:
             response = f"Error downloading {str(remote_url)} \n {e}"
             response += "\n HINT: Check authentication credentials"
             logger.error(response)
-            if os.environ.get("DH_SHOW_DETAILS",False):
+            if show_details:
                 print(response)
             return None
 
@@ -742,9 +794,6 @@ class DataHandler:
         return processed_meta, parent, response
 
     def _process_data_link(self,
-                           network:str,
-                           station:str,
-                           survey:str,
                            target:Union[FILE_TYPE,DATA_TYPE],
                            source:List[FILE_TYPE],
                            override:bool=False) -> pd.DataFrame:
@@ -752,9 +801,6 @@ class DataHandler:
         Process data from a source to a target.
 
         Args:
-            network (str): The network name.
-            station (str): The station name.
-            survey (str): The survey name.
             target (Union[FILE_TYPE,DATA_TYPE]): The target data type.
             source (List[FILE_TYPE]): The source data types.
             override (bool): Whether to override existing child entries.
@@ -767,7 +813,7 @@ class DataHandler:
         with self.engine.begin() as conn:
             parent_entries = conn.execute(
                 sa.select(Assets).where(
-                    Assets.network.is_(network),Assets.station.is_(station),Assets.survey.is_(survey),
+                    Assets.network.is_(self.network),Assets.station.is_(self.station),Assets.survey.is_(self.survey),
                     Assets.local_path.isnot(None),Assets.type.in_([x.value for x in source]),Assets.local_path.isnot(None)
                 )
             ).fetchall()
@@ -783,7 +829,7 @@ class DataHandler:
         with self.engine.begin() as conn:
             child_entries = conn.execute(
                 sa.select(Assets).where(
-                    Assets.network.is_(network),Assets.station.is_(station),Assets.survey.is_(survey),
+                    Assets.network.is_(self.network),Assets.station.is_(self.station),Assets.survey.is_(self.survey),
                     Assets.type.is_(target.value),Assets.parent_id.in_([x.id for x in parent_entries])
                 )
             ).fetchall()
@@ -838,9 +884,6 @@ class DataHandler:
             return parent_data_list
 
     def _process_data_graph(self, 
-                            network: str, 
-                            station: str, 
-                            survey: str,
                             child_type:Union[FILE_TYPE,DATA_TYPE],
                             override:bool=False,
                             show_details:bool=False,
@@ -866,9 +909,6 @@ class DataHandler:
                     if show_details:
                         logger.info(f"processing child:{child.value}")
                     processed_parents:List[dict] = self._process_data_link(
-                        network,
-                        station,
-                        survey,
                         target=child,
                         source=[parent],
                         override=override)
@@ -877,9 +917,6 @@ class DataHandler:
                     # TODO check if all children of this parent have been processed
 
     def _process_data_graph_forward(self, 
-                            network: str, 
-                            station: str, 
-                            survey: str,
                             parent_type:FILE_TYPE,
                             update_timestamp:bool=False,
                             override:bool=False,
@@ -892,62 +929,70 @@ class DataHandler:
             parent_type = list(parent_targets.keys())[0]
             for child in parent_targets[parent_type].keys():
 
-                self._process_data_link(network,station,survey,target=child,source=[parent_type],override=override,update_timestamp=update_timestamp,show_details=show_details)
+                self._process_data_link(target=child,source=[parent_type],override=override,update_timestamp=update_timestamp,show_details=show_details)
                 child_targets = TARGET_MAP.get(child,{})
                 if child_targets:
                     processing_queue.append({child:child_targets})
 
-    def process_acoustic_data(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=False,update_timestamp:bool=False):
-        self._process_data_graph(network,station,survey,DATA_TYPE.ACOUSTIC,override=override, show_details=show_details,update_timestamp=update_timestamp)
+    def process_acoustic_data(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
+        self._process_data_graph(DATA_TYPE.ACOUSTIC,override=override, show_details=show_details,update_timestamp=update_timestamp)
 
-    def process_imu_data(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=False,update_timestamp:bool=False):
-        self._process_data_graph(network,station,survey,DATA_TYPE.IMU,override=override, show_details=show_details,update_timestamp=update_timestamp)
+    def process_imu_data(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
+        self._process_data_graph(DATA_TYPE.IMU,override=override, show_details=show_details,update_timestamp=update_timestamp)
 
-    def process_rinex(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=False,update_timestamp:bool=False):
-        self._process_data_graph(network,station,survey,FILE_TYPE.RINEX,override=override, show_details=show_details,update_timestamp=update_timestamp)
+    def process_rinex(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
+        self._process_data_graph(FILE_TYPE.RINEX,override=override, show_details=show_details,update_timestamp=update_timestamp)
 
-    def process_gnss_data_kin(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=False,update_timestamp:bool=False):
-        self._process_data_graph(network,station,survey,FILE_TYPE.KIN,override=override, show_details=show_details,update_timestamp=update_timestamp)
+    def process_gnss_data_kin(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
+        self._process_data_graph(FILE_TYPE.KIN,override=override, show_details=show_details,update_timestamp=update_timestamp)
 
-    def process_gnss_data(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=False,update_timestamp:bool=False):
-        self._process_data_graph(network,station,survey,DATA_TYPE.GNSS,override=override, show_details=show_details,update_timestamp=update_timestamp)
+    def process_gnss_data(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
+        self._process_data_graph(DATA_TYPE.GNSS,override=override, show_details=show_details,update_timestamp=update_timestamp)
 
-    def process_siteconfig(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=False,update_timestamp:bool=False):
-        self._process_data_graph(network,station,survey,DATA_TYPE.SITECONFIG,override=override, show_details=show_details,update_timestamp=update_timestamp)
-        self._process_data_graph(network,station,survey,DATA_TYPE.ATDOFFSET,override=override, show_details=show_details,update_timestamp=update_timestamp)
-        self._process_data_graph(network,station,survey,DATA_TYPE.SVP,override=override, show_details=show_details,update_timestamp=update_timestamp)
-    def process_target(self,network:str,station:str,survey:str,parent:str,child:str,override:bool=False,show_details:bool=False):
+    def process_metadata(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
+        self._process_data_graph(DATA_TYPE.SITECONFIG,override=override, show_details=show_details,update_timestamp=update_timestamp)
+        self._process_data_graph(DATA_TYPE.ATDOFFSET,override=override, show_details=show_details,update_timestamp=update_timestamp)
+        self._process_data_graph(DATA_TYPE.SVP,override=override, show_details=show_details,update_timestamp=update_timestamp)
+    
+    def process_siteconfig(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
+        self._process_data_graph(DATA_TYPE.SITECONFIG,override=override, show_details=show_details,update_timestamp=update_timestamp)
+    
+    def process_atdoffset(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
+        self._process_data_graph(DATA_TYPE.ATDOFFSET,override=override, show_details=show_details,update_timestamp=update_timestamp)
+
+    def process_svp(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
+        self._process_data_graph(DATA_TYPE.SVP,override=override, show_details=show_details,update_timestamp=update_timestamp)
+    
+    def process_target(self,parent:str,child:str,override:bool=False,show_details:bool=False):
         target = DATA_TYPE(child)
         source = FILE_TYPE(parent)
-        self._process_data_link(network,station,survey,target=target,source=[source],override=override,show_details=show_details)
+        self._process_data_link(target=target,source=[source],override=override,show_details=show_details)
 
     def process_campaign_data(
-        self, network: str, station: str, survey: str, override: bool = False, show_details: bool=False,update_timestamp:bool=False
+        self, override: bool = False, show_details: bool=False,update_timestamp:bool=False
     ):
         """
         Process all data for a given network, station, and survey, generating child entries where applicable.
 
         Args:
-            network (str): The network name.
-            station (str): The station name.
-            survey (str): The survey name.
-            override (bool): Whether to override existing child entries.
+            override (bool): Whether to override existing child entries. 
+            show_details (bool): Log verbose output
 
         Raises:
             Exception: If no matching data is found in the catalog.
         """
-        self.process_acoustic_data(network,station,survey,override=override, show_details=show_details,update_timestamp=update_timestamp)
-        self.process_imu_data(network,station,survey,override=override, show_details=show_details,update_timestamp=update_timestamp)
-        self.process_gnss_data(network,station,survey,override=override, show_details=show_details,update_timestamp=update_timestamp)
-        self.process_siteconfig(network,station,survey,override=override, show_details=show_details,update_timestamp=update_timestamp)
+        self.process_acoustic_data(override=override, show_details=show_details,update_timestamp=update_timestamp)
+        self.process_imu_data(override=override, show_details=show_details,update_timestamp=update_timestamp)
+        self.process_gnss_data(override=override, show_details=show_details,update_timestamp=update_timestamp)
+        self.process_siteconfig(override=override, show_details=show_details,update_timestamp=update_timestamp)
 
         logger.info(
-            f"Network {network} Station {station} Survey {survey} Preprocessing complete"
+            f"Network {self.network} Station {self.station} Survey {self.survey} Preprocessing complete"
         )
 
-    def process_qc_data(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=False,update_timestamp:bool=False):
+    def process_qc_data(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
         # perform forward processing of qc pin data
-        self._process_data_graph_forward(network,station,survey,FILE_TYPE.QCPIN,override=override, show_details=show_details,update_timestamp=update_timestamp)
+        self._process_data_graph_forward(FILE_TYPE.QCPIN,override=override, show_details=show_details,update_timestamp=update_timestamp)
 
     # def get_observation_session_data(self,network:str,station:str,survey:str,plot:bool=False) -> pd.DataFrame:
 

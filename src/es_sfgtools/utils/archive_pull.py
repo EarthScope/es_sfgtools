@@ -196,13 +196,20 @@ def list_file_counts_by_type(file_list: list, url: str=None, show_details: bool=
         elif "ctd" in file:
             file_dict.setdefault('ctd', []).append(file)
 
+    if url is not None:
+        logger.info(f'Found under {url}:')
+    else:
+        logger.info('Found:')
+    for k,v in file_dict.items():
+        logger.info(f'    {len(v)} {k} file(s)')
+
     if show_details:
         if url is not None:
-            logger.info(f'Found under {url}:')
+            print(f'Found under {url}:')
         else:
-            logger.info('Found:')
+            print('Found:')
         for k,v in file_dict.items():
-            logger.info(f'    {len(v)} {k} file(s)')
+            print(f'    {len(v)} {k} file(s)')
     return file_dict  
 
 def get_survey_file_dict(url:str) -> dict:
