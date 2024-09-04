@@ -254,7 +254,6 @@ class DataHandler:
                           survey: str, 
                           remote_filepaths: List[str],
                           remote_type:Union[REMOTE_TYPE,str] = REMOTE_TYPE.HTTP,
-
                           **kwargs):
         """
         Add campaign data to the catalog.
@@ -288,13 +287,14 @@ class DataHandler:
 
             if discovered_file_type is None:
                 logger.error(f"File type not recognized for {file}")
-                raise ValueError(f"File type not recognized for {file}")
+                continue
+                #raise ValueError(f"File type not recognized for {file}")
 
             file_data = {
                 "network": network,
                 "station": station,
                 "survey": survey,
-                "remote_filepath": file,
+                "remote_path": file,
                 "remote_type": remote_type.value,
                 "type": discovered_file_type,
                 "timestamp_created": datetime.datetime.now(),
@@ -302,14 +302,14 @@ class DataHandler:
             file_data_list.append(file_data)
 
         # See if the data is already in the catalog
-        file_data_map = {x['remote_filepath']:x for x in file_data_list}
-        with sessionmaker(bind=self.engine) as conn:
-            existing_files = [dict(row) for row in conn.execute(sa.select(Assets.remote_path).where(
+        file_data_map = {x['remote_path']:x for x in file_data_list}
+        with self.engine.begin() as conn:
+            existing_files = [dict(row._mapping) for row in conn.execute(sa.select(Assets.remote_path).where(
                 Assets.network.in_([network]),Assets.station.in_([station]),Assets.survey.in_([survey])
             )).fetchall()]
             # remove existing files from the file_data_map
             for file in existing_files:
-                file_data_map.pop(file.remote_path,None)
+                file_data_map.pop(file['remote_path'],None)
 
             if len(file_data_map) == 0:
                 response = f"No new files to add"
@@ -323,7 +323,6 @@ class DataHandler:
             conn.execute(
                 sa.insert(Assets).values(list(file_data_map.values()))
             )
-            conn.commit()
 
     def download_data(self,
                     network:str,
@@ -348,11 +347,14 @@ class DataHandler:
             Exception: If no matching data found in catalog.
         """
         os.environ["DH_SHOW_DETAILS"] = str(show_details)
-
+        if file_type == 'all':
+            file_types = FILE_TYPES
+        else:
+            file_types = [file_type]
         with self.engine.begin() as conn:
-            entries = [dict(row) for row in conn.execute(
+            entries = [dict(row._mapping) for row in conn.execute(
                 sa.select(Assets).where(
-                    Assets.network.in_([network]),Assets.station.in_([station]),Assets.survey.in_([survey])
+                    Assets.network.in_([network]),Assets.station.in_([station]),Assets.survey.in_([survey]),Assets.type.in_(file_types)
                 )
             ).fetchall()]
         if len(entries) == 0:
@@ -361,32 +363,32 @@ class DataHandler:
             print(response)
             return
         # find entries that have a value for "local_path"
-        local_entries = []
+        entries_to_get = []
         for entry in entries:
-            if entry.local_path is not None:
-                if Path(entry.local_path).exists():
-                    local_entries.append(True)
+            if entry['local_path'] is not None:
+                if Path(entry['local_path']).exists():
+                    entries_to_get.append(False)
                 else:
-                    local_entries.append(False)
+                    entries_to_get.append(True)
             else:
-                local_entries.append(False)
+                entries_to_get.append(True)
 
-        to_get = np.logical_or(local_entries,override)
+        to_get = np.logical_or(entries_to_get,override)
         entries = np.array(entries)[to_get].tolist()
         if len(entries) == 0:
-            response = f"No new files to download"
+            response = f"No new files of type {file_type} to download"
             logger.info(response)
-            print(response)
+            #print(response)
             return
         # split the entries into s3 and http
-        s3_entries = [x for x in entries if x.remote_type == REMOTE_TYPE.S3.value]
-        http_entries = [x for x in entries if x.remote_type == REMOTE_TYPE.HTTP.value]
+        s3_entries = [x for x in entries if x['remote_type'] == REMOTE_TYPE.S3.value]
+        http_entries = [x for x in entries if x['remote_type'] == REMOTE_TYPE.HTTP.value]
         updated_entries = []
         # download s3 entries
         if len(s3_entries) > 0:
             s3_entries_processed = []
             for entry in s3_entries:
-                _path = Path(entry.remote_path)
+                _path = Path(entry['remote_path'])
                 s3_entries_processed.append({
                     "bucket":(bucket :=_path.root),
                     "prefix":_path.relative_to(bucket)
@@ -395,17 +397,18 @@ class DataHandler:
                 results = executor.map(self._download_data_s3,s3_entries_processed)
                 for result,entry in zip(results,s3_entries):
                     if result is not None:
-                        entry.local_path = str(result)
+                        entry['local_path'] = str(result)
                         updated_entries.append(entry)
 
         # download http entries
+        # TODO: add back in tqdm bars
         if len(http_entries) > 0:
             _download_func = partial(self._download_https,destination_dir=self.raw_dir)
             with concurrent.futures.ThreadPoolExecutor() as executor:
-                results = executor.map(_download_func,[x.remote_path for x in http_entries])
+                results = executor.map(_download_func,[x['remote_path'] for x in http_entries])
                 for result,entry in zip(results,http_entries):
                     if result is not None:
-                        entry.local_path = str(result)
+                        entry['local_path'] = str(result)
                         updated_entries.append(entry)
 
         # update the database
@@ -413,7 +416,7 @@ class DataHandler:
             while updated_entries:
                 entry = updated_entries.pop()
                 conn.execute(
-                    sa.update(Assets).where(Assets.remote_path == entry.remote_path).values(dict(entry))
+                    sa.update(Assets).where(Assets.remote_path == entry['remote_path']).values(dict(entry))
                 )
 
     def _download_data_s3(self,bucket:str,prefix:str,**kwargs) -> Union[Path,None]:
