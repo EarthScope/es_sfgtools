@@ -183,14 +183,15 @@ def novatel_to_rinex(
             json_object = json.dumps(metadata, indent=4)
             f.write(json_object)
 
-        try:
-            if source.timestamp_data_start is not None: file_date = source.timestamp_data_start 
-        except:
-            file_date = os.path.splitext(os.path.basename(source.location))[0].split("_")[1]
+       
+        if source.timestamp_data_start is not None: 
+            file_date = source.timestamp_data_start 
+        else:
+            file_date = os.path.splitext(os.path.basename(source.local_path))[0].split("_")[-4]
         if year is None:
             year = file_date[2:4]
         rinex_outfile = os.path.join(workdir, f"{site}_{file_date}_rinex.{year}O")
-        file_tmp_dest = shutil.copy(source.location, os.path.join(workdir, os.path.basename(source.location)))
+        file_tmp_dest = shutil.copy(source.local_path, os.path.join(workdir, os.path.basename(source.local_path)))
 
         cmd = [
             str(binary_path),
@@ -204,7 +205,7 @@ def novatel_to_rinex(
         if show_details:
             # logger.info("showing details")
             if len(result.stdout.decode()):
-                print(f"{os.path.basename(source.location)}: {result.stdout.decode().rstrip()}")
+                print(f"{os.path.basename(source.local_path)}: {result.stdout.decode().rstrip()}")
             # print(result.stderr.decode())
         logger.info(f"Converted Novatel files to RINEX: {rinex_outfile}")
         rinex_data = RinexFile(parent_id=source.uuid,location=rinex_outfile,site=site)
@@ -220,18 +221,18 @@ def rinex_to_kin(source: RinexFile,writedir:Path,pridedir:Path,site="IVB1") -> K
     """
     assert isinstance(source, RinexFile), "Invalid source file type"
 
-    logger.info(f"Converting RINEX file {source.location} to kin file")
+    logger.info(f"Converting RINEX file {source.local_path} to kin file")
 
     out = []
 
     # simul link the rinex file to the same file with file_uuid attached at the front
 
-    if not os.path.exists(source.location):
-        logger.error(f"RINEX file {source.location} not found")
+    if not os.path.exists(source.local_path):
+        logger.error(f"RINEX file {source.local_path} not found")
         return None
-    tag = source.uuid[:4]
+    tag = uuid.uuid4().hex[:4]
     result = subprocess.run(
-        ["pdp3", "-m", "K", "--site",tag , str(source.location)],
+        ["pdp3", "-m", "K", "--site",tag , str(source.local_path)],
         capture_output=True,
         cwd=str(pridedir),
     )
@@ -239,7 +240,7 @@ def rinex_to_kin(source: RinexFile,writedir:Path,pridedir:Path,site="IVB1") -> K
     if result.stderr:
         logger.error(result.stderr)
     if pd.isna(source.timestamp_data_start):
-        ts = str(source.location.name).split("_")[1]
+        ts = str(source.local_path.name).split("_")[1]
         year = ts[:4]
         ts = ts[4:]
         month = ts[:2]
@@ -256,12 +257,11 @@ def rinex_to_kin(source: RinexFile,writedir:Path,pridedir:Path,site="IVB1") -> K
         if "kin" in tag_file.name:
             kin_file = tag_file
             kin_file_new = str(kin_file).split("_")
-            kin_file_new.insert(1,source.uuid)
             kin_file_new = "_".join(kin_file_new)
             kin_file_new = writedir/kin_file_new
             shutil.move(kin_file,kin_file_new)
-            kin_file = KinFile(parent_id=source.uuid,start_time=source.timestamp_data_start,site=site,location=kin_file_new)
-            logger.info(f"Converted RINEX file {source.location} to kin file {kin_file.location}")
+            kin_file = KinFile(parent_id=source.uuid,start_time=source.timestamp_data_start,site=site,local_path=kin_file_new)
+            logger.info(f"Converted RINEX file {source.local_path} to kin file {kin_file.local_path}")
             break
         tag_file.unlink()
 
@@ -284,7 +284,7 @@ def kin_to_gnssdf(source:KinFile) -> Union[DataFrame[PositionDataFrame],None]:
         dataframe (PositionDataFrame): An instance of the class.
     """
 
-    with open(source.location, "r") as file:
+    with open(source.local_path, "r") as file:
         lines = file.readlines()
 
     end_header_index = next((i for i, line in enumerate(lines) if line.strip() == "END OF HEADER"), None)
@@ -292,7 +292,7 @@ def kin_to_gnssdf(source:KinFile) -> Union[DataFrame[PositionDataFrame],None]:
     # Read data from lines after the end of the header
     data = []
     if end_header_index is None:
-        error_msg = f"GNSS: No header found in FILE {source.location}"
+        error_msg = f"GNSS: No header found in FILE {source.local_path}"
         logger.error(error_msg)
         return None
     for idx,line in enumerate(lines[end_header_index + 2:]):
@@ -302,26 +302,26 @@ def kin_to_gnssdf(source:KinFile) -> Union[DataFrame[PositionDataFrame],None]:
             ppp : Union[PridePPP, ValidationError] = PridePPP.from_kin_file(selected_columns)
             data.append(ppp)
         except:
-            error_msg = f"Error parsing into PridePPP from line {idx} in FILE {source.location} \n"
+            error_msg = f"Error parsing into PridePPP from line {idx} in FILE {source.local_path} \n"
             error_msg += f"Line: {line}"
             logger.error(error_msg)
             pass
 
     # Check if data is empty
     if not data:
-        error_msg = f"GNSS: No data found in FILE {source.location}"
+        error_msg = f"GNSS: No data found in FILE {source.local_path}"
         logger.error(error_msg)
         return None
     dataframe = pd.DataFrame([dict(pride_ppp) for pride_ppp in data])
     #dataframe.drop(columns=["modified_julian_date", "second_of_day"], inplace=True)
 
-    log_response = f"GNSS Parser: {dataframe.shape[0]} shots from FILE {source.location}"
+    log_response = f"GNSS Parser: {dataframe.shape[0]} shots from FILE {source.local_path}"
     logger.info(log_response)
     dataframe["time"] = dataframe["time"].dt.tz_localize("UTC")
     return dataframe
 
 def qcpin_to_novatelpin(source:QCPinFile,outpath:Path) -> NovatelPinFile:
-    with open(source.location) as file:
+    with open(source.local_path) as file:
         pin_data = json.load(file)
 
     range_headers = []

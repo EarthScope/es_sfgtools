@@ -13,7 +13,7 @@ logger = logging.getLogger(os.path.basename(__file__))
 @pa.check_types
 def ctd_to_soundvelocity(source:CTDFile) -> DataFrame[SoundVelocityDataFrame]:
     df = pd.read_csv(
-        source.location, sep=" ", header=None, float_precision="round_trip",dtype=np.float64,skiprows=1
+        source.local_path, sep=" ", header=None, float_precision="round_trip",dtype=np.float64,skiprows=1
     )
     df = df.rename(
        columns={0:"depth",1:"speed"}
@@ -47,7 +47,7 @@ def seabird_to_soundvelocity(source:SeaBirdFile) -> DataFrame[SoundVelocityDataF
         14.000   54.34268 -158.42683     6.2515    32.3469    1472.63 0.0000e+00
     ...
     """
-    with open(source.location, "r") as f:
+    with open(source.local_path, "r") as f:
         lines = f.readlines()
         data = []
         data_start = re.compile("\*END\*")
@@ -57,7 +57,7 @@ def seabird_to_soundvelocity(source:SeaBirdFile) -> DataFrame[SoundVelocityDataF
                 break
         if not lines:
             logger.error(
-                f"No data found in the sound speed profile file {source.location}"
+                f"No data found in the sound speed profile file {source.local_path}"
             )
             return None
 

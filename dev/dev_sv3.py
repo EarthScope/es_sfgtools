@@ -24,58 +24,58 @@ if __name__ == "__main__":
     station = "NCB1"
     survey = "TestSV3"
 
-    # dh.add_data_local(
-    #     network=network,
-    #     station=station,
-    #     survey=survey,
-    #     local_filepaths=data_files,
-    #     discover_file_type=True
-    # )
-
-    # dh.process_campaign_data(
-    #     network=network,
-    #     station=station,
-    #     survey=survey,
-    #     override=False,
-    #     show_details=True
-    # )
-
-    survey_entries = dh.query_catalog(
+    dh.add_data_local(
         network=network,
         station=station,
         survey=survey,
-        type=["gnss", "acoustic", "imu"]
+        local_filepaths=data_files,
+        discover_file_type=True
     )
 
-    entries_grouped = dh.group_observation_session_data(
-        data=survey_entries,
-        timespan="DAY"
+    dh.process_campaign_data(
+        network=network,
+        station=station,
+        survey=survey,
+        override=False,
+        show_details=True
     )
 
-    processed = {}
-    dtypes = ["gnss", "acoustic", "imu"]
-    for key, value in entries_grouped.items():
-        merged = {}
-        for dtype in dtypes:
-            for x in value[dtype]:
-                try:
-                    merged[dtype] = pd.concat([merged.get(dtype,pd.DataFrame()), pd.read_csv(x)])
-                except:
-                    pass
-        if list(merged.keys()) == dtypes:
-            processed[key] = merged
+    # survey_entries = dh.query_catalog(
+    #     network=network,
+    #     station=station,
+    #     survey=survey,
+    #     type=["gnss", "acoustic", "imu"]
+    # )
 
-    path_dict = defaultdict(lambda: defaultdict(str))
-    for ts,data in processed.items():
-        for dtype,df in data.items():
-            ts = ts.replace(":","-").replace(" ","-")
-            path_name = f"{ts}_{dtype}.csv"
-            path = dh.garpos_dir / path_name
-            df.to_csv(path)
-            path_dict[ts][dtype] = str(path)
+    # entries_grouped = dh.group_observation_session_data(
+    #     data=survey_entries,
+    #     timespan="DAY"
+    # )
 
-    cat_path = dh.garpos_dir / "prep_NCB1_catalog.json"
-    with open(cat_path, "w") as f:
-        json.dump(path_dict, f)
+    # processed = {}
+    # dtypes = ["gnss", "acoustic", "imu"]
+    # for key, value in entries_grouped.items():
+    #     merged = {}
+    #     for dtype in dtypes:
+    #         for x in value[dtype]:
+    #             try:
+    #                 merged[dtype] = pd.concat([merged.get(dtype,pd.DataFrame()), pd.read_csv(x)])
+    #             except:
+    #                 pass
+    #     if list(merged.keys()) == dtypes:
+    #         processed[key] = merged
 
-    print(f"Data processed and saved to {str(cat_path)}")
+    # path_dict = defaultdict(lambda: defaultdict(str))
+    # for ts,data in processed.items():
+    #     for dtype,df in data.items():
+    #         ts = ts.replace(":","-").replace(" ","-")
+    #         path_name = f"{ts}_{dtype}.csv"
+    #         path = dh.garpos_dir / path_name
+    #         df.to_csv(path)
+    #         path_dict[ts][dtype] = str(path)
+
+    # cat_path = dh.garpos_dir / "prep_NCB1_catalog.json"
+    # with open(cat_path, "w") as f:
+    #     json.dump(path_dict, f)
+
+    # print(f"Data processed and saved to {str(cat_path)}")

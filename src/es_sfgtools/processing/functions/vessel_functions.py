@@ -10,7 +10,7 @@ def leverarmfile_to_atdoffset(source: LeverArmFile) -> ATDOffset:
     0.0 +0.575 -0.844
 
     """
-    with open(source.location, "r") as f:
+    with open(source.local_path, "r") as f:
         line = f.readlines()[0]
         values = [float(x) for x in line.split()]
         forward = values[1]

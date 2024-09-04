@@ -417,8 +417,8 @@ def sonardyne_to_acousticdf(source: SonardyneFile) -> DataFrame[AcousticDataFram
                              5211           58268.539411  58268.539474          5.433356             -24                70
 
     """
-    if not os.path.exists(source.location):
-        response = f"File {source.location} not found"
+    if not os.path.exists(source.local_path):
+        response = f"File {source.local_path} not found"
         logger.error(response)
         raise FileNotFoundError(response)
 
@@ -436,7 +436,7 @@ def sonardyne_to_acousticdf(source: SonardyneFile) -> DataFrame[AcousticDataFram
     line_number = 0
     # Dictionary to store transponder time offsets
     main_offset_dict = STATION_OFFSETS.copy()
-    with open(source.location) as sonardyne_file:
+    with open(source.local_path) as sonardyne_file:
         while True:
             try:
                 line = sonardyne_file.readline()
@@ -508,7 +508,7 @@ def sonardyne_to_acousticdf(source: SonardyneFile) -> DataFrame[AcousticDataFram
     )
     shot_count: int = int(acoustic_df.shape[0] / len(unique_transponders))
 
-    log_response = f"Acoustic Parser: {acoustic_df.shape[0]} shots from FILE {source.location} | {len(unique_transponders)} transponders | {shot_count} shots per transponder"
+    log_response = f"Acoustic Parser: {acoustic_df.shape[0]} shots from FILE {source.local_path} | {len(unique_transponders)} transponders | {shot_count} shots per transponder"
     logger.info(log_response)
     acoustic_df.TriggerTime = acoustic_df.TriggerTime.dt.tz_localize("UTC")
     # acoustic_df.ReturnTime = acoustic_df.ReturnTime.dt.tz_localize("UTC")
@@ -517,7 +517,7 @@ def sonardyne_to_acousticdf(source: SonardyneFile) -> DataFrame[AcousticDataFram
 
 def dfpo00_to_acousticdf(source: DFPO00RawFile) -> DataFrame[AcousticDataFrame]:
     processed = []
-    with open(source.location) as f:
+    with open(source.local_path) as f:
         lines = f.readlines()
         for line in lines:
             data = json.loads(line)
@@ -565,7 +565,7 @@ def dfpo00_to_acousticdf(source: DFPO00RawFile) -> DataFrame[AcousticDataFrame]:
 
 @pa.check_types
 def qcpin_to_acousticdf(source:QCPinFile) -> Union[None,DataFrame[AcousticDataFrame]]:
-    with open(source.location) as f:
+    with open(source.local_path) as f:
         data = json.load(f)
 
     shot_data = []

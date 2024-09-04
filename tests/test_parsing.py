@@ -203,7 +203,7 @@ class TestRinexParsing:
         novatel_file = file_schemas.NovatelFile(location=TEST_NOVATEL_RAW)
         rinex_file = novatel_to_rinex(novatel_file,outdir=os.path.dirname(TEST_NOVATEL_RAW),site="IVB1")
         rinex_file.write(Path(TEST_NOVATEL_RAW).parent)
-        assert rinex_file.location.exists(), f"File {rinex_file.location} not found"
-        os.remove(rinex_file.location)
+        assert rinex_file.local_path.exists(), f"File {rinex_file.local_path} not found"
+        os.remove(rinex_file.local_path)
 
 
