@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>es_sfgtools.processing.functions.acoustic_functions module &mdash; es-sfgtools 0.0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=d45e8c67"></script>
+        <script src="../_static/doctools.js?v=9a2dae69"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="es_sfgtools.processing.functions.gnss_functions module" href="es_sfgtools.processing.functions.gnss_functions.html" />
+    <link rel="prev" title="es_sfgtools.processing.functions package" href="es_sfgtools.processing.functions.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            es-sfgtools
+              <img src="../_static/EarthScope_Logo-color.png" class="logo" alt="Logo"/>
+          </a>
+              <div class="version">
+                0.0.1
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../pages/Installation.html">Installation Instructions</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../api.html">Code documentation</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="es_sfgtools.html">es_sfgtools package</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="es_sfgtools.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="es_sfgtools.pipeline.html">es_sfgtools.pipeline package</a></li>
+<li class="toctree-l4 current"><a class="reference internal" href="es_sfgtools.processing.html">es_sfgtools.processing package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="es_sfgtools.utils.html">es_sfgtools.utils package</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.pipeline.html">es_sfgtools.pipeline package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.pipeline.temp.html">es_sfgtools.pipeline.temp module</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="es_sfgtools.processing.html">es_sfgtools.processing package</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="es_sfgtools.processing.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l4 current"><a class="reference internal" href="es_sfgtools.processing.functions.html">es_sfgtools.processing.functions package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="es_sfgtools.processing.schemas.html">es_sfgtools.processing.schemas package</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2 current"><a class="reference internal" href="es_sfgtools.processing.functions.html">es_sfgtools.processing.functions package</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="es_sfgtools.processing.functions.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l4 current"><a class="current reference internal" href="#">es_sfgtools.processing.functions.acoustic_functions module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="es_sfgtools.processing.functions.gnss_functions.html">es_sfgtools.processing.functions.gnss_functions module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="es_sfgtools.processing.functions.imu_functions.html">es_sfgtools.processing.functions.imu_functions module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="es_sfgtools.processing.functions.seabird_functions.html">es_sfgtools.processing.functions.seabird_functions module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="es_sfgtools.processing.functions.site_functions.html">es_sfgtools.processing.functions.site_functions module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="es_sfgtools.processing.functions.vessel_functions.html">es_sfgtools.processing.functions.vessel_functions module</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">es_sfgtools.processing.functions.acoustic_functions module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#es_sfgtools.processing.functions.acoustic_functions.PingData"><code class="docutils literal notranslate"><span class="pre">PingData</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.functions.acoustic_functions.PingData.TriggerTime"><code class="docutils literal notranslate"><span class="pre">PingData.TriggerTime</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.functions.acoustic_functions.PingData.PingTime"><code class="docutils literal notranslate"><span class="pre">PingData.PingTime</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.functions.acoustic_functions.PingData.PingOffset"><code class="docutils literal notranslate"><span class="pre">PingData.PingOffset</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.functions.acoustic_functions.PingData.ADJ_LEAP"><code class="docutils literal notranslate"><span class="pre">PingData.ADJ_LEAP</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.functions.acoustic_functions.PingData.TRIGGER_DELAY"><code class="docutils literal notranslate"><span class="pre">PingData.TRIGGER_DELAY</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id0"><code class="docutils literal notranslate"><span class="pre">PingData.ADJ_LEAP</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id1"><code class="docutils literal notranslate"><span class="pre">PingData.PingOffset</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id2"><code class="docutils literal notranslate"><span class="pre">PingData.PingTime</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id3"><code class="docutils literal notranslate"><span class="pre">PingData.TriggerTime</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.functions.acoustic_functions.PingData.from_line"><code class="docutils literal notranslate"><span class="pre">PingData.from_line()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.functions.acoustic_functions.PingData.model_computed_fields"><code class="docutils literal notranslate"><span class="pre">PingData.model_computed_fields</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.functions.acoustic_functions.PingData.model_config"><code class="docutils literal notranslate"><span class="pre">PingData.model_config</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.functions.acoustic_functions.PingData.model_fields"><code class="docutils literal notranslate"><span class="pre">PingData.model_fields</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#es_sfgtools.processing.functions.acoustic_functions.SimultaneousInterrogation"><code class="docutils literal notranslate"><span class="pre">SimultaneousInterrogation</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.functions.acoustic_functions.SimultaneousInterrogation.apply_offsets"><code class="docutils literal notranslate"><span class="pre">SimultaneousInterrogation.apply_offsets()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.functions.acoustic_functions.SimultaneousInterrogation.from_line"><code class="docutils literal notranslate"><span class="pre">SimultaneousInterrogation.from_line()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.functions.acoustic_functions.SimultaneousInterrogation.model_computed_fields"><code class="docutils literal notranslate"><span class="pre">SimultaneousInterrogation.model_computed_fields</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.functions.acoustic_functions.SimultaneousInterrogation.model_config"><code class="docutils literal notranslate"><span class="pre">SimultaneousInterrogation.model_config</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.functions.acoustic_functions.SimultaneousInterrogation.model_fields"><code class="docutils literal notranslate"><span class="pre">SimultaneousInterrogation.model_fields</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.functions.acoustic_functions.SimultaneousInterrogation.pingData"><code class="docutils literal notranslate"><span class="pre">SimultaneousInterrogation.pingData</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.functions.acoustic_functions.SimultaneousInterrogation.responses"><code class="docutils literal notranslate"><span class="pre">SimultaneousInterrogation.responses</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#es_sfgtools.processing.functions.acoustic_functions.TransponderData"><code class="docutils literal notranslate"><span class="pre">TransponderData</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.functions.acoustic_functions.TransponderData.TransponderID"><code class="docutils literal notranslate"><span class="pre">TransponderData.TransponderID</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.functions.acoustic_functions.TransponderData.TwoWayTravelTime"><code class="docutils literal notranslate"><span class="pre">TransponderData.TwoWayTravelTime</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.functions.acoustic_functions.TransponderData.ReturnTime"><code class="docutils literal notranslate"><span class="pre">TransponderData.ReturnTime</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.functions.acoustic_functions.TransponderData.DecibalVoltage"><code class="docutils literal notranslate"><span class="pre">TransponderData.DecibalVoltage</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.functions.acoustic_functions.TransponderData.CorrelationScore"><code class="docutils literal notranslate"><span class="pre">TransponderData.CorrelationScore</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id4"><code class="docutils literal notranslate"><span class="pre">TransponderData.CorrelationScore</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id5"><code class="docutils literal notranslate"><span class="pre">TransponderData.DecibalVoltage</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id6"><code class="docutils literal notranslate"><span class="pre">TransponderData.ReturnTime</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.functions.acoustic_functions.TransponderData.SignalToNoise"><code class="docutils literal notranslate"><span class="pre">TransponderData.SignalToNoise</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id7"><code class="docutils literal notranslate"><span class="pre">TransponderData.TransponderID</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.functions.acoustic_functions.TransponderData.TurnAroundTime"><code class="docutils literal notranslate"><span class="pre">TransponderData.TurnAroundTime</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id8"><code class="docutils literal notranslate"><span class="pre">TransponderData.TwoWayTravelTime</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.functions.acoustic_functions.TransponderData.correct_travel_time"><code class="docutils literal notranslate"><span class="pre">TransponderData.correct_travel_time()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.functions.acoustic_functions.TransponderData.model_computed_fields"><code class="docutils literal notranslate"><span class="pre">TransponderData.model_computed_fields</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.functions.acoustic_functions.TransponderData.model_config"><code class="docutils literal notranslate"><span class="pre">TransponderData.model_config</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.functions.acoustic_functions.TransponderData.model_fields"><code class="docutils literal notranslate"><span class="pre">TransponderData.model_fields</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#es_sfgtools.processing.functions.acoustic_functions.dfpo00_to_acousticdf"><code class="docutils literal notranslate"><span class="pre">dfpo00_to_acousticdf()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#es_sfgtools.processing.functions.acoustic_functions.from_simultaneous_interrogation"><code class="docutils literal notranslate"><span class="pre">from_simultaneous_interrogation()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#es_sfgtools.processing.functions.acoustic_functions.get_transponder_offsets"><code class="docutils literal notranslate"><span class="pre">get_transponder_offsets()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#es_sfgtools.processing.functions.acoustic_functions.qcpin_to_acousticdf"><code class="docutils literal notranslate"><span class="pre">qcpin_to_acousticdf()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#es_sfgtools.processing.functions.acoustic_functions.sonardyne_to_acousticdf"><code class="docutils literal notranslate"><span class="pre">sonardyne_to_acousticdf()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.functions.gnss_functions.html">es_sfgtools.processing.functions.gnss_functions module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.functions.imu_functions.html">es_sfgtools.processing.functions.imu_functions module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.functions.seabird_functions.html">es_sfgtools.processing.functions.seabird_functions module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.functions.site_functions.html">es_sfgtools.processing.functions.site_functions module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.functions.vessel_functions.html">es_sfgtools.processing.functions.vessel_functions module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.schemas.html">es_sfgtools.processing.schemas package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.schemas.files.html">es_sfgtools.processing.schemas.files package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html">es_sfgtools.processing.schemas.files.file_schemas module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.schemas.observables.html">es_sfgtools.processing.schemas.observables package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.schemas.observables.acoustic_schemas.html">es_sfgtools.processing.schemas.observables.acoustic_schemas module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.schemas.observables.constants.html">es_sfgtools.processing.schemas.observables.constants module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.schemas.observables.gnss_schemas.html">es_sfgtools.processing.schemas.observables.gnss_schemas module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.schemas.observables.imu_schemas.html">es_sfgtools.processing.schemas.observables.imu_schemas module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.schemas.observables.sound_speed_schemas.html">es_sfgtools.processing.schemas.observables.sound_speed_schemas module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.schemas.site_config.html">es_sfgtools.processing.schemas.site_config package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.schemas.site_config.site_schemas.html">es_sfgtools.processing.schemas.site_config.site_schemas module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.utils.html">es_sfgtools.utils package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.utils.archive_pull.html">es_sfgtools.utils.archive_pull module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.utils.gage_data.html">es_sfgtools.utils.gage_data module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.utils.metadata_generator.html">es_sfgtools.utils.metadata_generator module</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="modules.html">es_sfgtools</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="es_sfgtools.html">es_sfgtools package</a><ul class="current">
+<li class="toctree-l4 current"><a class="reference internal" href="es_sfgtools.html#subpackages">Subpackages</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">es-sfgtools</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../api.html">Code documentation</a></li>
+          <li class="breadcrumb-item"><a href="es_sfgtools.html">es_sfgtools package</a></li>
+          <li class="breadcrumb-item"><a href="es_sfgtools.processing.html">es_sfgtools.processing package</a></li>
+          <li class="breadcrumb-item"><a href="es_sfgtools.processing.functions.html">es_sfgtools.processing.functions package</a></li>
+      <li class="breadcrumb-item active">es_sfgtools.processing.functions.acoustic_functions module</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/es_sfgtools.processing.functions.acoustic_functions.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-es_sfgtools.processing.functions.acoustic_functions">
+<span id="es-sfgtools-processing-functions-acoustic-functions-module"></span><h1>es_sfgtools.processing.functions.acoustic_functions module<a class="headerlink" href="#module-es_sfgtools.processing.functions.acoustic_functions" title="Link to this heading"></a></h1>
+<p>Author: Franklyn Dunbar
+Date: 2024-03-07
+Email: <a class="reference external" href="mailto:franklyn&#46;dunbar&#37;&#52;&#48;earthscope&#46;org">franklyn<span>&#46;</span>dunbar<span>&#64;</span>earthscope<span>&#46;</span>org</a></p>
+<dl class="py class">
+<dt class="sig sig-object py" id="es_sfgtools.processing.functions.acoustic_functions.PingData">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">es_sfgtools.processing.functions.acoustic_functions.</span></span><span class="sig-name descname"><span class="pre">PingData</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">PingTime</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Annotated</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Ge</span><span class="p"><span class="pre">(</span></span><span class="n"><span class="pre">ge</span></span><span class="o"><span class="pre">=</span></span><span class="m"><span class="pre">0</span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Le</span><span class="p"><span class="pre">(</span></span><span class="n"><span class="pre">le</span></span><span class="o"><span class="pre">=</span></span><span class="m"><span class="pre">86400</span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">TriggerTime</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Annotated</span><span class="p"><span class="pre">[</span></span><span class="pre">datetime</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Ge</span><span class="p"><span class="pre">(</span></span><span class="n"><span class="pre">ge</span></span><span class="o"><span class="pre">=</span></span><span class="pre">datetime.datetime</span><span class="p"><span class="pre">(</span></span><span class="m"><span class="pre">1980</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="m"><span class="pre">1</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="m"><span class="pre">6</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="m"><span class="pre">0</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="m"><span class="pre">0</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="n"><span class="pre">tzinfo</span></span><span class="o"><span class="pre">=</span></span><span class="pre">datetime.timezone.utc</span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">PingOffset</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Annotated</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Ge</span><span class="p"><span class="pre">(</span></span><span class="n"><span class="pre">ge</span></span><span class="o"><span class="pre">=</span></span><span class="p"><span class="pre">-</span></span><span class="m"><span class="pre">60</span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Le</span><span class="p"><span class="pre">(</span></span><span class="n"><span class="pre">le</span></span><span class="o"><span class="pre">=</span></span><span class="m"><span class="pre">60</span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ADJ_LEAP</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1.0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#es_sfgtools.processing.functions.acoustic_functions.PingData" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">BaseModel</span></code></p>
+<p>Represents Ping Data with timestamps and related attributes.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.functions.acoustic_functions.PingData.TriggerTime">
+<span class="sig-name descname"><span class="pre">TriggerTime</span></span><a class="headerlink" href="#es_sfgtools.processing.functions.acoustic_functions.PingData.TriggerTime" title="Link to this definition"></a></dt>
+<dd><p>Time when the ping was triggered (modified Julian day) [float].</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>datetime</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.functions.acoustic_functions.PingData.PingTime">
+<span class="sig-name descname"><span class="pre">PingTime</span></span><a class="headerlink" href="#es_sfgtools.processing.functions.acoustic_functions.PingData.PingTime" title="Link to this definition"></a></dt>
+<dd><p>Time when the ping was received [float].</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.functions.acoustic_functions.PingData.PingOffset">
+<span class="sig-name descname"><span class="pre">PingOffset</span></span><a class="headerlink" href="#es_sfgtools.processing.functions.acoustic_functions.PingData.PingOffset" title="Link to this definition"></a></dt>
+<dd><p>Offset time between trigger and ping [s].</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.functions.acoustic_functions.PingData.ADJ_LEAP">
+<span class="sig-name descname"><span class="pre">ADJ_LEAP</span></span><a class="headerlink" href="#es_sfgtools.processing.functions.acoustic_functions.PingData.ADJ_LEAP" title="Link to this definition"></a></dt>
+<dd><p>Adjustment for leap time.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.functions.acoustic_functions.PingData.TRIGGER_DELAY">
+<span class="sig-name descname"><span class="pre">TRIGGER_DELAY</span></span><a class="headerlink" href="#es_sfgtools.processing.functions.acoustic_functions.PingData.TRIGGER_DELAY" title="Link to this definition"></a></dt>
+<dd><p>Trigger delay time.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id0">
+<span class="sig-name descname"><span class="pre">ADJ_LEAP</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><a class="headerlink" href="#id0" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id1">
+<span class="sig-name descname"><span class="pre">PingOffset</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><a class="headerlink" href="#id1" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id2">
+<span class="sig-name descname"><span class="pre">PingTime</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><a class="headerlink" href="#id2" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id3">
+<span class="sig-name descname"><span class="pre">TriggerTime</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">datetime</span></em><a class="headerlink" href="#id3" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="es_sfgtools.processing.functions.acoustic_functions.PingData.from_line">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_line</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">line</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#es_sfgtools.processing.functions.acoustic_functions.PingData" title="es_sfgtools.processing.functions.acoustic_functions.PingData"><span class="pre">PingData</span></a></span></span><a class="headerlink" href="#es_sfgtools.processing.functions.acoustic_functions.PingData.from_line" title="Link to this definition"></a></dt>
+<dd><p>Create a PingData instance from a line of text.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>line</strong> (<em>str</em>) – A line of text containing comma-separated values.</p></li>
+<li><p><strong>mode</strong> (<em>WaveGlider</em><em>, </em><em>optional</em>) – The mode of the WaveGlider. Defaults to WaveGlider.SV2.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>An instance of PingData created from the provided line.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#es_sfgtools.processing.functions.acoustic_functions.PingData" title="es_sfgtools.processing.functions.acoustic_functions.PingData">PingData</a></p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">line</span> <span class="o">=</span> <span class="s2">&quot;2003,327374,1527706574,2018/05/30 18:56:14.697 PING - Offset = 0.000&quot;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">PingData</span><span class="o">.</span><span class="n">from_line</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+<span class="go">PingData(PingTime=58268.539063657634, TriggerTime=datetime.datetime(2018, 5, 30, 12, 56, 14), PingOffset=0.0, ADJ_LEAP=1.0, TRIGGER_DELAY=0.1)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.functions.acoustic_functions.PingData.model_computed_fields">
+<span class="sig-name descname"><span class="pre">model_computed_fields</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">ComputedFieldInfo</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{}</span></em><a class="headerlink" href="#es_sfgtools.processing.functions.acoustic_functions.PingData.model_computed_fields" title="Link to this definition"></a></dt>
+<dd><p>A dictionary of computed field names and their corresponding <cite>ComputedFieldInfo</cite> objects.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.functions.acoustic_functions.PingData.model_config">
+<span class="sig-name descname"><span class="pre">model_config</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">ConfigDict</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{}</span></em><a class="headerlink" href="#es_sfgtools.processing.functions.acoustic_functions.PingData.model_config" title="Link to this definition"></a></dt>
+<dd><p>Configuration for the model, should be a dictionary conforming to [<cite>ConfigDict</cite>][pydantic.config.ConfigDict].</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.functions.acoustic_functions.PingData.model_fields">
+<span class="sig-name descname"><span class="pre">model_fields</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">FieldInfo</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'ADJ_LEAP':</span> <span class="pre">FieldInfo(annotation=float,</span> <span class="pre">required=False,</span> <span class="pre">default=1.0),</span> <span class="pre">'PingOffset':</span> <span class="pre">FieldInfo(annotation=float,</span> <span class="pre">required=False,</span> <span class="pre">default=None,</span> <span class="pre">metadata=[Ge(ge=-60),</span> <span class="pre">Le(le=60)]),</span> <span class="pre">'PingTime':</span> <span class="pre">FieldInfo(annotation=float,</span> <span class="pre">required=False,</span> <span class="pre">default=None,</span> <span class="pre">metadata=[Ge(ge=0),</span> <span class="pre">Le(le=86400)]),</span> <span class="pre">'TriggerTime':</span> <span class="pre">FieldInfo(annotation=datetime,</span> <span class="pre">required=False,</span> <span class="pre">default=None,</span> <span class="pre">metadata=[Ge(ge=datetime.datetime(1980,</span> <span class="pre">1,</span> <span class="pre">6,</span> <span class="pre">0,</span> <span class="pre">0,</span> <span class="pre">tzinfo=datetime.timezone.utc))])}</span></em><a class="headerlink" href="#es_sfgtools.processing.functions.acoustic_functions.PingData.model_fields" title="Link to this definition"></a></dt>
+<dd><p>Metadata about the fields defined on the model,
+mapping of field names to [<cite>FieldInfo</cite>][pydantic.fields.FieldInfo].</p>
+<p>This replaces <cite>Model.__fields__</cite> from Pydantic V1.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="es_sfgtools.processing.functions.acoustic_functions.SimultaneousInterrogation">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">es_sfgtools.processing.functions.acoustic_functions.</span></span><span class="sig-name descname"><span class="pre">SimultaneousInterrogation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">responses</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#es_sfgtools.processing.functions.acoustic_functions.TransponderData" title="es_sfgtools.processing.functions.acoustic_functions.TransponderData"><span class="pre">TransponderData</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pingData</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#es_sfgtools.processing.functions.acoustic_functions.PingData" title="es_sfgtools.processing.functions.acoustic_functions.PingData"><span class="pre">PingData</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#es_sfgtools.processing.functions.acoustic_functions.SimultaneousInterrogation" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">BaseModel</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="es_sfgtools.processing.functions.acoustic_functions.SimultaneousInterrogation.apply_offsets">
+<span class="sig-name descname"><span class="pre">apply_offsets</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">offset_dict</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#es_sfgtools.processing.functions.acoustic_functions.SimultaneousInterrogation.apply_offsets" title="Link to this definition"></a></dt>
+<dd><p>Apply the given offsets to the transponder data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>offset_dict</strong> (<em>Dict</em><em>[</em><em>str</em><em>,</em><em>float</em><em>]</em>) – A dictionary of transponder offsets in milliseconds.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="es_sfgtools.processing.functions.acoustic_functions.SimultaneousInterrogation.from_line">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_line</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">line</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pingdata</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#es_sfgtools.processing.functions.acoustic_functions.PingData" title="es_sfgtools.processing.functions.acoustic_functions.PingData"><span class="pre">PingData</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#es_sfgtools.processing.functions.acoustic_functions.SimultaneousInterrogation" title="es_sfgtools.processing.functions.acoustic_functions.SimultaneousInterrogation"><span class="pre">SimultaneousInterrogation</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Exception</span></span></span><a class="headerlink" href="#es_sfgtools.processing.functions.acoustic_functions.SimultaneousInterrogation.from_line" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.functions.acoustic_functions.SimultaneousInterrogation.model_computed_fields">
+<span class="sig-name descname"><span class="pre">model_computed_fields</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">ComputedFieldInfo</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{}</span></em><a class="headerlink" href="#es_sfgtools.processing.functions.acoustic_functions.SimultaneousInterrogation.model_computed_fields" title="Link to this definition"></a></dt>
+<dd><p>A dictionary of computed field names and their corresponding <cite>ComputedFieldInfo</cite> objects.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.functions.acoustic_functions.SimultaneousInterrogation.model_config">
+<span class="sig-name descname"><span class="pre">model_config</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">ConfigDict</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{}</span></em><a class="headerlink" href="#es_sfgtools.processing.functions.acoustic_functions.SimultaneousInterrogation.model_config" title="Link to this definition"></a></dt>
+<dd><p>Configuration for the model, should be a dictionary conforming to [<cite>ConfigDict</cite>][pydantic.config.ConfigDict].</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.functions.acoustic_functions.SimultaneousInterrogation.model_fields">
+<span class="sig-name descname"><span class="pre">model_fields</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">FieldInfo</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'pingData':</span> <span class="pre">FieldInfo(annotation=PingData,</span> <span class="pre">required=True),</span> <span class="pre">'responses':</span> <span class="pre">FieldInfo(annotation=List[TransponderData],</span> <span class="pre">required=True)}</span></em><a class="headerlink" href="#es_sfgtools.processing.functions.acoustic_functions.SimultaneousInterrogation.model_fields" title="Link to this definition"></a></dt>
+<dd><p>Metadata about the fields defined on the model,
+mapping of field names to [<cite>FieldInfo</cite>][pydantic.fields.FieldInfo].</p>
+<p>This replaces <cite>Model.__fields__</cite> from Pydantic V1.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.functions.acoustic_functions.SimultaneousInterrogation.pingData">
+<span class="sig-name descname"><span class="pre">pingData</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#es_sfgtools.processing.functions.acoustic_functions.PingData" title="es_sfgtools.processing.functions.acoustic_functions.PingData"><span class="pre">PingData</span></a></em><a class="headerlink" href="#es_sfgtools.processing.functions.acoustic_functions.SimultaneousInterrogation.pingData" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.functions.acoustic_functions.SimultaneousInterrogation.responses">
+<span class="sig-name descname"><span class="pre">responses</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#es_sfgtools.processing.functions.acoustic_functions.TransponderData" title="es_sfgtools.processing.functions.acoustic_functions.TransponderData"><span class="pre">TransponderData</span></a><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#es_sfgtools.processing.functions.acoustic_functions.SimultaneousInterrogation.responses" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="es_sfgtools.processing.functions.acoustic_functions.TransponderData">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">es_sfgtools.processing.functions.acoustic_functions.</span></span><span class="sig-name descname"><span class="pre">TransponderData</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">TransponderID</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">TwoWayTravelTime</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Annotated</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Ge</span><span class="p"><span class="pre">(</span></span><span class="n"><span class="pre">ge</span></span><span class="o"><span class="pre">=</span></span><span class="pre">0.0</span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Le</span><span class="p"><span class="pre">(</span></span><span class="n"><span class="pre">le</span></span><span class="o"><span class="pre">=</span></span><span class="m"><span class="pre">600</span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ReturnTime</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Annotated</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Ge</span><span class="p"><span class="pre">(</span></span><span class="n"><span class="pre">ge</span></span><span class="o"><span class="pre">=</span></span><span class="m"><span class="pre">0</span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Le</span><span class="p"><span class="pre">(</span></span><span class="n"><span class="pre">le</span></span><span class="o"><span class="pre">=</span></span><span class="m"><span class="pre">86400</span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">DecibalVoltage</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Annotated</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Ge</span><span class="p"><span class="pre">(</span></span><span class="n"><span class="pre">ge</span></span><span class="o"><span class="pre">=</span></span><span class="p"><span class="pre">-</span></span><span class="m"><span class="pre">100</span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Le</span><span class="p"><span class="pre">(</span></span><span class="n"><span class="pre">le</span></span><span class="o"><span class="pre">=</span></span><span class="m"><span class="pre">100</span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">CorrelationScore</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Annotated</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Ge</span><span class="p"><span class="pre">(</span></span><span class="n"><span class="pre">ge</span></span><span class="o"><span class="pre">=</span></span><span class="m"><span class="pre">0</span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Le</span><span class="p"><span class="pre">(</span></span><span class="n"><span class="pre">le</span></span><span class="o"><span class="pre">=</span></span><span class="m"><span class="pre">100</span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">SignalToNoise</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Annotated</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Ge</span><span class="p"><span class="pre">(</span></span><span class="n"><span class="pre">ge</span></span><span class="o"><span class="pre">=</span></span><span class="m"><span class="pre">0</span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Le</span><span class="p"><span class="pre">(</span></span><span class="n"><span class="pre">le</span></span><span class="o"><span class="pre">=</span></span><span class="m"><span class="pre">100</span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">TurnAroundTime</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Annotated</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Ge</span><span class="p"><span class="pre">(</span></span><span class="n"><span class="pre">ge</span></span><span class="o"><span class="pre">=</span></span><span class="m"><span class="pre">0</span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Le</span><span class="p"><span class="pre">(</span></span><span class="n"><span class="pre">le</span></span><span class="o"><span class="pre">=</span></span><span class="m"><span class="pre">100</span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#es_sfgtools.processing.functions.acoustic_functions.TransponderData" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">BaseModel</span></code></p>
+<p>Data class representing acoustic data measurements between a transducer and an indivudual transponder.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.functions.acoustic_functions.TransponderData.TransponderID">
+<span class="sig-name descname"><span class="pre">TransponderID</span></span><a class="headerlink" href="#es_sfgtools.processing.functions.acoustic_functions.TransponderData.TransponderID" title="Link to this definition"></a></dt>
+<dd><p>The unique identifier for the transponder.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.functions.acoustic_functions.TransponderData.TwoWayTravelTime">
+<span class="sig-name descname"><span class="pre">TwoWayTravelTime</span></span><a class="headerlink" href="#es_sfgtools.processing.functions.acoustic_functions.TransponderData.TwoWayTravelTime" title="Link to this definition"></a></dt>
+<dd><p>The two-way travel time in seconds [s].</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float, optional</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.functions.acoustic_functions.TransponderData.ReturnTime">
+<span class="sig-name descname"><span class="pre">ReturnTime</span></span><a class="headerlink" href="#es_sfgtools.processing.functions.acoustic_functions.TransponderData.ReturnTime" title="Link to this definition"></a></dt>
+<dd><p>The return time julian day [days]</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float, optional</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.functions.acoustic_functions.TransponderData.DecibalVoltage">
+<span class="sig-name descname"><span class="pre">DecibalVoltage</span></span><a class="headerlink" href="#es_sfgtools.processing.functions.acoustic_functions.TransponderData.DecibalVoltage" title="Link to this definition"></a></dt>
+<dd><p>Signal relative to full scale voltage in dB.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.functions.acoustic_functions.TransponderData.CorrelationScore">
+<span class="sig-name descname"><span class="pre">CorrelationScore</span></span><a class="headerlink" href="#es_sfgtools.processing.functions.acoustic_functions.TransponderData.CorrelationScore" title="Link to this definition"></a></dt>
+<dd><p>Correlation score.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id4">
+<span class="sig-name descname"><span class="pre">CorrelationScore</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#id4" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id5">
+<span class="sig-name descname"><span class="pre">DecibalVoltage</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#id5" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id6">
+<span class="sig-name descname"><span class="pre">ReturnTime</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><a class="headerlink" href="#id6" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.functions.acoustic_functions.TransponderData.SignalToNoise">
+<span class="sig-name descname"><span class="pre">SignalToNoise</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#es_sfgtools.processing.functions.acoustic_functions.TransponderData.SignalToNoise" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id7">
+<span class="sig-name descname"><span class="pre">TransponderID</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#id7" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.functions.acoustic_functions.TransponderData.TurnAroundTime">
+<span class="sig-name descname"><span class="pre">TurnAroundTime</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#es_sfgtools.processing.functions.acoustic_functions.TransponderData.TurnAroundTime" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id8">
+<span class="sig-name descname"><span class="pre">TwoWayTravelTime</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><a class="headerlink" href="#id8" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="es_sfgtools.processing.functions.acoustic_functions.TransponderData.correct_travel_time">
+<span class="sig-name descname"><span class="pre">correct_travel_time</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">offset</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#es_sfgtools.processing.functions.acoustic_functions.TransponderData.correct_travel_time" title="Link to this definition"></a></dt>
+<dd><p>Corrects the travel time by applying the given offset.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>offset</strong> (<em>float</em>) – The offset value in milliseconds.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.functions.acoustic_functions.TransponderData.model_computed_fields">
+<span class="sig-name descname"><span class="pre">model_computed_fields</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">ComputedFieldInfo</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{}</span></em><a class="headerlink" href="#es_sfgtools.processing.functions.acoustic_functions.TransponderData.model_computed_fields" title="Link to this definition"></a></dt>
+<dd><p>A dictionary of computed field names and their corresponding <cite>ComputedFieldInfo</cite> objects.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.functions.acoustic_functions.TransponderData.model_config">
+<span class="sig-name descname"><span class="pre">model_config</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">ConfigDict</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{}</span></em><a class="headerlink" href="#es_sfgtools.processing.functions.acoustic_functions.TransponderData.model_config" title="Link to this definition"></a></dt>
+<dd><p>Configuration for the model, should be a dictionary conforming to [<cite>ConfigDict</cite>][pydantic.config.ConfigDict].</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.functions.acoustic_functions.TransponderData.model_fields">
+<span class="sig-name descname"><span class="pre">model_fields</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">FieldInfo</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'CorrelationScore':</span> <span class="pre">FieldInfo(annotation=int,</span> <span class="pre">required=True,</span> <span class="pre">metadata=[Ge(ge=0),</span> <span class="pre">Le(le=100)]),</span> <span class="pre">'DecibalVoltage':</span> <span class="pre">FieldInfo(annotation=int,</span> <span class="pre">required=True,</span> <span class="pre">metadata=[Ge(ge=-100),</span> <span class="pre">Le(le=100)]),</span> <span class="pre">'ReturnTime':</span> <span class="pre">FieldInfo(annotation=float,</span> <span class="pre">required=True,</span> <span class="pre">metadata=[Ge(ge=0),</span> <span class="pre">Le(le=86400)]),</span> <span class="pre">'SignalToNoise':</span> <span class="pre">FieldInfo(annotation=Union[float,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=0,</span> <span class="pre">metadata=[Ge(ge=0),</span> <span class="pre">Le(le=100)]),</span> <span class="pre">'TransponderID':</span> <span class="pre">FieldInfo(annotation=str,</span> <span class="pre">required=True),</span> <span class="pre">'TurnAroundTime':</span> <span class="pre">FieldInfo(annotation=Union[float,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=0,</span> <span class="pre">metadata=[Ge(ge=0),</span> <span class="pre">Le(le=100)]),</span> <span class="pre">'TwoWayTravelTime':</span> <span class="pre">FieldInfo(annotation=float,</span> <span class="pre">required=True,</span> <span class="pre">metadata=[Ge(ge=0.0),</span> <span class="pre">Le(le=600)])}</span></em><a class="headerlink" href="#es_sfgtools.processing.functions.acoustic_functions.TransponderData.model_fields" title="Link to this definition"></a></dt>
+<dd><p>Metadata about the fields defined on the model,
+mapping of field names to [<cite>FieldInfo</cite>][pydantic.fields.FieldInfo].</p>
+<p>This replaces <cite>Model.__fields__</cite> from Pydantic V1.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="es_sfgtools.processing.functions.acoustic_functions.dfpo00_to_acousticdf">
+<span class="sig-prename descclassname"><span class="pre">es_sfgtools.processing.functions.acoustic_functions.</span></span><span class="sig-name descname"><span class="pre">dfpo00_to_acousticdf</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">source</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.DFPO00RawFile" title="es_sfgtools.processing.schemas.files.file_schemas.DFPO00RawFile"><span class="pre">DFPO00RawFile</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">DataFrame</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="es_sfgtools.processing.schemas.observables.acoustic_schemas.html#es_sfgtools.processing.schemas.observables.acoustic_schemas.AcousticDataFrame" title="es_sfgtools.processing.schemas.observables.acoustic_schemas.AcousticDataFrame"><span class="pre">AcousticDataFrame</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#es_sfgtools.processing.functions.acoustic_functions.dfpo00_to_acousticdf" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="es_sfgtools.processing.functions.acoustic_functions.from_simultaneous_interrogation">
+<span class="sig-prename descclassname"><span class="pre">es_sfgtools.processing.functions.acoustic_functions.</span></span><span class="sig-name descname"><span class="pre">from_simultaneous_interrogation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">si_set</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#es_sfgtools.processing.functions.acoustic_functions.SimultaneousInterrogation" title="es_sfgtools.processing.functions.acoustic_functions.SimultaneousInterrogation"><span class="pre">SimultaneousInterrogation</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">DataFrame</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="headerlink" href="#es_sfgtools.processing.functions.acoustic_functions.from_simultaneous_interrogation" title="Link to this definition"></a></dt>
+<dd><p>Generate a validated AcousticDataFrame from a list of SimultaneousInterrogation instances.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="es_sfgtools.processing.functions.acoustic_functions.get_transponder_offsets">
+<span class="sig-prename descclassname"><span class="pre">es_sfgtools.processing.functions.acoustic_functions.</span></span><span class="sig-name descname"><span class="pre">get_transponder_offsets</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">line</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#es_sfgtools.processing.functions.acoustic_functions.get_transponder_offsets" title="Link to this definition"></a></dt>
+<dd><p>Extract the transponder offsets from a line of text.
+offsets are in milliseconds.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>line</strong> (<em>str</em>) – A line of text containing transponder offsets.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A dictionary</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Dict[str,float]</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">line</span> <span class="o">=</span> <span class="s2">&quot;2003,327353,1527706553,2018/05/30 18:55:53.519 &gt;CS:2010,TAT200,...&quot;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">AcousticDataFrame</span><span class="o">.</span><span class="n">get_transponder_offsets</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+<span class="go">{&quot;2010&quot;:200}</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="es_sfgtools.processing.functions.acoustic_functions.qcpin_to_acousticdf">
+<span class="sig-prename descclassname"><span class="pre">es_sfgtools.processing.functions.acoustic_functions.</span></span><span class="sig-name descname"><span class="pre">qcpin_to_acousticdf</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">source</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.QCPinFile" title="es_sfgtools.processing.schemas.files.file_schemas.QCPinFile"><span class="pre">QCPinFile</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">DataFrame</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="es_sfgtools.processing.schemas.observables.acoustic_schemas.html#es_sfgtools.processing.schemas.observables.acoustic_schemas.AcousticDataFrame" title="es_sfgtools.processing.schemas.observables.acoustic_schemas.AcousticDataFrame"><span class="pre">AcousticDataFrame</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#es_sfgtools.processing.functions.acoustic_functions.qcpin_to_acousticdf" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="es_sfgtools.processing.functions.acoustic_functions.sonardyne_to_acousticdf">
+<span class="sig-prename descclassname"><span class="pre">es_sfgtools.processing.functions.acoustic_functions.</span></span><span class="sig-name descname"><span class="pre">sonardyne_to_acousticdf</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">source</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.SonardyneFile" title="es_sfgtools.processing.schemas.files.file_schemas.SonardyneFile"><span class="pre">SonardyneFile</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">DataFrame</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="es_sfgtools.processing.schemas.observables.acoustic_schemas.html#es_sfgtools.processing.schemas.observables.acoustic_schemas.AcousticDataFrame" title="es_sfgtools.processing.schemas.observables.acoustic_schemas.AcousticDataFrame"><span class="pre">AcousticDataFrame</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#es_sfgtools.processing.functions.acoustic_functions.sonardyne_to_acousticdf" title="Link to this definition"></a></dt>
+<dd><p>Read data from a file and return a validated dataframe.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>file</strong> (<em>str</em>) – Path to the file containing the acoustic data.</p></li>
+<li><p><strong>mode</strong> (<em>WaveGlider</em><em>, </em><em>optional</em>) – The mode of the WaveGlider. Defaults to WaveGlider.SV2.</p></li>
+<li><p><strong>source</strong> (<em>str</em><em>, </em><em>optional</em>) – The source of the data. Defaults to None.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>FileNotFoundError</strong> – If the file specified by <cite>file</cite> does not exist.</p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>DataFrame containing the acoustic data if successfully validated,
+otherwise returns SchemaErrors.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>Union[pd.DataFrame, pa.errors.SchemaErrors]</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">file</span> <span class="o">=</span> <span class="s2">&quot;tests/resources/test_sonardyne_raw.txt&quot;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">df</span> <span class="o">=</span> <span class="n">AcousticDataFrame</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">file</span><span class="p">)</span>
+<span class="go">INFO:root:Processed 4.0 shots from &quot;tests/resources/test_sonardyne_raw.txt&quot;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">head</span><span class="p">())</span>
+<span class="go">                                     PingTime      ReturnTime       TwoWayTravelTime  DecibalVoltage  CorrelationScore</span>
+<span class="go">TriggerTime          TransponderID</span>
+<span class="go">2018-05-30 12:55:59  5209           58268.538890  58268.538942          4.447123             -21                85</span>
+<span class="go">                     5210           58268.538890  58268.538928          3.291827               0                85</span>
+<span class="go">                     5211           58268.538890  58268.538953          5.446601             -24                75</span>
+<span class="go">2018-05-30 12:56:14  5209           58268.539064  58268.539115          4.452981             -18                75</span>
+<span class="go">                     5210           58268.539064  58268.539102          3.289823               0                90</span>
+<span class="go">                     5211           58268.539064  58268.539127          5.442233             -24                65</span>
+<span class="go">2018-05-30 12:56:29  5209           58268.539237  58268.539289          4.458378             -15                65</span>
+<span class="go">                     5210           58268.539237  58268.539275          3.286848               0                85</span>
+<span class="go">                     5211           58268.539237  58268.539300          5.437492             -24                70</span>
+<span class="go">2018-05-30 12:56:44  5209           58268.539411  58268.539463          4.463116             -18                85</span>
+<span class="go">                     5210           58268.539411  58268.539449          3.285197               0                90</span>
+<span class="go">                     5211           58268.539411  58268.539474          5.433356             -24                70</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="es_sfgtools.processing.functions.html" class="btn btn-neutral float-left" title="es_sfgtools.processing.functions package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="es_sfgtools.processing.functions.gnss_functions.html" class="btn btn-neutral float-right" title="es_sfgtools.processing.functions.gnss_functions module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, EarthScope.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

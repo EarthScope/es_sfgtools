@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>es_sfgtools.processing.schemas.files.file_schemas module &mdash; es-sfgtools 0.0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=d45e8c67"></script>
+        <script src="../_static/doctools.js?v=9a2dae69"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="es_sfgtools.processing.schemas.observables package" href="es_sfgtools.processing.schemas.observables.html" />
+    <link rel="prev" title="es_sfgtools.processing.schemas.files package" href="es_sfgtools.processing.schemas.files.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            es-sfgtools
+              <img src="../_static/EarthScope_Logo-color.png" class="logo" alt="Logo"/>
+          </a>
+              <div class="version">
+                0.0.1
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../pages/Installation.html">Installation Instructions</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../api.html">Code documentation</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="es_sfgtools.html">es_sfgtools package</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="es_sfgtools.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="es_sfgtools.pipeline.html">es_sfgtools.pipeline package</a></li>
+<li class="toctree-l4 current"><a class="reference internal" href="es_sfgtools.processing.html">es_sfgtools.processing package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="es_sfgtools.utils.html">es_sfgtools.utils package</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.pipeline.html">es_sfgtools.pipeline package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.pipeline.temp.html">es_sfgtools.pipeline.temp module</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="es_sfgtools.processing.html">es_sfgtools.processing package</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="es_sfgtools.processing.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="es_sfgtools.processing.functions.html">es_sfgtools.processing.functions package</a></li>
+<li class="toctree-l4 current"><a class="reference internal" href="es_sfgtools.processing.schemas.html">es_sfgtools.processing.schemas package</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.functions.html">es_sfgtools.processing.functions package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.functions.acoustic_functions.html">es_sfgtools.processing.functions.acoustic_functions module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.functions.gnss_functions.html">es_sfgtools.processing.functions.gnss_functions module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.functions.imu_functions.html">es_sfgtools.processing.functions.imu_functions module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.functions.seabird_functions.html">es_sfgtools.processing.functions.seabird_functions module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.functions.site_functions.html">es_sfgtools.processing.functions.site_functions module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.functions.vessel_functions.html">es_sfgtools.processing.functions.vessel_functions module</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="es_sfgtools.processing.schemas.html">es_sfgtools.processing.schemas package</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="es_sfgtools.processing.schemas.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l4 current"><a class="reference internal" href="es_sfgtools.processing.schemas.files.html">es_sfgtools.processing.schemas.files package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="es_sfgtools.processing.schemas.observables.html">es_sfgtools.processing.schemas.observables package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="es_sfgtools.processing.schemas.site_config.html">es_sfgtools.processing.schemas.site_config package</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2 current"><a class="reference internal" href="es_sfgtools.processing.schemas.files.html">es_sfgtools.processing.schemas.files package</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="es_sfgtools.processing.schemas.files.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l4 current"><a class="current reference internal" href="#">es_sfgtools.processing.schemas.files.file_schemas module</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">es_sfgtools.processing.schemas.files.file_schemas module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable"><code class="docutils literal notranslate"><span class="pre">BaseObservable</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.location"><code class="docutils literal notranslate"><span class="pre">BaseObservable.location</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.id"><code class="docutils literal notranslate"><span class="pre">BaseObservable.id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.epoch_id"><code class="docutils literal notranslate"><span class="pre">BaseObservable.epoch_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.campaign_id"><code class="docutils literal notranslate"><span class="pre">BaseObservable.campaign_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.capture_time"><code class="docutils literal notranslate"><span class="pre">BaseObservable.capture_time</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.data"><code class="docutils literal notranslate"><span class="pre">BaseObservable.data</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.Config"><code class="docutils literal notranslate"><span class="pre">BaseObservable.Config</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id0"><code class="docutils literal notranslate"><span class="pre">BaseObservable.campaign_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id1"><code class="docutils literal notranslate"><span class="pre">BaseObservable.capture_time</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id2"><code class="docutils literal notranslate"><span class="pre">BaseObservable.data</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id3"><code class="docutils literal notranslate"><span class="pre">BaseObservable.epoch_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id4"><code class="docutils literal notranslate"><span class="pre">BaseObservable.location</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.model_computed_fields"><code class="docutils literal notranslate"><span class="pre">BaseObservable.model_computed_fields</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.model_config"><code class="docutils literal notranslate"><span class="pre">BaseObservable.model_config</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.model_fields"><code class="docutils literal notranslate"><span class="pre">BaseObservable.model_fields</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.read"><code class="docutils literal notranslate"><span class="pre">BaseObservable.read()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.uuid"><code class="docutils literal notranslate"><span class="pre">BaseObservable.uuid</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.write"><code class="docutils literal notranslate"><span class="pre">BaseObservable.write()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseSite"><code class="docutils literal notranslate"><span class="pre">BaseSite</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseSite.location"><code class="docutils literal notranslate"><span class="pre">BaseSite.location</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseSite.id"><code class="docutils literal notranslate"><span class="pre">BaseSite.id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseSite.site_id"><code class="docutils literal notranslate"><span class="pre">BaseSite.site_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseSite.campaign_id"><code class="docutils literal notranslate"><span class="pre">BaseSite.campaign_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseSite.capture_time"><code class="docutils literal notranslate"><span class="pre">BaseSite.capture_time</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id5"><code class="docutils literal notranslate"><span class="pre">BaseSite.campaign_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id6"><code class="docutils literal notranslate"><span class="pre">BaseSite.capture_time</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id7"><code class="docutils literal notranslate"><span class="pre">BaseSite.location</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseSite.model_computed_fields"><code class="docutils literal notranslate"><span class="pre">BaseSite.model_computed_fields</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseSite.model_config"><code class="docutils literal notranslate"><span class="pre">BaseSite.model_config</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseSite.model_fields"><code class="docutils literal notranslate"><span class="pre">BaseSite.model_fields</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id8"><code class="docutils literal notranslate"><span class="pre">BaseSite.site_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseSite.uuid"><code class="docutils literal notranslate"><span class="pre">BaseSite.uuid</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.DFPO00RawFile"><code class="docutils literal notranslate"><span class="pre">DFPO00RawFile</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.DFPO00RawFile.model_computed_fields"><code class="docutils literal notranslate"><span class="pre">DFPO00RawFile.model_computed_fields</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.DFPO00RawFile.model_config"><code class="docutils literal notranslate"><span class="pre">DFPO00RawFile.model_config</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.DFPO00RawFile.model_fields"><code class="docutils literal notranslate"><span class="pre">DFPO00RawFile.model_fields</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.DFPO00RawFile.name"><code class="docutils literal notranslate"><span class="pre">DFPO00RawFile.name</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.KinFile"><code class="docutils literal notranslate"><span class="pre">KinFile</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.KinFile.parent_id"><code class="docutils literal notranslate"><span class="pre">KinFile.parent_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.KinFile.extension"><code class="docutils literal notranslate"><span class="pre">KinFile.extension</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.KinFile.model_computed_fields"><code class="docutils literal notranslate"><span class="pre">KinFile.model_computed_fields</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.KinFile.model_config"><code class="docutils literal notranslate"><span class="pre">KinFile.model_config</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.KinFile.model_fields"><code class="docutils literal notranslate"><span class="pre">KinFile.model_fields</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.KinFile.name"><code class="docutils literal notranslate"><span class="pre">KinFile.name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.KinFile.parent_uuid"><code class="docutils literal notranslate"><span class="pre">KinFile.parent_uuid</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.LeverArmFile"><code class="docutils literal notranslate"><span class="pre">LeverArmFile</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.LeverArmFile.model_computed_fields"><code class="docutils literal notranslate"><span class="pre">LeverArmFile.model_computed_fields</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.LeverArmFile.model_config"><code class="docutils literal notranslate"><span class="pre">LeverArmFile.model_config</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.LeverArmFile.model_fields"><code class="docutils literal notranslate"><span class="pre">LeverArmFile.model_fields</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.LeverArmFile.name"><code class="docutils literal notranslate"><span class="pre">LeverArmFile.name</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.MasterFile"><code class="docutils literal notranslate"><span class="pre">MasterFile</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.MasterFile.model_computed_fields"><code class="docutils literal notranslate"><span class="pre">MasterFile.model_computed_fields</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.MasterFile.model_config"><code class="docutils literal notranslate"><span class="pre">MasterFile.model_config</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.MasterFile.model_fields"><code class="docutils literal notranslate"><span class="pre">MasterFile.model_fields</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.MasterFile.name"><code class="docutils literal notranslate"><span class="pre">MasterFile.name</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.Novatel770File"><code class="docutils literal notranslate"><span class="pre">Novatel770File</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.Novatel770File.model_computed_fields"><code class="docutils literal notranslate"><span class="pre">Novatel770File.model_computed_fields</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.Novatel770File.model_config"><code class="docutils literal notranslate"><span class="pre">Novatel770File.model_config</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.Novatel770File.model_fields"><code class="docutils literal notranslate"><span class="pre">Novatel770File.model_fields</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.Novatel770File.name"><code class="docutils literal notranslate"><span class="pre">Novatel770File.name</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.NovatelFile"><code class="docutils literal notranslate"><span class="pre">NovatelFile</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.NovatelFile.model_computed_fields"><code class="docutils literal notranslate"><span class="pre">NovatelFile.model_computed_fields</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.NovatelFile.model_config"><code class="docutils literal notranslate"><span class="pre">NovatelFile.model_config</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.NovatelFile.model_fields"><code class="docutils literal notranslate"><span class="pre">NovatelFile.model_fields</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.NovatelFile.name"><code class="docutils literal notranslate"><span class="pre">NovatelFile.name</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.NovatelPinFile"><code class="docutils literal notranslate"><span class="pre">NovatelPinFile</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.NovatelPinFile.model_computed_fields"><code class="docutils literal notranslate"><span class="pre">NovatelPinFile.model_computed_fields</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.NovatelPinFile.model_config"><code class="docutils literal notranslate"><span class="pre">NovatelPinFile.model_config</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.NovatelPinFile.model_fields"><code class="docutils literal notranslate"><span class="pre">NovatelPinFile.model_fields</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.NovatelPinFile.name"><code class="docutils literal notranslate"><span class="pre">NovatelPinFile.name</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.QCPinFile"><code class="docutils literal notranslate"><span class="pre">QCPinFile</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.QCPinFile.model_computed_fields"><code class="docutils literal notranslate"><span class="pre">QCPinFile.model_computed_fields</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.QCPinFile.model_config"><code class="docutils literal notranslate"><span class="pre">QCPinFile.model_config</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.QCPinFile.model_fields"><code class="docutils literal notranslate"><span class="pre">QCPinFile.model_fields</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.QCPinFile.name"><code class="docutils literal notranslate"><span class="pre">QCPinFile.name</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.RinexFile"><code class="docutils literal notranslate"><span class="pre">RinexFile</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.RinexFile.parent_id"><code class="docutils literal notranslate"><span class="pre">RinexFile.parent_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.RinexFile.extension"><code class="docutils literal notranslate"><span class="pre">RinexFile.extension</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.RinexFile.model_computed_fields"><code class="docutils literal notranslate"><span class="pre">RinexFile.model_computed_fields</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.RinexFile.model_config"><code class="docutils literal notranslate"><span class="pre">RinexFile.model_config</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.RinexFile.model_fields"><code class="docutils literal notranslate"><span class="pre">RinexFile.model_fields</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.RinexFile.name"><code class="docutils literal notranslate"><span class="pre">RinexFile.name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.RinexFile.parent_uuid"><code class="docutils literal notranslate"><span class="pre">RinexFile.parent_uuid</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.SeaBirdFile"><code class="docutils literal notranslate"><span class="pre">SeaBirdFile</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.SeaBirdFile.model_computed_fields"><code class="docutils literal notranslate"><span class="pre">SeaBirdFile.model_computed_fields</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.SeaBirdFile.model_config"><code class="docutils literal notranslate"><span class="pre">SeaBirdFile.model_config</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.SeaBirdFile.model_fields"><code class="docutils literal notranslate"><span class="pre">SeaBirdFile.model_fields</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.SeaBirdFile.name"><code class="docutils literal notranslate"><span class="pre">SeaBirdFile.name</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.SonardyneFile"><code class="docutils literal notranslate"><span class="pre">SonardyneFile</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.SonardyneFile.model_computed_fields"><code class="docutils literal notranslate"><span class="pre">SonardyneFile.model_computed_fields</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.SonardyneFile.model_config"><code class="docutils literal notranslate"><span class="pre">SonardyneFile.model_config</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.SonardyneFile.model_fields"><code class="docutils literal notranslate"><span class="pre">SonardyneFile.model_fields</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.SonardyneFile.name"><code class="docutils literal notranslate"><span class="pre">SonardyneFile.name</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.schemas.observables.html">es_sfgtools.processing.schemas.observables package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.schemas.observables.acoustic_schemas.html">es_sfgtools.processing.schemas.observables.acoustic_schemas module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.schemas.observables.constants.html">es_sfgtools.processing.schemas.observables.constants module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.schemas.observables.gnss_schemas.html">es_sfgtools.processing.schemas.observables.gnss_schemas module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.schemas.observables.imu_schemas.html">es_sfgtools.processing.schemas.observables.imu_schemas module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.schemas.observables.sound_speed_schemas.html">es_sfgtools.processing.schemas.observables.sound_speed_schemas module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.schemas.site_config.html">es_sfgtools.processing.schemas.site_config package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.schemas.site_config.site_schemas.html">es_sfgtools.processing.schemas.site_config.site_schemas module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.utils.html">es_sfgtools.utils package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.utils.archive_pull.html">es_sfgtools.utils.archive_pull module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.utils.gage_data.html">es_sfgtools.utils.gage_data module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.utils.metadata_generator.html">es_sfgtools.utils.metadata_generator module</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="modules.html">es_sfgtools</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="es_sfgtools.html">es_sfgtools package</a><ul class="current">
+<li class="toctree-l4 current"><a class="reference internal" href="es_sfgtools.html#subpackages">Subpackages</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">es-sfgtools</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../api.html">Code documentation</a></li>
+          <li class="breadcrumb-item"><a href="es_sfgtools.html">es_sfgtools package</a></li>
+          <li class="breadcrumb-item"><a href="es_sfgtools.processing.html">es_sfgtools.processing package</a></li>
+          <li class="breadcrumb-item"><a href="es_sfgtools.processing.schemas.html">es_sfgtools.processing.schemas package</a></li>
+          <li class="breadcrumb-item"><a href="es_sfgtools.processing.schemas.files.html">es_sfgtools.processing.schemas.files package</a></li>
+      <li class="breadcrumb-item active">es_sfgtools.processing.schemas.files.file_schemas module</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/es_sfgtools.processing.schemas.files.file_schemas.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-es_sfgtools.processing.schemas.files.file_schemas">
+<span id="es-sfgtools-processing-schemas-files-file-schemas-module"></span><h1>es_sfgtools.processing.schemas.files.file_schemas module<a class="headerlink" href="#module-es_sfgtools.processing.schemas.files.file_schemas" title="Link to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.BaseObservable">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">es_sfgtools.processing.schemas.files.file_schemas.</span></span><span class="sig-name descname"><span class="pre">BaseObservable</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">location</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Path</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uuid</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">epoch_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">campaign_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">capture_time</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">datetime</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">mmap</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">BaseModel</span></code></p>
+<p>Base class for observable objects.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.location">
+<span class="sig-name descname"><span class="pre">location</span></span><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.location" title="Link to this definition"></a></dt>
+<dd><p>The location of the data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional[Union[str,Path]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.id">
+<span class="sig-name descname"><span class="pre">id</span></span><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.id" title="Link to this definition"></a></dt>
+<dd><p>The ID of the object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional[str]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.epoch_id">
+<span class="sig-name descname"><span class="pre">epoch_id</span></span><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.epoch_id" title="Link to this definition"></a></dt>
+<dd><p>The ID of the epoch.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional[str]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.campaign_id">
+<span class="sig-name descname"><span class="pre">campaign_id</span></span><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.campaign_id" title="Link to this definition"></a></dt>
+<dd><p>The ID of the campaign.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional[str]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.capture_time">
+<span class="sig-name descname"><span class="pre">capture_time</span></span><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.capture_time" title="Link to this definition"></a></dt>
+<dd><p>The capture time of the data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional[datetime]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.data">
+<span class="sig-name descname"><span class="pre">data</span></span><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.data" title="Link to this definition"></a></dt>
+<dd><p>The data object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional[mmap.mmap]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">read(path</span></span></dt>
+<dd><p>Union[str,Path]): Read the data from the location.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">write(dir</span></span></dt>
+<dd><p>Union[str,Path]): Write the data to the location.</p>
+</dd></dl>
+
+<p class="rubric">Notes</p>
+<p>This class is intended to be subclassed by other classes.
+read/write methods are used to interface between temporary files and the data object.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.Config">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">Config</span></span><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.Config" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.Config.arbitrary_types_allowed">
+<span class="sig-name descname"><span class="pre">arbitrary_types_allowed</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.Config.arbitrary_types_allowed" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id0">
+<span class="sig-name descname"><span class="pre">campaign_id</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#id0" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id1">
+<span class="sig-name descname"><span class="pre">capture_time</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">datetime</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#id1" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id2">
+<span class="sig-name descname"><span class="pre">data</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">mmap</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#id2" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id3">
+<span class="sig-name descname"><span class="pre">epoch_id</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#id3" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id4">
+<span class="sig-name descname"><span class="pre">location</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Path</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#id4" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.model_computed_fields">
+<span class="sig-name descname"><span class="pre">model_computed_fields</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">ComputedFieldInfo</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{}</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.model_computed_fields" title="Link to this definition"></a></dt>
+<dd><p>A dictionary of computed field names and their corresponding <cite>ComputedFieldInfo</cite> objects.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.model_config">
+<span class="sig-name descname"><span class="pre">model_config</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">ConfigDict</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'arbitrary_types_allowed':</span> <span class="pre">True}</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.model_config" title="Link to this definition"></a></dt>
+<dd><p>Configuration for the model, should be a dictionary conforming to [<cite>ConfigDict</cite>][pydantic.config.ConfigDict].</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.model_fields">
+<span class="sig-name descname"><span class="pre">model_fields</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">FieldInfo</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'campaign_id':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'capture_time':</span> <span class="pre">FieldInfo(annotation=Union[datetime,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'data':</span> <span class="pre">FieldInfo(annotation=Union[mmap,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None,</span> <span class="pre">exclude=True),</span> <span class="pre">'epoch_id':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'location':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">Path,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'uuid':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None)}</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.model_fields" title="Link to this definition"></a></dt>
+<dd><p>Metadata about the fields defined on the model,
+mapping of field names to [<cite>FieldInfo</cite>][pydantic.fields.FieldInfo].</p>
+<p>This replaces <cite>Model.__fields__</cite> from Pydantic V1.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.read">
+<span class="sig-name descname"><span class="pre">read</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.read" title="Link to this definition"></a></dt>
+<dd><p>Read the data from the location.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>path</strong> (<em>Union</em><em>[</em><em>str</em><em>,</em><em>Path</em><em>]</em>) – The path to the data file.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.uuid">
+<span class="sig-name descname"><span class="pre">uuid</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.uuid" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.write">
+<span class="sig-name descname"><span class="pre">write</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.write" title="Link to this definition"></a></dt>
+<dd><p>Write the data to the location.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>dir</strong> (<em>Union</em><em>[</em><em>str</em><em>,</em><em>Path</em><em>]</em>) – The directory to write the data file to.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.BaseSite">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">es_sfgtools.processing.schemas.files.file_schemas.</span></span><span class="sig-name descname"><span class="pre">BaseSite</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">location</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uuid</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">site_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">campaign_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">capture_time</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">datetime</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseSite" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">BaseModel</span></code></p>
+<p>Represents a base site file for geodesy processing.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.BaseSite.location">
+<span class="sig-name descname"><span class="pre">location</span></span><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseSite.location" title="Link to this definition"></a></dt>
+<dd><p>The location of the base site.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Union[str, Path]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.BaseSite.id">
+<span class="sig-name descname"><span class="pre">id</span></span><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseSite.id" title="Link to this definition"></a></dt>
+<dd><p>The ID of the base site.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional[str]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.BaseSite.site_id">
+<span class="sig-name descname"><span class="pre">site_id</span></span><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseSite.site_id" title="Link to this definition"></a></dt>
+<dd><p>The site ID of the base site.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional[str]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.BaseSite.campaign_id">
+<span class="sig-name descname"><span class="pre">campaign_id</span></span><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseSite.campaign_id" title="Link to this definition"></a></dt>
+<dd><p>The campaign ID of the base site.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional[str]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.BaseSite.capture_time">
+<span class="sig-name descname"><span class="pre">capture_time</span></span><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseSite.capture_time" title="Link to this definition"></a></dt>
+<dd><p>The capture time of the base site.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional[datetime]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id5">
+<span class="sig-name descname"><span class="pre">campaign_id</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#id5" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id6">
+<span class="sig-name descname"><span class="pre">capture_time</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">datetime</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#id6" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id7">
+<span class="sig-name descname"><span class="pre">location</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Path</span></em><a class="headerlink" href="#id7" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.BaseSite.model_computed_fields">
+<span class="sig-name descname"><span class="pre">model_computed_fields</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">ComputedFieldInfo</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{}</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseSite.model_computed_fields" title="Link to this definition"></a></dt>
+<dd><p>A dictionary of computed field names and their corresponding <cite>ComputedFieldInfo</cite> objects.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.BaseSite.model_config">
+<span class="sig-name descname"><span class="pre">model_config</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">ConfigDict</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{}</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseSite.model_config" title="Link to this definition"></a></dt>
+<dd><p>Configuration for the model, should be a dictionary conforming to [<cite>ConfigDict</cite>][pydantic.config.ConfigDict].</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.BaseSite.model_fields">
+<span class="sig-name descname"><span class="pre">model_fields</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">FieldInfo</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'campaign_id':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'capture_time':</span> <span class="pre">FieldInfo(annotation=Union[datetime,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'location':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">Path],</span> <span class="pre">required=True),</span> <span class="pre">'site_id':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'uuid':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None)}</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseSite.model_fields" title="Link to this definition"></a></dt>
+<dd><p>Metadata about the fields defined on the model,
+mapping of field names to [<cite>FieldInfo</cite>][pydantic.fields.FieldInfo].</p>
+<p>This replaces <cite>Model.__fields__</cite> from Pydantic V1.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id8">
+<span class="sig-name descname"><span class="pre">site_id</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#id8" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.BaseSite.uuid">
+<span class="sig-name descname"><span class="pre">uuid</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseSite.uuid" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.DFPO00RawFile">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">es_sfgtools.processing.schemas.files.file_schemas.</span></span><span class="sig-name descname"><span class="pre">DFPO00RawFile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">location</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Path</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uuid</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">epoch_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">campaign_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">capture_time</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">datetime</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">mmap</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'dfpo00'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.DFPO00RawFile" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable" title="es_sfgtools.processing.schemas.files.file_schemas.BaseObservable"><code class="xref py py-class docutils literal notranslate"><span class="pre">BaseObservable</span></code></a></p>
+<p>The DFOP00.raw file contains the real time amalgamation of all sensors using the common JSON style format.
+For each range cycle there are multiple JSON entries created.
+The first entry is the “Interrogate” entry which contains the GNSS, AHRS, INS &amp;
+TIME data from when the acoustic signal is transmitted.</p>
+<dl class="simple">
+<dt>processing functions:</dt><dd><p>src.processing.functions.acoustic_functions.dfpo00_to_imudf
+src.processing.functions.acoustic_functions.dfpo00_to_acousticdf</p>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.DFPO00RawFile.model_computed_fields">
+<span class="sig-name descname"><span class="pre">model_computed_fields</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">ComputedFieldInfo</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{}</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.DFPO00RawFile.model_computed_fields" title="Link to this definition"></a></dt>
+<dd><p>A dictionary of computed field names and their corresponding <cite>ComputedFieldInfo</cite> objects.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.DFPO00RawFile.model_config">
+<span class="sig-name descname"><span class="pre">model_config</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">ConfigDict</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'arbitrary_types_allowed':</span> <span class="pre">True}</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.DFPO00RawFile.model_config" title="Link to this definition"></a></dt>
+<dd><p>Configuration for the model, should be a dictionary conforming to [<cite>ConfigDict</cite>][pydantic.config.ConfigDict].</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.DFPO00RawFile.model_fields">
+<span class="sig-name descname"><span class="pre">model_fields</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">FieldInfo</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'campaign_id':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'capture_time':</span> <span class="pre">FieldInfo(annotation=Union[datetime,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'data':</span> <span class="pre">FieldInfo(annotation=Union[mmap,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None,</span> <span class="pre">exclude=True),</span> <span class="pre">'epoch_id':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'location':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">Path,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'name':</span> <span class="pre">FieldInfo(annotation=str,</span> <span class="pre">required=False,</span> <span class="pre">default='dfpo00'),</span> <span class="pre">'uuid':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None)}</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.DFPO00RawFile.model_fields" title="Link to this definition"></a></dt>
+<dd><p>Metadata about the fields defined on the model,
+mapping of field names to [<cite>FieldInfo</cite>][pydantic.fields.FieldInfo].</p>
+<p>This replaces <cite>Model.__fields__</cite> from Pydantic V1.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.DFPO00RawFile.name">
+<span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.DFPO00RawFile.name" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.KinFile">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">es_sfgtools.processing.schemas.files.file_schemas.</span></span><span class="sig-name descname"><span class="pre">KinFile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">location</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Path</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uuid</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">epoch_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">campaign_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">capture_time</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">datetime</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">mmap</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'kin'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extension</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'.kin'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parent_uuid</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.KinFile" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable" title="es_sfgtools.processing.schemas.files.file_schemas.BaseObservable"><code class="xref py py-class docutils literal notranslate"><span class="pre">BaseObservable</span></code></a></p>
+<p>Represents a Kin file, an intermediate file between RINEX and position files.</p>
+<dl class="simple">
+<dt>Processing Functions:</dt><dd><p>src.processing.functions.gnss_functions.kin_to_gnssdf</p>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.KinFile.parent_id">
+<span class="sig-name descname"><span class="pre">parent_id</span></span><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.KinFile.parent_id" title="Link to this definition"></a></dt>
+<dd><p>The parent ID of the Kin file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional[str]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.KinFile.extension">
+<span class="sig-name descname"><span class="pre">extension</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.KinFile.extension" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.KinFile.model_computed_fields">
+<span class="sig-name descname"><span class="pre">model_computed_fields</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">ComputedFieldInfo</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{}</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.KinFile.model_computed_fields" title="Link to this definition"></a></dt>
+<dd><p>A dictionary of computed field names and their corresponding <cite>ComputedFieldInfo</cite> objects.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.KinFile.model_config">
+<span class="sig-name descname"><span class="pre">model_config</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">ConfigDict</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'arbitrary_types_allowed':</span> <span class="pre">True}</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.KinFile.model_config" title="Link to this definition"></a></dt>
+<dd><p>Configuration for the model, should be a dictionary conforming to [<cite>ConfigDict</cite>][pydantic.config.ConfigDict].</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.KinFile.model_fields">
+<span class="sig-name descname"><span class="pre">model_fields</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">FieldInfo</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'campaign_id':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'capture_time':</span> <span class="pre">FieldInfo(annotation=Union[datetime,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'data':</span> <span class="pre">FieldInfo(annotation=Union[mmap,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None,</span> <span class="pre">exclude=True),</span> <span class="pre">'epoch_id':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'extension':</span> <span class="pre">FieldInfo(annotation=str,</span> <span class="pre">required=False,</span> <span class="pre">default='.kin'),</span> <span class="pre">'location':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">Path,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'name':</span> <span class="pre">FieldInfo(annotation=str,</span> <span class="pre">required=False,</span> <span class="pre">default='kin'),</span> <span class="pre">'parent_uuid':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'uuid':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None)}</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.KinFile.model_fields" title="Link to this definition"></a></dt>
+<dd><p>Metadata about the fields defined on the model,
+mapping of field names to [<cite>FieldInfo</cite>][pydantic.fields.FieldInfo].</p>
+<p>This replaces <cite>Model.__fields__</cite> from Pydantic V1.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.KinFile.name">
+<span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.KinFile.name" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.KinFile.parent_uuid">
+<span class="sig-name descname"><span class="pre">parent_uuid</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.KinFile.parent_uuid" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.LeverArmFile">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">es_sfgtools.processing.schemas.files.file_schemas.</span></span><span class="sig-name descname"><span class="pre">LeverArmFile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">location</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uuid</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">site_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">campaign_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">capture_time</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">datetime</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'leverarm'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.LeverArmFile" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseSite" title="es_sfgtools.processing.schemas.files.file_schemas.BaseSite"><code class="xref py py-class docutils literal notranslate"><span class="pre">BaseSite</span></code></a></p>
+<p>Represents a lever arm file.
+Used to parse out Antenna-transducer-offset data</p>
+<dl class="simple">
+<dt>Processing Functions:</dt><dd><p>src.processing.functions.site_functions.leverarm_to_atdoffset</p>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.LeverArmFile.model_computed_fields">
+<span class="sig-name descname"><span class="pre">model_computed_fields</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">ComputedFieldInfo</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{}</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.LeverArmFile.model_computed_fields" title="Link to this definition"></a></dt>
+<dd><p>A dictionary of computed field names and their corresponding <cite>ComputedFieldInfo</cite> objects.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.LeverArmFile.model_config">
+<span class="sig-name descname"><span class="pre">model_config</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">ConfigDict</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{}</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.LeverArmFile.model_config" title="Link to this definition"></a></dt>
+<dd><p>Configuration for the model, should be a dictionary conforming to [<cite>ConfigDict</cite>][pydantic.config.ConfigDict].</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.LeverArmFile.model_fields">
+<span class="sig-name descname"><span class="pre">model_fields</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">FieldInfo</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'campaign_id':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'capture_time':</span> <span class="pre">FieldInfo(annotation=Union[datetime,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'location':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">Path],</span> <span class="pre">required=True),</span> <span class="pre">'name':</span> <span class="pre">FieldInfo(annotation=str,</span> <span class="pre">required=False,</span> <span class="pre">default='leverarm'),</span> <span class="pre">'site_id':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'uuid':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None)}</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.LeverArmFile.model_fields" title="Link to this definition"></a></dt>
+<dd><p>Metadata about the fields defined on the model,
+mapping of field names to [<cite>FieldInfo</cite>][pydantic.fields.FieldInfo].</p>
+<p>This replaces <cite>Model.__fields__</cite> from Pydantic V1.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.LeverArmFile.name">
+<span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.LeverArmFile.name" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.MasterFile">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">es_sfgtools.processing.schemas.files.file_schemas.</span></span><span class="sig-name descname"><span class="pre">MasterFile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">location</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uuid</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">site_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">campaign_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">capture_time</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">datetime</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'master'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.MasterFile" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseSite" title="es_sfgtools.processing.schemas.files.file_schemas.BaseSite"><code class="xref py py-class docutils literal notranslate"><span class="pre">BaseSite</span></code></a></p>
+<p>Represents a master file for processing site data.</p>
+<p>Used to parse out site configuration data (transponder data and site center).</p>
+<dl class="simple">
+<dt>Processing Functions:</dt><dd><p>src.processing.functions.site_functions.masterfile_to_siteconfig</p>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.MasterFile.model_computed_fields">
+<span class="sig-name descname"><span class="pre">model_computed_fields</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">ComputedFieldInfo</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{}</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.MasterFile.model_computed_fields" title="Link to this definition"></a></dt>
+<dd><p>A dictionary of computed field names and their corresponding <cite>ComputedFieldInfo</cite> objects.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.MasterFile.model_config">
+<span class="sig-name descname"><span class="pre">model_config</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">ConfigDict</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{}</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.MasterFile.model_config" title="Link to this definition"></a></dt>
+<dd><p>Configuration for the model, should be a dictionary conforming to [<cite>ConfigDict</cite>][pydantic.config.ConfigDict].</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.MasterFile.model_fields">
+<span class="sig-name descname"><span class="pre">model_fields</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">FieldInfo</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'campaign_id':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'capture_time':</span> <span class="pre">FieldInfo(annotation=Union[datetime,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'location':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">Path],</span> <span class="pre">required=True),</span> <span class="pre">'name':</span> <span class="pre">FieldInfo(annotation=str,</span> <span class="pre">required=False,</span> <span class="pre">default='master'),</span> <span class="pre">'site_id':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'uuid':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None)}</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.MasterFile.model_fields" title="Link to this definition"></a></dt>
+<dd><p>Metadata about the fields defined on the model,
+mapping of field names to [<cite>FieldInfo</cite>][pydantic.fields.FieldInfo].</p>
+<p>This replaces <cite>Model.__fields__</cite> from Pydantic V1.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.MasterFile.name">
+<span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.MasterFile.name" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.Novatel770File">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">es_sfgtools.processing.schemas.files.file_schemas.</span></span><span class="sig-name descname"><span class="pre">Novatel770File</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">location</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Path</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uuid</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">epoch_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">campaign_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">capture_time</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">datetime</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">mmap</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'novatel770'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.Novatel770File" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable" title="es_sfgtools.processing.schemas.files.file_schemas.BaseObservable"><code class="xref py py-class docutils literal notranslate"><span class="pre">BaseObservable</span></code></a></p>
+<p>Represents a Novatel700 file from SV3.</p>
+<p>This class provides methods and attributes to handle Novatel files in the SeaFloorGeodesy project.
+Used to get acoustic/IMU data from Novatel files.</p>
+<dl class="simple">
+<dt>Processing Functions:</dt><dd><p>src.processing.functions.gnss_functions.novatel700_to_rinex</p>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.Novatel770File.model_computed_fields">
+<span class="sig-name descname"><span class="pre">model_computed_fields</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">ComputedFieldInfo</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{}</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.Novatel770File.model_computed_fields" title="Link to this definition"></a></dt>
+<dd><p>A dictionary of computed field names and their corresponding <cite>ComputedFieldInfo</cite> objects.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.Novatel770File.model_config">
+<span class="sig-name descname"><span class="pre">model_config</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">ConfigDict</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'arbitrary_types_allowed':</span> <span class="pre">True}</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.Novatel770File.model_config" title="Link to this definition"></a></dt>
+<dd><p>Configuration for the model, should be a dictionary conforming to [<cite>ConfigDict</cite>][pydantic.config.ConfigDict].</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.Novatel770File.model_fields">
+<span class="sig-name descname"><span class="pre">model_fields</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">FieldInfo</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'campaign_id':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'capture_time':</span> <span class="pre">FieldInfo(annotation=Union[datetime,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'data':</span> <span class="pre">FieldInfo(annotation=Union[mmap,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None,</span> <span class="pre">exclude=True),</span> <span class="pre">'epoch_id':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'location':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">Path,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'name':</span> <span class="pre">FieldInfo(annotation=str,</span> <span class="pre">required=False,</span> <span class="pre">default='novatel770'),</span> <span class="pre">'uuid':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None)}</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.Novatel770File.model_fields" title="Link to this definition"></a></dt>
+<dd><p>Metadata about the fields defined on the model,
+mapping of field names to [<cite>FieldInfo</cite>][pydantic.fields.FieldInfo].</p>
+<p>This replaces <cite>Model.__fields__</cite> from Pydantic V1.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.Novatel770File.name">
+<span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.Novatel770File.name" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.NovatelFile">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">es_sfgtools.processing.schemas.files.file_schemas.</span></span><span class="sig-name descname"><span class="pre">NovatelFile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">location</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Path</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uuid</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">epoch_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">campaign_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">capture_time</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">datetime</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">mmap</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'novatel'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.NovatelFile" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable" title="es_sfgtools.processing.schemas.files.file_schemas.BaseObservable"><code class="xref py py-class docutils literal notranslate"><span class="pre">BaseObservable</span></code></a></p>
+<p>Represents a Novatel file from SV2.</p>
+<p>This class provides methods and attributes to handle Novatel files in the SeaFloorGeodesy project.
+Used to get acoustic/IMU data from Novatel files.</p>
+<dl class="simple">
+<dt>Processing Functions:</dt><dd><p>src.processing.functions.gnss_functions.novatel_to_rinex
+src.processing.functions.imu_functions.novatel_to_imudf</p>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.NovatelFile.model_computed_fields">
+<span class="sig-name descname"><span class="pre">model_computed_fields</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">ComputedFieldInfo</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{}</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.NovatelFile.model_computed_fields" title="Link to this definition"></a></dt>
+<dd><p>A dictionary of computed field names and their corresponding <cite>ComputedFieldInfo</cite> objects.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.NovatelFile.model_config">
+<span class="sig-name descname"><span class="pre">model_config</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">ConfigDict</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'arbitrary_types_allowed':</span> <span class="pre">True}</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.NovatelFile.model_config" title="Link to this definition"></a></dt>
+<dd><p>Configuration for the model, should be a dictionary conforming to [<cite>ConfigDict</cite>][pydantic.config.ConfigDict].</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.NovatelFile.model_fields">
+<span class="sig-name descname"><span class="pre">model_fields</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">FieldInfo</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'campaign_id':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'capture_time':</span> <span class="pre">FieldInfo(annotation=Union[datetime,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'data':</span> <span class="pre">FieldInfo(annotation=Union[mmap,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None,</span> <span class="pre">exclude=True),</span> <span class="pre">'epoch_id':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'location':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">Path,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'name':</span> <span class="pre">FieldInfo(annotation=str,</span> <span class="pre">required=False,</span> <span class="pre">default='novatel'),</span> <span class="pre">'uuid':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None)}</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.NovatelFile.model_fields" title="Link to this definition"></a></dt>
+<dd><p>Metadata about the fields defined on the model,
+mapping of field names to [<cite>FieldInfo</cite>][pydantic.fields.FieldInfo].</p>
+<p>This replaces <cite>Model.__fields__</cite> from Pydantic V1.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.NovatelFile.name">
+<span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.NovatelFile.name" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.NovatelPinFile">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">es_sfgtools.processing.schemas.files.file_schemas.</span></span><span class="sig-name descname"><span class="pre">NovatelPinFile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">location</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Path</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uuid</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">epoch_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">campaign_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">capture_time</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">datetime</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">mmap</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'novatelpin'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.NovatelPinFile" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable" title="es_sfgtools.processing.schemas.files.file_schemas.BaseObservable"><code class="xref py py-class docutils literal notranslate"><span class="pre">BaseObservable</span></code></a></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.NovatelPinFile.model_computed_fields">
+<span class="sig-name descname"><span class="pre">model_computed_fields</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">ComputedFieldInfo</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{}</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.NovatelPinFile.model_computed_fields" title="Link to this definition"></a></dt>
+<dd><p>A dictionary of computed field names and their corresponding <cite>ComputedFieldInfo</cite> objects.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.NovatelPinFile.model_config">
+<span class="sig-name descname"><span class="pre">model_config</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">ConfigDict</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'arbitrary_types_allowed':</span> <span class="pre">True}</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.NovatelPinFile.model_config" title="Link to this definition"></a></dt>
+<dd><p>Configuration for the model, should be a dictionary conforming to [<cite>ConfigDict</cite>][pydantic.config.ConfigDict].</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.NovatelPinFile.model_fields">
+<span class="sig-name descname"><span class="pre">model_fields</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">FieldInfo</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'campaign_id':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'capture_time':</span> <span class="pre">FieldInfo(annotation=Union[datetime,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'data':</span> <span class="pre">FieldInfo(annotation=Union[mmap,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None,</span> <span class="pre">exclude=True),</span> <span class="pre">'epoch_id':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'location':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">Path,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'name':</span> <span class="pre">FieldInfo(annotation=str,</span> <span class="pre">required=False,</span> <span class="pre">default='novatelpin'),</span> <span class="pre">'uuid':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None)}</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.NovatelPinFile.model_fields" title="Link to this definition"></a></dt>
+<dd><p>Metadata about the fields defined on the model,
+mapping of field names to [<cite>FieldInfo</cite>][pydantic.fields.FieldInfo].</p>
+<p>This replaces <cite>Model.__fields__</cite> from Pydantic V1.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.NovatelPinFile.name">
+<span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.NovatelPinFile.name" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.QCPinFile">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">es_sfgtools.processing.schemas.files.file_schemas.</span></span><span class="sig-name descname"><span class="pre">QCPinFile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">location</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Path</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uuid</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">epoch_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">campaign_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">capture_time</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">datetime</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">mmap</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'qcpin'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.QCPinFile" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable" title="es_sfgtools.processing.schemas.files.file_schemas.BaseObservable"><code class="xref py py-class docutils literal notranslate"><span class="pre">BaseObservable</span></code></a></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.QCPinFile.model_computed_fields">
+<span class="sig-name descname"><span class="pre">model_computed_fields</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">ComputedFieldInfo</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{}</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.QCPinFile.model_computed_fields" title="Link to this definition"></a></dt>
+<dd><p>A dictionary of computed field names and their corresponding <cite>ComputedFieldInfo</cite> objects.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.QCPinFile.model_config">
+<span class="sig-name descname"><span class="pre">model_config</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">ConfigDict</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'arbitrary_types_allowed':</span> <span class="pre">True}</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.QCPinFile.model_config" title="Link to this definition"></a></dt>
+<dd><p>Configuration for the model, should be a dictionary conforming to [<cite>ConfigDict</cite>][pydantic.config.ConfigDict].</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.QCPinFile.model_fields">
+<span class="sig-name descname"><span class="pre">model_fields</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">FieldInfo</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'campaign_id':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'capture_time':</span> <span class="pre">FieldInfo(annotation=Union[datetime,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'data':</span> <span class="pre">FieldInfo(annotation=Union[mmap,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None,</span> <span class="pre">exclude=True),</span> <span class="pre">'epoch_id':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'location':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">Path,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'name':</span> <span class="pre">FieldInfo(annotation=str,</span> <span class="pre">required=False,</span> <span class="pre">default='qcpin'),</span> <span class="pre">'uuid':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None)}</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.QCPinFile.model_fields" title="Link to this definition"></a></dt>
+<dd><p>Metadata about the fields defined on the model,
+mapping of field names to [<cite>FieldInfo</cite>][pydantic.fields.FieldInfo].</p>
+<p>This replaces <cite>Model.__fields__</cite> from Pydantic V1.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.QCPinFile.name">
+<span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.QCPinFile.name" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.RinexFile">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">es_sfgtools.processing.schemas.files.file_schemas.</span></span><span class="sig-name descname"><span class="pre">RinexFile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">location</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Path</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uuid</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">epoch_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">campaign_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">capture_time</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">datetime</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">mmap</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'rinex'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extension</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'.rinex'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parent_uuid</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.RinexFile" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable" title="es_sfgtools.processing.schemas.files.file_schemas.BaseObservable"><code class="xref py py-class docutils literal notranslate"><span class="pre">BaseObservable</span></code></a></p>
+<p>Represents a RINEX file.</p>
+<dl class="simple">
+<dt>Processing Functions:</dt><dd><p>src.processing.functions.gnss_functions.rinex_to_kin</p>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.RinexFile.parent_id">
+<span class="sig-name descname"><span class="pre">parent_id</span></span><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.RinexFile.parent_id" title="Link to this definition"></a></dt>
+<dd><p>The ID of the parent file, if any.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional[str]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.RinexFile.extension">
+<span class="sig-name descname"><span class="pre">extension</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.RinexFile.extension" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.RinexFile.model_computed_fields">
+<span class="sig-name descname"><span class="pre">model_computed_fields</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">ComputedFieldInfo</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{}</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.RinexFile.model_computed_fields" title="Link to this definition"></a></dt>
+<dd><p>A dictionary of computed field names and their corresponding <cite>ComputedFieldInfo</cite> objects.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.RinexFile.model_config">
+<span class="sig-name descname"><span class="pre">model_config</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">ConfigDict</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'arbitrary_types_allowed':</span> <span class="pre">True}</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.RinexFile.model_config" title="Link to this definition"></a></dt>
+<dd><p>Configuration for the model, should be a dictionary conforming to [<cite>ConfigDict</cite>][pydantic.config.ConfigDict].</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.RinexFile.model_fields">
+<span class="sig-name descname"><span class="pre">model_fields</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">FieldInfo</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'campaign_id':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'capture_time':</span> <span class="pre">FieldInfo(annotation=Union[datetime,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'data':</span> <span class="pre">FieldInfo(annotation=Union[mmap,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None,</span> <span class="pre">exclude=True),</span> <span class="pre">'epoch_id':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'extension':</span> <span class="pre">FieldInfo(annotation=str,</span> <span class="pre">required=False,</span> <span class="pre">default='.rinex'),</span> <span class="pre">'location':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">Path,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'name':</span> <span class="pre">FieldInfo(annotation=str,</span> <span class="pre">required=False,</span> <span class="pre">default='rinex'),</span> <span class="pre">'parent_uuid':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'uuid':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None)}</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.RinexFile.model_fields" title="Link to this definition"></a></dt>
+<dd><p>Metadata about the fields defined on the model,
+mapping of field names to [<cite>FieldInfo</cite>][pydantic.fields.FieldInfo].</p>
+<p>This replaces <cite>Model.__fields__</cite> from Pydantic V1.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.RinexFile.name">
+<span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.RinexFile.name" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.RinexFile.parent_uuid">
+<span class="sig-name descname"><span class="pre">parent_uuid</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.RinexFile.parent_uuid" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.SeaBirdFile">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">es_sfgtools.processing.schemas.files.file_schemas.</span></span><span class="sig-name descname"><span class="pre">SeaBirdFile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">location</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uuid</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">site_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">campaign_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">capture_time</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">datetime</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'seabird'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.SeaBirdFile" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseSite" title="es_sfgtools.processing.schemas.files.file_schemas.BaseSite"><code class="xref py py-class docutils literal notranslate"><span class="pre">BaseSite</span></code></a></p>
+<p>Represents a SeaBird file. Used to parse out Sound Velocity Profile (SVP) data.</p>
+<dl class="simple">
+<dt>Processing Functions:</dt><dd><p>src.processing.functions.site_functions.seabird_to_svp</p>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.SeaBirdFile.model_computed_fields">
+<span class="sig-name descname"><span class="pre">model_computed_fields</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">ComputedFieldInfo</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{}</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.SeaBirdFile.model_computed_fields" title="Link to this definition"></a></dt>
+<dd><p>A dictionary of computed field names and their corresponding <cite>ComputedFieldInfo</cite> objects.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.SeaBirdFile.model_config">
+<span class="sig-name descname"><span class="pre">model_config</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">ConfigDict</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{}</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.SeaBirdFile.model_config" title="Link to this definition"></a></dt>
+<dd><p>Configuration for the model, should be a dictionary conforming to [<cite>ConfigDict</cite>][pydantic.config.ConfigDict].</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.SeaBirdFile.model_fields">
+<span class="sig-name descname"><span class="pre">model_fields</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">FieldInfo</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'campaign_id':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'capture_time':</span> <span class="pre">FieldInfo(annotation=Union[datetime,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'location':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">Path],</span> <span class="pre">required=True),</span> <span class="pre">'name':</span> <span class="pre">FieldInfo(annotation=str,</span> <span class="pre">required=False,</span> <span class="pre">default='seabird'),</span> <span class="pre">'site_id':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'uuid':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None)}</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.SeaBirdFile.model_fields" title="Link to this definition"></a></dt>
+<dd><p>Metadata about the fields defined on the model,
+mapping of field names to [<cite>FieldInfo</cite>][pydantic.fields.FieldInfo].</p>
+<p>This replaces <cite>Model.__fields__</cite> from Pydantic V1.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.SeaBirdFile.name">
+<span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.SeaBirdFile.name" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.SonardyneFile">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">es_sfgtools.processing.schemas.files.file_schemas.</span></span><span class="sig-name descname"><span class="pre">SonardyneFile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">location</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Path</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uuid</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">epoch_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">campaign_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">capture_time</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">datetime</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">mmap</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'sonardyne'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.SonardyneFile" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable" title="es_sfgtools.processing.schemas.files.file_schemas.BaseObservable"><code class="xref py py-class docutils literal notranslate"><span class="pre">BaseObservable</span></code></a></p>
+<dl class="simple">
+<dt>Processing Functions:</dt><dd><p>src.processing.functions.acoustic_functions.sonardyne_to_acousticdf</p>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.SonardyneFile.model_computed_fields">
+<span class="sig-name descname"><span class="pre">model_computed_fields</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">ComputedFieldInfo</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{}</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.SonardyneFile.model_computed_fields" title="Link to this definition"></a></dt>
+<dd><p>A dictionary of computed field names and their corresponding <cite>ComputedFieldInfo</cite> objects.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.SonardyneFile.model_config">
+<span class="sig-name descname"><span class="pre">model_config</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">ConfigDict</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'arbitrary_types_allowed':</span> <span class="pre">True}</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.SonardyneFile.model_config" title="Link to this definition"></a></dt>
+<dd><p>Configuration for the model, should be a dictionary conforming to [<cite>ConfigDict</cite>][pydantic.config.ConfigDict].</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.SonardyneFile.model_fields">
+<span class="sig-name descname"><span class="pre">model_fields</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">FieldInfo</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'campaign_id':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'capture_time':</span> <span class="pre">FieldInfo(annotation=Union[datetime,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'data':</span> <span class="pre">FieldInfo(annotation=Union[mmap,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None,</span> <span class="pre">exclude=True),</span> <span class="pre">'epoch_id':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'location':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">Path,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None),</span> <span class="pre">'name':</span> <span class="pre">FieldInfo(annotation=str,</span> <span class="pre">required=False,</span> <span class="pre">default='sonardyne'),</span> <span class="pre">'uuid':</span> <span class="pre">FieldInfo(annotation=Union[str,</span> <span class="pre">NoneType],</span> <span class="pre">required=False,</span> <span class="pre">default=None)}</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.SonardyneFile.model_fields" title="Link to this definition"></a></dt>
+<dd><p>Metadata about the fields defined on the model,
+mapping of field names to [<cite>FieldInfo</cite>][pydantic.fields.FieldInfo].</p>
+<p>This replaces <cite>Model.__fields__</cite> from Pydantic V1.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="es_sfgtools.processing.schemas.files.file_schemas.SonardyneFile.name">
+<span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#es_sfgtools.processing.schemas.files.file_schemas.SonardyneFile.name" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="es_sfgtools.processing.schemas.files.html" class="btn btn-neutral float-left" title="es_sfgtools.processing.schemas.files package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="es_sfgtools.processing.schemas.observables.html" class="btn btn-neutral float-right" title="es_sfgtools.processing.schemas.observables package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, EarthScope.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
