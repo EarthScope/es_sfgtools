@@ -746,8 +746,6 @@ class DataHandler:
                 timestamp_data_end = processed.timestamp_data_end
 
             case proc_schemas.KinFile:
-
-                # processed.write(inter_dir)
                 local_path = processed.local_path
 
             case proc_schemas.SiteConfig:
@@ -766,7 +764,6 @@ class DataHandler:
                 processed.write(dir=local_path.parent)
 
             case _:
-                is_processed = False
                 local_path = None
                 pass
 
@@ -827,7 +824,7 @@ class DataHandler:
             parent_entries = conn.execute(
                 sa.select(Assets).where(
                     Assets.network.is_(network),Assets.station.is_(station),Assets.survey.is_(survey),
-                    Assets.local_path.isnot(None),Assets.type.in_([x.value for x in source])
+                    Assets.local_path.isnot(None),Assets.type.in_([x.value for x in source]),Assets.local_path.isnot(None)
                 )
             ).fetchall()
 
@@ -944,7 +941,6 @@ class DataHandler:
                             override:bool=False,
                             show_details:bool=False):
 
-        self.load_catalog_from_csv()
         processing_queue = [{parent_type:TARGET_MAP.get(parent_type)}]
         while processing_queue:
             # process each level of the child graph

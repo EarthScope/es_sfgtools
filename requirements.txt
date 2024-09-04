@@ -17,4 +17,5 @@ matplotlib
 seaborn
 folium
 scikit-learn
+sqlalchemy
 garpos @ git+https://github.com/EarthScope/garpos.git
