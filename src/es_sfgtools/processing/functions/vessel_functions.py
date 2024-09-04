@@ -18,6 +18,5 @@ def leverarmfile_to_atdoffset(source: LeverArmFile, show_details: bool=True) -> 
         forward = values[1]
         rightward = values[0]
         downward = values[2]
-    if show_details:
-        logger.info(f"ATD offset (forward, rightward, downward): {forward}, {rightward}, {downward}")
+    logger.info(f"ATD offset (forward, rightward, downward): {forward}, {rightward}, {downward}")
     return ATDOffset(forward=forward, rightward=rightward, downward=downward)

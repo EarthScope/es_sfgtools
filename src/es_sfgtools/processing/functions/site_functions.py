@@ -89,6 +89,5 @@ def masterfile_to_siteconfig(source:MasterFile, show_details: bool=True) -> Unio
     site = SiteConfig(
         position_llh=site_position_llh,
         transponders=transponders)
-    if show_details:
-        show_site_config(site_config=site)
+    show_site_config(site_config=site)
     return site

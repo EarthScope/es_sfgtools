@@ -54,7 +54,6 @@ def seabird_to_soundvelocity(source:SeaBirdFile, show_details: bool=True) -> Dat
                 }
             )
         df = pd.DataFrame(data)
-        if show_details:
-            logger.info(f"Found SS data down to max depth of {df['depth'].max()} m")
-            logger.info(f"SS ranges from {df['speed'].min()} to {df['speed'].max()} m/s")
+        logger.info(f"Found SS data down to max depth of {df['depth'].max()} m")
+        logger.info(f"SS ranges from {df['speed'].min()} to {df['speed'].max()} m/s")
     return df

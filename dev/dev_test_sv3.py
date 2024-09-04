@@ -4,9 +4,9 @@ import os
 import time 
 import logging
 
-pride_dir = "/Users/franklyndunbar/.PRIDE_PPPAR_BIN"
+pride_dir = "/Users/gottlieb/.PRIDE_PPPAR_BIN"
 os.environ["PATH"] += os.pathsep + pride_dir
-gage_dir = Path("/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/TestGage")
+gage_dir = Path("/Users/gottlieb/working/data/seafloor/library_test")
 
 logging.basicConfig(level=logging.INFO,filename=str(gage_dir / "runtime.log"),filemode="w")
 data_handler = es_sfgtools.DataHandler(gage_dir)

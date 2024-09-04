@@ -241,7 +241,7 @@ class DataHandler:
             self.load_catalog_from_csv()
             local_files = self.catalog_data[self.catalog_data['local_location'].notnull()]
             data_type_counts = local_files.type.value_counts()
-        except (AttributeError, KeyError, FileNotFoundError):
+        except (AttributeError, KeyError, FileNotFoundError, pd.errors.EmptyDataError):
             data_type_counts = pd.Series()   
         return data_type_counts
 
@@ -343,7 +343,9 @@ class DataHandler:
 
             if discovered_file_type is None:
                 logger.error(f"File type not recognized for {file}")
-                raise ValueError(f"File type not recognized for {file}")
+                continue
+                #raise ValueError(f"File type not recognized for {file}")
+
             
             timestamp = self._get_timestamp(file,discovered_file_type)
             
@@ -456,7 +458,8 @@ class DataHandler:
                     # add a duplicate entry but with local_location
                     entry_dict = self.catalog_data[self.catalog_data.index==entry.Index].to_dict('records')[0]
                     entry_dict['local_location'] = str(local_location)
-                    self.update_entry(entry_dict)
+                    self.add_entry(entry_dict)
+                    #self.update_entry(entry_dict)
                 else:
                     raise Warning(f'File not downloaded to {str(local_location)}')
         if count == 0:
@@ -705,24 +708,36 @@ class DataHandler:
 
         pbar.close()
 
-    # def add_entry(self, entry: dict):
-    #     """
-    #     Add an entry in the catalog.  This may result in duplicates, which need to be cleaned up via
-    #     consolidate_entries()
+    def add_entry(self, entry: dict):
+        """
+        Add an entry in the catalog.  This may result in duplicates, which need to be cleaned up via
+        consolidate_entries()
 
-    #     Args:
-    #         entry (dict): The new entry.
+        Args:
+            entry (dict): The new entry.
 
-    #     Returns:
-    #         None
-    #     """
-    #     # find duplicates
+        Returns:
+            None
+        """
+        with self.catalog.open("r") as f:
+            keys=list(f.readline().rstrip().split(','))
+        entry_str = "\n"
+        for key in keys:
+            if key in entry:
+                entry_str += f"{str(entry[key])}"
+            if key != keys[-1]:
+                entry_str += ","
+        
+        with self.catalog.open("a") as f:
+            f.write(entry_str)
+        
+        # # find duplicates
 
-    #     self.catalog_data = pd.concat(
-    #         [self.catalog_data,DataCatalog.validate(pd.DataFrame([entry]),lazy=True)],
-    #         ignore_index=True
-    #     )
-    #     self.catalog_data.to_csv(self.catalog,index=False)
+        # self.catalog_data = pd.concat(
+        #     [self.catalog_data,DataCatalog.validate(pd.DataFrame([entry]),lazy=True)],
+        #     ignore_index=True
+        # )
+        # self.catalog_data.to_csv(self.catalog,index=False)
 
     def consolidate_entries(self):
         """
@@ -988,6 +1003,8 @@ class DataHandler:
             process_func_partial = partial(self._process_targeted,child_type=target,show_details=show_details)
 
             meta_data_list = []
+            if target is FILE_TYPE.RINEX:
+                proc_funcs.show_rinex_header_data(proc_funcs.get_metadata(station))
             if target is not FILE_TYPE.KIN:
                 with multiprocessing.Pool() as pool:
                     results = pool.imap_unordered(process_func_partial,parent_entries_to_process.to_dict(orient="records"))
@@ -1025,7 +1042,7 @@ class DataHandler:
                 )
             ]
             logger.info(f"Processed {len(meta_data_list)} Out of {parent_entries_processed.shape[0]} For {target.value} Files from {parent_entries_processed.shape[0]} Parent Files")
-            # self.consolidate_entries()
+            self.consolidate_entries()
             return parent_entries_processed
 
     def _process_data_graph(self, 

@@ -151,9 +151,14 @@ def get_metadata(site: str):
         },
     }
 
+def show_rinex_header_data(metadata: dict):
+    logger.info(f"Using the following RINEX header metadata:")
+    for key, value in metadata.items():
+        logger.info(f"  {key}: {value}")
+
 
 def _novatel_to_rinex(
-    source:Union[NovatelFile,Nov770File,NovatelPinFile],site: str, year: str = None,show_details: bool=False,**kwargs
+    source:Union[NovatelFile,Nov770File,NovatelPinFile],site: str, year: str = None,show_details: bool=True,**kwargs
 ) -> RinexFile:
     """
     Batch convert Novatel files to RINEX
@@ -211,8 +216,9 @@ def _novatel_to_rinex(
             # logger.info("showing details")
             if len(result.stdout.decode()):
                 print(f"{os.path.basename(source.location)}: {result.stdout.decode().rstrip()}")
-            # print(result.stderr.decode())
-        logger.info(f"Converted Novatel files to RINEX: {rinex_outfile}")
+            if len(result.stderr.decode()):
+                logger.info(result.stderr.decode().rstrip())
+        logger.info(f"Converted Novatel file(s) to RINEX: {rinex_outfile}")
         rinex_data = RinexFile(parent_id=source.uuid,location=rinex_outfile,site=site)
         rinex_data.read(rinex_outfile)
         rinex_data.get_meta()
@@ -253,8 +259,8 @@ def rinex_to_kin(source: RinexFile, writedir:Path,pridedir:Path, site: str = "XX
         cwd=str(pridedir),
     )
 
-    if result.stderr:
-        logger.error(result.stderr)
+    if len(result.stderr):
+        logger.error(result.stderr.decode())
     if pd.isna(source.capture_time):
         ts = str(source.location.name).split("_")[1]
         year = ts[:4]
@@ -281,8 +287,8 @@ def rinex_to_kin(source: RinexFile, writedir:Path,pridedir:Path, site: str = "XX
             kin_file.read(kin_file_new)
             kin_file.write(writedir)
             kin_file_new.unlink()
-                    if show_details:
-                logger.info(f"Converted RINEX file {source.location} to kin file {kin_file.location}")
+            #if show_details:
+            logger.info(f"Converted RINEX file {source.location} to kin file {kin_file.location}")
             break
         tag_file.unlink()
 
