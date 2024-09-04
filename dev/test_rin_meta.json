@@ -1,0 +1,23 @@
+{ "markerType": "WATER_CRAFT",
+    "observer": "PGF",
+    "agency": "Pacific GPS Facility",
+    "receiver": {
+        "serialNumber": "XXXXXXXXXX",
+        "model": "NOV OEMV1",
+        "firmware": "4.80"
+    },
+    "antenna": {
+        "serialNumber": "ACC_G5ANT_52AT1",
+        "model": "NONE",
+        "position": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "offsetHEN": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    }
+}

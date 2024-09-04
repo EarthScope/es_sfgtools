@@ -9,27 +9,28 @@ class BaseObservable(BaseModel):
     Base class for observable objects.
 
     Attributes:
-        location (Optional[Union[str,Path]]): The location of the data.
+        local_path (Optional[Union[str,Path]]): The local_path of the data.
         id (Optional[str]): The ID of the object.
         epoch_id (Optional[str]): The ID of the epoch.
         campaign_id (Optional[str]): The ID of the campaign.
-        capture_time (Optional[datetime]): The capture time of the data.
+        timestamp_data_start (Optional[datetime]): The capture time of the data.
         data (Optional[mmap.mmap]): The data object.
 
     Methods:
-        read(path: Union[str,Path]): Read the data from the location.
-        write(dir: Union[str,Path]): Write the data to the location.
+        read(path: Union[str,Path]): Read the data from the local_path.
+        write(dir: Union[str,Path]): Write the data to the local_path.
 
     Notes:
         This class is intended to be subclassed by other classes.
         read/write methods are used to interface between temporary files and the data object.
     """
 
-    location: Optional[Union[str, Path]] = Field(default=None)
-    uuid: Optional[str] = Field(default=None)
+    local_path: Optional[Union[str, Path]] = Field(default=None)
+    uuid: Optional[int] = Field(default=None)
     epoch_id: Optional[str] = Field(default=None)
     campaign_id: Optional[str] = Field(default=None)
-    capture_time: Optional[datetime] = Field(default=None)
+    timestamp_data_start: Optional[datetime] = Field(default=None)
+    timestamp_data_end: Optional[datetime] = Field(default=None)
     data: Optional[mmap.mmap] = Field(default=None, exclude=True)
 
     class Config:
@@ -37,26 +38,26 @@ class BaseObservable(BaseModel):
 
     def read(self, path: Union[str, Path]):
         """
-        Read the data from the location.
+        Read the data from the local_path.
 
         Args:
             path (Union[str,Path]): The path to the data file.
         """
         with open(path, "r+b") as f:
             self.data = mmap.mmap(f.fileno(), 0)
-        self.location = path
+        self.local_path = path
     def write(self, dir: Union[str, Path]):
         """
-        Write the data to the location.
+        Write the data to the local_path.
 
         Args:
             dir (Union[str,Path]): The directory to write the data file to.
         """
 
-        path = Path(dir) / Path(self.location).name
+        path = Path(dir) / Path(self.local_path).name
         with open(path, "w+b") as f:
             f.write(self.data)
-        self.location = path
+        self.local_path = path
 
 
 class BaseSite(BaseModel):
@@ -64,17 +65,17 @@ class BaseSite(BaseModel):
     Represents a base site file for geodesy processing.
 
     Attributes:
-        location (Union[str, Path]): The location of the base site.
+        local_path (Union[str, Path]): The local_path of the base site.
         id (Optional[str]): The ID of the base site.
         site_id (Optional[str]): The site ID of the base site.
         campaign_id (Optional[str]): The campaign ID of the base site.
-        capture_time (Optional[datetime]): The capture time of the base site.
+        timestamp_data_start (Optional[datetime]): The capture time of the base site.
     """
-    location: Union[str, Path]
-    uuid: Optional[str] = Field(default=None)
+    local_path: Union[str, Path]
+    uuid: Optional[int] = Field(default=None)
     site_id: Optional[str] = Field(default=None)
     campaign_id: Optional[str] = Field(default=None)
-    capture_time: Optional[datetime] = Field(default=None)
+    timestamp_data_start: Optional[datetime] = Field(default=None)
 
 class NovatelFile(BaseObservable):
     """
@@ -141,8 +142,37 @@ class RinexFile(BaseObservable):
         parent_id (Optional[str]): The ID of the parent file, if any.
     """
     name:str = "rinex"
-    extension:str =".rinex"
     parent_uuid: Optional[str] = None
+   
+    site: Optional[str] = None
+    basename: Optional[str] = None
+
+ 
+    def _get_time(self,line):
+        time_values = line.split("GPS")[0].strip().split()
+        start_time = datetime(
+            year=int(time_values[0]),
+            month=int(time_values[1]),
+            day=int(time_values[2]),
+            hour=int(time_values[3]),
+            minute=int(time_values[4]),
+            second=int(float(time_values[5])),
+        )
+        return start_time
+    
+    def get_meta(self):
+        with open(self.local_path) as f:
+            files = f.readlines()
+            for line in files:
+                if "TIME OF FIRST OBS" in line:
+                    start_time = self._get_time(line)
+                    file_date = start_time.strftime("%Y%m%H%m%S")
+                    self.timestamp_data_start = start_time
+                    self.local_path = f"{self.site}_{file_date}_rinex.{str(start_time.year)[2:]}O"
+                if "TIME OF LAST OBS" in line:
+                    end_time = self._get_time(line)
+                    self.timestamp_data_end = end_time
+                    break
 
 
 class KinFile(BaseObservable):
@@ -159,6 +189,7 @@ class KinFile(BaseObservable):
     name:str = "kin"
     extension:str =".kin"
     parent_uuid: Optional[str] = None
+    start_time: Optional[datetime] = None
 
 
 class SeaBirdFile(BaseSite):
@@ -171,6 +202,15 @@ class SeaBirdFile(BaseSite):
     """
 
     name:str = "seabird"
+
+class CTDFile(BaseSite):
+    """
+    Represents a CTD file. Used to parse out Conductivity-Temperature-Depth (CTD) data.
+
+    Processing Functions:
+        src.processing.functions.site_functions.ctd_to_ctdprofile
+    """
+    name:str = "ctd"
 
 
 class LeverArmFile(BaseSite):

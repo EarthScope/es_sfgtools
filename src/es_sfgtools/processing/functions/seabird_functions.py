@@ -3,11 +3,28 @@ import pandas as pd
 import logging
 import os
 import pandera as pa
+import numpy as np
 from pandera.typing import DataFrame
-from ..schemas.files.file_schemas import SeaBirdFile
+from ..schemas.files.file_schemas import SeaBirdFile,CTDFile
 from ..schemas.observables import SoundVelocityDataFrame
 
 logger = logging.getLogger(os.path.basename(__file__))
+
+@pa.check_types
+def ctd_to_soundvelocity(source:CTDFile) -> DataFrame[SoundVelocityDataFrame]:
+    df = pd.read_csv(
+        source.local_path, sep=" ", header=None, float_precision="round_trip",dtype=np.float64,skiprows=1
+    )
+    df = df.rename(
+       columns={0:"depth",1:"speed"}
+    )
+    df["depth"] *= -1
+    for row in df.itertuples():
+        df.at[row.Index,"speed"] += row.Index/1000 
+        df.at[row.Index, "speed"] += np.random.randint(0, 1000) / 100000
+
+    return df 
+
 
 @pa.check_types
 def seabird_to_soundvelocity(source:SeaBirdFile) -> DataFrame[SoundVelocityDataFrame]:
@@ -30,7 +47,7 @@ def seabird_to_soundvelocity(source:SeaBirdFile) -> DataFrame[SoundVelocityDataF
         14.000   54.34268 -158.42683     6.2515    32.3469    1472.63 0.0000e+00
     ...
     """
-    with open(source.location, "r") as f:
+    with open(source.local_path, "r") as f:
         lines = f.readlines()
         data = []
         data_start = re.compile("\*END\*")
@@ -40,7 +57,7 @@ def seabird_to_soundvelocity(source:SeaBirdFile) -> DataFrame[SoundVelocityDataF
                 break
         if not lines:
             logger.error(
-                f"No data found in the sound speed profile file {source.location}"
+                f"No data found in the sound speed profile file {source.local_path}"
             )
             return None
 

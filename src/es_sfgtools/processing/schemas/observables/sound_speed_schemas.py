@@ -9,3 +9,4 @@ class SoundVelocityDataFrame(pa.DataFrameModel):
     speed: Series[float] = pa.Field(
         ge=0, le=3800, description="Spee of sound [m/s]", coerce=True
     )
+# TODO enfore unique speed and depth values

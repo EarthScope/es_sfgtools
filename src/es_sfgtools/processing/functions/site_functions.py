@@ -14,10 +14,10 @@ def masterfile_to_siteconfig(source:MasterFile) -> Union[SiteConfig,None]:
     """
     Convert a MasterFile to a SiteConfig
     """
-    if not os.path.exists(source.location):
-        raise FileNotFoundError(f"File {source.location} not found")
+    if not os.path.exists(source.local_path):
+        raise FileNotFoundError(f"File {source.local_path} not found")
 
-    loginfo = f"Populating List[Transponder] and Site data from {source.location}"
+    loginfo = f"Populating List[Transponder] and Site data from {source.local_path}"
     logger.info(loginfo)
     transponders = []
 
@@ -25,7 +25,7 @@ def masterfile_to_siteconfig(source:MasterFile) -> Union[SiteConfig,None]:
     non_alphabet = re.compile("[a-c,e-z,A-Z]")
     geoid_undulation_pat = re.compile(r"Geoid undulation at sea surface point")
 
-    with open(source.location,'r') as f:
+    with open(source.local_path,'r') as f:
         lines = f.readlines()[2:]
 
         for line in lines:
@@ -68,6 +68,10 @@ def masterfile_to_siteconfig(source:MasterFile) -> Union[SiteConfig,None]:
         logger.error("Geoid undulation not found in masterfile")
         return
 
+    # subtract geoid undulation from transponder height
+    for transponder in transponders:
+        transponder.position_llh.height += geoid_undulation # TODO John things this might work
+
     site_position_llh = PositionLLH(latitude=center_llh["latitude"],longitude=center_llh["longitude"],height=center_llh["height"])
     site = SiteConfig(
         position_llh=site_position_llh,
@@ -83,7 +87,7 @@ def leverarmfile_to_atdoffset(source: LeverArmFile) -> ATDOffset:
     0.0 +0.575 -0.844
 
     """
-    with open(source.location, "r") as f:
+    with open(source.local_path, "r") as f:
         line = f.readlines()[0]
         values = [float(x) for x in line.split()]
         forward = values[1]

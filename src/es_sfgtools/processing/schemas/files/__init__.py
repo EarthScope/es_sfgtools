@@ -1,1 +1,1 @@
-from .file_schemas import SonardyneFile, NovatelFile, Novatel770File, DFPO00RawFile, RinexFile, KinFile, SeaBirdFile, LeverArmFile, MasterFile,QCPinFile,NovatelPinFile
+from .file_schemas import SonardyneFile, NovatelFile, Novatel770File, DFPO00RawFile, RinexFile, KinFile, SeaBirdFile, LeverArmFile, MasterFile,QCPinFile,NovatelPinFile,CTDFile

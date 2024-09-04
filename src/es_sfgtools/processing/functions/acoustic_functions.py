@@ -27,12 +27,110 @@ GNSS_START_TIME_JULIAN = julian.to_jd(GNSS_START_TIME.replace(tzinfo=None), "mjd
 GNSS_START_TIME_JULIAN_BOUNDS = julian.to_jd(
     GNSS_START_TIME.replace(tzinfo=None) + timedelta(days=365 * 500), "mjd"
 )
-TRIGGER_DELAY_SV3 = 0.2  # SV3 trigger delay in seconds
+TRIGGER_DELAY_SV3 = 0.13  # SV3 trigger delay in seconds
 TRIGGER_DELAY_SV2 = 0.1  # SV2 trigger delay in seconds
 ADJ_LEAP = 1.0  # this is the leap second adjustment TODO Ask James why this is there
 
 STATION_OFFSETS = {"5209": 200, "5210": 320, "5211": 440, "5212": 560}
 MASTER_STATION_ID = {"0": "5209", "1": "5210", "2": "5211", "3": "5212"}
+
+# NOTE: Remove Trigger delay for SV3, keep as is for SV2 - JOhn Desanto
+
+class AHRSData(BaseModel):
+    """
+    Represents AHRS data with timestamps and related attributes.
+
+    Attributes:
+        Time (datetime): Time of the AHRS data [datetime].
+        Roll (float): Roll angle [degrees].
+        Pitch (float): Pitch angle [degrees].
+        Heading (float): Heading angle [degrees].
+    """
+
+    Time: datetime
+    Roll: float
+    Pitch: float
+    Heading: float
+
+    @classmethod
+    def from_dict(cls, dict) -> "AHRSData":
+        """
+        Create an AHRSData instance from a line of text.
+
+        Args:
+            line (str): A line of text containing comma-separated values.
+
+        Returns:
+            AHRSData: An instance of AHRSData created from the provided line.
+
+        """
+        heading = dict.get("h",0)
+        roll = dict.get("r",0)
+        pitch = dict.get("p",0)
+        time = datetime.fromtimestamp(dict.get("time").get("common"))
+        return cls(Time=time, Roll=roll, Pitch=pitch, Heading=heading)
+
+class GNSSData(BaseModel):
+    """
+    Represents GNSS data with timestamps and related attributes.
+
+    Attributes:
+        Time (datetime): Time of the GNSS data [datetime].
+        Latitude (float): Latitude [degrees].
+        Longitude (float): Longitude [degrees].
+        Height (float): Height [m].
+    """
+
+    Time: datetime
+    Latitude: float
+    Longitude: float
+    HAE: Optional[float] = None
+    sdx: Optional[float] = None
+    sdy: Optional[float] = None
+    sdz: Optional[float] = None
+
+    @classmethod
+    def from_dict(cls, dict) -> "GNSSData":
+        """
+        Create a GNSSData instance from a line of text.
+
+        Args:
+            line (str): A line of text containing comma-separated values.
+
+        Returns:
+            GNSSData: An instance of GNSSData created from the provided line.
+
+        """
+        lat = dict.get("latitude",0)
+        lon = dict.get("longitude",0)
+        hae = dict.get("hae",0)
+        sdx = dict.get("sdx",0)
+        sdy = dict.get("sdy",0)
+        sdz = dict.get("sdz",0)
+        time = datetime.fromtimestamp(dict.get("time").get("common"))
+        return cls(Time=time, Latitude=lat, Longitude=lon, HAE=hae, sdx=sdx, sdy=sdy, sdz=sdz)
+
+class RangeData(BaseModel):
+    EventID: int
+    CN:str
+    DBV:float
+    SNR:float
+    XC:float
+    TT:float
+    TAT:float
+    Time:datetime
+
+    @classmethod
+    def from_dict(cls, dict) -> "RangeData":
+        EventID = dict.get("event_id")
+        CN = dict.get("range").get("cn")
+        DBV = dict.get("range").get("diag").get("dbv")[0]
+        SNR = dict.get("range").get("diag").get("snr")[0]
+        XC = dict.get("range").get("diag").get("xc")[0]
+        TT = dict.get("range").get("range") 
+        TAT = dict.get("range").get("tat")
+        Time = datetime.fromtimestamp(dict.get("time").get("common"))
+        return cls(EventID=EventID,CN=CN,DBV=DBV,SNR=SNR,XC=XC,TT=TT,TAT=TAT,Time=Time)
 
 
 class PingData(BaseModel):
@@ -280,7 +378,7 @@ def get_transponder_offsets(line: str) -> Dict[str, float]:
     offset_dict[transponder_id] = offset
     return offset_dict
 
-@pa.check_types
+
 def sonardyne_to_acousticdf(source: SonardyneFile) -> DataFrame[AcousticDataFrame]:
     """
     Read data from a file and return a validated dataframe.
@@ -319,8 +417,8 @@ def sonardyne_to_acousticdf(source: SonardyneFile) -> DataFrame[AcousticDataFram
                              5211           58268.539411  58268.539474          5.433356             -24                70
 
     """
-    if not os.path.exists(source.location):
-        response = f"File {source.location} not found"
+    if not os.path.exists(source.local_path):
+        response = f"File {source.local_path} not found"
         logger.error(response)
         raise FileNotFoundError(response)
 
@@ -338,7 +436,7 @@ def sonardyne_to_acousticdf(source: SonardyneFile) -> DataFrame[AcousticDataFram
     line_number = 0
     # Dictionary to store transponder time offsets
     main_offset_dict = STATION_OFFSETS.copy()
-    with open(source.location) as sonardyne_file:
+    with open(source.local_path) as sonardyne_file:
         while True:
             try:
                 line = sonardyne_file.readline()
@@ -410,16 +508,16 @@ def sonardyne_to_acousticdf(source: SonardyneFile) -> DataFrame[AcousticDataFram
     )
     shot_count: int = int(acoustic_df.shape[0] / len(unique_transponders))
 
-    log_response = f"Acoustic Parser: {acoustic_df.shape[0]} shots from FILE {source.location} | {len(unique_transponders)} transponders | {shot_count} shots per transponder"
+    log_response = f"Acoustic Parser: {acoustic_df.shape[0]} shots from FILE {source.local_path} | {len(unique_transponders)} transponders | {shot_count} shots per transponder"
     logger.info(log_response)
     acoustic_df.TriggerTime = acoustic_df.TriggerTime.dt.tz_localize("UTC")
     # acoustic_df.ReturnTime = acoustic_df.ReturnTime.dt.tz_localize("UTC")
-    return acoustic_df
+    return AcousticDataFrame.validate(acoustic_df,lazy=True)
 
-@pa.check_types
+
 def dfpo00_to_acousticdf(source: DFPO00RawFile) -> DataFrame[AcousticDataFrame]:
     processed = []
-    with open(source.location) as f:
+    with open(source.local_path) as f:
         lines = f.readlines()
         for line in lines:
             data = json.loads(line)
@@ -430,76 +528,90 @@ def dfpo00_to_acousticdf(source: DFPO00RawFile) -> DataFrame[AcousticDataFrame]:
                     id: str = range_data.get("cn", "").replace("IR", "")
                     travel_time: float = range_data.get("range", 0)  # travel time [s]
                     tat: float = range_data.get("tat", 0)  # turn around time [ms]
+
                     travel_time_true = (
-                        travel_time - (tat/1000) - TRIGGER_DELAY_SV2
+                        travel_time - (tat/1000) - TRIGGER_DELAY_SV3
                     )  # travel time corrected for turn around time and trigger delay
 
                     dbv = range_data.get("diag").get("dbv")[0]
                     xc = range_data.get("diag").get("xc")[0]
-                    trigger_time: float = time_data.get(
+                    snr = range_data.get("diag").get("snr")[0]
+                    return_time: float = time_data.get(
                         "common", 0
                     )  # Time since GNSS start [s]
-                    trigger_time_dt = datetime.fromtimestamp(trigger_time)
-                    ping_time = trigger_time_dt + timedelta(seconds=ADJ_LEAP)
-                    # Convert to Julian date
-                    ping_time_julian = julian.to_jd(ping_time, "mjd")
-                    travel_time_true_fdays = travel_time_true / 86400.000
-                    return_time = ping_time_julian + travel_time_true_fdays
+                    return_time_dt: datetime = datetime.fromtimestamp(return_time)
+                    ping_time_dt: datetime = return_time_dt - timedelta(seconds=travel_time) #+ timedelta(seconds=TRIGGER_DELAY_SV3)
+                    trigger_time_dt = ping_time_dt - timedelta(seconds=TRIGGER_DELAY_SV3)
+
+                    # Convert to seconds of day
+                    ping_time_sod = (ping_time_dt - datetime(ping_time_dt.year,ping_time_dt.month,ping_time_dt.day)).total_seconds()
+                    return_time_sod = (return_time_dt - datetime(return_time_dt.year,return_time_dt.month,return_time_dt.day)).total_seconds()
 
                 processed.append(
-                   
-                   {
-                    "TriggerTime": trigger_time_dt,
-                    "TransponderID": id,
-                    "TwoWayTravelTime": travel_time_true,
-                    "ReturnTime": return_time,
-                    "DecibalVoltage": dbv,
-                    "CorrelationScore": xc,
-                    "PingTime": ping_time_julian
-                   }
+                    {
+                        "TriggerTime": trigger_time_dt,
+                        "TransponderID": id,
+                        "TwoWayTravelTime": travel_time_true,
+                        "ReturnTime": return_time_sod,
+                        "DecibalVoltage": dbv,
+                        "CorrelationScore": xc,
+                        "PingTime": ping_time_sod,
+                        "SignalToNoise": snr,
+                        "TurnAroundTime": tat
+                    }
                 )
     df = pd.DataFrame(processed)
-    return df
+    return AcousticDataFrame.validate(df,lazy=True)
 
 @pa.check_types
 def qcpin_to_acousticdf(source:QCPinFile) -> Union[None,DataFrame[AcousticDataFrame]]:
-    with open(source.location) as f:
+    with open(source.local_path) as f:
         data = json.load(f)
 
     shot_data = []
+    trigger_time_dt = None
     for key in data.keys():
-        if key != "interrogation":
+        if key == "interrogation":
+            interrogation_data = data.get(key)
+            trigger_time_dt = datetime.fromtimestamp(interrogation_data.get("NOV_INS").get("time").get("common"))
+        if key != "interrogation" and trigger_time_dt is not None:
             range_data = data.get(key).get("range")
             time_data = data.get(key).get("time")
-
             id: str = range_data.get("cn", "").replace("IR", "")
             travel_time: float = range_data.get("range", 0)
             tat: float = range_data.get("tat", 0)
             travel_time_true = (
-                travel_time - (tat/1000) # TODO might need to acct. for trig delay?
+                travel_time - (tat/1000) - TRIGGER_DELAY_SV3
             )
             xc = range_data.get("diag").get("xc")[0]
             dbv = range_data.get("diag").get("dbv")[0]
             snr = range_data.get("diag").get("snr")[0]
-            trigger_time: float = time_data.get("common", 0)
-            trigger_time_dt = datetime.fromtimestamp(trigger_time)
-            ping_time = trigger_time_dt + timedelta(seconds=TRIGGER_DELAY_SV3)
-            # convert pingtime to seconds of day
-            ping_time = (ping_time - datetime(ping_time.year,ping_time.month,ping_time.day)).total_seconds()
+
+            return_time: float = time_data.get(
+                "common", 0
+            )  # Time since GNSS start [s]
+            return_time_dt: datetime = datetime.fromtimestamp(return_time)
+            ping_time_dt: datetime = return_time_dt - timedelta(seconds=travel_time) + timedelta(seconds=TRIGGER_DELAY_SV3)
+
+            # Convert to seconds of day
+            ping_time_sod = (ping_time_dt - datetime(ping_time_dt.year,ping_time_dt.month,ping_time_dt.day)).total_seconds()
+            return_time_sod = (return_time_dt - datetime(return_time_dt.year,return_time_dt.month,return_time_dt.day)).total_seconds()
 
             shot_data.append(
                 {
                     "TriggerTime": trigger_time_dt,
                     "TransponderID": id,
                     "TwoWayTravelTime": travel_time_true,
-                    "ReturnTime": ping_time,
+                    "ReturnTime": return_time_sod,
                     "DecibalVoltage": dbv,
                     "CorrelationScore": xc,
-                    "PingTime": ping_time,
-                    "SignalToNoise": snr
+                    "PingTime": ping_time_sod,
+                    "SignalToNoise": snr,
+                    "TurnAroundTime": tat
                 }
             )
     if not shot_data:
         return 
     df = pd.DataFrame(shot_data)
     return df
+

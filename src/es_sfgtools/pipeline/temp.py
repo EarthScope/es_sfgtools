@@ -19,14 +19,25 @@ import warnings
 import  folium
 import json
 import concurrent.futures
+import logging
+import multiprocessing
+import threading
+
 warnings.filterwarnings("ignore")
 seaborn.set_theme(style="whitegrid")
 from es_sfgtools.utils.archive_pull import download_file_from_archive
 from es_sfgtools.processing import functions as proc_funcs
 from es_sfgtools.processing import schemas as proc_schemas
 
+import sqlalchemy as sa
+from sqlalchemy.orm import sessionmaker
+from .database import Base,Assets
 
 logger = logging.getLogger(__name__)
+
+class REMOTE_TYPE(Enum):
+    S3 = "s3"
+    HTTP = "http"
 
 class FILE_TYPE(Enum):
     SONARDYNE = "sonardyne"
@@ -37,7 +48,7 @@ class FILE_TYPE(Enum):
     LEVERARM = "leverarm"
     SEABIRD = "svpavg"
     NOVATEL770 = "novatel770"
-    DFPO00 = "dfpo00"
+    DFPO00 = "dfop00"
     OFFLOAD = "offload"
     QCPIN = "pin"
     NOVATELPIN = "novatelpin"
@@ -48,6 +59,9 @@ class FILE_TYPE(Enum):
 
 
 FILE_TYPES = [x.value for x in FILE_TYPE]
+ALIAS_MAP = {
+    "nov770":"novatel770"}
+ALIAS_MAP = ALIAS_MAP | {x:x for x in FILE_TYPES}
 
 class DATA_TYPE(Enum):
     IMU = "imu"
@@ -66,7 +80,7 @@ DATA_TYPES = [x.value for x in DATA_TYPE]
 
 TARGET_MAP = {
     FILE_TYPE.QCPIN:{DATA_TYPE.IMU:proc_funcs.qcpin_to_imudf,DATA_TYPE.ACOUSTIC:proc_funcs.qcpin_to_acousticdf,FILE_TYPE.NOVATELPIN:proc_funcs.qcpin_to_novatelpin},
-    # FILE_TYPE.NOVATELPIN:{FILE_TYPE.RINEX:proc_funcs.novatelpin_to_rinex},
+    FILE_TYPE.NOVATELPIN:{FILE_TYPE.RINEX:proc_funcs.novatel_to_rinex},
     FILE_TYPE.NOVATEL:{FILE_TYPE.RINEX:proc_funcs.novatel_to_rinex, DATA_TYPE.IMU:proc_funcs.novatel_to_imudf},
     FILE_TYPE.RINEX:{FILE_TYPE.KIN:proc_funcs.rinex_to_kin},
     FILE_TYPE.KIN:{DATA_TYPE.GNSS:proc_funcs.kin_to_gnssdf},
@@ -74,7 +88,7 @@ TARGET_MAP = {
     FILE_TYPE.MASTER:{DATA_TYPE.SITECONFIG:proc_funcs.masterfile_to_siteconfig},
     FILE_TYPE.LEVERARM:{DATA_TYPE.ATDOFFSET:proc_funcs.leverarmfile_to_atdoffset},
     FILE_TYPE.SEABIRD:{DATA_TYPE.SVP:proc_funcs.seabird_to_soundvelocity},
-    FILE_TYPE.NOVATEL770:{FILE_TYPE.RINEX:proc_funcs.novatel770_to_rinex},
+    FILE_TYPE.NOVATEL770:{FILE_TYPE.RINEX:proc_funcs.novatel_to_rinex},
     FILE_TYPE.DFPO00:{DATA_TYPE.IMU:proc_funcs.dfpo00_to_imudf, DATA_TYPE.ACOUSTIC:proc_funcs.dfpo00_to_acousticdf}
 }
 
@@ -104,259 +118,249 @@ SCHEMA_MAP = {
     DATA_TYPE.SITECONFIG:proc_schemas.SiteConfig,
     DATA_TYPE.ATDOFFSET:proc_schemas.ATDOffset,
     FILE_TYPE.QCPIN:proc_schemas.QCPinFile,
+    FILE_TYPE.NOVATELPIN:proc_schemas.NovatelPinFile
 }
 
 class MergeFrequency(Enum):
     HOUR = "h"
     DAY = 'D'
 
-class InputURL(pa.DataFrameModel):
-    uuid: pa.typing.Series[pa.String] = pa.Field(
-        description="Unique identifier", default=None
-    )
-    bucket: pa.typing.Series[pa.String] = pa.Field(description="S3 bucket",default=None,nullable=True)
-    network: pa.typing.Series[pa.String] = pa.Field(description="Network name")
-    station: pa.typing.Series[pa.String] = pa.Field(description="Station name")
-    survey: pa.typing.Series[pa.String] = pa.Field(description="Survey name")
-    remote_prefix: pa.typing.Series[pa.String] = pa.Field(description="Remote S3 URL",default=None,nullable=True)
-    type: pa.typing.Series[pa.String] = pa.Field(
-        description="Type of data",
-        default=None,
-        isin=FILE_TYPES + DATA_TYPES + [None],
-    )
-    timestamp: pa.typing.Series[pa.Timestamp] = pa.Field(description="Timestamp",default=None,nullable=True)
-
-    class Config:
-        coerce=True
-        add_missing_columns=True
-
-class DataCatalog(InputURL):
-    
-    local_location: pa.typing.Series[pa.String] = pa.Field(
-        description="Local location", default=None,nullable=True
-    )
-    source_uuid: pa.typing.Series[pa.String] = pa.Field(description="Source identifier",default=None,nullable=True )
-    processed: pa.typing.Series[pa.Bool] = pa.Field(description="Child data has been aquired",default=False)
-    class Config:
-        coerce=True
-        add_missing_columns=True
-
-    @pa.parser("timestamp")
-    def parse_timestamp(cls, value):
-        return pd.to_datetime(value,format="%Y%m%d%H%M%S")
-
-
 class DataHandler:
     """
     A class to handle data operations such as adding campaign data, downloading data, and processing data.
     """
 
-    def __init__(self,working_dir:Path) -> None:
+    def __init__(self,
+                 network: str,
+                 station:str,
+                 survey:str,
+                 data_dir:Union[Path,str],
+                 show_details:bool=True
+                 ) -> None:
         """
         Initialize the DataHandler object.
 
-        Creates the following directories if they do not exist:
-            - raw/
-            - intermediate/
-            - processed/
+        Creates the following files and directories within the data directory if they do not exist:
+            - catalog.sqlite
+            - <network>/
+                - <station>/
+                    - <survey>/
+                        - raw/
+                        - intermediate/
+                        - processed/
+                        - Garpos
+             - Pride/
 
         Args:
-            working_dir (Path): The working directory path.
+            network (str): The network name.
+            station (str): The station name.
+            survey (str): The survey name.
+            data_dir (Path): The working directory path.
 
         Returns:
             None
         """
+        self.network = network
+        self.station = station
+        self.survey = survey
 
-        self.working_dir = working_dir
+        if isinstance(data_dir,str):
+            data_dir = Path(data_dir)
+
+        self.data_dir = data_dir
+        self.working_dir = self.data_dir / self.network / self.station / self.survey
         self.raw_dir = self.working_dir / "raw/"
         self.inter_dir = self.working_dir / "intermediate/"
         self.proc_dir = self.working_dir / "processed/"
-
+        self.pride_dir = self.data_dir / "Pride"
+        self.garpos_dir = self.working_dir / "Garpos"
         self.working_dir.mkdir(parents=True,exist_ok=True)
+        self.pride_dir.mkdir(parents=True,exist_ok=True)
         self.inter_dir.mkdir(exist_ok=True)
         self.proc_dir.mkdir(exist_ok=True)
         self.raw_dir.mkdir(exist_ok=True)
-        self.working_dir.mkdir(exist_ok=True)
+        self.garpos_dir.mkdir(exist_ok=True)
 
-        self.catalog = self.working_dir/"catalog.csv"
-        if self.catalog.exists():
-            try:
-                self.catalog_data = DataCatalog.validate(pd.read_csv(self.catalog))
-            except pd.errors.EmptyDataError:
-                # empty dataframe
-                self.catalog_data = pd.DataFrame()
-              
-        else:
-            self.catalog_data = pd.DataFrame()
-            self.catalog_data.to_csv(self.catalog,index=False)
-        
-        logging.basicConfig(level=logging.INFO,filename=self.working_dir/"datahandler.log")
-        logger.info(f"Data Handler initialized, data will be stored in {self.working_dir}")
+        self.db_path = self.data_dir/"catalog.sqlite"
+        if not self.db_path.exists():
+            self.db_path.touch()
 
-    def _get_timestamp(self,remote_prefix:str) -> pd.Timestamp:
-        """
-        Get the timestamp from the remote file prefix.
+        self.engine = sa.create_engine(f"sqlite+pysqlite:///{self.db_path}",poolclass=sa.pool.NullPool)
+        Base.metadata.create_all(self.engine)
 
-        Args:
-            remote_prefix (str): The remote prefix.
+        logging.basicConfig(level=logging.INFO,
+                            format="{asctime} {message}",
+                            style="{",
+                            datefmt="%Y-%m-%d %H:%M:%S",
+                            filename=self.working_dir/"datahandler.log")
+        response = f"Data Handler initialized, data will be stored in {self.working_dir}"
+        logger.info(response)
+        if show_details:
+            print(response)
 
-        Returns:
-            pd.Timestamp: The timestamp extracted from the remote prefix.
-        """
-        basename = Path(remote_prefix).name
-
-        try:
-            date_str = basename.split("_")[1].split(".")[0]
-            return pd.to_datetime(date_str,format="%Y%m%d%H%M%S")
-        except:
-            return None
-
-    def load_catalog_from_csv(self):
-        self.consolidate_entries()
-        self.catalog_data = pd.read_csv(self.catalog, parse_dates=['timestamp'])
-        self.catalog_data['timestamp'] = self.catalog_data['timestamp'].astype('datetime64[ns]')
-
-    def get_local_counts(self):
-        try:
-            self.load_catalog_from_csv()
-            local_files = self.catalog_data[self.catalog_data['local_location'].notnull()]
-            data_type_counts = local_files.type.value_counts()
-        except (AttributeError, KeyError, FileNotFoundError):
-            data_type_counts = pd.Series()   
-        return data_type_counts
-    
     def get_dtype_counts(self):
-        try:
-            data_type_counts = self.catalog_data[self.catalog_data.type.isin(FILE_TYPES)].type.value_counts()
-        except AttributeError:
-            data_type_counts = "No data types found"    
-        return data_type_counts
-    
-    def add_qc_data(self,
-                    network:str,
-                    station:str,
-                    survey:str,
-                    local_filepaths:List[str],
-                    **kwargs):
+
+        with self.engine.begin() as conn:
+            data_type_counts = [dict(row._mapping) for row in conn.execute(
+                sa.select(sa.func.count(Assets.type),Assets.type).where(
+                    Assets.network.in_([self.network]),Assets.station.in_([self.station]),Assets.survey.in_([self.survey]),Assets.local_path.is_not(None)
+                    ).group_by(Assets.type)
+                ).fetchall()]
+            if len(data_type_counts) == 0:
+                return {"Local files found":0}
+        return {x["type"]:x["count_1"] for x in data_type_counts}    
+   
+
+    def add_data_local(self,
+                        local_filepaths:List[str],
+                        discover_file_type:bool=False,
+                        show_details:bool=True,
+                        **kwargs):
         count = 0
         file_data_list = []
         for file in local_filepaths:
             assert Path(file).exists(), f"File {file} does not exist"
+            if discover_file_type:
+                discovered_file_type = None
+                file_path_proc = file.replace("_", "").lower()
+
+                for alias, file_type in ALIAS_MAP.items():
+                    if alias in file_path_proc:
+                        discovered_file_type = file_type
+                        break
+            else:
+                discovered_file_type = FILE_TYPE.QCPIN.value
+
+            if discovered_file_type is None:
+                logger.error(f"File type not recognized for {file}")
+                warnings.warn(f"File type not recognized for {file}", UserWarning)
+                continue
+
             file_data = {
-                "uuid": uuid.uuid4().hex,
-                "network": network,
-                "station": station,
-                "survey": survey,
-                "local_location": str(file),
-                "type": FILE_TYPE.QCPIN.value,
-                "timestamp": None,
-                "processed": True
+                "network": self.network,
+                "station": self.station,
+                "survey": self.survey,
+                "local_path": str(file),
+                "type": discovered_file_type,
+                "timestamp_created": datetime.datetime.now(),
             }
+
             file_data_list.append(file_data)
             count += 1
-        incoming_data = DataCatalog.validate(pd.DataFrame(file_data_list))
 
         # See if the data is already in the catalog
-        if self.catalog_data.shape[0] > 0:
-            # Match against network, station, survey, type, and timestamp
-            matched = pd.merge(
-                self.catalog_data,
-                incoming_data,
-                how="right",
-                on=["network", "station", "survey", "type", "local_location"],
-                indicator=True
+        with self.engine.begin() as conn:
+            # get local file paths under the same network, station, survey
+            file_data_map = {x['local_path']:x for x in file_data_list}
+            existing_files = [row[0] for row in conn.execute(sa.select(Assets.local_path).where(
+                Assets.network.in_([self.network]),Assets.station.in_([self.station]),Assets.survey.in_([self.survey])
+            )).fetchall()]            
+            # remove existing files from the file_data_map
+            while existing_files:
+                file = existing_files.pop()
+                file_data_map.pop(file,None)
+
+            if len(file_data_map) == 0:
+                response = f"No new files to add"
+                logger.info(response)
+                if bool(os.environ.get("DH_SHOW_DETAILS",False)):
+                   print(response)
+                return
+            response = f"Adding {len(file_data_map)} new files to the catalog"
+            logger.info(response)
+            if show_details:
+                print(response)
+            # now add the new files
+            conn.execute(
+                sa.insert(Assets).values(list(file_data_map.values()))
             )
 
-            # Get uuid's for new data
-            new_data = matched[matched["_merge"] == "right_only"]
-            incoming_data = incoming_data[incoming_data.uuid.isin(new_data.uuid_y)]
-            if incoming_data.shape[0] < 1:
-                warnings.warn("No novel incoming qc data found", UserWarning)
-        self.catalog_data = pd.concat([self.catalog_data, incoming_data])
-        self.catalog_data.to_csv(self.catalog,index=False)
-        logger.info(f"Added {count} QC .pin files to the catalog")
-        
-    def add_campaign_data(self, 
-                          network: str, 
-                          station: str, 
-                          survey: str, 
-                          remote_filepaths: List[str], 
+    def add_data_remote(self, 
+                          remote_filepaths: List[str],
+                          remote_type:Union[REMOTE_TYPE,str] = REMOTE_TYPE.HTTP,
+                          show_details:bool=True,
                           **kwargs):
         """
         Add campaign data to the catalog.
 
         Args:
-            network (str): The network name.
-            station (str): The station name.
-            survey (str): The survey name.
             remote_filepaths (List[str]): A list of file locations on gage-data.
+            remote_type (Union[REMOTE_TYPE,str]): The type of remote location.
             **kwargs: Additional keyword arguments.
 
         Returns:
             None
         """
-        incoming = []
+        if isinstance(remote_type,str):
+            try:
+                remote_type = REMOTE_TYPE(remote_type)
+            except:
+                raise ValueError(f"Remote type {remote_type} must be one of {REMOTE_TYPE.__members__.keys()}")
+
+        file_data_list = []
         for file in remote_filepaths:
             discovered_file_type = None
-            for file_type in FILE_TYPES:
-                if file_type in file.replace("_", ""):
+            file_path_proc = file.replace("_", "").lower()
+
+            for alias, file_type in ALIAS_MAP.items():
+                if alias in file_path_proc:
                     discovered_file_type = file_type
                     break
-            
+
             if discovered_file_type is None:
                 logger.error(f"File type not recognized for {file}")
                 continue
+                #raise ValueError(f"File type not recognized for {file}")
 
             file_data = {
-                "uuid": uuid.uuid4().hex,
-                "network": network,
-                "station": station,
-                "survey": survey,
-                "remote_filepath": file,
+                "station": self.station,
+                "survey": self.survey,
+                "remote_path": file,
+                "remote_type": remote_type.value,
                 "type": discovered_file_type,
-                "timestamp": self._get_timestamp(file)
+                "timestamp_created": datetime.datetime.now(),
             }
-            incoming.append(file_data)
+            file_data_list.append(file_data)
 
         # See if the data is already in the catalog
-        incoming_df = InputURL.validate(pd.DataFrame(incoming))
-        if self.catalog_data.shape[0] > 0:
-            # Match against network, station, survey, type, and timestamp
-            matched = pd.merge(
-                self.catalog_data,
-                incoming_df,
-                how="right",
-                on=["network", "station", "survey", "type", "timestamp"],
-                indicator=True
+        file_data_map = {x['remote_path']:x for x in file_data_list}
+        response = f"Total remote files found {len(file_data_map)}"
+        logger.info(response)
+        if show_details:
+            print(response)
+        with self.engine.begin() as conn:
+            existing_files = [dict(row._mapping) for row in conn.execute(sa.select(Assets.remote_path).where(
+                Assets.network.in_([self.network]),Assets.station.in_([self.station]),Assets.survey.in_([self.survey])
+            )).fetchall()]
+            response = f"Total files tracked in catalog {len(existing_files)}"
+            logger.info(response)
+            if show_details:
+                print(response)
+            # remove existing files from the file_data_map
+            for file in existing_files:
+                file_data_map.pop(file['remote_path'],None)
+
+            if len(file_data_map) == 0:
+                response = f"No new files found to add"
+                logger.info(response)
+                print(response)
+                return
+            response = f"Adding {len(file_data_map)} new files to the catalog"
+            logger.info(response)
+            print(response)
+            # now add the new files
+            conn.execute(
+                sa.insert(Assets).values(list(file_data_map.values()))
             )
 
-            # Get uuid's for new data
-            new_data = matched[matched["_merge"] == "right_only"]
-            incoming_df = incoming_df[incoming_df.uuid.isin(new_data.uuid_y)]
-
-        # If matched, there will be an "id" field
-        if incoming_df.shape[0] > 0:
-            incoming_df = DataCatalog.validate(incoming_df, lazy=True)
-            logger.info(f"Adding {incoming_df.shape[0]} to the current catalog")
-            self.catalog_data = pd.concat([self.catalog_data, incoming_df])
-
-        self.catalog_data.to_csv(self.catalog,index=False)
-
-    def download_campaign_data(self,
-                               network:str,
-                               station:str,
-                               survey:str,
-                               file_type: str="all",
-                               override:bool=False,
-                               from_s3:bool=False,
-                               show_details:bool=True):
+    def download_data(self,
+                    file_type: str="all",
+                    override:bool=False,
+                    show_details:bool=True):
         """
         Retrieves and catalogs data from the remote locations stored in the catalog.
 
         Args:
-            network (str): The network name.
-            station (str): The station name.
-            survey (str): The survey name.
             file_type (str): The type of file to download
             override (bool): Whether to download the data even if it already exists
             from_s3 (bool): Use S3 download functionality if remote resourses are in an s3 bucket
@@ -365,187 +369,146 @@ class DataHandler:
         Raises:
             Exception: If no matching data found in catalog.
         """
-        # TODO make multithreaded
-        # Find all entries in the catalog that match the params
-
-        local_counts = self.get_local_counts()
-        try:
-            local_files_of_type = local_counts[file_type]    
-        except KeyError:
-            local_files_of_type = 0
-        logger.info(f"Data directory currently contains {local_files_of_type} files of type {file_type}")
-        entries = self.catalog_data[
-            (self.catalog_data.network == network)
-            & (self.catalog_data.station == station)
-            & (self.catalog_data.survey == survey)
-        ]
-        if file_type != "all":
-            entries = entries[entries.type == file_type]
-        missing_files = entries.shape[0]-local_files_of_type
-        logger.info(f"Downloading {missing_files} missing files of type {file_type}")
-        if entries.shape[0] < 1:
-            raise Exception('No matching data found in catalog')
-        if from_s3:
-            client = boto3.client('s3')
-        count = 0
-        for entry in tqdm(entries.itertuples(index=True), total=missing_files):
-            if pd.isna(entry.remote_filepath):
-                continue
-            local_location = self.raw_dir / Path(entry.remote_filepath).name
-
-            # If the file does not exist and has not been processed, then download it!
-            if not local_location.exists() or override:
-                if from_s3:
-                    is_download = self._download_boto(
-                        client=client,
-                        bucket=entry.bucket,
-                        remote_url=entry.remote_prefix,
-                        destination=local_location,
-                    )
-                # Check if the entry is from an S3 location or gage-data
-                else:
-                    is_download = self._download_https(
-                        remote_url=entry.remote_filepath, destination_dir=self.raw_dir, show_details=show_details
-                    )
-        
-                if is_download:
-                    # Check if we can find the file
-                    assert local_location.exists(), "Downloaded file not found"
-                    self.catalog_data.at[entry.Index,"local_location"] = str(local_location)
-                    count += 1
-                    #add a duplicate entry but with local_location
-                    entry_dict = self.catalog_data[self.catalog_data.index==entry.Index].to_dict('records')[0]
-                    entry_dict['local_location'] = str(local_location)
-                    self.add_entry(entry_dict)
-                else:
-                    raise Warning(f'File not downloaded to {str(local_location)}')
-        if count == 0:
-            response = f"No files downloaded"
-            logger.error(response)
+        #os.environ["DH_SHOW_DETAILS"] = str(show_details)
+        if file_type == 'all':
+            file_types = FILE_TYPES
         else:
-            logger.info(f"Downloaded {count} files")
+            file_types = [file_type]
+        with self.engine.begin() as conn:
+            entries = [dict(row._mapping) for row in conn.execute(
+                sa.select(Assets).where(
+                    Assets.network.in_([self.network]),Assets.station.in_([self.station]),Assets.survey.in_([self.survey]),Assets.type.in_(file_types)
+                )
+            ).fetchall()]
+        if len(entries) == 0:
+            response = f"No matching data found in catalog"
+            logger.error(response)
+            print(response)
+            return
+        # find entries that have a value for "local_path"
+        entries_to_get = []
+        for entry in entries:
+            if entry['local_path'] is not None:
+                if Path(entry['local_path']).exists():
+                    entries_to_get.append(False)
+                else:
+                    entries_to_get.append(True)
+            else:
+                entries_to_get.append(True)
 
-        #self.catalog_data.to_csv(self.catalog,index=False)
+        to_get = np.logical_or(entries_to_get,override)
+        entries = np.array(entries)[to_get].tolist()
+        if len(entries) == 0:
+            response = f"No new files of type {file_type} to download"
+            logger.info(response)
+            print(response)
+            return
+        # split the entries into s3 and http
+        s3_entries = [x for x in entries if x['remote_type'] == REMOTE_TYPE.S3.value]
+        http_entries = [x for x in entries if x['remote_type'] == REMOTE_TYPE.HTTP.value]
+        updated_entries = []
+        # download s3 entries
+        if len(s3_entries) > 0:
+            s3_entries_processed = []
+            for entry in s3_entries:
+                _path = Path(entry['remote_path'])
+                s3_entries_processed.append({
+                    "bucket":(bucket :=_path.root),
+                    "prefix":_path.relative_to(bucket)
+                })
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                results = executor.map(self._download_data_s3,s3_entries_processed)
+                for result,entry in zip(results,s3_entries):
+                    if result is not None:
+                        entry['local_path'] = str(result)
+                        updated_entries.append(entry)
 
-    def add_campaign_data_s3(self, network: str, station: str, survey: str, bucket: str, prefixes: List[str], **kwargs):
-        """
-        Add campaign data to the catalog.
+        # download http entries
+        # TODO: add back in tqdm bars, have it update the database after each file not just at the end
+        # the following doesnt work yet
+  
 
-        Args:
-            network (str): The network name.
-            station (str): The station name.
-            survey (str): The survey name.
-            bucket (str): The bucket name.
-            prefixes (List[str]): A list of file prefixes.
-            **kwargs: Additional keyword arguments.
+        if len(http_entries) > 0:
+            _download_func = partial(self._download_https,destination_dir=self.raw_dir, show_details=show_details)
+            for entry in tqdm(http_entries, total=len(http_entries), desc=f"Downloading files"):
+                if (local_path :=_download_func(entry['remote_path']))  is not None:
+                    entry["local_path"] = str(local_path)
+                    with self.engine.begin() as conn:
+                        conn.execute(
+                            sa.update(Assets).where(Assets.remote_path == entry['remote_path']).values(dict(entry))
+                        )
+                     
 
-        Returns:
-            None
-        """
-        incoming = []
-        for file in prefixes:
-            discovered_file_type = None
-            for file_type in FILE_TYPES:
-                if file_type in file.replace("_", ""):
-                    discovered_file_type = file_type
-                    break
 
-            if discovered_file_type is None:
-                logger.error(f"File type not recognized for {file}")
-                continue
+                # with concurrent.futures.ThreadPoolExecutor() as executor:
+                #     futures = [executor.submit(_download_func, x['remote_path']) for x in http_entries]
+                #     for future in tqdm(concurrent.futures.as_completed(futures),
+                #                         total=len(futures),
+                #                         desc=f"Downloading files"):
+                #         local_path, remote_path = future.result()
+                #         print(local_path)
+                #         if local_path is not None:
+                #             entry = {"local_path": local_path}
+                #             conn.execute(
+                #                 sa.update(Assets).where(Assets.remote_path == remote_path).values(dict(entry))
+                #             )
+                #             conn.commit()
+  
+        # if len(http_entries) > 0:
+        #     _download_func = partial(self._download_https,destination_dir=self.raw_dir, show_details=show_details)
+        #     with concurrent.futures.ThreadPoolExecutor() as executor:
+        #         results = executor.map(_download_func,[x['remote_path'] for x in http_entries])
+        #         for result,entry in zip(results,http_entries):
+        #             if result is not None:
+        #                 entry['local_path'] = str(result)
+        #                 updated_entries.append(entry)
 
-            file_data = {
-                "uuid": uuid.uuid4().hex,
-                "network": network,
-                "station": station,
-                "survey": survey,
-                "bucket": bucket,
-                "remote_prefix": file,
-                "type": discovered_file_type,
-                "timestamp": self._get_timestamp(file)
-            }
-            incoming.append(file_data)
+        # # update the database
+        # with self.engine.begin() as conn:
+        #     while updated_entries:
+        #         entry = updated_entries.pop()
+        #         conn.execute(
+        #             sa.update(Assets).where(Assets.remote_path == entry['remote_path']).values(dict(entry))
+        #         )
 
-        # See if the data is already in the catalog
-        incoming_df = InputURL.validate(pd.DataFrame(incoming))
-        if self.catalog_data.shape[0] > 0:
-            # Match against network, station, survey, type, and timestamp
-            matched = pd.merge(
-                self.catalog_data,
-                incoming_df,
-                how="right",
-                on=["network", "station", "survey", "type", "timestamp"],
-                indicator=True
-            )
-
-            # Get uuid's for new data
-            new_data = matched[matched["_merge"] == "right_only"]
-            incoming_df = incoming_df[incoming_df.uuid.isin(new_data.uuid_y)]
-
-        # If matched, there will be an "id" field
-        if incoming_df.shape[0] > 0:
-            incoming_df = DataCatalog.validate(incoming_df, lazy=True)
-            logger.info(f"Adding {incoming_df.shape[0]} to the current catalog")
-            self.catalog_data = pd.concat([self.catalog_data, incoming_df])
-
-        self.catalog_data.to_csv(self.catalog,index=False)
-        # Get count of each data type in the catalog
-        data_type_counts = self.catalog_data[self.catalog_data.type.isin(FILE_TYPES)].type.value_counts()
-        return data_type_counts
-
-    def download_campaign_data_s3(self,network:str,station:str,survey:str,override:bool=False):
+    def _download_data_s3(self,bucket:str,prefix:str,**kwargs) -> Union[Path,None]:
         """
         Retrieves and catalogs data from the s3 locations stored in the catalog.
 
         Args:
-            network (str): The network name.
-            station (str): The station name.
-            survey (str): The survey name.
+            bucket (str): S3 bucket name
+            prefix (str): S3 object prefix
 
         Raises:
             Exception: If no matching data found in catalog.
         """
-        # TODO make multithreaded
-        # Find all entries in the catalog that match the params
-        
-        self.load_catalog_from_csv()
-        
-        entries = self.catalog_data[
-            (self.catalog_data.network == network)
-            & (self.catalog_data.station == station)
-            & (self.catalog_data.survey == survey)
-        ]
+        with threading.Lock():
+            client = boto3.client('s3')
 
-        if entries.shape[0] < 1:
-            raise Exception('No matching data found in catalog')
-        client = boto3.client('s3')
-        count = 0
-        for entry in entries.itertuples(index=True):
-            if pd.isna(entry.remote_prefix):
-                continue
-            local_location = self.raw_dir / Path(entry.remote_prefix).name
+        local_path = self.raw_dir / Path(prefix).name
 
-            # If the file does not exist and has not been processed, then download it!
-            if not local_location.exists() or override:
-                if self._download_boto(client=client,bucket=entry.bucket, remote_url=entry.remote_prefix,destination=local_location):
-                    assert local_location.exists(), "Downloaded file not found"
-                    self.catalog_data.at[entry.Index,"local_location"] = str(local_location)
-                    count += 1
+        # If the file does not exist and has not been processed, then download it!
+        try:
+            client.download_file(Bucket=bucket, Key=str(prefix), Filename=str(local_path))
+            response = f"Downloaded {str(prefix)} to {str(local_path)}"
+            logger.info(response)
+            if os.environ.get("DH_SHOW_DETAILS",False):
+                print(response)
+            return local_path
 
-        if count == 0:
-            response = f"No files downloaded"
+        except Exception as e:
+            response = f"Error downloading {prefix} \n {e}"
+            response += "\n HINT: $ aws sso login"
             logger.error(response)
-            # print(response)
+            if os.environ.get("DH_SHOW_DETAILS",False):
+                print(response)
+            return None
 
-        logger.info(f"Downloaded {count} files to {str(self.raw_dir)}")
-
-        self.catalog_data.to_csv(self.catalog,index=False)
-    
     def _download_https(self, 
                         remote_url: Path, 
                         destination_dir: Path, 
                         token_path='.',
-                        show_details: bool=True):
+                        show_details: bool=True) -> Union[Path,None]:
         """
         Downloads a file from the specified https url on gage-data
 
@@ -557,113 +520,97 @@ class DataHandler:
             bool: True if the file was downloaded successfully, False otherwise.
         """
         try:
-            #local_location = destination_dir / Path(remote_url).name
+            local_path = destination_dir / Path(remote_url).name
             download_file_from_archive(url=remote_url, 
                                     dest_dir=destination_dir, 
                                     token_path=token_path,
-                                    show_details=show_details)
-            #logger.info(f"Downloaded {str(remote_url)} to {str(local_location)}")
-            return True
+                                    )
+            if not local_path.exists():
+                raise Exception
+
+            response = f"Downloaded {str(remote_url)} to {str(local_path)}"
+            logger.info(response)
+            if show_details:
+                print(response)
+            return local_path
+
         except Exception as e:
             response = f"Error downloading {str(remote_url)} \n {e}"
             response += "\n HINT: Check authentication credentials"
             logger.error(response)
-            # print(response)
-            return False
-        
-    def _download_boto(self, client: boto3.client, bucket: str, remote_url: Path, destination: Path):
-        """
-        Downloads a file from the specified S3 bucket.
+            if show_details:
+                print(response)
+            return None
 
-        Args:
-            client (boto3.client): The Boto3 client object for S3.
-            bucket (str): The name of the S3 bucket.
-            remote_url (Path): The path of the file in the S3 bucket.
-            destination (Path): The local path where the file will be downloaded.
+    # def clear_raw_processed_data(self, network: str, station: str, survey: str):
+    # """
+    # Clear all raw data in type FILE_TYPE from the working directory.
 
-        Returns:
-            bool: True if the file was downloaded successfully, False otherwise.
-        """
-        try:
-            client.download_file(Bucket=bucket, Key=str(remote_url), Filename=str(destination))
-            logger.info(f"Downloaded {str(remote_url)} to {str(destination)}")
-            return True
-        except Exception as e:
-            response = f"Error downloading {str(remote_url)} \n {e}"
-            response += "\n HINT: $ aws sso login"
-            logger.error(response)
-            # print(response)
-            return False
+    # Args:
+    #     network (str): The network name.
+    #     station (str): The station name.
+    #     survey (str): The survey name.
 
-    def clear_raw_processed_data(self, network: str, station: str, survey: str):
-        """
-        Clear all raw data in type FILE_TYPE from the working directory.
+    # Returns:
+    #     None
+    # """
 
-        Args:
-            network (str): The network name.
-            station (str): The station name.
-            survey (str): The survey name.
+    # # Get raw data into stack
+    # parent_entries = self.catalog_data[
+    #     (self.catalog_data.network == network)
+    #     & (self.catalog_data.station == station)
+    #     & (self.catalog_data.survey == survey)
+    #     & (self.catalog_data.type.isin(FILE_TYPES))
+    #     & (~self.catalog_data.local_path.isna())
+    # ].to_dict(orient="records")
 
-        Returns:
-            None
-        """
+    # pbar = tqdm.tqdm(total=len(parent_entries), desc="Removing Raw Files")
+    # while parent_entries:
+    #     entry = parent_entries.pop()
 
-        # Get raw data into stack
-        parent_entries = self.catalog_data[
-            (self.catalog_data.network == network)
-            & (self.catalog_data.station == station)
-            & (self.catalog_data.survey == survey)
-            & (self.catalog_data.type.isin(FILE_TYPES))
-            & (~self.catalog_data.local_location.isna())
-        ].to_dict(orient="records")
+    #     entry_type = FILE_TYPE(entry["type"])
 
-        pbar = tqdm.tqdm(total=len(parent_entries), desc="Removing Raw Files")
-        while parent_entries:
-            entry = parent_entries.pop()
+    #     is_parent_processed = True
+    #     child_types = [x.value for x in list(TARGET_MAP.get(entry_type).keys())]
 
-            entry_type = FILE_TYPE(entry["type"])
+    #     child_entries = self.catalog_data[
+    #         (self.catalog_data.source_uuid == entry["uuid"])
+    #         & (self.catalog_data.type.isin(child_types))
+    #     ]
 
-            is_parent_processed = True
-            child_types = [x.value for x in list(TARGET_MAP.get(entry_type).keys())]
+    #     # Check if we can find all child types, if not then skip
+    #     if not entry["processed"]:
+    #         pbar.update(1)
+    #         continue
 
-            child_entries = self.catalog_data[
-                (self.catalog_data.source_uuid == entry["uuid"])
-                & (self.catalog_data.type.isin(child_types))
-            ]
+    #     # Now we check if the children files exist
+    #     for _, child in child_entries.iterrows():
+    #         if child["type"] in DATA_TYPES:
+    #             self.catalog_data.loc[self.catalog_data.uuid == child["uuid"], "processed"] = True
+    #             child["processed"] = True
+    #         is_parent_processed &= child["processed"]
+    #         try:
+    #             # If the child is a FILE_TYPE, then we will add it to the stack (only applies to the rinex and kin files)
+    #             # We check this in the try/except block by attempting to instantiate a FILE_TYPE
+    #             _ = FILE_TYPE(child["type"])
+    #             parent_entries.append(dict(child))
+    #             pbar.update(1)
+    #         except ValueError:
+    #             # The child is a DATA_TYPE, so we can pass
+    #             pass
 
-            # Check if we can find all child types, if not then skip
-            if not entry["processed"]:
-                pbar.update(1)
-                continue
+    #     # If all children files exist, is_parent_processed == True, and we can delete the parent file
+    #     if is_parent_processed and not pd.isna(entry["local_path"]):
+    #         Path(entry["local_path"]).unlink()
+    #         self.catalog_data.loc[(self.catalog_data.uuid == entry["uuid"]), "processed"] = True
+    #         self.catalog_data.loc[self.catalog_data.uuid == entry["uuid"], "local_path"] = None
 
-            # Now we check if the children files exist
-            for _, child in child_entries.iterrows():
-                if child["type"] in DATA_TYPES:
-                    self.catalog_data.loc[self.catalog_data.uuid == child["uuid"], "processed"] = True
-                    child["processed"] = True
-                is_parent_processed &= child["processed"]
-                try:
-                    # If the child is a FILE_TYPE, then we will add it to the stack (only applies to the rinex and kin files)
-                    # We check this in the try/except block by attempting to instantiate a FILE_TYPE
-                    _ = FILE_TYPE(child["type"])
-                    parent_entries.append(dict(child))
-                    pbar.update(1)
-                except ValueError:
-                    # The child is a DATA_TYPE, so we can pass
-                    pass
+    #         response = f"Removed Raw File {entry['uuid']} of Type {entry['type']} From {entry['local_path']} "
+    #         logger.info(response)
 
-            # If all children files exist, is_parent_processed == True, and we can delete the parent file
-            if is_parent_processed and not pd.isna(entry["local_location"]):
-                Path(entry["local_location"]).unlink()
-                self.catalog_data.loc[(self.catalog_data.uuid == entry["uuid"]), "processed"] = True
-                self.catalog_data.loc[self.catalog_data.uuid == entry["uuid"], "local_location"] = None
+    #     self.catalog_data.to_csv(self.catalog, index=False)
 
-                response = f"Removed Raw File {entry['uuid']} of Type {entry['type']} From {entry['local_location']} "
-                logger.info(response)
-
-            self.catalog_data.to_csv(self.catalog, index=False)
-
-        pbar.close()
+    # pbar.close()
 
     def add_entry(self, entry: dict):
         """
@@ -676,62 +623,8 @@ class DataHandler:
         Returns:
             None
         """
-        with self.catalog.open("r") as f:
-            keys=list(f.readline().rstrip().split(','))
-        entry_str = "\n"
-        for key in keys:
-            if key in entry:
-                entry_str += f"{str(entry[key])}"
-            if key != keys[-1]:
-                entry_str += ","
-        
-        with self.catalog.open("a") as f:
-            f.write(entry_str)
-
-    def consolidate_entries(self):
-        """
-        Remove any duplicate entries, keeping the most complete.
-
-        Args: 
-            None
-        Returns:
-            None
-        """
-        df = pd.read_csv(str(self.catalog))
-        df['count'] = pd.isnull(df).sum(1)
-        df=df.sort_values(['count']).drop_duplicates(subset=['uuid'],keep='first').drop(labels='count',axis=1)
-        df=df.sort_index()
-        df.to_csv(self.catalog,index=False)
-    
-    def update_entry(self,entry:dict):
-        """
-        Replace an entry in the catalog with a new entry.
-
-        Args:
-            entry (dict): The new entry.
-
-        Returns:
-            None
-        """
-        old_entry = self.catalog_data[
-            (self.catalog_data.type == entry["type"])
-            & (self.catalog_data.source_uuid == entry["source_uuid"])
-            & (self.catalog_data.network == entry["network"])
-            & (self.catalog_data.station == entry["station"])
-            & (self.catalog_data.survey == entry["survey"])
-        ]
-        if old_entry.shape[0] > 0:
-            try:
-                [Path(x.local_location).unlink() for x in old_entry.itertuples(index=True)]
-            except:
-                pass
-            self.catalog_data = self.catalog_data.drop(old_entry.index)
-
-        self.catalog_data = pd.concat(
-            [self.catalog_data,DataCatalog.validate(pd.DataFrame([entry]),lazy=True)],
-            ignore_index=True
-        )
-        self.catalog_data.to_csv(self.catalog,index=False)
+        with self.engine.begin() as conn:
+            conn.execute(sa.insert(Assets).values(entry))
 
     def get_parent_stack(
         self, child_type: Union[FILE_TYPE, DATA_TYPE]
@@ -755,10 +648,10 @@ class DataHandler:
                 stack.append(parent)
             pointer += 1
         return stack[::-1]
-    
+
     def get_child_stack(
         self, parent_type: FILE_TYPE) -> List[Union[FILE_TYPE, DATA_TYPE]]:
-        
+
         stack = [parent_type]
         pointer = 0
         while pointer < len(stack):
@@ -768,132 +661,146 @@ class DataHandler:
             pointer += 1
         return stack
 
+
+    @staticmethod
     def _process_targeted(
-        self, parent: dict, child_type: Union[FILE_TYPE, DATA_TYPE], show_details: bool=False
-    ) -> Tuple[dict,dict,bool]:
-        #TODO: implement multithreaded logging, had to switch to print statement below
-        if isinstance(parent, dict):
-            parent = pd.Series(parent)
+        parent: dict,
+        child_type: Union[FILE_TYPE, DATA_TYPE],
+        inter_dir: Path,
+        proc_dir: Path,
+        pride_dir: Path,
+    ) -> Tuple[dict, dict, bool]:
+
+        show_details = bool(os.environ.get("DH_SHOW_DETAILS", False))
+
+        response = " "
+        # TODO: implement multithreaded logging, had to switch to print statement below
 
         # handle the case when the parent timestamp is None
-        child_timestamp = parent.timestamp
-        update_timestamp = False
-        if show_details:
-            print(
-                f"Processing {os.path.basename(parent.local_location)} ({parent.uuid}) of Type {parent.type} to {child_type.value}"
-            )
-        child_map = TARGET_MAP.get(FILE_TYPE(parent.type))
-        if child_map is None:
-            response = (
-                f"Child type {child_type.value} not found for parent type {parent.type}"
-            )
-            logger.error(response)
-            raise ValueError(response)
+        child_timestamp = parent.get("timestamp_data_start", None)
 
-        process_func = child_map.get(child_type)
-        logger.info(process_func)
-        source = SCHEMA_MAP[FILE_TYPE(parent.type)](
-            location=Path(parent.local_location),
-            uuid=parent.uuid,
-            capture_time=parent.timestamp,
+        response += f"Processing {parent['local_path']} ({parent['id']}) of Type {parent['type']} to {child_type.value}\n"
+        # Get the processing function that converts the parent entry to the child entry
+        process_func = TARGET_MAP.get(FILE_TYPE(parent["type"])).get(child_type)
+        # Build the source object from the parent entry
+        source = SCHEMA_MAP[FILE_TYPE(parent["type"])](
+            local_path=Path(parent["local_path"]),
+            uuid=parent["id"],
+            timestamp_data_start=parent["timestamp_data_start"],
         )
-        if source.location.stat().st_size == 0:
-            logger.error(f"File {source.location} is empty")
-            return None,None,None
-        else:
-
-            if process_func == proc_funcs.novatel_to_rinex:
-                processed = process_func(
-                    source, site=parent.station, year=parent.timestamp.year, show_details=show_details
+        # build partial processing function
+        match process_func:
+            case proc_funcs.rinex_to_kin:
+                process_func_p = partial(
+                    process_func,
+                    writedir=inter_dir,
+                    pridedir=pride_dir,
+                    site=parent["station"],
                 )
-            elif process_func == proc_funcs.rinex_to_kin:
-                processed = process_func(source, site=parent.station)
-            
-            elif process_func == proc_funcs.qcpin_to_novatelpin:
-                processed = process_func(source,outpath=self.inter_dir)
+
+            case proc_funcs.novatel_to_rinex:
+                process_func_p = partial(
+                    process_func,
+                    site=parent["station"],
+                    year=parent.get("timestamp_data_start", datetime.datetime.now().year),
+                    show_details=show_details,
+                )
+
+            case proc_funcs.qcpin_to_novatelpin:
+                process_func_p = partial(process_func, outpath=inter_dir)
+            case _:
+                process_func_p = process_func
+
+        processed = None
+        timestamp_data_start = parent.get("timestamp_data_start", None)
+        timestamp_data_end = parent.get("timestamp_data_end", None)
+
+        if hasattr(source,"local_path") is not None and source.local_path.exists():
+            if source.local_path.stat().st_size == 0:
+                response += f"File {source.local_path} is empty\n"
+                processed = None
             else:
-                processed = process_func(source)
-            if processed is not None:
+                processed = process_func_p(source)
 
-                child_uuid = uuid.uuid4().hex
-                is_processed = False
-                match type(processed):
-                    case pd.DataFrame:
-                        local_location = (
-                            self.proc_dir / f"{parent.uuid}_{child_type.value}.csv"
-                        )
-                        processed.to_csv(local_location, index=False)
-                        is_processed = True
-                        # handle the case when the child timestamp is None
-                        if child_timestamp is None:
-                            for col in processed.columns:
-                                if pd.api.types.is_datetime64_any_dtype(processed[col]):
-                                    child_timestamp = processed[col].min()
-                                    update_timestamp = True
-                                    break
-                    
-                    case proc_schemas.RinexFile:
-                        processed.write(self.inter_dir)
-                        local_location = processed.location
-                    case proc_schemas.KinFile:
-                        processed.location += f"_{child_uuid}_{child_type.value}.kin"
-                        processed.write(self.inter_dir)
-                        local_location = processed.location
-                    case proc_schemas.SiteConfig:
-                        local_location = (
-                            self.proc_dir / f"{parent.uuid}_{child_type.value}.json"
-                        )
-                        with open(local_location, "w") as f:
-                            f.write(processed.model_dump_json())
-                        is_processed = True
-                    case proc_schemas.ATDOffset:
-                        local_location = (
-                            self.proc_dir / f"{parent.uuid}_{child_type.value}.json"
-                        )
-                        with open(local_location, "w") as f:
-                            f.write(processed.model_dump_json())
-                        is_processed = True
-                    
-                    case proc_schemas.NovatelPinFile:
-                        local_location = (
-                            self.inter_dir / f"{parent.uuid}_{child_type.value}.txt"
-                        )
-                        processed.location = local_location
-                        processed.write(dir=local_location.parent)
+        match type(processed):
+            case pd.DataFrame:
+                local_path = proc_dir / f"{parent['id']}_{child_type.value}.csv"
+                processed.to_csv(local_path, index=False)
 
+                # handle the case when the child timestamp is None
+                if pd.isna(parent["timestamp_data_start"]):
+                    for col in processed.columns:
+                        if pd.api.types.is_datetime64_any_dtype(processed[col]):
+                            timestamp_data_start = processed[col].min()
+                            timestamp_data_end = processed[col].max()
+                            break
 
+            case proc_schemas.RinexFile:
+                processed.write(inter_dir)
+                local_path = processed.local_path
+                timestamp_data_start = processed.timestamp_data_start
+                timestamp_data_end = processed.timestamp_data_end
 
-                processed_meta = {
-                    "uuid": child_uuid,
-                    "network": parent.network,
-                    "station": parent.station,
-                    "survey": parent.survey,
-                    "local_location": str(local_location),
-                    "type": child_type.value,
-                    "timestamp": child_timestamp,
-                    "source_uuid": parent.uuid,
-                    "processed": is_processed,
-                }
-                logger.info(f"Successful Processing: {str(processed_meta)}")
-                return processed_meta,dict(parent),update_timestamp
-        return None,None,None
-    
+            case proc_schemas.KinFile:
+                local_path = processed.local_path
+
+            case proc_schemas.SiteConfig:
+                local_path = proc_dir / f"{parent['id']}_{child_type.value}.json"
+                with open(local_path, "w") as f:
+                    f.write(processed.model_dump_json())
+
+            case proc_schemas.ATDOffset:
+                local_path = proc_dir / f"{parent['id']}_{child_type.value}.json"
+                with open(local_path, "w") as f:
+                    f.write(processed.model_dump_json())
+
+            case proc_schemas.NovatelPinFile:
+                local_path = inter_dir / f"{parent['id']}_{child_type.value}.txt"
+                processed.local_path = local_path
+                processed.write(dir=local_path.parent)
+
+            case _:
+                local_path = None
+                pass
+
+        if (
+            pd.isna(parent.get("timestamp_data_start", None))
+            and timestamp_data_start is not None
+        ):
+            parent["timestamp_data_start"] = timestamp_data_start
+            parent["timestamp_data_end"] = timestamp_data_end
+            response += f"Discovered timestamp: {timestamp_data_start} for parent {parent['type']} uuid {parent['id']}\n"
+
+        if local_path is not None and local_path.exists():
+            local_path = str(local_path)
+        else:
+            local_path = None
+
+        processed_meta = {
+            "network": parent["network"],
+            "station": parent["station"],
+            "survey": parent["survey"],
+            "local_path": local_path,
+            "type": child_type.value,
+            "timestamp_data_start": timestamp_data_start,
+            "timestamp_data_end": timestamp_data_end,
+            "parent_id": parent["id"],
+        }
+        if local_path is not None and Path(local_path).exists():
+            response += f"Successful Processing: {str(processed_meta)}\n"
+        else:
+            response += f"Failed Processing: {str(processed_meta)}\n"
+
+        return processed_meta, parent, response
+
     def _process_data_link(self,
-                           network:str,
-                           station:str,
-                           survey:str,
                            target:Union[FILE_TYPE,DATA_TYPE],
                            source:List[FILE_TYPE],
-                           override:bool=False,
-                           update_timestamp:bool=False,
-                           show_details:bool=False) -> None:
+                           override:bool=False) -> pd.DataFrame:
         """
         Process data from a source to a target.
 
         Args:
-            network (str): The network name.
-            station (str): The station name.
-            survey (str): The survey name.
             target (Union[FILE_TYPE,DATA_TYPE]): The target data type.
             source (List[FILE_TYPE]): The source data types.
             override (bool): Whether to override existing child entries.
@@ -901,70 +808,90 @@ class DataHandler:
         Raises:
             Exception: If no matching data is found in the catalog.
         """
-        parent_entries = self.catalog_data[
-            (self.catalog_data.network == network)
-            & (self.catalog_data.station == station)
-            & (self.catalog_data.survey == survey)
-            & (self.catalog_data.local_location.notna())
-            # & np.logical_or(
-            #     (self.catalog_data.processed == False),override
-            #     )
-            & (self.catalog_data.type.isin([x.value for x in source]))
-        ]
-        
-        if parent_entries.shape[0] < 1:
+        show_details = bool(os.environ.get("DH_SHOW_DETAILS",False))
+        # Get the parent entries
+        with self.engine.begin() as conn:
+            parent_entries = conn.execute(
+                sa.select(Assets).where(
+                    Assets.network.is_(self.network),Assets.station.is_(self.station),Assets.survey.is_(self.survey),
+                    Assets.local_path.isnot(None),Assets.type.in_([x.value for x in source]),Assets.local_path.isnot(None)
+                )
+            ).fetchall()
+
+        if not parent_entries:
             response = f"No unprocessed data found in catalog for types {[x.value for x in source]}"
             logger.error(response)
-            #print(response)
+            # print(response)
             return
-        child_entries = self.catalog_data[
-            (self.catalog_data.network == network)
-            & (self.catalog_data.station == station)
-            & (self.catalog_data.survey == survey)
-            & (self.catalog_data.type == target.value)
-        ]
 
-        parent_entries_to_process = parent_entries[np.logical_or(~parent_entries.uuid.isin(child_entries.source_uuid),override)]
-
-        if parent_entries_to_process.shape[0] > 0:
-            logger.info(f"Processing {parent_entries_to_process.shape[0]} Parent Files to {target.value} Data")
-            process_func_partial = partial(self._process_targeted,child_type=target,show_details=show_details)
-
-            meta_data_list = []
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                futures = [executor.submit(
-                    process_func_partial, parent) 
-                    for parent in parent_entries_to_process.to_dict(orient="records")]
-                for future in tqdm(
-                    concurrent.futures.as_completed(futures),
-                    total=len(futures),
-                    desc=f"Processing {parent_entries_to_process.type.unique()} To {target.value}"):
-                    meta_data,parent,discovered_timestamp = future.result()
-                    if meta_data is not None:
-                        self.add_entry(meta_data)
-                        meta_data_list.append(meta_data)
-                        if update_timestamp and discovered_timestamp:
-                            #TODO Debug the timestamp update
-                            self.catalog_data.at[parent["Index"], "timestamp"] = meta_data['timestamp']
-                            self.catalog_data.to_csv(self.catalog,index=False)
-
-            parent_entries_processed = parent_entries_to_process[
-                parent_entries_to_process.uuid.isin(
-                    [x["source_uuid"] for x in meta_data_list]
+        # Filter out parent entries that have already been processed
+        parent_entries_map = {x.id:x for x in parent_entries}
+        with self.engine.begin() as conn:
+            child_entries = conn.execute(
+                sa.select(Assets).where(
+                    Assets.network.is_(self.network),Assets.station.is_(self.station),Assets.survey.is_(self.survey),
+                    Assets.type.is_(target.value),Assets.parent_id.in_([x.id for x in parent_entries])
                 )
-            ]
-            logger.info(f"Processed {len(meta_data_list)} Out of {parent_entries_processed.shape[0]} For {target.value} Files from {parent_entries_processed.shape[0]} Parent Files")
-            self.consolidate_entries()
-            return parent_entries_processed
+            ).fetchall()
+        if not override:
+            while child_entries:
+                child = child_entries.pop()
+                found = parent_entries_map.pop(int(child.parent_id),None)
+
+        parent_entries_to_process = list(parent_entries_map.values())
+
+        if parent_entries_to_process:
+            logger.info(f"Processing {len(parent_entries_to_process)} Parent Files to {target.value} Data")
+            process_func_partial = partial(self._process_targeted,child_type=target,inter_dir=self.inter_dir,proc_dir=self.proc_dir,pride_dir=self.pride_dir)
+
+            child_data_list = []
+            parent_data_list = []
+
+            parent_entries_to_process = [dict(row._mapping) for row in parent_entries_to_process]           
+            with multiprocessing.Pool() as pool:
+                results = pool.imap(process_func_partial,parent_entries_to_process)
+                for child_data,parent_data,response in tqdm(results,total=len(parent_entries_to_process),desc=f"Processing {source} To {target.value}"):
+                    if show_details:
+                        print(response)
+                        logger.info(response)
+                    if child_data is None:
+                        continue
+                    parent_data_list.append(parent_data)
+                    child_data_list.append(child_data)                    
+                    # update parent entry
+
+                    with self.engine.begin() as conn:
+                        conn.execute(
+                            sa.update(Assets).where(Assets.id.is_(parent_data["id"])).values(parent_data)
+                        )
+                        found = conn.execute(
+                            sa.select(Assets).where(
+                                Assets.parent_id.is_(parent_data["id"]), Assets.type.is_(target.value)
+                            )
+                        ).fetchall()
+                        if found:
+                            conn.execute(
+                                sa.update(Assets).where(
+                                    Assets.parent_id.is_(parent_data["id"]), Assets.type.is_(target.value)
+                                ).values(child_data)
+                            )
+                        else:
+                            conn.execute(sa.insert(Assets).values([child_data]))
+                        conn.commit()
+
+            logger.info(f"Processed {len(child_data_list)} Out of {len(parent_entries_to_process)} For {target.value}")
+
+            return parent_data_list
 
     def _process_data_graph(self, 
-                            network: str, 
-                            station: str, 
-                            survey: str,
                             child_type:Union[FILE_TYPE,DATA_TYPE],
                             override:bool=False,
-                            show_details:bool=False):
-        self.load_catalog_from_csv()
+                            show_details:bool=False,
+                            update_timestamp:bool=False):
+        if show_details:
+            os.environ["DH_SHOW_DETAILS"] = "True"
+
+        # self.load_catalog_from_csv()
         processing_queue = self.get_parent_stack(child_type=child_type)
         if show_details:
             logger.info(f"processing queue: {[item.value for item in processing_queue]}")
@@ -981,347 +908,315 @@ class DataHandler:
                 for child in children_to_process:
                     if show_details:
                         logger.info(f"processing child:{child.value}")
-                    processed_parents:pd.DataFrame = self._process_data_link(network,station,survey,target=child,source=[parent],override=override,show_details=show_details)
+                    processed_parents:List[dict] = self._process_data_link(
+                        target=child,
+                        source=[parent],
+                        override=override)
                     # Check if all children of this parent have been processed
-                    if processed_parents is not None:
-                        self.load_catalog_from_csv()
-                        for entry in processed_parents.itertuples(index=True):
-                            self.catalog_data.at[entry.Index, "processed"] = self.catalog_data[
-                                (self.catalog_data.source_uuid == entry.uuid)
-                                & (self.catalog_data.type.isin([x.value for x in children.keys()]))
-                            ].shape[0] == len(children)
-                        # logger.info("saving data to catalog")
-                        # logger.info(self.catalog_data)
-                        self.catalog_data.to_csv(self.catalog,index=False)
-                    else:
-                        response = f"All available instances of processing type {parent.value} to type {child.value} have been processed"
-                        logger.info(response)
-                        #print(response)
+
+                    # TODO check if all children of this parent have been processed
 
     def _process_data_graph_forward(self, 
-                            network: str, 
-                            station: str, 
-                            survey: str,
                             parent_type:FILE_TYPE,
                             update_timestamp:bool=False,
                             override:bool=False,
                             show_details:bool=False):
-        
-        self.load_catalog_from_csv()
+
         processing_queue = [{parent_type:TARGET_MAP.get(parent_type)}]
         while processing_queue:
             # process each level of the child graph
             parent_targets = processing_queue.pop(0)
             parent_type = list(parent_targets.keys())[0]
             for child in parent_targets[parent_type].keys():
-                
-                self._process_data_link(network,station,survey,target=child,source=[parent_type],override=override,update_timestamp=update_timestamp,show_details=show_details)
+
+                self._process_data_link(target=child,source=[parent_type],override=override,update_timestamp=update_timestamp,show_details=show_details)
                 child_targets = TARGET_MAP.get(child,{})
                 if child_targets:
                     processing_queue.append({child:child_targets})
-                            
-    def process_acoustic_data(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=False):
-        self._process_data_graph(network,station,survey,DATA_TYPE.ACOUSTIC,override=override, show_details=show_details)
 
-    def process_imu_data(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=False):
-        self._process_data_graph(network,station,survey,DATA_TYPE.IMU,override=override, show_details=show_details)
+    def process_acoustic_data(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
+        self._process_data_graph(DATA_TYPE.ACOUSTIC,override=override, show_details=show_details,update_timestamp=update_timestamp)
 
-    def process_rinex(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=False):
-        self._process_data_graph(network,station,survey,FILE_TYPE.RINEX,override=override, show_details=show_details)
+    def process_imu_data(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
+        self._process_data_graph(DATA_TYPE.IMU,override=override, show_details=show_details,update_timestamp=update_timestamp)
 
-    def process_gnss_data_kin(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=False):
-        self._process_data_graph(network,station,survey,FILE_TYPE.KIN,override=override, show_details=show_details)
+    def process_rinex(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
+        self._process_data_graph(FILE_TYPE.RINEX,override=override, show_details=show_details,update_timestamp=update_timestamp)
 
-    def process_gnss_data(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=False):
-        self._process_data_graph(network,station,survey,DATA_TYPE.GNSS,override=override, show_details=show_details)
+    def process_gnss_data_kin(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
+        self._process_data_graph(FILE_TYPE.KIN,override=override, show_details=show_details,update_timestamp=update_timestamp)
 
-    def process_siteconfig(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=False):
-        self._process_data_graph(network,station,survey,DATA_TYPE.SITECONFIG,override=override, show_details=show_details)
-        self._process_data_graph(network,station,survey,DATA_TYPE.ATDOFFSET,override=override, show_details=show_details)
-        self._process_data_graph(network,station,survey,DATA_TYPE.SVP,override=override, show_details=show_details)
+    def process_gnss_data(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
+        self._process_data_graph(DATA_TYPE.GNSS,override=override, show_details=show_details,update_timestamp=update_timestamp)
+
+    def process_metadata(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
+        self._process_data_graph(DATA_TYPE.SITECONFIG,override=override, show_details=show_details,update_timestamp=update_timestamp)
+        self._process_data_graph(DATA_TYPE.ATDOFFSET,override=override, show_details=show_details,update_timestamp=update_timestamp)
+        self._process_data_graph(DATA_TYPE.SVP,override=override, show_details=show_details,update_timestamp=update_timestamp)
+    
+    def process_siteconfig(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
+        self._process_data_graph(DATA_TYPE.SITECONFIG,override=override, show_details=show_details,update_timestamp=update_timestamp)
+    
+    def process_atdoffset(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
+        self._process_data_graph(DATA_TYPE.ATDOFFSET,override=override, show_details=show_details,update_timestamp=update_timestamp)
+
+    def process_svp(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
+        self._process_data_graph(DATA_TYPE.SVP,override=override, show_details=show_details,update_timestamp=update_timestamp)
+    
+    def process_target(self,parent:str,child:str,override:bool=False,show_details:bool=False):
+        target = DATA_TYPE(child)
+        source = FILE_TYPE(parent)
+        self._process_data_link(target=target,source=[source],override=override,show_details=show_details)
 
     def process_campaign_data(
-        self, network: str, station: str, survey: str, override: bool = False, show_details: bool=False
+        self, override: bool = False, show_details: bool=False,update_timestamp:bool=False
     ):
         """
         Process all data for a given network, station, and survey, generating child entries where applicable.
 
         Args:
-            network (str): The network name.
-            station (str): The station name.
-            survey (str): The survey name.
-            override (bool): Whether to override existing child entries.
+            override (bool): Whether to override existing child entries. 
+            show_details (bool): Log verbose output
 
         Raises:
             Exception: If no matching data is found in the catalog.
         """
-        self.process_acoustic_data(network,station,survey,override=override, show_details=show_details)
-        self.process_imu_data(network,station,survey,override=override, show_details=show_details)
-        self.process_gnss_data(network,station,survey,override=override, show_details=show_details)
-        self.process_siteconfig(network,station,survey,override=override, show_details=show_details)
+        self.process_acoustic_data(override=override, show_details=show_details,update_timestamp=update_timestamp)
+        self.process_imu_data(override=override, show_details=show_details,update_timestamp=update_timestamp)
+        self.process_gnss_data(override=override, show_details=show_details,update_timestamp=update_timestamp)
+        self.process_siteconfig(override=override, show_details=show_details,update_timestamp=update_timestamp)
 
         logger.info(
-            f"Network {network} Station {station} Survey {survey} Preprocessing complete"
+            f"Network {self.network} Station {self.station} Survey {self.survey} Preprocessing complete"
         )
 
-    def process_qc_data(self, network: str, station: str, survey: str,override:bool=False, show_details:bool=False,update_timestamp:bool=False):
+    def process_qc_data(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
         # perform forward processing of qc pin data
-        self._process_data_graph_forward(network,station,survey,FILE_TYPE.QCPIN,override=override, show_details=show_details,update_timestamp=update_timestamp)
-        
-    def query_catalog(self,
-                      network:str,
-                      station:str,
-                      survey:str,
-                      type:List[Union[DATA_TYPE,FILE_TYPE]],
-                      year:int,
-                      month:int,
-                      day:int,
-                      hour:int = 0,
-                      time_span:datetime.timedelta = datetime.timedelta(hours=12)) -> pd.DataFrame:
-        """
-        Query the catalog
-        """
+        self._process_data_graph_forward(FILE_TYPE.QCPIN,override=override, show_details=show_details,update_timestamp=update_timestamp)
 
-        if not isinstance(type,list):
-            type = [type]
+    # def get_observation_session_data(self,network:str,station:str,survey:str,plot:bool=False) -> pd.DataFrame:
 
-        target_date = datetime.datetime(year,month,day,hour)
-        start_date = target_date - time_span
-        end_date = target_date + time_span
+    #     time_groups = self.catalog_data[self.catalog_data.type.isin(['gnss','acoustic','imu'])].groupby('timestamp')
+    #     valid_groups = [group for name, group in time_groups] #
+    #     result = pd.concat(valid_groups)
+    #     primary_colums = ['network','station','survey','timestamp','type','local_path']
+    #     all_columns = list(result.columns)
+    #     for column in primary_colums[::-1]:
+    #         all_columns.remove(column)
+    #         all_columns.insert(0,column)
 
-        entries = self.catalog_data[
-            (self.catalog_data.network == network)
-            & (self.catalog_data.station == station)
-            & (self.catalog_data.survey == survey)
-            & (self.catalog_data.timestamp >= start_date)
-            & (self.catalog_data.timestamp <= end_date)
-            & (self.catalog_data.type.isin([x.value for x in type]))
-        ]
-        if entries.shape[0] < 1:
-            raise Exception('No matching data found in catalog')
-        return entries
+    #     result = result[all_columns]
+    #     result = DataCatalog.validate(result)
+    #     times = result.timestamp.unique()
+    #     result.set_index(["network", "station", "survey", "timestamp"], inplace=True)
+    #     result.sort_index(inplace=True)
 
-    def get_observation_session_data(self,network:str,station:str,survey:str,plot:bool=False) -> pd.DataFrame:
+    #     if plot:
+    #         fig, ax = plt.subplots(figsize=(16, 2))
+    #         ax.set_title(f"Observable Data Availability For Network: {network} Station: {station} Survey: {survey}")
 
-        time_groups = self.catalog_data[self.catalog_data.type.isin(['gnss','acoustic','imu'])].groupby('timestamp')
-        valid_groups = [group for name, group in time_groups if set(group['type']) == {'gnss', 'acoustic', 'imu'}]
-        result = pd.concat(valid_groups)
-        primary_colums = ['network','station','survey','timestamp','type','local_location']
-        all_columns = list(result.columns)
-        for column in primary_colums[::-1]:
-            all_columns.remove(column)
-            all_columns.insert(0,column)
+    #         ax.xaxis.set_major_locator(mdates.DayLocator(interval=2))
+    #         ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
 
-        result = result[all_columns]
-        result = DataCatalog.validate(result)
-        times = result.timestamp.unique()
-        result.set_index(["network", "station", "survey", "timestamp"], inplace=True)
-        result.sort_index(inplace=True)
+    #         for time in times:
+    #             ax.scatter(pd.to_datetime(time), 1,marker='o',color='green')
 
-        if plot:
-            fig, ax = plt.subplots(figsize=(16, 2))
-            ax.set_title(f"Observable Data Availability For Network: {network} Station: {station} Survey: {survey}")
+    #         plt.xticks(rotation=45)
+    #         ax.set_xlabel("Timestamp")
+    #         ax.set_yticks([])
 
-            ax.xaxis.set_major_locator(mdates.DayLocator(interval=2))
-            ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
+    #         plt.show()
 
-            for time in times:
-                ax.scatter(pd.to_datetime(time), 1,marker='o',color='green')
+    #     return result
 
-            plt.xticks(rotation=45)
-            ax.set_xlabel("Timestamp")
-            ax.set_yticks([])
+    # def group_observation_session_data(self,data:pd.DataFrame,timespan:str="DAY") -> dict:
+    #     # Create a group of dataframes for each timestamp
+    #     assert timespan in ['HOUR','DAY'], "Timespan must be either 'HOUR' or 'DAY'"
+    #     if timespan == 'HOUR':
+    #         grouper = pd.Grouper(key="timestamp", freq="h")
+    #     else:
+    #         grouper = pd.Grouper(key="timestamp", freq="D")
+    #     out = {}
 
-            plt.show()
+    #     obs_types = [DATA_TYPE.IMU.value, DATA_TYPE.GNSS.value, DATA_TYPE.ACOUSTIC.value]
+    #     for timestamp, group in data.groupby(grouper):
+    #         if group.shape[0] < 1:
+    #             continue
+    #         out[timestamp] = {}
+    #         for obs_type in obs_types:
+    #             out[timestamp][obs_type] = list(group[group.type == obs_type].local_path.values)
 
-        return result
+    #     # prune empty entries
+    #     out = {str(k):v for k,v in out.items() if any([len(x) > 0 for x in v.values()])}
+    #     return out
 
-    def group_observation_session_data(self,data:pd.DataFrame,timespan:str="DAY") -> pd.DataFrame:
-        # Create a group of dataframes for each timestamp
-        assert timespan in ['HOUR','DAY'], "Timespan must be either 'HOUR' or 'DAY'"
-        if timespan == 'HOUR':
-            grouper = pd.Grouper(level="timestamp", freq="h")
-        else:
-            grouper = pd.Grouper(level="timestamp", freq="D")
-        out = {}
+    # def plot_campaign_data(self,network:str,station:str,survey:str):
+    #     """
+    #     Plot the timestamps and data type for processed IMU,GNSS,and Acoustic data for a given network, station, and survey.
 
-        obs_types = [DATA_TYPE.IMU.value, DATA_TYPE.GNSS.value, DATA_TYPE.ACOUSTIC.value]
-        for timestamp, group in data.groupby(grouper):
-            out[timestamp] = {}
-            for obs_type in obs_types:
-                out[timestamp][obs_type] = list(group[group.type == obs_type].local_location.values)
+    #     Args:
+    #         network (str): The network name.
+    #         station (str): The station name.
+    #         survey (str): The survey name.
 
-        # prune empty entries
-        out = {str(k):v for k,v in out.items() if any([len(x) > 0 for x in v.values()])}
-        return out
+    #     Raises:
+    #         Exception: If no matching data is found in the catalog.
+    #     """
 
-    def plot_campaign_data(self,network:str,station:str,survey:str):
-        """
-        Plot the timestamps and data type for processed IMU,GNSS,and Acoustic data for a given network, station, and survey.
+    #     data_type_to_plot = [DATA_TYPE.IMU.value,DATA_TYPE.GNSS.value,DATA_TYPE.ACOUSTIC.value]
 
-        Args:
-            network (str): The network name.
-            station (str): The station name.
-            survey (str): The survey name.
+    #     entries = self.catalog_data[
+    #         (self.catalog_data.network == network)
+    #         & (self.catalog_data.station == station)
+    #         & (self.catalog_data.survey == survey)
+    #         & (self.catalog_data.type.isin(data_type_to_plot))
+    #     ]
 
-        Raises:
-            Exception: If no matching data is found in the catalog.
-        """
+    #     if entries.shape[0] < 1:
+    #         raise Exception('No matching data found in catalog')
 
-        data_type_to_plot = [DATA_TYPE.IMU.value,DATA_TYPE.GNSS.value,DATA_TYPE.ACOUSTIC.value]
+    #     # plot the timestamps and data type for processed IMU,GNSS,and Acoustic data
+    #     cmap = {
+    #         DATA_TYPE.IMU.value: "blue",
+    #         DATA_TYPE.GNSS.value: "green",
+    #         DATA_TYPE.ACOUSTIC.value: "red",
+    #     }
 
-        entries = self.catalog_data[
-            (self.catalog_data.network == network)
-            & (self.catalog_data.station == station)
-            & (self.catalog_data.survey == survey)
-            & (self.catalog_data.type.isin(data_type_to_plot))
-        ]
+    #     fig, axes = plt.subplots(3, 1, figsize=(10, 4), sharex=True)
 
-        if entries.shape[0] < 1:
-            raise Exception('No matching data found in catalog')
+    #     fig.suptitle(f"Observable Data Availablility For Network: {network} Station: {station} Survey: {survey}")
+    #     # Set the x-axis to display dates
+    #     for ax in axes:
+    #         ax.xaxis.set_major_locator(mdates.WeekdayLocator())
+    #         ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
 
-        # plot the timestamps and data type for processed IMU,GNSS,and Acoustic data
-        cmap = {
-            DATA_TYPE.IMU.value: "blue",
-            DATA_TYPE.GNSS.value: "green",
-            DATA_TYPE.ACOUSTIC.value: "red",
-        }
+    #     data_type_titles = {
+    #         DATA_TYPE.IMU.value: "IMU Data",
+    #         DATA_TYPE.GNSS.value: "GNSS Data",
+    #         DATA_TYPE.ACOUSTIC.value: "Acoustic Data",
+    #     }
 
-        fig, axes = plt.subplots(3, 1, figsize=(10, 4), sharex=True)
+    #     for i, data_type in enumerate(data_type_to_plot):
+    #         data = entries[entries.type == data_type]
+    #         for timestamp in data.timestamp:
+    #             axes[i].axvline(pd.to_datetime(timestamp), color=cmap[data_type], linestyle="-")
+    #         axes[i].set_title(data_type_titles[data_type])
+    #         axes[i].get_yaxis().set_visible(False)  # Hide y-axis values
 
-        fig.suptitle(f"Observable Data Availablility For Network: {network} Station: {station} Survey: {survey}")
-        # Set the x-axis to display dates
-        for ax in axes:
-            ax.xaxis.set_major_locator(mdates.WeekdayLocator())
-            ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
+    #     # Add x-axis label to the bottom subplot
+    #     axes[-1].set_xlabel("Timestamp")
 
-        data_type_titles = {
-            DATA_TYPE.IMU.value: "IMU Data",
-            DATA_TYPE.GNSS.value: "GNSS Data",
-            DATA_TYPE.ACOUSTIC.value: "Acoustic Data",
-        }
+    #     plt.tight_layout()
+    #     plt.show()
 
-        for i, data_type in enumerate(data_type_to_plot):
-            data = entries[entries.type == data_type]
-            for timestamp in data.timestamp:
-                axes[i].axvline(pd.to_datetime(timestamp), color=cmap[data_type], linestyle="-")
-            axes[i].set_title(data_type_titles[data_type])
-            axes[i].get_yaxis().set_visible(False)  # Hide y-axis values
+    # def get_site_config(self,network:str,station:str,survey:str) -> proc_schemas.SiteConfig:
+    #     """
+    #     Get the Site Config data for a given network, station, and survey.
 
-        # Add x-axis label to the bottom subplot
-        axes[-1].set_xlabel("Timestamp")
+    #     Args:
+    #         network (str): The network name.
+    #         station (str): The station name.
+    #         survey (str): The survey name.
 
-        plt.tight_layout()
-        plt.show()
+    #     Raises:
+    #         Exception: If no matching data is found in the catalog.
+    #     """
 
-    def get_site_config(self,network:str,station:str,survey:str) -> proc_schemas.SiteConfig:
-        """
-        Get the Site Config data for a given network, station, and survey.
+    #     data_type_to_plot = [DATA_TYPE.SITECONFIG.value]
 
-        Args:
-            network (str): The network name.
-            station (str): The station name.
-            survey (str): The survey name.
+    #     entries = self.catalog_data[
+    #         (self.catalog_data.network == network)
+    #         & (self.catalog_data.station == station)
+    #         & (self.catalog_data.survey == survey)
+    #         & (self.catalog_data.type.isin(data_type_to_plot))
+    #     ]
 
-        Raises:
-            Exception: If no matching data is found in the catalog.
-        """
+    #     if entries.shape[0] < 1:
+    #         raise Exception('No matching site config data found in catalog')
 
-        data_type_to_plot = [DATA_TYPE.SITECONFIG.value]
+    #     # load the site config data
+    #     path = entries.local_path.values[0]
+    #     with open(path, "r") as f:
+    #         site_config = json.load(f)
+    #         site_config_schema = SCHEMA_MAP[DATA_TYPE.SITECONFIG](**site_config)
+    #     return site_config_schema
 
-        entries = self.catalog_data[
-            (self.catalog_data.network == network)
-            & (self.catalog_data.station == station)
-            & (self.catalog_data.survey == survey)
-            & (self.catalog_data.type.isin(data_type_to_plot))
-        ]
+    # def get_svp_data(self,network:str,station:str,survey:str) -> pd.DataFrame:
+    #     """
+    #     Get the Sound Velocity Profile data for a given network, station, and survey.
 
-        if entries.shape[0] < 1:
-            raise Exception('No matching site config data found in catalog')
+    #     Args:
+    #         network (str): The network name.
+    #         station (str): The station name.
+    #         survey (str): The survey name.
 
-        # load the site config data
-        path = entries.local_location.values[0]
-        with open(path, "r") as f:
-            site_config = json.load(f)
-            site_config_schema = SCHEMA_MAP[DATA_TYPE.SITECONFIG](**site_config)
-        return site_config_schema
+    #     Raises:
+    #         Exception: If no matching data is found in the catalog.
+    #     """
 
-    def get_svp_data(self,network:str,station:str,survey:str) -> pd.DataFrame:
-        """
-        Get the Sound Velocity Profile data for a given network, station, and survey.
+    #     entries = self.catalog_data[
+    #         (self.catalog_data.network == network)
+    #         & (self.catalog_data.station == station)
+    #         & (self.catalog_data.survey == survey)
+    #         & (self.catalog_data.type==DATA_TYPE.SVP.value)
+    #     ]
 
-        Args:
-            network (str): The network name.
-            station (str): The station name.
-            survey (str): The survey name.
+    #     if entries.shape[0] < 1:
+    #         raise Exception('No matching SVP data found in catalog')
 
-        Raises:
-            Exception: If no matching data is found in the catalog.
-        """
+    #     # load the SVP data
+    #     path = entries.local_path.values[0]
+    #     svp_data = pd.read_csv(path)
+    #     return svp_data
 
-        entries = self.catalog_data[
-            (self.catalog_data.network == network)
-            & (self.catalog_data.station == station)
-            & (self.catalog_data.survey == survey)
-            & (self.catalog_data.type==DATA_TYPE.SVP.value)
-        ]
+    # def get_atd_offset(self,network:str,station:str,survey:str) -> proc_schemas.ATDOffset:
+    #     """
+    #     Get the ATD Offset data for a given network, station, and survey.
 
-        if entries.shape[0] < 1:
-            raise Exception('No matching SVP data found in catalog')
+    #     Args:
+    #         network (str): The network name.
+    #         station (str): The station name.
+    #         survey (str): The survey name.
 
-        # load the SVP data
-        path = entries.local_location.values[0]
-        svp_data = pd.read_csv(path)
-        return svp_data
+    #     Raises:
+    #         Exception: If no matching data is found in the catalog.
+    #     """
 
-    def get_atd_offset(self,network:str,station:str,survey:str) -> proc_schemas.ATDOffset:
-        """
-        Get the ATD Offset data for a given network, station, and survey.
+    #     entries = self.catalog_data[
+    #         (self.catalog_data.network == network)
+    #         & (self.catalog_data.station == station)
+    #         & (self.catalog_data.survey == survey)
+    #         & (self.catalog_data.type == DATA_TYPE.ATDOFFSET.value)
+    #     ]
 
-        Args:
-            network (str): The network name.
-            station (str): The station name.
-            survey (str): The survey name.
+    #     if entries.shape[0] < 1:
+    #         raise Exception('No matching ATD Offset data found in catalog')
 
-        Raises:
-            Exception: If no matching data is found in the catalog.
-        """
+    #     # load the ATD Offset data
+    #     path = entries.local_path.values[0]
+    #     with open(path, "r") as f:
+    #         atd_offset = json.load(f)
+    #         atd_offset_schema = SCHEMA_MAP[DATA_TYPE.ATDOFFSET](**atd_offset)
+    #     return atd_offset_schema
 
-        entries = self.catalog_data[
-            (self.catalog_data.network == network)
-            & (self.catalog_data.station == station)
-            & (self.catalog_data.survey == survey)
-            & (self.catalog_data.type == DATA_TYPE.ATDOFFSET.value)
-        ]
+    # def plot_site_config(self,site_config:proc_schemas.SiteConfig,zoom:int=5):
+    #     """
+    #     Plot the timestamps and data type for processed Site Config data for a given network, station, and survey.
 
-        if entries.shape[0] < 1:
-            raise Exception('No matching ATD Offset data found in catalog')
+    #     """
 
-        # load the ATD Offset data
-        path = entries.local_location.values[0]
-        with open(path, "r") as f:
-            atd_offset = json.load(f)
-            atd_offset_schema = SCHEMA_MAP[DATA_TYPE.ATDOFFSET](**atd_offset)
-        return atd_offset_schema
+    #     map = folium.Map(location=[site_config.position_llh.latitude, site_config.position_llh.longitude], zoom_start=zoom)
+    #     folium.Marker(
+    #         location=[site_config.position_llh.latitude, site_config.position_llh.longitude],
+    #         icon=folium.Icon(color="blue"),
+    #     ).add_to(map)
 
-    def plot_site_config(self,site_config:proc_schemas.SiteConfig,zoom:int=5):
-        """
-        Plot the timestamps and data type for processed Site Config data for a given network, station, and survey.
+    #     for transponder in site_config.transponders:
+    #         folium.Marker(
+    #             location=[transponder.position_llh.latitude, transponder.position_llh.longitude],
+    #             popup=f"Transponder: {transponder.id}",
+    #             icon=folium.Icon(color="red"),
+    #         ).add_to(map)
 
-        """
-
-        map = folium.Map(location=[site_config.position_llh.latitude, site_config.position_llh.longitude], zoom_start=zoom)
-        folium.Marker(
-            location=[site_config.position_llh.latitude, site_config.position_llh.longitude],
-            icon=folium.Icon(color="blue"),
-        ).add_to(map)
-
-        for transponder in site_config.transponders:
-            folium.Marker(
-                location=[transponder.position_llh.latitude, transponder.position_llh.longitude],
-                popup=f"Transponder: {transponder.id}",
-                icon=folium.Icon(color="red"),
-            ).add_to(map)
-
-        # map.save(self.working_dir/f"site_config_{network}_{station}_{survey}.html")
-        return map
+    #     # map.save(self.working_dir/f"site_config_{network}_{station}_{survey}.html")
+    #     return map
