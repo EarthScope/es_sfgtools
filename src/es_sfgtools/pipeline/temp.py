@@ -11,7 +11,7 @@ from enum import Enum
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import seaborn 
-from tqdm.autonotebook import tqdm 
+from tqdm.auto import tqdm 
 from multiprocessing import Pool, cpu_count
 from functools import partial
 import numpy as np
@@ -30,7 +30,6 @@ from es_sfgtools.processing import functions as proc_funcs
 from es_sfgtools.processing import schemas as proc_schemas
 
 import sqlalchemy as sa
-from sqlalchemy.orm import sessionmaker
 from .database import Base,Assets
 
 logger = logging.getLogger(__name__)
@@ -424,8 +423,8 @@ class DataHandler:
                         updated_entries.append(entry)
 
         # download http entries
-        # TODO: add back in tqdm bars, have it update the database after each file not just at the end
-        # the following doesnt work yet
+        # TODO: re-implement multithreading, switched to serial downloading.  
+        # need to solve cataloging each file after download and making progress bar work in parallel
   
 
         if len(http_entries) > 0:
@@ -669,9 +668,8 @@ class DataHandler:
         inter_dir: Path,
         proc_dir: Path,
         pride_dir: Path,
+        show_details: bool=False,
     ) -> Tuple[dict, dict, bool]:
-
-        show_details = bool(os.environ.get("DH_SHOW_DETAILS", False))
 
         response = " "
         # TODO: implement multithreaded logging, had to switch to print statement below
@@ -696,6 +694,7 @@ class DataHandler:
                     writedir=inter_dir,
                     pridedir=pride_dir,
                     site=parent["station"],
+                    show_details=show_details,
                 )
 
             case proc_funcs.novatel_to_rinex:
@@ -769,7 +768,7 @@ class DataHandler:
         ):
             parent["timestamp_data_start"] = timestamp_data_start
             parent["timestamp_data_end"] = timestamp_data_end
-            response += f"Discovered timestamp: {timestamp_data_start} for parent {parent['type']} uuid {parent['id']}\n"
+            response += f"  Discovered timestamp: {timestamp_data_start} for parent {parent['type']} uuid {parent['id']}\n"
 
         if local_path is not None and local_path.exists():
             local_path = str(local_path)
@@ -787,16 +786,17 @@ class DataHandler:
             "parent_id": parent["id"],
         }
         if local_path is not None and Path(local_path).exists():
-            response += f"Successful Processing: {str(processed_meta)}\n"
+            response += f"  Successful Processing: {str(processed_meta)}\n"
         else:
-            response += f"Failed Processing: {str(processed_meta)}\n"
+            response += f"  Failed Processing: {str(processed_meta)}\n"
 
         return processed_meta, parent, response
 
     def _process_data_link(self,
                            target:Union[FILE_TYPE,DATA_TYPE],
                            source:List[FILE_TYPE],
-                           override:bool=False) -> pd.DataFrame:
+                           override:bool=False,
+                           show_details:bool=False) -> pd.DataFrame:
         """
         Process data from a source to a target.
 
@@ -808,7 +808,6 @@ class DataHandler:
         Raises:
             Exception: If no matching data is found in the catalog.
         """
-        show_details = bool(os.environ.get("DH_SHOW_DETAILS",False))
         # Get the parent entries
         with self.engine.begin() as conn:
             parent_entries = conn.execute(
@@ -821,7 +820,7 @@ class DataHandler:
         if not parent_entries:
             response = f"No unprocessed data found in catalog for types {[x.value for x in source]}"
             logger.error(response)
-            # print(response)
+            print(response)
             return
 
         # Filter out parent entries that have already been processed
@@ -841,7 +840,9 @@ class DataHandler:
         parent_entries_to_process = list(parent_entries_map.values())
 
         if parent_entries_to_process:
-            logger.info(f"Processing {len(parent_entries_to_process)} Parent Files to {target.value} Data")
+            response = f"Processing {len(parent_entries_to_process)} Parent Files to {target.value} Data"
+            logger.info(response)
+            print(response)
             process_func_partial = partial(self._process_targeted,child_type=target,inter_dir=self.inter_dir,proc_dir=self.proc_dir,pride_dir=self.pride_dir)
 
             child_data_list = []
@@ -850,7 +851,7 @@ class DataHandler:
             parent_entries_to_process = [dict(row._mapping) for row in parent_entries_to_process]           
             with multiprocessing.Pool() as pool:
                 results = pool.imap(process_func_partial,parent_entries_to_process)
-                for child_data,parent_data,response in tqdm(results,total=len(parent_entries_to_process),desc=f"Processing {source} To {target.value}"):
+                for child_data,parent_data,response in tqdm(results,total=len(parent_entries_to_process),desc=f"Processing {source[0].value} To {target.value}"):
                     if show_details:
                         print(response)
                         logger.info(response)
@@ -879,7 +880,9 @@ class DataHandler:
                             conn.execute(sa.insert(Assets).values([child_data]))
                         conn.commit()
 
-            logger.info(f"Processed {len(child_data_list)} Out of {len(parent_entries_to_process)} For {target.value}")
+            response = f"Processed {len(child_data_list)} Out of {len(parent_entries_to_process)} For {target.value}"
+            logger.info(response)
+            print(response)
 
             return parent_data_list
 
@@ -888,13 +891,10 @@ class DataHandler:
                             override:bool=False,
                             show_details:bool=False,
                             update_timestamp:bool=False):
-        if show_details:
-            os.environ["DH_SHOW_DETAILS"] = "True"
-
-        # self.load_catalog_from_csv()
+        
         processing_queue = self.get_parent_stack(child_type=child_type)
         if show_details:
-            logger.info(f"processing queue: {[item.value for item in processing_queue]}")
+            print(f"processing queue: {[item.value for item in processing_queue]}")
         while processing_queue:
             parent = processing_queue.pop(0)
             if parent != child_type:
@@ -903,15 +903,16 @@ class DataHandler:
 
                 children_to_process = [k for k in children.keys() if k in processing_queue]
                 if show_details:
-                    logger.info(f"parent: {parent.value}")
-                    logger.info(f"children to process: {[item.value for item in children_to_process]}")
+                    print(f"parent: {parent.value}")
+                    print(f"children to process: {[item.value for item in children_to_process]}")
                 for child in children_to_process:
                     if show_details:
-                        logger.info(f"processing child:{child.value}")
+                        print(f"processing child:{child.value}")
                     processed_parents:List[dict] = self._process_data_link(
                         target=child,
                         source=[parent],
-                        override=override)
+                        override=override,
+                        show_details=show_details)
                     # Check if all children of this parent have been processed
 
                     # TODO check if all children of this parent have been processed
@@ -984,11 +985,12 @@ class DataHandler:
         self.process_acoustic_data(override=override, show_details=show_details,update_timestamp=update_timestamp)
         self.process_imu_data(override=override, show_details=show_details,update_timestamp=update_timestamp)
         self.process_gnss_data(override=override, show_details=show_details,update_timestamp=update_timestamp)
-        self.process_siteconfig(override=override, show_details=show_details,update_timestamp=update_timestamp)
+        self.process_metadata(override=override, show_details=show_details,update_timestamp=update_timestamp)
 
-        logger.info(
-            f"Network {self.network} Station {self.station} Survey {self.survey} Preprocessing complete"
-        )
+        response = f"Network {self.network} Station {self.station} Survey {self.survey} Preprocessing complete"
+        logger.info(response)
+        print(response)
+
 
     def process_qc_data(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
         # perform forward processing of qc pin data

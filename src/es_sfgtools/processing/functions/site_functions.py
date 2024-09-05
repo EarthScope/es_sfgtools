@@ -9,8 +9,27 @@ logger = logging.getLogger(__name__)
 
 MASTER_STATION_ID = {"0": "5209", "1": "5210", "2": "5211", "3": "5212"}
 
+def show_site_config(site_config:SiteConfig):
+    response = ""
+    for item in site_config:
+        if item[0] == 'position_llh':
+            response += f"Array Center Position (lat/long/height): {item[1]}\n"
+        elif item[0] == 'transponders':
+            for transponder in item[1]:
+                response += f"Transponder {transponder.id}:\n"
+                response += f"  Position (lat/long/height): {transponder.position_llh}\n"
+                response += f"  Position (east/north/up): {transponder.position_enu}\n"
+                response += f"  Turn around time (s): {transponder.tat_offset}\n"
+                response += f"  Campaign ID: {transponder.campaign_id}\n"
+                response += f"  Site ID: {transponder.site_id}\n"
+                response += f"  Delta Center Position: {transponder.delta_center_position}\n"
 
-def masterfile_to_siteconfig(source:MasterFile) -> Union[SiteConfig,None]:
+        else:
+            response += f"{item[0]}: {item[1]}\n"
+    logger.info(response)
+    print(response)
+
+def masterfile_to_siteconfig(source:MasterFile, show_details: bool=True) -> Union[SiteConfig,None]:
     """
     Convert a MasterFile to a SiteConfig
     """
@@ -19,6 +38,7 @@ def masterfile_to_siteconfig(source:MasterFile) -> Union[SiteConfig,None]:
 
     loginfo = f"Populating List[Transponder] and Site data from {source.local_path}"
     logger.info(loginfo)
+    print(loginfo)
     transponders = []
 
     lat_lon_line = re.compile(r"Latitude/Longitude array center")
@@ -76,21 +96,6 @@ def masterfile_to_siteconfig(source:MasterFile) -> Union[SiteConfig,None]:
     site = SiteConfig(
         position_llh=site_position_llh,
         transponders=transponders)
-
+    if show_details:
+        show_site_config(site_config=site)
     return site
-
-def leverarmfile_to_atdoffset(source: LeverArmFile) -> ATDOffset:
-    """
-    Read the ATD offset from a "lever_arms" file
-    format is [rightward,forward,downward] [m]
-
-    0.0 +0.575 -0.844
-
-    """
-    with open(source.local_path, "r") as f:
-        line = f.readlines()[0]
-        values = [float(x) for x in line.split()]
-        forward = values[1]
-        rightward = values[0]
-        downward = values[2]
-    return ATDOffset(forward=forward, rightward=rightward, downward=downward)
