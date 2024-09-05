@@ -254,7 +254,7 @@ def rinex_to_kin(source: RinexFile,writedir:Path,pridedir:Path,site="IVB1", show
     file_pattern = f"{source.timestamp_data_start.year}{source.timestamp_data_start.timetuple().tm_yday}"
     tag_files = pridedir.rglob(f"*{tag}*")
     for tag_file in tag_files:
-        print("tag file:", tag_file)
+        #print("tag file:", tag_file)
         if "kin" in tag_file.name:
             kin_file = tag_file
             kin_file_new = str(kin_file).split("_")
@@ -264,7 +264,6 @@ def rinex_to_kin(source: RinexFile,writedir:Path,pridedir:Path,site="IVB1", show
             kin_file = KinFile(parent_id=source.uuid,start_time=source.timestamp_data_start,site=site,local_path=kin_file_new)
             response = f"Converted RINEX file {source.local_path} to kin file {kin_file.local_path}"
             logger.info(response)
-            print(response)
             if show_details:
                 print(response)
             break

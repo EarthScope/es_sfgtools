@@ -312,6 +312,7 @@ class DataHandler:
                 #raise ValueError(f"File type not recognized for {file}")
 
             file_data = {
+                "network": self.network,
                 "station": self.station,
                 "survey": self.survey,
                 "remote_path": file,
@@ -429,7 +430,7 @@ class DataHandler:
 
         if len(http_entries) > 0:
             _download_func = partial(self._download_https,destination_dir=self.raw_dir, show_details=show_details)
-            for entry in tqdm(http_entries, total=len(http_entries), desc=f"Downloading files"):
+            for entry in tqdm(http_entries, total=len(http_entries), desc=f"Downloading {file_type} files"):
                 if (local_path :=_download_func(entry['remote_path']))  is not None:
                     entry["local_path"] = str(local_path)
                     with self.engine.begin() as conn:
