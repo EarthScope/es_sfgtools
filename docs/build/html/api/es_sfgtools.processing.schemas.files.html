@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>es_sfgtools.processing.schemas.files package &mdash; es-sfgtools 0.0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=d45e8c67"></script>
+        <script src="../_static/doctools.js?v=9a2dae69"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="es_sfgtools.processing.schemas.files.file_schemas module" href="es_sfgtools.processing.schemas.files.file_schemas.html" />
+    <link rel="prev" title="es_sfgtools.processing.schemas package" href="es_sfgtools.processing.schemas.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            es-sfgtools
+              <img src="../_static/EarthScope_Logo-color.png" class="logo" alt="Logo"/>
+          </a>
+              <div class="version">
+                0.0.1
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../pages/Installation.html">Installation Instructions</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../api.html">Code documentation</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="es_sfgtools.html">es_sfgtools package</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="es_sfgtools.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="es_sfgtools.pipeline.html">es_sfgtools.pipeline package</a></li>
+<li class="toctree-l4 current"><a class="reference internal" href="es_sfgtools.processing.html">es_sfgtools.processing package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="es_sfgtools.utils.html">es_sfgtools.utils package</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.pipeline.html">es_sfgtools.pipeline package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.pipeline.temp.html">es_sfgtools.pipeline.temp module</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="es_sfgtools.processing.html">es_sfgtools.processing package</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="es_sfgtools.processing.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="es_sfgtools.processing.functions.html">es_sfgtools.processing.functions package</a></li>
+<li class="toctree-l4 current"><a class="reference internal" href="es_sfgtools.processing.schemas.html">es_sfgtools.processing.schemas package</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.functions.html">es_sfgtools.processing.functions package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.functions.acoustic_functions.html">es_sfgtools.processing.functions.acoustic_functions module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.functions.gnss_functions.html">es_sfgtools.processing.functions.gnss_functions module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.functions.imu_functions.html">es_sfgtools.processing.functions.imu_functions module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.functions.seabird_functions.html">es_sfgtools.processing.functions.seabird_functions module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.functions.site_functions.html">es_sfgtools.processing.functions.site_functions module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.functions.vessel_functions.html">es_sfgtools.processing.functions.vessel_functions module</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="es_sfgtools.processing.schemas.html">es_sfgtools.processing.schemas package</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="es_sfgtools.processing.schemas.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l4 current"><a class="current reference internal" href="#">es_sfgtools.processing.schemas.files package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="es_sfgtools.processing.schemas.observables.html">es_sfgtools.processing.schemas.observables package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="es_sfgtools.processing.schemas.site_config.html">es_sfgtools.processing.schemas.site_config package</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">es_sfgtools.processing.schemas.files package</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#submodules">Submodules</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html">es_sfgtools.processing.schemas.files.file_schemas module</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html">es_sfgtools.processing.schemas.files.file_schemas module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.schemas.observables.html">es_sfgtools.processing.schemas.observables package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.schemas.observables.acoustic_schemas.html">es_sfgtools.processing.schemas.observables.acoustic_schemas module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.schemas.observables.constants.html">es_sfgtools.processing.schemas.observables.constants module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.schemas.observables.gnss_schemas.html">es_sfgtools.processing.schemas.observables.gnss_schemas module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.schemas.observables.imu_schemas.html">es_sfgtools.processing.schemas.observables.imu_schemas module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.schemas.observables.sound_speed_schemas.html">es_sfgtools.processing.schemas.observables.sound_speed_schemas module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.schemas.site_config.html">es_sfgtools.processing.schemas.site_config package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.schemas.site_config.site_schemas.html">es_sfgtools.processing.schemas.site_config.site_schemas module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.utils.html">es_sfgtools.utils package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.utils.archive_pull.html">es_sfgtools.utils.archive_pull module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.utils.gage_data.html">es_sfgtools.utils.gage_data module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.utils.metadata_generator.html">es_sfgtools.utils.metadata_generator module</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="modules.html">es_sfgtools</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="es_sfgtools.html">es_sfgtools package</a><ul class="current">
+<li class="toctree-l4 current"><a class="reference internal" href="es_sfgtools.html#subpackages">Subpackages</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">es-sfgtools</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../api.html">Code documentation</a></li>
+          <li class="breadcrumb-item"><a href="es_sfgtools.html">es_sfgtools package</a></li>
+          <li class="breadcrumb-item"><a href="es_sfgtools.processing.html">es_sfgtools.processing package</a></li>
+          <li class="breadcrumb-item"><a href="es_sfgtools.processing.schemas.html">es_sfgtools.processing.schemas package</a></li>
+      <li class="breadcrumb-item active">es_sfgtools.processing.schemas.files package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/es_sfgtools.processing.schemas.files.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-es_sfgtools.processing.schemas.files">
+<span id="es-sfgtools-processing-schemas-files-package"></span><h1>es_sfgtools.processing.schemas.files package<a class="headerlink" href="#module-es_sfgtools.processing.schemas.files" title="Link to this heading"></a></h1>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Link to this heading"></a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html">es_sfgtools.processing.schemas.files.file_schemas module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable"><code class="docutils literal notranslate"><span class="pre">BaseObservable</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.location"><code class="docutils literal notranslate"><span class="pre">BaseObservable.location</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.id"><code class="docutils literal notranslate"><span class="pre">BaseObservable.id</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.epoch_id"><code class="docutils literal notranslate"><span class="pre">BaseObservable.epoch_id</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.campaign_id"><code class="docutils literal notranslate"><span class="pre">BaseObservable.campaign_id</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.capture_time"><code class="docutils literal notranslate"><span class="pre">BaseObservable.capture_time</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.data"><code class="docutils literal notranslate"><span class="pre">BaseObservable.data</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.Config"><code class="docutils literal notranslate"><span class="pre">BaseObservable.Config</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.Config.arbitrary_types_allowed"><code class="docutils literal notranslate"><span class="pre">BaseObservable.Config.arbitrary_types_allowed</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#id0"><code class="docutils literal notranslate"><span class="pre">BaseObservable.campaign_id</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#id1"><code class="docutils literal notranslate"><span class="pre">BaseObservable.capture_time</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#id2"><code class="docutils literal notranslate"><span class="pre">BaseObservable.data</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#id3"><code class="docutils literal notranslate"><span class="pre">BaseObservable.epoch_id</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#id4"><code class="docutils literal notranslate"><span class="pre">BaseObservable.location</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.model_computed_fields"><code class="docutils literal notranslate"><span class="pre">BaseObservable.model_computed_fields</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.model_config"><code class="docutils literal notranslate"><span class="pre">BaseObservable.model_config</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.model_fields"><code class="docutils literal notranslate"><span class="pre">BaseObservable.model_fields</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.read"><code class="docutils literal notranslate"><span class="pre">BaseObservable.read()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.uuid"><code class="docutils literal notranslate"><span class="pre">BaseObservable.uuid</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.BaseObservable.write"><code class="docutils literal notranslate"><span class="pre">BaseObservable.write()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.BaseSite"><code class="docutils literal notranslate"><span class="pre">BaseSite</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.BaseSite.location"><code class="docutils literal notranslate"><span class="pre">BaseSite.location</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.BaseSite.id"><code class="docutils literal notranslate"><span class="pre">BaseSite.id</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.BaseSite.site_id"><code class="docutils literal notranslate"><span class="pre">BaseSite.site_id</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.BaseSite.campaign_id"><code class="docutils literal notranslate"><span class="pre">BaseSite.campaign_id</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.BaseSite.capture_time"><code class="docutils literal notranslate"><span class="pre">BaseSite.capture_time</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#id5"><code class="docutils literal notranslate"><span class="pre">BaseSite.campaign_id</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#id6"><code class="docutils literal notranslate"><span class="pre">BaseSite.capture_time</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#id7"><code class="docutils literal notranslate"><span class="pre">BaseSite.location</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.BaseSite.model_computed_fields"><code class="docutils literal notranslate"><span class="pre">BaseSite.model_computed_fields</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.BaseSite.model_config"><code class="docutils literal notranslate"><span class="pre">BaseSite.model_config</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.BaseSite.model_fields"><code class="docutils literal notranslate"><span class="pre">BaseSite.model_fields</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#id8"><code class="docutils literal notranslate"><span class="pre">BaseSite.site_id</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.BaseSite.uuid"><code class="docutils literal notranslate"><span class="pre">BaseSite.uuid</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.DFPO00RawFile"><code class="docutils literal notranslate"><span class="pre">DFPO00RawFile</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.DFPO00RawFile.model_computed_fields"><code class="docutils literal notranslate"><span class="pre">DFPO00RawFile.model_computed_fields</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.DFPO00RawFile.model_config"><code class="docutils literal notranslate"><span class="pre">DFPO00RawFile.model_config</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.DFPO00RawFile.model_fields"><code class="docutils literal notranslate"><span class="pre">DFPO00RawFile.model_fields</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.DFPO00RawFile.name"><code class="docutils literal notranslate"><span class="pre">DFPO00RawFile.name</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.KinFile"><code class="docutils literal notranslate"><span class="pre">KinFile</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.KinFile.parent_id"><code class="docutils literal notranslate"><span class="pre">KinFile.parent_id</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.KinFile.extension"><code class="docutils literal notranslate"><span class="pre">KinFile.extension</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.KinFile.model_computed_fields"><code class="docutils literal notranslate"><span class="pre">KinFile.model_computed_fields</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.KinFile.model_config"><code class="docutils literal notranslate"><span class="pre">KinFile.model_config</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.KinFile.model_fields"><code class="docutils literal notranslate"><span class="pre">KinFile.model_fields</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.KinFile.name"><code class="docutils literal notranslate"><span class="pre">KinFile.name</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.KinFile.parent_uuid"><code class="docutils literal notranslate"><span class="pre">KinFile.parent_uuid</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.LeverArmFile"><code class="docutils literal notranslate"><span class="pre">LeverArmFile</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.LeverArmFile.model_computed_fields"><code class="docutils literal notranslate"><span class="pre">LeverArmFile.model_computed_fields</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.LeverArmFile.model_config"><code class="docutils literal notranslate"><span class="pre">LeverArmFile.model_config</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.LeverArmFile.model_fields"><code class="docutils literal notranslate"><span class="pre">LeverArmFile.model_fields</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.LeverArmFile.name"><code class="docutils literal notranslate"><span class="pre">LeverArmFile.name</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.MasterFile"><code class="docutils literal notranslate"><span class="pre">MasterFile</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.MasterFile.model_computed_fields"><code class="docutils literal notranslate"><span class="pre">MasterFile.model_computed_fields</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.MasterFile.model_config"><code class="docutils literal notranslate"><span class="pre">MasterFile.model_config</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.MasterFile.model_fields"><code class="docutils literal notranslate"><span class="pre">MasterFile.model_fields</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.MasterFile.name"><code class="docutils literal notranslate"><span class="pre">MasterFile.name</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.Novatel770File"><code class="docutils literal notranslate"><span class="pre">Novatel770File</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.Novatel770File.model_computed_fields"><code class="docutils literal notranslate"><span class="pre">Novatel770File.model_computed_fields</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.Novatel770File.model_config"><code class="docutils literal notranslate"><span class="pre">Novatel770File.model_config</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.Novatel770File.model_fields"><code class="docutils literal notranslate"><span class="pre">Novatel770File.model_fields</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.Novatel770File.name"><code class="docutils literal notranslate"><span class="pre">Novatel770File.name</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.NovatelFile"><code class="docutils literal notranslate"><span class="pre">NovatelFile</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.NovatelFile.model_computed_fields"><code class="docutils literal notranslate"><span class="pre">NovatelFile.model_computed_fields</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.NovatelFile.model_config"><code class="docutils literal notranslate"><span class="pre">NovatelFile.model_config</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.NovatelFile.model_fields"><code class="docutils literal notranslate"><span class="pre">NovatelFile.model_fields</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.NovatelFile.name"><code class="docutils literal notranslate"><span class="pre">NovatelFile.name</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.NovatelPinFile"><code class="docutils literal notranslate"><span class="pre">NovatelPinFile</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.NovatelPinFile.model_computed_fields"><code class="docutils literal notranslate"><span class="pre">NovatelPinFile.model_computed_fields</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.NovatelPinFile.model_config"><code class="docutils literal notranslate"><span class="pre">NovatelPinFile.model_config</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.NovatelPinFile.model_fields"><code class="docutils literal notranslate"><span class="pre">NovatelPinFile.model_fields</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.NovatelPinFile.name"><code class="docutils literal notranslate"><span class="pre">NovatelPinFile.name</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.QCPinFile"><code class="docutils literal notranslate"><span class="pre">QCPinFile</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.QCPinFile.model_computed_fields"><code class="docutils literal notranslate"><span class="pre">QCPinFile.model_computed_fields</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.QCPinFile.model_config"><code class="docutils literal notranslate"><span class="pre">QCPinFile.model_config</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.QCPinFile.model_fields"><code class="docutils literal notranslate"><span class="pre">QCPinFile.model_fields</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.QCPinFile.name"><code class="docutils literal notranslate"><span class="pre">QCPinFile.name</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.RinexFile"><code class="docutils literal notranslate"><span class="pre">RinexFile</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.RinexFile.parent_id"><code class="docutils literal notranslate"><span class="pre">RinexFile.parent_id</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.RinexFile.extension"><code class="docutils literal notranslate"><span class="pre">RinexFile.extension</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.RinexFile.model_computed_fields"><code class="docutils literal notranslate"><span class="pre">RinexFile.model_computed_fields</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.RinexFile.model_config"><code class="docutils literal notranslate"><span class="pre">RinexFile.model_config</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.RinexFile.model_fields"><code class="docutils literal notranslate"><span class="pre">RinexFile.model_fields</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.RinexFile.name"><code class="docutils literal notranslate"><span class="pre">RinexFile.name</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.RinexFile.parent_uuid"><code class="docutils literal notranslate"><span class="pre">RinexFile.parent_uuid</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.SeaBirdFile"><code class="docutils literal notranslate"><span class="pre">SeaBirdFile</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.SeaBirdFile.model_computed_fields"><code class="docutils literal notranslate"><span class="pre">SeaBirdFile.model_computed_fields</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.SeaBirdFile.model_config"><code class="docutils literal notranslate"><span class="pre">SeaBirdFile.model_config</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.SeaBirdFile.model_fields"><code class="docutils literal notranslate"><span class="pre">SeaBirdFile.model_fields</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.SeaBirdFile.name"><code class="docutils literal notranslate"><span class="pre">SeaBirdFile.name</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.SonardyneFile"><code class="docutils literal notranslate"><span class="pre">SonardyneFile</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.SonardyneFile.model_computed_fields"><code class="docutils literal notranslate"><span class="pre">SonardyneFile.model_computed_fields</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.SonardyneFile.model_config"><code class="docutils literal notranslate"><span class="pre">SonardyneFile.model_config</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.SonardyneFile.model_fields"><code class="docutils literal notranslate"><span class="pre">SonardyneFile.model_fields</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="es_sfgtools.processing.schemas.files.file_schemas.html#es_sfgtools.processing.schemas.files.file_schemas.SonardyneFile.name"><code class="docutils literal notranslate"><span class="pre">SonardyneFile.name</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="es_sfgtools.processing.schemas.html" class="btn btn-neutral float-left" title="es_sfgtools.processing.schemas package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="es_sfgtools.processing.schemas.files.file_schemas.html" class="btn btn-neutral float-right" title="es_sfgtools.processing.schemas.files.file_schemas module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, EarthScope.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
