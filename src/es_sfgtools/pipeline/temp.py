@@ -208,7 +208,6 @@ class DataHandler:
             if len(data_type_counts) == 0:
                 return {"Local files found":0}
         return {x["type"]:x["count_1"] for x in data_type_counts}    
-   
 
     def add_data_local(self,
                         local_filepaths:List[str],
@@ -263,7 +262,7 @@ class DataHandler:
                 response = f"No new files to add"
                 logger.info(response)
                 if bool(os.environ.get("DH_SHOW_DETAILS",False)):
-                   print(response)
+                    print(response)
                 return
             response = f"Adding {len(file_data_map)} new files to the catalog"
             logger.info(response)
@@ -309,7 +308,7 @@ class DataHandler:
             if discovered_file_type is None:
                 logger.error(f"File type not recognized for {file}")
                 continue
-                #raise ValueError(f"File type not recognized for {file}")
+                # raise ValueError(f"File type not recognized for {file}")
 
             file_data = {
                 "network": self.network,
@@ -369,7 +368,7 @@ class DataHandler:
         Raises:
             Exception: If no matching data found in catalog.
         """
-        #os.environ["DH_SHOW_DETAILS"] = str(show_details)
+        # os.environ["DH_SHOW_DETAILS"] = str(show_details)
         if file_type == 'all':
             file_types = FILE_TYPES
         else:
@@ -424,9 +423,8 @@ class DataHandler:
                         updated_entries.append(entry)
 
         # download http entries
-        # TODO: re-implement multithreading, switched to serial downloading.  
+        # TODO: re-implement multithreading, switched to serial downloading.
         # need to solve cataloging each file after download and making progress bar work in parallel
-  
 
         if len(http_entries) > 0:
             _download_func = partial(self._download_https,destination_dir=self.raw_dir, show_details=show_details)
@@ -437,8 +435,6 @@ class DataHandler:
                         conn.execute(
                             sa.update(Assets).where(Assets.remote_path == entry['remote_path']).values(dict(entry))
                         )
-                     
-
 
                 # with concurrent.futures.ThreadPoolExecutor() as executor:
                 #     futures = [executor.submit(_download_func, x['remote_path']) for x in http_entries]
@@ -453,7 +449,7 @@ class DataHandler:
                 #                 sa.update(Assets).where(Assets.remote_path == remote_path).values(dict(entry))
                 #             )
                 #             conn.commit()
-  
+
         # if len(http_entries) > 0:
         #     _download_func = partial(self._download_https,destination_dir=self.raw_dir, show_details=show_details)
         #     with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -661,7 +657,6 @@ class DataHandler:
             pointer += 1
         return stack
 
-
     @staticmethod
     def _process_targeted(
         parent: dict,
@@ -793,6 +788,34 @@ class DataHandler:
 
         return processed_meta, parent, response
 
+    def _update_parent_child_catalog(self,
+                              parent_data:dict,
+                              child_data:dict):
+        with self.engine.begin() as conn:
+            conn.execute(
+                sa.update(Assets)
+                .where(Assets.id.is_(parent_data["id"]))
+                .values(parent_data)
+            )
+            found = conn.execute(
+                sa.select(Assets).where(
+                    Assets.parent_id.is_(parent_data["id"]),
+                    Assets.type.is_(child_data["type"]),
+                )
+            ).fetchall()
+            if found:
+                conn.execute(
+                    sa.update(Assets)
+                    .where(
+                        Assets.parent_id.is_(parent_data["id"]),
+                        Assets.type.is_(child_data["type"]),
+                    )
+                    .values(child_data)
+                )
+            else:
+                conn.execute(sa.insert(Assets).values([child_data]))
+            conn.commit()
+
     def _process_data_link(self,
                            target:Union[FILE_TYPE,DATA_TYPE],
                            source:List[FILE_TYPE],
@@ -849,7 +872,7 @@ class DataHandler:
             child_data_list = []
             parent_data_list = []
 
-            parent_entries_to_process = [dict(row._mapping) for row in parent_entries_to_process]           
+            parent_entries_to_process = [dict(row._mapping) for row in parent_entries_to_process]
             with multiprocessing.Pool() as pool:
                 results = pool.imap(process_func_partial,parent_entries_to_process)
                 for child_data,parent_data,response in tqdm(results,total=len(parent_entries_to_process),desc=f"Processing {source[0].value} To {target.value}"):
@@ -859,27 +882,9 @@ class DataHandler:
                     if child_data is None:
                         continue
                     parent_data_list.append(parent_data)
-                    child_data_list.append(child_data)                    
-                    # update parent entry
-
-                    with self.engine.begin() as conn:
-                        conn.execute(
-                            sa.update(Assets).where(Assets.id.is_(parent_data["id"])).values(parent_data)
-                        )
-                        found = conn.execute(
-                            sa.select(Assets).where(
-                                Assets.parent_id.is_(parent_data["id"]), Assets.type.is_(target.value)
-                            )
-                        ).fetchall()
-                        if found:
-                            conn.execute(
-                                sa.update(Assets).where(
-                                    Assets.parent_id.is_(parent_data["id"]), Assets.type.is_(target.value)
-                                ).values(child_data)
-                            )
-                        else:
-                            conn.execute(sa.insert(Assets).values([child_data]))
-                        conn.commit()
+                    child_data_list.append(child_data)
+                    self._update_parent_child_catalog(parent_data,child_data)
+    
 
             response = f"Processed {len(child_data_list)} Out of {len(parent_entries_to_process)} For {target.value}"
             logger.info(response)
@@ -892,7 +897,7 @@ class DataHandler:
                             override:bool=False,
                             show_details:bool=False,
                             update_timestamp:bool=False):
-        
+
         processing_queue = self.get_parent_stack(child_type=child_type)
         if show_details:
             print(f"processing queue: {[item.value for item in processing_queue]}")
@@ -955,16 +960,16 @@ class DataHandler:
         self._process_data_graph(DATA_TYPE.SITECONFIG,override=override, show_details=show_details,update_timestamp=update_timestamp)
         self._process_data_graph(DATA_TYPE.ATDOFFSET,override=override, show_details=show_details,update_timestamp=update_timestamp)
         self._process_data_graph(DATA_TYPE.SVP,override=override, show_details=show_details,update_timestamp=update_timestamp)
-    
+
     def process_siteconfig(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
         self._process_data_graph(DATA_TYPE.SITECONFIG,override=override, show_details=show_details,update_timestamp=update_timestamp)
-    
+
     def process_atdoffset(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
         self._process_data_graph(DATA_TYPE.ATDOFFSET,override=override, show_details=show_details,update_timestamp=update_timestamp)
 
     def process_svp(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
         self._process_data_graph(DATA_TYPE.SVP,override=override, show_details=show_details,update_timestamp=update_timestamp)
-    
+
     def process_target(self,parent:str,child:str,override:bool=False,show_details:bool=False):
         target = DATA_TYPE(child)
         source = FILE_TYPE(parent)
@@ -991,7 +996,6 @@ class DataHandler:
         response = f"Network {self.network} Station {self.station} Survey {self.survey} Preprocessing complete"
         logger.info(response)
         print(response)
-
 
     def process_qc_data(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
         # perform forward processing of qc pin data

@@ -18,25 +18,22 @@ pride_path = Path.home() / ".PRIDE_PPPAR_BIN"
 # add to path
 os.environ["PATH"] += os.pathsep + str(pride_path)
 if __name__ == "__main__":
-    dh = DataHandler(catalog_path)
 
     network = "NCB"
     station = "NCB1"
     survey = "TestSV3"
+    dh = DataHandler(data_dir=catalog_path,
+                     network=network,
+                     station=station,
+                     survey=survey,)
 
     dh.add_data_local(
-        network=network,
-        station=station,
-        survey=survey,
         local_filepaths=data_files,
         discover_file_type=True
     )
 
     dh.process_campaign_data(
-        network=network,
-        station=station,
-        survey=survey,
-        override=False,
+        override=True,
         show_details=True
     )
     print(dh.get_dtype_counts())

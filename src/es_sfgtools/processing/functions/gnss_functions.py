@@ -232,7 +232,7 @@ def rinex_to_kin(source: RinexFile,writedir:Path,pridedir:Path,site="IVB1", show
         return None
     tag = uuid.uuid4().hex[:4]
     result = subprocess.run(
-        ["pdp3", "-m", "K", "--site",tag , str(source.local_path)],
+        ["pdp3","--loose-edit" ,"-m","K", "--site",tag , str(source.local_path)],
         capture_output=True,
         cwd=str(pridedir),
     )
