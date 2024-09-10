@@ -23,8 +23,8 @@ class AcousticDataFrame(pa.DataFrameModel):
     Attributes:
         TransponderID (Series[str]): Unique identifier for the transponder.
         TriggerTime (Series[datetime]): Time when the ping was triggered.
-        PingTime (Series[float]): Time when ping was received (modified Julian day).
-        ReturnTime (Series[float]): Return time in seconds since the start of day (modified Julian day).
+        PingTime (Series[float]): Time when ping was send in seconds of day .
+        ReturnTime (Series[float]): Return time in seconds since the start of day.
         TwoWayTravelTime (Series[float]): Two-way travel time.
         DecibalVoltage (Series[int]): Signal relative to full scale voltage.
         CorrelationScore (Series[int]): Correlation score.
@@ -70,7 +70,7 @@ class AcousticDataFrame(pa.DataFrameModel):
         ge=0, le=100, coerce=True, description="Correlation score"
     )
     SignalToNoise: Series[float] = pa.Field(
-        ge=-100, le=100.0, coerce=True,default=0, nullable=True,description="Signal to noise ratio"
+        ge=0, le=100.0, coerce=True,default=0, nullable=True,description="Signal to noise ratio"
     )
 
     TurnAroundTime: Series[float] = pa.Field(

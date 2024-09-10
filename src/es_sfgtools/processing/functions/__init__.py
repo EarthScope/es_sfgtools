@@ -1,4 +1,4 @@
-from .acoustic_functions import sonardyne_to_acousticdf,dfpo00_to_acousticdf,qcpin_to_acousticdf
+from .acoustic_functions import sonardyne_to_acousticdf,dfpo00_to_acousticdf,qcpin_to_acousticdf,dev_dfop00_to_shotdata
 from .gnss_functions import (
     novatel_to_rinex,
     rinex_to_kin,

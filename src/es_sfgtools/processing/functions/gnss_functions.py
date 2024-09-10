@@ -126,7 +126,7 @@ class PridePPP(BaseModel):
             raise Exception("Error parsing into PridePPP")
 
 
-def get_metadata(site: str):
+def get_metadata(site: str,serialNumber:str="XXXXXXXXXX") -> dict:
     #TODO: these are placeholder values, need to use real metadata
     return {
         "markerName": site,
@@ -175,7 +175,7 @@ def novatel_to_rinex(
 
     assert os.path.exists(binary_path), f"Binary not found: {binary_path}"
 
-    metadata = get_metadata(site)
+    metadata = get_metadata(site,serialNumber=uuid.uuid4().hex[:10])
 
     with tempfile.TemporaryDirectory(dir="/tmp/") as workdir:
         metadata_path = os.path.join(workdir, "metadata.json")

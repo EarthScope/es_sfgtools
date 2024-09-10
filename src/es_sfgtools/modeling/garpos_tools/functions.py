@@ -226,144 +226,144 @@ class CoordTransformer:
 
         return e, n, u
 
-# def merge_to_shotdata(acoustic: DataFrame[AcousticDataFrame], imu: DataFrame[IMUDataFrame], gnss: DataFrame[PositionDataFrame]) -> DataFrame[ObservationData]:
-#     """
-#     Merge acoustic, imu, and gnss data to create observation data.
-#     Args:
-#         acoustic (DataFrame[AcousticDataFrame]): Acoustic data frame.
-#         imu (DataFrame[IMUDataFrame]): IMU data frame.
-#         gnss (DataFrame[PositionDataFrame]): GNSS data frame.
-#     Returns:
-#         DataFrame[ObservationData]: Merged observation data frame.
-#     """
+def dev_merge_to_shotdata(acoustic: DataFrame[AcousticDataFrame], imu: DataFrame[IMUDataFrame], gnss: DataFrame[PositionDataFrame]) -> DataFrame[ObservationData]:
+    """
+    Merge acoustic, imu, and gnss data to create observation data.
+    Args:
+        acoustic (DataFrame[AcousticDataFrame]): Acoustic data frame.
+        imu (DataFrame[IMUDataFrame]): IMU data frame.
+        gnss (DataFrame[PositionDataFrame]): GNSS data frame.
+    Returns:
+        DataFrame[ObservationData]: Merged observation data frame.
+    """
 
-#     acoustic = acoustic.reset_index()
-#     acoustic.columns = acoustic.columns.str.lower()
-#     imu.columns = imu.columns.str.lower()
-#     gnss.columns = gnss.columns.str.lower()
+    acoustic = acoustic.reset_index()
+    acoustic.columns = acoustic.columns.str.lower()
+    imu.columns = imu.columns.str.lower()
+    gnss.columns = gnss.columns.str.lower()
 
-#     acoustic["triggertime"] = pd.to_datetime(acoustic["triggertime"])
-#     acoustic["time"] = acoustic["triggertime"]
-#     gnss["time"] = pd.to_datetime(gnss["time"])
-#     imu["time"] = pd.to_datetime(imu["time"])
+    acoustic["triggertime"] = pd.to_datetime(acoustic["triggertime"])
+    acoustic["time"] = acoustic["triggertime"]
+    gnss["time"] = pd.to_datetime(gnss["time"])
+    imu["time"] = pd.to_datetime(imu["time"])
 
-#     # sort
-#     acoustic.sort_values("triggertime",inplace=True)
-#     gnss.sort_values("time",inplace=True)
-#     imu.sort_values("time",inplace=True)
+    # sort
+    acoustic.sort_values("triggertime",inplace=True)
+    gnss.sort_values("time",inplace=True)
+    imu.sort_values("time",inplace=True)
 
-#     ping_keys_gnss = {
-#         'ant_e0':"x",
-#         'ant_n0':"y",
-#         'ant_u0':"z",
-#         'latitude':"latitude",
-#         'longitude':"longitude",
-#     }
-#     ping_keys_imu = {
-#         'roll0':"roll",
-#         'pitch0':"pitch",
-#         'head0':"azimuth"
-#     }
+    ping_keys_gnss = {
+        'ant_e0':"x",
+        'ant_n0':"y",
+        'ant_u0':"z",
+        'latitude':"latitude",
+        'longitude':"longitude",
+    }
+    ping_keys_imu = {
+        'roll0':"roll",
+        'pitch0':"pitch",
+        'head0':"azimuth"
+    }
 
-#     return_keys_gnss = {
-#         'ant_e1':"x",
-#         'ant_n1':"y",
-#         'ant_u1':"z"
-#     }
-#     return_keys_imu = {
-#         'roll1':"roll",
-#         'pitch1':"pitch",
-#         'head1':"azimuth"
-#     }
+    return_keys_gnss = {
+        'ant_e1':"x",
+        'ant_n1':"y",
+        'ant_u1':"z"
+    }
+    return_keys_imu = {
+        'roll1':"roll",
+        'pitch1':"pitch",
+        'head1':"azimuth"
+    }
 
 
-#     def interp(x_new,x,y):
-#         # return CubicSpline(x,y)(x_new)
-#         return np.interp(x_new,x,y)
+    def interp(x_new,x,y):
+        # return CubicSpline(x,y)(x_new)
+        return np.interp(x_new,x,y)
     
-#     # Convert pingtime and return time to datetime (units are seconds of day)
-#     acoustic_day_start = acoustic["time"].apply(lambda x: (x.replace(hour=0, minute=0, second=0,microsecond=0)).timestamp())    
-#     acoustic_return_dt = acoustic["returntime"].to_numpy() + acoustic_day_start
-#     acoustic_ping_dt = acoustic["pingtime"].to_numpy() + acoustic_day_start
+    # Convert pingtime and return time to datetime (units are seconds of day)
+    acoustic_day_start = acoustic["time"].apply(lambda x: (x.replace(hour=0, minute=0, second=0,microsecond=0)).timestamp())    
+    acoustic_return_dt = acoustic["returntime"].to_numpy() + acoustic_day_start
+    acoustic_ping_dt = acoustic["pingtime"].to_numpy() + acoustic_day_start
 
-#     output_df = acoustic.copy()
-#     for field,target in ping_keys_gnss.items():
-#         output_df[field] = interp(acoustic_ping_dt.to_numpy(),gnss["time"].apply(lambda x:x.timestamp()).to_numpy(),gnss[target].to_numpy())
-#     for field,target in ping_keys_imu.items():
-#         output_df[field] = interp(acoustic_ping_dt.to_numpy(),imu["time"].apply(lambda x:x.timestamp()).to_numpy(),imu[target].to_numpy())
+    output_df = acoustic.copy()
+    for field,target in ping_keys_gnss.items():
+        output_df[field] = interp(acoustic_ping_dt.to_numpy(),gnss["time"].apply(lambda x:x.timestamp()).to_numpy(),gnss[target].to_numpy())
+    for field,target in ping_keys_imu.items():
+        output_df[field] = interp(acoustic_ping_dt.to_numpy(),imu["time"].apply(lambda x:x.timestamp()).to_numpy(),imu[target].to_numpy())
 
-#     for field,target in return_keys_gnss.items():
-#         output_df[field] = interp(acoustic_return_dt.to_numpy(),gnss["time"].apply(lambda x:x.timestamp()).to_numpy(),gnss[target].to_numpy())
-#     for field,target in return_keys_imu.items():
-#         output_df[field] = interp(acoustic_return_dt.to_numpy(),imu["time"].apply(lambda x:x.timestamp()).to_numpy(),imu[target].to_numpy())
+    for field,target in return_keys_gnss.items():
+        output_df[field] = interp(acoustic_return_dt.to_numpy(),gnss["time"].apply(lambda x:x.timestamp()).to_numpy(),gnss[target].to_numpy())
+    for field,target in return_keys_imu.items():
+        output_df[field] = interp(acoustic_return_dt.to_numpy(),imu["time"].apply(lambda x:x.timestamp()).to_numpy(),imu[target].to_numpy())
 
-#     # output_df.loc[:,["ant_e0","ant_n0","ant_u0","latitude","longitude"]] = position_predictor(acoustic_ping_dt.apply(lambda x: x.timestamp()).values.reshape(-1,1))
-#     # output_df.loc[:,["head0","pitch0","roll0"]] = attitude_predictor(acoustic_ping_dt.apply(lambda x: x.timestamp()).values.reshape(-1,1))
-#     # output_df.loc[:,["ant_e1","ant_n1","ant_u1"]] = position_predictor(acoustic_return_dt.apply(lambda x: x.timestamp()).values.reshape(-1,1))[:,:3]
-#     # output_df.loc[:,["head1","pitch1","roll1"]] = attitude_predictor(acoustic_return_dt.apply(lambda x: x.timestamp()).values.reshape(-1,1))[:,:3]
+    # output_df.loc[:,["ant_e0","ant_n0","ant_u0","latitude","longitude"]] = position_predictor(acoustic_ping_dt.apply(lambda x: x.timestamp()).values.reshape(-1,1))
+    # output_df.loc[:,["head0","pitch0","roll0"]] = attitude_predictor(acoustic_ping_dt.apply(lambda x: x.timestamp()).values.reshape(-1,1))
+    # output_df.loc[:,["ant_e1","ant_n1","ant_u1"]] = position_predictor(acoustic_return_dt.apply(lambda x: x.timestamp()).values.reshape(-1,1))[:,:3]
+    # output_df.loc[:,["head1","pitch1","roll1"]] = attitude_predictor(acoustic_return_dt.apply(lambda x: x.timestamp()).values.reshape(-1,1))[:,:3]
 
-#     # # Step 2. Get the start postition and attitude of the glider at the time of the ping
-#     # ping_xyz:np.ndarray = position_predictor.predict(acoustic_ping_dt.apply(lambda x: x.timestamp()).values.reshape(-1,1))
-#     # ping_attitude:np.ndarray = attitude_predictor.predict(acoustic_ping_dt.apply(lambda x: x.timestamp()).values.reshape(-1,1))
+    # # Step 2. Get the start postition and attitude of the glider at the time of the ping
+    # ping_xyz:np.ndarray = position_predictor.predict(acoustic_ping_dt.apply(lambda x: x.timestamp()).values.reshape(-1,1))
+    # ping_attitude:np.ndarray = attitude_predictor.predict(acoustic_ping_dt.apply(lambda x: x.timestamp()).values.reshape(-1,1))
 
-#     # ping_xyz_series = pd.DataFrame({"Time":acoustic_ping_dt,"ant_e0":ping_xyz[:,0],"ant_n0":ping_xyz[:,1],"ant_u0":ping_xyz[:,2]})
-#     # ping_attitude_series = pd.DataFrame({"Time":acoustic_ping_dt,"head0":ping_attitude[:,0],"pitch0":ping_attitude[:,1],"roll0":ping_attitude[:,2]})
+    # ping_xyz_series = pd.DataFrame({"Time":acoustic_ping_dt,"ant_e0":ping_xyz[:,0],"ant_n0":ping_xyz[:,1],"ant_u0":ping_xyz[:,2]})
+    # ping_attitude_series = pd.DataFrame({"Time":acoustic_ping_dt,"head0":ping_attitude[:,0],"pitch0":ping_attitude[:,1],"roll0":ping_attitude[:,2]})
 
-#     # ping_xyz_series = ping_xyz_series.sort_values("Time")
-#     # ping_attitude_series = ping_attitude_series.sort_values("Time")
-#     # ping_processed = pd.merge_asof(ping_xyz_series,ping_attitude_series,on="Time")
+    # ping_xyz_series = ping_xyz_series.sort_values("Time")
+    # ping_attitude_series = ping_attitude_series.sort_values("Time")
+    # ping_processed = pd.merge_asof(ping_xyz_series,ping_attitude_series,on="Time")
 
-#     # # Step 3. Get the end position and attitude of the glider at the time of the return
-#     # return_xyz:np.ndarray = position_predictor.predict(acoustic_return_dt.apply(lambda x: x.timestamp()).values.reshape(-1,1))
-#     # return_attitude:np.ndarray = attitude_predictor.predict(acoustic_return_dt.apply(lambda x: x.timestamp()).values.reshape(-1,1))
+    # # Step 3. Get the end position and attitude of the glider at the time of the return
+    # return_xyz:np.ndarray = position_predictor.predict(acoustic_return_dt.apply(lambda x: x.timestamp()).values.reshape(-1,1))
+    # return_attitude:np.ndarray = attitude_predictor.predict(acoustic_return_dt.apply(lambda x: x.timestamp()).values.reshape(-1,1))
 
-#     # return_xyz_series = pd.DataFrame({"Time":acoustic_return_dt,"ant_e1":return_xyz[:,0],"ant_n1":return_xyz[:,1],"ant_u1":return_xyz[:,2]}).sort_values("Time")
-#     # return_attitude_series = pd.DataFrame({"Time":acoustic_return_dt,"head1":return_attitude[:,0],"pitch1":return_attitude[:,1],"roll1":return_attitude[:,2]}).sort_values("Time")
+    # return_xyz_series = pd.DataFrame({"Time":acoustic_return_dt,"ant_e1":return_xyz[:,0],"ant_n1":return_xyz[:,1],"ant_u1":return_xyz[:,2]}).sort_values("Time")
+    # return_attitude_series = pd.DataFrame({"Time":acoustic_return_dt,"head1":return_attitude[:,0],"pitch1":return_attitude[:,1],"roll1":return_attitude[:,2]}).sort_values("Time")
 
-#     # return_xyz_series = return_xyz_series.sort_values("Time")
-#     # return_attitude_series = return_attitude_series.sort_values("Time")
-#     # return_processed = pd.merge_asof(return_xyz_series,return_attitude_series,on="Time").reset_index(drop=True)
+    # return_xyz_series = return_xyz_series.sort_values("Time")
+    # return_attitude_series = return_attitude_series.sort_values("Time")
+    # return_processed = pd.merge_asof(return_xyz_series,return_attitude_series,on="Time").reset_index(drop=True)
 
-#     # # Step 4. Merge the ping and return data
-#     # merged_ping_return = pd.merge_asof(
-#     #     left=ping_processed,
-#     #     right=return_processed,
-#     #     on="Time",
-#     # ).rename(columns={"Time":"triggertime"}).sort_values("triggertime").reset_index(drop=True)
+    # # Step 4. Merge the ping and return data
+    # merged_ping_return = pd.merge_asof(
+    #     left=ping_processed,
+    #     right=return_processed,
+    #     on="Time",
+    # ).rename(columns={"Time":"triggertime"}).sort_values("triggertime").reset_index(drop=True)
 
-#     # # Step 5. Merge the acoustic data with the merged ping and return data
-#     # output_df = pd.merge_asof(
-#     #     left=acoustic.sort_values("triggertime"),
-#     #     right=merged_ping_return,
-#     #     on="triggertime",
-#     # ).reset_index(drop=True)
+    # # Step 5. Merge the acoustic data with the merged ping and return data
+    # output_df = pd.merge_asof(
+    #     left=acoustic.sort_values("triggertime"),
+    #     right=merged_ping_return,
+    #     on="triggertime",
+    # ).reset_index(drop=True)
 
-#     # output_df = pd.merge_asof(
-#     #     left=output_df,
-#     #     right=gnss.loc[:,["latitude","longitude","time"]],
-#     #     right_on="time",
-#     #     left_on="triggertime"
-#     # ).reset_index(drop=True)
+    # output_df = pd.merge_asof(
+    #     left=output_df,
+    #     right=gnss.loc[:,["latitude","longitude","time"]],
+    #     right_on="time",
+    #     left_on="triggertime"
+    # ).reset_index(drop=True)
 
-#     # rename shot_trigger columns
-#     output_df.rename(
-#         columns={
-#             "transponderid": "MT",
-#             "twowaytraveltime": "TT",
-#             "pingtime": "ST",
-#             "returntime": "RT",
-#         },
-#         inplace=True,
-#     )
+    # rename shot_trigger columns
+    output_df.rename(
+        columns={
+            "transponderid": "MT",
+            "twowaytraveltime": "TT",
+            "pingtime": "ST",
+            "returntime": "RT",
+        },
+        inplace=True,
+    )
 
-#     # # Step 6. Get Lat/Lon of the glider at trigger time
-#     # pos_trigger = position_predictor.predict(output_df["triggertime"].apply(lambda x: x.timestamp()).values.reshape(-1,1))
-#     # lat_array,lon_array = pos_trigger[:,3],pos_trigger[:,4]
+    # # Step 6. Get Lat/Lon of the glider at trigger time
+    # pos_trigger = position_predictor.predict(output_df["triggertime"].apply(lambda x: x.timestamp()).values.reshape(-1,1))
+    # lat_array,lon_array = pos_trigger[:,3],pos_trigger[:,4]
 
-#     output_df = output_df.loc[:, ~output_df.columns.str.contains("^unnamed")].drop(columns=["time"]).dropna().reset_index(drop=True)
-#     output_df["SET"] = "S01"
-#     output_df["LN"] = "L01"
-#     return ObservationData.validate(output_df,lazy=True)
+    output_df = output_df.loc[:, ~output_df.columns.str.contains("^unnamed")].drop(columns=["time"]).dropna().reset_index(drop=True)
+    output_df["SET"] = "S01"
+    output_df["LN"] = "L01"
+    return ObservationData.validate(output_df,lazy=True)
 
 
 def merge_to_shotdata(
@@ -592,7 +592,7 @@ def garposinput_to_datafile(garpos_input:GarposInput,path:Path):
     garpos_input.observation.shot_data.MT = garpos_input.observation.shot_data.MT.apply(
             lambda x: "M" + str(x) if x[0].isdigit() else x
         )
-    garpos_input.observation.shot_data.to_csv(garpos_input.shot_data_file,index=False)
+    garpos_input.observation.shot_data.to_csv(garpos_input.shot_data_file,index=True)
     garpos_input.observation.sound_speed_data.to_csv(garpos_input.sound_speed_file,index=False)
 
     # Write the data file
@@ -953,6 +953,7 @@ def sitedata_to_garpossite(site_config:SiteConfig,atd_offset:ATDOffset) -> Garpo
     delta_center_position.north_sigma = 1.0
     delta_center_position.up_sigma = 0.0
 
+    site_config.name = "NCB1"
     garpos_site = GarposSite(
         name=site_config.name,
         center_llh=site_center_llh,
@@ -963,6 +964,78 @@ def sitedata_to_garpossite(site_config:SiteConfig,atd_offset:ATDOffset) -> Garpo
     )
 
     return garpos_site
+def dev_garpos_input_from_site_obs(
+    site_config:SiteConfig,
+    atd_offset:ATDOffset,
+    shot_data:pd.DataFrame,
+    sound_velocity:pd.DataFrame
+):
+    garpos_site: GarposSite = sitedata_to_garpossite(site_config,atd_offset)
+    coord_transformer = CoordTransformer(site_config.position_llh)
+    e0,n0,u0 = coord_transformer.LLH2ENU_vec(shot_data.lat0.to_numpy(),shot_data.lon0.to_numpy(),shot_data.hae0.to_numpy())
+    e1,n1,u1 = coord_transformer.LLH2ENU_vec(shot_data.lat1.to_numpy(),shot_data.lon1.to_numpy(),shot_data.hae1.to_numpy())
+    date_utc = shot_data.trigger_time.min()
+    date_mjd = julian.to_jd(date_utc, fmt="mjd")
+    shot_data["ant_e0"] = e0
+    shot_data["ant_n0"] = n0
+    shot_data["ant_u0"] = u0
+    shot_data["ant_e1"] = e1
+    shot_data["ant_n1"] = n1
+    shot_data["ant_u1"] = u1
+    shot_data["SET"] = "S01"
+    shot_data["LN"] = "L01"
+    rename_dict = {
+        "trigger_time":"triggertime",
+        "hae0":"height",
+        "ping_time":"ST",
+        "reply_time":"RT",
+        "tt":"TT",
+        "transponder_id":"MT",
+        "lat0":"latitude",
+        "lon0":"longitude",
+    }
+    shot_data = (
+        shot_data.rename(columns=rename_dict)
+        .drop(columns=["event_id", "lat1", "lon1", "hae1"])
+        .loc[
+            :,
+            [
+                "triggertime",
+                "MT",
+                "ST",
+                "RT",
+                "TT",
+                "ant_e0",
+                "ant_n0",
+                "ant_u0",
+                "head0",
+                "pitch0",
+                "roll0",
+                "ant_e1",
+                "ant_n1",
+                "ant_u1",
+                "head1",
+                "pitch1",
+                "roll1",
+                "latitude",
+                "longitude",
+                "height",
+            ],
+        ]
+    )
+
+    shot_data = ObservationData.validate(shot_data,lazy=True).sort_values("triggertime")
+    sound_velocity = SoundVelocityDataFrame.validate(sound_velocity,lazy=True)
+    garpos_observation = GarposObservation(
+        campaign=site_config.name,
+        date_utc=date_utc,
+        date_mjd=date_mjd,
+        ref_frame="ITRF",
+        shot_data=shot_data,
+        sound_speed_data=sound_velocity,
+    )
+    garpos_input = GarposInput(observation=garpos_observation, site=garpos_site)
+    return garpos_input
 
 def garpos_input_from_site_obs(
         site_config:SiteConfig,

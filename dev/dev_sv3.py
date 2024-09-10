@@ -31,11 +31,14 @@ if __name__ == "__main__":
         local_filepaths=data_files,
         discover_file_type=True
     )
-
-    dh.process_campaign_data(
+    dh.process_gnss_data(
         override=True,
         show_details=True
     )
+    # dh.process_campaign_data(
+    #     override=True,
+    #     show_details=True
+    # )
     print(dh.get_dtype_counts())
 
     # survey_entries = dh.query_catalog(
