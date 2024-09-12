@@ -132,74 +132,6 @@ class GNSSData(BaseModel):
 #         Time = datetime.fromtimestamp(dict.get("time").get("common"))
 #         return cls(EventID=EventID,CN=CN,DBV=DBV,SNR=SNR,XC=XC,TT=TT,TAT=TAT,Time=Time)
 
-class InterrogationData(BaseModel):
-    event_id: int
-    head0:float
-    pitch0:float
-    roll0:float
-    lat0:float
-    lon0:float
-    hae0:float
-    #ping_time:float
-    trigger_time:datetime
-
-    @classmethod
-    def from_dfopoo_line(cls, line) -> "InterrogationData":
-        event_id = line.get("event_id")
-        ahrs = line.get("observations").get("AHRS")
-        head0 = ahrs.get("h")
-        pitch0 = ahrs.get("p")
-        roll0 = ahrs.get("r")
-        gnss = line.get("observations").get("GNSS")
-        lat0 = gnss.get("latitude")
-        lon0 = gnss.get("longitude")
-        hae0 = gnss.get("hae")
-        ping_time_dt = datetime.fromtimestamp(line.get("time").get("common"))
-        trigger_time_dt = ping_time_dt - timedelta(seconds=TRIGGER_DELAY_SV3)
-        ping_time = (ping_time_dt - datetime(ping_time_dt.year,ping_time_dt.month,ping_time_dt.day)).total_seconds()
-        return cls(event_id=event_id,head0=head0,pitch0=pitch0,roll0=roll0,lat0=lat0,lon0=lon0,hae0=hae0,trigger_time=trigger_time_dt)
-
-class RangeData(BaseModel):
-    event_id: int
-    head1:float
-    pitch1:float
-    roll1:float
-    lat1:float
-    lon1:float
-    hae1:float
-    transponder_id:str
-    dbv:float
-    snr:float
-    xc:float
-    tt:float
-    tat:float
-    ping_time:float
-    reply_time:float
-
-    @classmethod
-    def from_dfopoo_line(cls, line) -> "RangeData":
-        event_id = line.get("event_id")
-        ahrs = line.get("observations").get("AHRS")
-        head1 = ahrs.get("h")
-        pitch1 = ahrs.get("p")
-        roll1 = ahrs.get("r")
-        gnss = line.get("observations").get("GNSS")
-        lat1 = gnss.get("latitude")
-        lon1 = gnss.get("longitude")
-        hae1 = gnss.get("hae")
-        range_data = line.get("range")
-        transponder_id = range_data.get("cn", "").replace("IR", "")
-        dbv = range_data.get("diag").get("dbv")[0]
-        snr = range_data.get("diag").get("snr")[0]
-        xc = range_data.get("diag").get("xc")[0]
-        tat = range_data.get("tat")
-        tt = range_data.get("range") - tat/1000 - TRIGGER_DELAY_SV3
-        reply_time = line.get("time").get("common")
-        reply_time_dt = datetime.fromtimestamp(reply_time)
-        reply_time_sod = (reply_time_dt - datetime(reply_time_dt.year,reply_time_dt.month,reply_time_dt.day)).total_seconds()
-        ping_time = reply_time_sod - tt
-        return cls(event_id=event_id,head1=head1,pitch1=pitch1,roll1=roll1,lat1=lat1,lon1=lon1,hae1=hae1,transponder_id=transponder_id,dbv=dbv,snr=snr,xc=xc,tt=tt,tat=tat,reply_time=reply_time_sod,ping_time=ping_time)
-
 
 class PingData(BaseModel):
     """
@@ -743,22 +675,3 @@ def dev_dfpo00_to_acousticdf(source: DFPO00RawFile) -> DataFrame[AcousticDataFra
     df = pd.DataFrame(processed)
     df = df[df["SignalToNoise"]>0]
     return AcousticDataFrame.validate(df, lazy=True)
-
-
-def dev_dfop00_to_shotdata(source: DFPO00RawFile) -> pd.DataFrame:
-
-    processed = []
-    with open(source.local_path) as f:
-        lines = f.readlines()
-        for line in lines:
-            data = json.loads(line)
-            if data.get("event") == "interrogation":
-                interrogation = InterrogationData.from_dfopoo_line(data)
-                
-
-            if data.get("event") == "range":
-                range_data = RangeData.from_dfopoo_line(data)   
-                processed.append(
-                    (dict(interrogation) | dict(range_data))
-                )
-    return pd.DataFrame(processed)

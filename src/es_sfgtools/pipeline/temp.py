@@ -51,6 +51,7 @@ class FILE_TYPE(Enum):
     OFFLOAD = "offload"
     QCPIN = "pin"
     NOVATELPIN = "novatelpin"
+    
 
     @classmethod
     def to_schema(cls):
@@ -69,6 +70,7 @@ class DATA_TYPE(Enum):
     SITECONFIG = "siteconfig"
     ATDOFFSET = "atdoffset"
     SVP = "svp"
+    SHOTDATA = "shotdata"
 
     @classmethod
     def to_schema(cls):
@@ -78,7 +80,7 @@ class DATA_TYPE(Enum):
 DATA_TYPES = [x.value for x in DATA_TYPE]
 
 TARGET_MAP = {
-    FILE_TYPE.QCPIN:{DATA_TYPE.IMU:proc_funcs.qcpin_to_imudf,DATA_TYPE.ACOUSTIC:proc_funcs.qcpin_to_acousticdf,FILE_TYPE.NOVATELPIN:proc_funcs.qcpin_to_novatelpin},
+    FILE_TYPE.QCPIN:{DATA_TYPE.SHOTDATA:proc_funcs.dev_qcpin_to_shotdata,FILE_TYPE.NOVATELPIN:proc_funcs.qcpin_to_novatelpin},
     FILE_TYPE.NOVATELPIN:{FILE_TYPE.RINEX:proc_funcs.novatel_to_rinex},
     FILE_TYPE.NOVATEL:{FILE_TYPE.RINEX:proc_funcs.novatel_to_rinex, DATA_TYPE.IMU:proc_funcs.novatel_to_imudf},
     FILE_TYPE.RINEX:{FILE_TYPE.KIN:proc_funcs.rinex_to_kin},
@@ -88,7 +90,8 @@ TARGET_MAP = {
     FILE_TYPE.LEVERARM:{DATA_TYPE.ATDOFFSET:proc_funcs.leverarmfile_to_atdoffset},
     FILE_TYPE.SEABIRD:{DATA_TYPE.SVP:proc_funcs.seabird_to_soundvelocity},
     FILE_TYPE.NOVATEL770:{FILE_TYPE.RINEX:proc_funcs.novatel_to_rinex},
-    FILE_TYPE.DFPO00:{DATA_TYPE.IMU:proc_funcs.dfpo00_to_imudf, DATA_TYPE.ACOUSTIC:proc_funcs.dfpo00_to_acousticdf}
+    #FILE_TYPE.DFPO00:{DATA_TYPE.IMU:proc_funcs.dfpo00_to_imudf, DATA_TYPE.ACOUSTIC:proc_funcs.dfpo00_to_acousticdf}
+    FILE_TYPE.DFPO00:{DATA_TYPE.SHOTDATA:proc_funcs.dev_dfop00_to_shotdata}
 }
 
 
@@ -435,37 +438,6 @@ class DataHandler:
                         conn.execute(
                             sa.update(Assets).where(Assets.remote_path == entry['remote_path']).values(dict(entry))
                         )
-
-                # with concurrent.futures.ThreadPoolExecutor() as executor:
-                #     futures = [executor.submit(_download_func, x['remote_path']) for x in http_entries]
-                #     for future in tqdm(concurrent.futures.as_completed(futures),
-                #                         total=len(futures),
-                #                         desc=f"Downloading files"):
-                #         local_path, remote_path = future.result()
-                #         print(local_path)
-                #         if local_path is not None:
-                #             entry = {"local_path": local_path}
-                #             conn.execute(
-                #                 sa.update(Assets).where(Assets.remote_path == remote_path).values(dict(entry))
-                #             )
-                #             conn.commit()
-
-        # if len(http_entries) > 0:
-        #     _download_func = partial(self._download_https,destination_dir=self.raw_dir, show_details=show_details)
-        #     with concurrent.futures.ThreadPoolExecutor() as executor:
-        #         results = executor.map(_download_func,[x['remote_path'] for x in http_entries])
-        #         for result,entry in zip(results,http_entries):
-        #             if result is not None:
-        #                 entry['local_path'] = str(result)
-        #                 updated_entries.append(entry)
-
-        # # update the database
-        # with self.engine.begin() as conn:
-        #     while updated_entries:
-        #         entry = updated_entries.pop()
-        #         conn.execute(
-        #             sa.update(Assets).where(Assets.remote_path == entry['remote_path']).values(dict(entry))
-        #         )
 
     def _download_data_s3(self,bucket:str,prefix:str,**kwargs) -> Union[Path,None]:
         """
@@ -975,6 +947,12 @@ class DataHandler:
         source = FILE_TYPE(parent)
         self._process_data_link(target=target,source=[source],override=override,show_details=show_details)
 
+    def process_qc_data(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
+        self._process_data_graph_forward(FILE_TYPE.QCPIN,override=override, show_details=show_details,update_timestamp=update_timestamp)
+    
+    def process_sv3_data(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
+        self._process_data_graph_forward(FILE_TYPE.DFPO00,override=override, show_details=show_details,update_timestamp=update_timestamp)
+        
     def process_campaign_data(
         self, override: bool = False, show_details: bool=False,update_timestamp:bool=False
     ):

@@ -5,7 +5,7 @@ from es_sfgtools.processing.functions import gnss_functions,imu_functions,acoust
 from es_sfgtools.modeling.garpos_tools import garpos_input_from_site_obs,main,GarposFixed,dev_garpos_input_from_site_obs
 from es_sfgtools.modeling.garpos_tools.functions import plot_enu_llh_side_by_side as plot_enu
 import pandas as pd
-
+import matplotlib.pyplot as plt
 data_dir = Path("/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/TestSV3/")
 gp_data_dir = data_dir / "Garpos"
 
@@ -34,10 +34,10 @@ if __name__ == "__main__":
 
     atd_offset = ATDOffset(forward=0.0053, rightward=0, downward=0.92813)
 
-    gnss_df = pd.read_csv(gnss_path)
-    gnss_df.time = pd.to_datetime(gnss_df.time)
-    imu_df = imu_functions.dfpo00_to_imudf(source=dfo_obj)
-    acoustic_df = acoustic_functions.dev_dfpo00_to_acousticdf(source=dfo_obj)
+    # gnss_df = pd.read_csv(gnss_path)
+    # gnss_df.time = pd.to_datetime(gnss_df.time)
+    # imu_df = imu_functions.dfpo00_to_imudf(source=dfo_obj)
+    # acoustic_df = acoustic_functions.dev_dfpo00_to_acousticdf(source=dfo_obj)
     shot_data = acoustic_functions.dev_dfop00_to_shotdata(source=dfo_obj)
     garpos_input = dev_garpos_input_from_site_obs(
         site_config=site_config,
@@ -54,30 +54,28 @@ if __name__ == "__main__":
     garpos_input.observation.shot_data = garpos_input.observation.shot_data[
         garpos_input.observation.shot_data.TT > 0
     ]
-    min_time = max(max(acoustic_df.TriggerTime.min(),gnss_df.time.min()),imu_df.Time.min()) 
-    max_time = min_time + pd.Timedelta(seconds=10000)
-    acoustic_df = acoustic_df[(acoustic_df.TriggerTime >= min_time+pd.Timedelta(seconds=1000)) & (acoustic_df.TriggerTime <= max_time)]
-    gnss_df = gnss_df[(gnss_df.time >= min_time) & (gnss_df.time <= max_time)]
-    imu_df = imu_df[(imu_df.Time >= min_time) & (imu_df.Time <= max_time)]
+    # min_time = max(max(acoustic_df.TriggerTime.min(),gnss_df.time.min()),imu_df.Time.min()) 
+    # max_time = min_time + pd.Timedelta(seconds=10000)
+    # acoustic_df = acoustic_df[(acoustic_df.TriggerTime >= min_time+pd.Timedelta(seconds=1000)) & (acoustic_df.TriggerTime <= max_time)]
+    # gnss_df = gnss_df[(gnss_df.time >= min_time) & (gnss_df.time <= max_time)]
+    # imu_df = imu_df[(imu_df.Time >= min_time) & (imu_df.Time <= max_time)]
 
-    garpos_input_test = garpos_input_from_site_obs(
-        site_config=site_config,
-        sound_velocity=svp_df,
-        atd_offset=atd_offset,
-        acoustic_data=acoustic_df,
-        imu_data=imu_df,
-        gnss_data=gnss_df
-    )
+    # garpos_input_test = garpos_input_from_site_obs(
+    #     site_config=site_config,
+    #     sound_velocity=svp_df,
+    #     atd_offset=atd_offset,
+    #     acoustic_data=acoustic_df,
+    #     imu_data=imu_df,
+    #     gnss_data=gnss_df
+    # )
     # #plot_enu(garpos_input)
     garpos_fixed = GarposFixed()
     garpos_fixed.inversion_params.rejectcriteria = 2
-    garpos_fixed.inversion_params.mu_t = [0.1]
-    garpos_fixed.inversion_params.mu_mt = [0.1]
     garpos_fixed.inversion_params.traveltimescale = 1e-3
     # garpos_fixed.inversion_params.mu_t =[0.1]
-    garpos_fixed.inversion_params.maxloop = 200
-    garpos_input.site.delta_center_position.east_sigma = 10
-    garpos_input.site.delta_center_position.north_sigma = 10
+    garpos_fixed.inversion_params.maxloop = 100
+    garpos_input.site.delta_center_position.east_sigma = 1
+    garpos_input.site.delta_center_position.north_sigma = 1
     garpos_input.site.delta_center_position.up_sigma = 0
 
 
@@ -86,4 +84,14 @@ if __name__ == "__main__":
         fixed=garpos_fixed,
         working_dir=gp_data_dir.parent
     )
+    keep = ~results.shot_data.flag
+    x = results.shot_data[keep].ST.values
+    y = results.shot_data[keep].ResiRange.values
+    colors = ['c','b','g']
+    for mt in results.shot_data[keep].MT.unique():
+        x =results.shot_data[keep][results.shot_data[keep].MT == mt].ST.values
+        y = results.shot_data[keep][results.shot_data[keep].MT == mt].ResiRange.values
+        plt.scatter(x,y,s=2,c=colors.pop())
+    # plt.scatter(x, y,s=0.6)
+    plt.show()
     print(results)
