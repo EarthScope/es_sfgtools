@@ -340,7 +340,7 @@ def qcpin_to_novatelpin(source:QCPinFile,outpath:Path) -> NovatelPinFile:
     time_sorted = np.argsort(time_stamps)
     range_headers = [range_headers[i] for i in time_sorted]
 
-    file_path = outpath/(source.uuid+"_novpin.txt")
+    file_path = outpath/(str(source.uuid)+"_novpin.txt")
     with tempfile.NamedTemporaryFile(mode="w+", delete=True) as temp_file:
         for header in range_headers:
             temp_file.write(header)

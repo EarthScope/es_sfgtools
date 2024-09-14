@@ -38,7 +38,7 @@ if __name__ == "__main__":
     # gnss_df.time = pd.to_datetime(gnss_df.time)
     # imu_df = imu_functions.dfpo00_to_imudf(source=dfo_obj)
     # acoustic_df = acoustic_functions.dev_dfpo00_to_acousticdf(source=dfo_obj)
-    shot_data = acoustic_functions.dev_dfop00_to_shotdata(source=dfo_obj)
+    shot_data = dev_dfop00_to_shotdata(source=dfo_obj)
     garpos_input = dev_garpos_input_from_site_obs(
         site_config=site_config,
         sound_velocity=svp_df,
@@ -94,4 +94,5 @@ if __name__ == "__main__":
         plt.scatter(x,y,s=2,c=colors.pop())
     # plt.scatter(x, y,s=0.6)
     plt.show()
+    plt.savefig(gp_data_dir / "residuals.png")
     print(results)

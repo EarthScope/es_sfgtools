@@ -11,12 +11,12 @@ from typing import List, Dict
 from .constants import GNSS_START_TIME, GNSS_START_TIME_JULIAN, GNSS_START_TIME_JULIAN_BOUNDS, TRIGGER_DELAY_SV2, TRIGGER_DELAY_SV3, ADJ_LEAP
 
 
-@paext.register_check_method(statistics=["TT","ST","RT"])
-def check_travel_time(df,*,TT:str,ST:str,RT:str) -> bool:
-    """Check the travel time of the acoustic data"""
-    # diff between send time (ST) and receive time (RT) should be greater than travel time (TT)
-    # this is because travel time should have the turn around time (TAT) subtracted from it.
-    return all((df[RT] - df[ST]) > df[TT])
+# @paext.register_check_method(statistics=["TT","ST","RT"])
+# def _check_travel_time_(df,*,TT:str,ST:str,RT:str) -> bool:
+#     """Check the travel time of the acoustic data"""
+#     # diff between send time (ST) and receive time (RT) should be greater than travel time (TT)
+#     # this is because travel time should have the turn around time (TAT) subtracted from it.
+#     return all((df[RT] - df[ST]) > df[TT])
    
 class AcousticDataFrame(pa.DataFrameModel):
     """Handles the parsing and validation of acoustic data from a file.

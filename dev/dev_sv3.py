@@ -12,6 +12,8 @@ from collections import defaultdict
 
 data_dir = Path().home() / "Project/SeaFloorGeodesy/Data/NCB1/HR/"
 data_files = [str(x) for x in data_dir.glob("*")]
+qc_dir = Path().home() / "Project/SeaFloorGeodesy/Data/Sample_QC_UNI1"
+qc_files = [str(x) for x in qc_dir.glob("*.pin")]
 catalog_path = Path().home() / "Project/SeaFloorGeodesy/Data/TestSV3"
 catalog_path.mkdir(exist_ok=True)
 pride_path = Path.home() / ".PRIDE_PPPAR_BIN"
@@ -27,14 +29,9 @@ if __name__ == "__main__":
                      station=station,
                      survey=survey,)
 
-    dh.add_data_local(
-        local_filepaths=data_files,
-        discover_file_type=True
-    )
-    dh.process_gnss_data(
-        override=True,
-        show_details=True
-    )
+    #dh.process_sv3_data()
+    dh.add_data_local(qc_files)
+    dh.process_qc_data()
     # dh.process_campaign_data(
     #     override=True,
     #     show_details=True

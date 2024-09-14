@@ -4,9 +4,11 @@ from datetime import datetime,  timedelta
 import os
 import logging
 import json
+import pandera as pa
+from pandera.typing import DataFrame
 
 from ..schemas.files import  DFPO00RawFile,QCPinFile
-
+from ..schemas.observables.observation_schemas import ShotDataFrame
 
 TRIGGER_DELAY_SV3 = 0.13  # SV3 trigger delay in seconds
 logger = logging.getLogger(os.path.basename(__file__))
@@ -69,7 +71,6 @@ class InterrogationData(BaseModel):
 
 
 class RangeData(BaseModel):
-    event_id: int
     head1: float
     pitch1: float
     roll1: float
@@ -87,7 +88,6 @@ class RangeData(BaseModel):
 
     @classmethod
     def from_dfopoo_line(cls, line) -> "RangeData":
-        event_id = line.get("event_id")
         ahrs = line.get("observations").get("AHRS")
         head1 = ahrs.get("h")
         pitch1 = ahrs.get("p")
@@ -111,7 +111,6 @@ class RangeData(BaseModel):
         ).total_seconds()
         ping_time = reply_time_sod - tt
         return cls(
-            event_id=event_id,
             head1=head1,
             pitch1=pitch1,
             roll1=roll1,
@@ -169,9 +168,10 @@ class RangeData(BaseModel):
         )
 
 
-def dev_dfop00_to_shotdata(source: DFPO00RawFile) -> pd.DataFrame:
+def dev_dfop00_to_shotdata(source: DFPO00RawFile) -> DataFrame[ShotDataFrame]:
 
     processed = []
+    interrogation = None
     with open(source.local_path) as f:
         lines = f.readlines()
         for line in lines:
@@ -179,20 +179,22 @@ def dev_dfop00_to_shotdata(source: DFPO00RawFile) -> pd.DataFrame:
             if data.get("event") == "interrogation":
                 interrogation = InterrogationData.from_dfopoo_line(data)
 
-            if data.get("event") == "range":
+            if data.get("event") == "range" and interrogation is not None:
                 range_data = RangeData.from_dfopoo_line(data)
                 processed.append((dict(interrogation) | dict(range_data)))
     return pd.DataFrame(processed)
 
 
-def dev_qcpin_to_shotdata(source:QCPinFile) -> pd.DataFrame:
+def dev_qcpin_to_shotdata(source:QCPinFile) -> DataFrame[ShotDataFrame]:
     processed = []
-    with open(source.local_path) as f:
+    interrogation = None
+    with open(source.local_path,'rb') as f:
         data = json.load(f)
         for key, value in data.items():
             if key == "interrogation":
                 interrogation = InterrogationData.from_qcpin_line(value)
             else:
-                range_data = RangeData.from_qcpin_line(value)
-                processed.append((dict(interrogation) | dict(range_data)))
+                if interrogation is not None:
+                    range_data = RangeData.from_qcpin_line(value)
+                    processed.append((dict(interrogation) | dict(range_data)))
     return pd.DataFrame(processed)

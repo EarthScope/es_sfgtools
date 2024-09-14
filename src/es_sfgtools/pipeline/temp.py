@@ -897,7 +897,6 @@ class DataHandler:
 
     def _process_data_graph_forward(self, 
                             parent_type:FILE_TYPE,
-                            update_timestamp:bool=False,
                             override:bool=False,
                             show_details:bool=False):
 
@@ -908,7 +907,7 @@ class DataHandler:
             parent_type = list(parent_targets.keys())[0]
             for child in parent_targets[parent_type].keys():
 
-                self._process_data_link(target=child,source=[parent_type],override=override,update_timestamp=update_timestamp,show_details=show_details)
+                self._process_data_link(target=child,source=[parent_type],override=override,show_details=show_details)
                 child_targets = TARGET_MAP.get(child,{})
                 if child_targets:
                     processing_queue.append({child:child_targets})
@@ -947,12 +946,12 @@ class DataHandler:
         source = FILE_TYPE(parent)
         self._process_data_link(target=target,source=[source],override=override,show_details=show_details)
 
-    def process_qc_data(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
-        self._process_data_graph_forward(FILE_TYPE.QCPIN,override=override, show_details=show_details,update_timestamp=update_timestamp)
+    def process_qc_data(self, override:bool=False, show_details:bool=False):
+        self._process_data_graph_forward(FILE_TYPE.QCPIN,override=override, show_details=show_details)
     
-    def process_sv3_data(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
-        self._process_data_graph_forward(FILE_TYPE.DFPO00,override=override, show_details=show_details,update_timestamp=update_timestamp)
-        
+    def process_sv3_data(self, override:bool=False, show_details:bool=False):
+        self._process_data_graph_forward(FILE_TYPE.DFPO00,override=override, show_details=show_details,)
+
     def process_campaign_data(
         self, override: bool = False, show_details: bool=False,update_timestamp:bool=False
     ):
@@ -975,9 +974,9 @@ class DataHandler:
         logger.info(response)
         print(response)
 
-    def process_qc_data(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
+    def process_qc_data(self, override:bool=False, show_details:bool=False):
         # perform forward processing of qc pin data
-        self._process_data_graph_forward(FILE_TYPE.QCPIN,override=override, show_details=show_details,update_timestamp=update_timestamp)
+        self._process_data_graph_forward(FILE_TYPE.QCPIN,override=override, show_details=show_details)
 
     # def get_observation_session_data(self,network:str,station:str,survey:str,plot:bool=False) -> pd.DataFrame:
 
