@@ -7,6 +7,7 @@ from sqlalchemy import (
     Float,
     DateTime,
     ForeignKey,
+    Boolean,
     Text,
     JSON,
     Enum
@@ -32,3 +33,30 @@ class Assets(Base):
     timestamp_data_end = Column(DateTime,nullable=True)
     timestamp_created = Column(DateTime,default=datetime.datetime.now())
     parent_id = Column(Integer, ForeignKey("assets.id"),nullable=True)
+
+
+class Session(Base):
+    __tablename__ = "session"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    timestamp_start = Column(DateTime)
+    timestamp_end = Column(DateTime)
+    duration = Column(Float)
+    network = Column(String)
+    station = Column(String)
+    survey = Column(String)
+    parent_type = Column(String) # SV3, SV3,SV3_QC
+    local_path = Column(String, nullable=True, unique=True)
+    is_updated = Column(Boolean, default=False)
+
+class ModelResults(Base):
+    __tablename__ = "model_results"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    session_id = Column(Integer, ForeignKey("session.id"))
+    model_type = Enum("garpos")
+    local_path = Column(String)
+    #delta_center_position = Column(JSON)
+    #rms = Column(Float)
+    #abic = Column(Float)
+    #data_start_time
+    #data_end_time
+    #created_time

@@ -47,9 +47,9 @@ if __name__ == "__main__":
     )
 
     # Filter input observation to be only one day
-    first_day = garpos_input.observation.shot_data.triggertime.min().date()
+    first_day = garpos_input.observation.shot_data.triggerTime.min().date()
     garpos_input.observation.shot_data = garpos_input.observation.shot_data[
-        garpos_input.observation.shot_data.triggertime.dt.date == first_day
+        garpos_input.observation.shot_data.triggerTime.dt.date == first_day
     ]
     garpos_input.observation.shot_data = garpos_input.observation.shot_data[
         garpos_input.observation.shot_data.TT > 0

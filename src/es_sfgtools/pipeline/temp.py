@@ -80,7 +80,7 @@ class DATA_TYPE(Enum):
 DATA_TYPES = [x.value for x in DATA_TYPE]
 
 TARGET_MAP = {
-    FILE_TYPE.QCPIN:{DATA_TYPE.SHOTDATA:proc_funcs.dev_qcpin_to_shotdata,FILE_TYPE.NOVATELPIN:proc_funcs.qcpin_to_novatelpin},
+    FILE_TYPE.QCPIN:{DATA_TYPE.SHOTDATA:proc_funcs.dev_qcpin_to_shotdata},
     FILE_TYPE.NOVATELPIN:{FILE_TYPE.RINEX:proc_funcs.novatel_to_rinex},
     FILE_TYPE.NOVATEL:{FILE_TYPE.RINEX:proc_funcs.novatel_to_rinex, DATA_TYPE.IMU:proc_funcs.novatel_to_imudf},
     FILE_TYPE.RINEX:{FILE_TYPE.KIN:proc_funcs.rinex_to_kin},
@@ -236,7 +236,8 @@ class DataHandler:
                 logger.error(f"File type not recognized for {file}")
                 warnings.warn(f"File type not recognized for {file}", UserWarning)
                 continue
-
+            
+            
             file_data = {
                 "network": self.network,
                 "station": self.station,
