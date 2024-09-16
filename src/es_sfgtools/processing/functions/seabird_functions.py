@@ -27,7 +27,7 @@ def ctd_to_soundvelocity(source:CTDFile) -> DataFrame[SoundVelocityDataFrame]:
 
 
 @pa.check_types
-def seabird_to_soundvelocity(source:SeaBirdFile) -> DataFrame[SoundVelocityDataFrame]:
+def seabird_to_soundvelocity(source:SeaBirdFile, show_details: bool=True) -> DataFrame[SoundVelocityDataFrame]:
     """
     Read the sound velocity profile from a file
     fmt = [ Depth [m], Latitude [deg],Longitude [deg],Temperatures [deg C], Salinity [PSU] ,Speed [m/s]]
@@ -71,4 +71,9 @@ def seabird_to_soundvelocity(source:SeaBirdFile) -> DataFrame[SoundVelocityDataF
                 }
             )
         df = pd.DataFrame(data)
+        response = f"Found SS data down to max depth of {df['depth'].max()} m\n"
+        response += f"SS ranges from {df['speed'].min()} to {df['speed'].max()} m/s"
+        logger.info(response)
+        if show_details:
+            print(response)
     return df

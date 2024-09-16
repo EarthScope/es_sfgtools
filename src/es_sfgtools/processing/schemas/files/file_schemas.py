@@ -166,7 +166,7 @@ class RinexFile(BaseObservable):
             for line in files:
                 if "TIME OF FIRST OBS" in line:
                     start_time = self._get_time(line)
-                    file_date = start_time.strftime("%Y%m%H%m%S")
+                    file_date = start_time.strftime("%Y%m%d%H%M%S")
                     self.timestamp_data_start = start_time
                     self.local_path = f"{self.site}_{file_date}_rinex.{str(start_time.year)[2:]}O"
                 if "TIME OF LAST OBS" in line:

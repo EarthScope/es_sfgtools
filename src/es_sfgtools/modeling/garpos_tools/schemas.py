@@ -237,7 +237,7 @@ class InversionParams(BaseModel):
         default=[0.0, 0.0, 0.0], description="Positional offset for the inversion"
     )
     traveltimescale: float = Field(
-        default=1.0e-5,
+        default=1.0e-4,
         description="Typical measurement error for travel time (= 1.e-4 sec is recommended in 10 kHz carrier)",
     )
     maxloop: int = Field(default=100, description="Maximum loop for iteration")

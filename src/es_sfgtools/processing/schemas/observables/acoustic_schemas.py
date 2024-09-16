@@ -11,20 +11,20 @@ from typing import List, Dict
 from .constants import GNSS_START_TIME, GNSS_START_TIME_JULIAN, GNSS_START_TIME_JULIAN_BOUNDS, TRIGGER_DELAY_SV2, TRIGGER_DELAY_SV3, ADJ_LEAP
 
 
-@paext.register_check_method(statistics=["TT","ST","RT"])
-def check_travel_time(df,*,TT:str,ST:str,RT:str) -> bool:
-    """Check the travel time of the acoustic data"""
-    # diff between send time (ST) and receive time (RT) should be greater than travel time (TT)
-    # this is because travel time should have the turn around time (TAT) subtracted from it.
-    return all((df[RT] - df[ST]) > df[TT])
+# @paext.register_check_method(statistics=["TT","ST","RT"])
+# def _check_travel_time_(df,*,TT:str,ST:str,RT:str) -> bool:
+#     """Check the travel time of the acoustic data"""
+#     # diff between send time (ST) and receive time (RT) should be greater than travel time (TT)
+#     # this is because travel time should have the turn around time (TAT) subtracted from it.
+#     return all((df[RT] - df[ST]) > df[TT])
    
 class AcousticDataFrame(pa.DataFrameModel):
     """Handles the parsing and validation of acoustic data from a file.
     Attributes:
         TransponderID (Series[str]): Unique identifier for the transponder.
         TriggerTime (Series[datetime]): Time when the ping was triggered.
-        PingTime (Series[float]): Time when ping was received (modified Julian day).
-        ReturnTime (Series[float]): Return time in seconds since the start of day (modified Julian day).
+        PingTime (Series[float]): Time when ping was send in seconds of day .
+        ReturnTime (Series[float]): Return time in seconds since the start of day.
         TwoWayTravelTime (Series[float]): Two-way travel time.
         DecibalVoltage (Series[int]): Signal relative to full scale voltage.
         CorrelationScore (Series[int]): Correlation score.
@@ -70,7 +70,7 @@ class AcousticDataFrame(pa.DataFrameModel):
         ge=0, le=100, coerce=True, description="Correlation score"
     )
     SignalToNoise: Series[float] = pa.Field(
-        ge=-100, le=100.0, coerce=True,default=0, nullable=True,description="Signal to noise ratio"
+        ge=0, le=100.0, coerce=True,default=0, nullable=True,description="Signal to noise ratio"
     )
 
     TurnAroundTime: Series[float] = pa.Field(

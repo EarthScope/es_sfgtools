@@ -126,7 +126,7 @@ class PridePPP(BaseModel):
             raise Exception("Error parsing into PridePPP")
 
 
-def get_metadata(site: str):
+def get_metadata(site: str,serialNumber:str="XXXXXXXXXX") -> dict:
     #TODO: these are placeholder values, need to use real metadata
     return {
         "markerName": site,
@@ -175,7 +175,7 @@ def novatel_to_rinex(
 
     assert os.path.exists(binary_path), f"Binary not found: {binary_path}"
 
-    metadata = get_metadata(site)
+    metadata = get_metadata(site,serialNumber=uuid.uuid4().hex[:10])
 
     with tempfile.TemporaryDirectory(dir="/tmp/") as workdir:
         metadata_path = os.path.join(workdir, "metadata.json")
@@ -185,7 +185,7 @@ def novatel_to_rinex(
 
        
         if source.timestamp_data_start is not None: 
-            file_date = source.timestamp_data_start 
+            file_date = source.timestamp_data_start
         else:
             file_date = os.path.splitext(os.path.basename(source.local_path))[0].split("_")[-4]
         if year is None:
@@ -215,7 +215,7 @@ def novatel_to_rinex(
     return rinex_data
 
 
-def rinex_to_kin(source: RinexFile,writedir:Path,pridedir:Path,site="IVB1") -> KinFile:
+def rinex_to_kin(source: RinexFile,writedir:Path,pridedir:Path,site="IVB1", show_details:bool=True) -> KinFile:
     """
     Convert a RINEX file to a position file
     """
@@ -232,7 +232,7 @@ def rinex_to_kin(source: RinexFile,writedir:Path,pridedir:Path,site="IVB1") -> K
         return None
     tag = uuid.uuid4().hex[:4]
     result = subprocess.run(
-        ["pdp3", "-m", "K", "--site",tag , str(source.local_path)],
+        ["pdp3","--loose-edit" ,"-m","K", "--site",tag , str(source.local_path)],
         capture_output=True,
         cwd=str(pridedir),
     )
@@ -254,6 +254,7 @@ def rinex_to_kin(source: RinexFile,writedir:Path,pridedir:Path,site="IVB1") -> K
     file_pattern = f"{source.timestamp_data_start.year}{source.timestamp_data_start.timetuple().tm_yday}"
     tag_files = pridedir.rglob(f"*{tag}*")
     for tag_file in tag_files:
+        #print("tag file:", tag_file)
         if "kin" in tag_file.name:
             kin_file = tag_file
             kin_file_new = str(kin_file).split("_")
@@ -261,7 +262,10 @@ def rinex_to_kin(source: RinexFile,writedir:Path,pridedir:Path,site="IVB1") -> K
             kin_file_new = writedir/kin_file_new
             shutil.move(kin_file,kin_file_new)
             kin_file = KinFile(parent_id=source.uuid,start_time=source.timestamp_data_start,site=site,local_path=kin_file_new)
-            logger.info(f"Converted RINEX file {source.local_path} to kin file {kin_file.local_path}")
+            response = f"Converted RINEX file {source.local_path} to kin file {kin_file.local_path}"
+            logger.info(response)
+            if show_details:
+                print(response)
             break
         tag_file.unlink()
 
@@ -336,7 +340,7 @@ def qcpin_to_novatelpin(source:QCPinFile,outpath:Path) -> NovatelPinFile:
     time_sorted = np.argsort(time_stamps)
     range_headers = [range_headers[i] for i in time_sorted]
 
-    file_path = outpath/(source.uuid+"_novpin.txt")
+    file_path = outpath/(str(source.uuid)+"_novpin.txt")
     with tempfile.NamedTemporaryFile(mode="w+", delete=True) as temp_file:
         for header in range_headers:
             temp_file.write(header)

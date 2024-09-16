@@ -110,27 +110,27 @@ class GNSSData(BaseModel):
         time = datetime.fromtimestamp(dict.get("time").get("common"))
         return cls(Time=time, Latitude=lat, Longitude=lon, HAE=hae, sdx=sdx, sdy=sdy, sdz=sdz)
 
-class RangeData(BaseModel):
-    EventID: int
-    CN:str
-    DBV:float
-    SNR:float
-    XC:float
-    TT:float
-    TAT:float
-    Time:datetime
+# class RangeData(BaseModel):
+#     EventID: int
+#     CN:str
+#     DBV:float
+#     SNR:float
+#     XC:float
+#     TT:float
+#     TAT:float
+#     Time:datetime
 
-    @classmethod
-    def from_dict(cls, dict) -> "RangeData":
-        EventID = dict.get("event_id")
-        CN = dict.get("range").get("cn")
-        DBV = dict.get("range").get("diag").get("dbv")[0]
-        SNR = dict.get("range").get("diag").get("snr")[0]
-        XC = dict.get("range").get("diag").get("xc")[0]
-        TT = dict.get("range").get("range") 
-        TAT = dict.get("range").get("tat")
-        Time = datetime.fromtimestamp(dict.get("time").get("common"))
-        return cls(EventID=EventID,CN=CN,DBV=DBV,SNR=SNR,XC=XC,TT=TT,TAT=TAT,Time=Time)
+#     @classmethod
+#     def from_dict(cls, dict) -> "RangeData":
+#         EventID = dict.get("event_id")
+#         CN = dict.get("range").get("cn")
+#         DBV = dict.get("range").get("diag").get("dbv")[0]
+#         SNR = dict.get("range").get("diag").get("snr")[0]
+#         XC = dict.get("range").get("diag").get("xc")[0]
+#         TT = dict.get("range").get("range") 
+#         TAT = dict.get("range").get("tat")
+#         Time = datetime.fromtimestamp(dict.get("time").get("common"))
+#         return cls(EventID=EventID,CN=CN,DBV=DBV,SNR=SNR,XC=XC,TT=TT,TAT=TAT,Time=Time)
 
 
 class PingData(BaseModel):
@@ -138,13 +138,13 @@ class PingData(BaseModel):
     Represents Ping Data with timestamps and related attributes.
 
     Attributes:
-        TriggerTime (datetime): Time when the ping was triggered (modified Julian day) [float].
-        PingTime (float): Time when the ping was received [float].
+        TriggerTime (datetime): Time when the ping was triggered [datetime].
+        PingTime (float): Time when the ping was received in seconds of the day [s].
         PingOffset (float): Offset time between trigger and ping [s].
         ADJ_LEAP (float): Adjustment for leap time.
         TRIGGER_DELAY (float): Trigger delay time.
     """
-
+    Sequence: Optional[int] = None
     PingTime: float = Field(
         ge=0, le=24*3600, default=None
     )
@@ -187,7 +187,9 @@ class PingData(BaseModel):
         time_delta: float = TRIGGER_DELAY
 
         # 2018-05-30 18:56:14 + 0.1 + 0.0 = 2018-05-30 18:56:14.1
-        ping_time = (trigger_time - datetime(trigger_time.year,trigger_time.month,trigger_time.day)).total_seconds() + time_delta
+        ping_time = (trigger_time - 
+                     datetime(trigger_time.year,trigger_time.month,trigger_time.day)
+                     ).total_seconds() + time_delta
         #ping_time: datetime = trigger_time + timedelta(seconds=time_delta)
     
         #ping_time_julian: float = julian.to_jd(ping_time, "mjd")
@@ -290,9 +292,6 @@ class SimultaneousInterrogation(BaseModel):
 
             # 4470626 -> 4.470626, convert from microseconds to seconds
             travel_time = travel_time / 1000000.000
-
-            # Convert from seconds to fractional days
-            #travel_time_days = travel_time / 86400.000
 
             # "DBV-15" -> -15
             dbv = int(dbv.replace("DBV", ""))
@@ -615,3 +614,64 @@ def qcpin_to_acousticdf(source:QCPinFile) -> Union[None,DataFrame[AcousticDataFr
     df = pd.DataFrame(shot_data)
     return df
 
+
+def dev_dfpo00_to_acousticdf(source: DFPO00RawFile) -> DataFrame[AcousticDataFrame]:
+    processed = []
+    with open(source.local_path) as f:
+        lines = f.readlines()
+        for line in lines:
+            data = json.loads(line)
+            if data.get("event") == "interrogation":
+                sequence = data.get("sequence")
+                ping_time_dt = datetime.fromtimestamp(data.get("time").get("common"))
+                trigger_time_dt = ping_time_dt - timedelta(seconds=TRIGGER_DELAY_SV3)
+                ping_time = (ping_time_dt - datetime(ping_time_dt.year,ping_time_dt.month,ping_time_dt.day)).total_seconds()
+                ping_data = PingData(Sequence=sequence,TriggerTime=trigger_time_dt,PingTime=ping_time)
+
+            if data.get("event") == "range":
+                range_data = data.get("range", None)
+                time_data = data.get("time", None)
+                if range_data and time_data:
+                    id: str = range_data.get("cn", "").replace("IR", "")
+                    travel_time: float = range_data.get("range")  # travel time [s]
+                    tat: float = range_data.get("tat", 0)  # turn around time [ms]
+                    sequence_id = data.get("sequence")
+                    travel_time_true = (
+                        travel_time - (tat / 1000) 
+                    )  # travel time corrected for turn around time and trigger delay
+                    # travel_time_true = travel_time
+                    #travel_time_true *=.957
+                    dbv = range_data.get("diag").get("dbv")[0]
+                    xc = range_data.get("diag").get("xc")[0]
+                    snr = range_data.get("diag").get("snr")[0]
+                    reply_time: float = time_data.get(
+                        "common"
+                    )  # Time since GNSS start [s]
+                    reply_time_dt: datetime = datetime.fromtimestamp(reply_time)
+                    reply_time_sod = (
+                        reply_time_dt
+                        - datetime(
+                            reply_time_dt.year,
+                            reply_time_dt.month,
+                            reply_time_dt.day,
+                        )
+                    ).total_seconds()
+
+                assert sequence_id == ping_data.Sequence, f"Sequence ID mismatch: {sequence_id} != {ping_data.Sequence}"
+
+                processed.append(
+                    {
+                        "TriggerTime": trigger_time_dt,
+                        "TransponderID": id,
+                        "TwoWayTravelTime": travel_time_true,
+                        "ReturnTime": reply_time_sod,
+                        "DecibalVoltage": dbv,
+                        "CorrelationScore": xc,
+                        "PingTime": ping_data.PingTime,
+                        "SignalToNoise": snr,
+                        "TurnAroundTime": tat,
+                    }
+                )
+    df = pd.DataFrame(processed)
+    df = df[df["SignalToNoise"]>0]
+    return AcousticDataFrame.validate(df, lazy=True)
