@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import List,Callable,Union,Generator,Tuple
+from typing import List,Callable,Union,Generator,Tuple,LiteralString,Optional
 import pandas as pd
 import datetime
 import logging
@@ -30,7 +30,7 @@ from es_sfgtools.processing import functions as proc_funcs
 from es_sfgtools.processing import schemas as proc_schemas
 
 import sqlalchemy as sa
-from .database import Base,Assets
+from .database import Base,Assets,Session,ModelResults
 
 logger = logging.getLogger(__name__)
 
@@ -979,6 +979,85 @@ class DataHandler:
         # perform forward processing of qc pin data
         self._process_data_graph_forward(FILE_TYPE.QCPIN,override=override, show_details=show_details)
 
+    def dev_group_session_data(self,
+                           source:str= FILE_TYPE.DFPO00.value,
+                           timespan:str="DAY",
+                           ) -> dict:
+        """
+        Group the session data by timestamp.
+
+        Args:
+            timespan (str): The timespan to group the data by.
+            show_details (bool): Log verbose output.
+
+        Returns:
+            dict: The grouped data.
+        """
+        assert source in [FILE_TYPE.DFPO00.value,FILE_TYPE.QCPIN.value], "Source must be either DFPO00 or QCPIN"
+        # Get all available shotdata from the assets table
+        with self.engine.begin() as conn:
+            data = conn.execute(
+                sa.select(Assets).where(
+                    Assets.type.is_(DATA_TYPE.SHOTDATA.value),
+                    Assets.network.is_(self.network),
+                    Assets.station.is_(self.station),
+                    Assets.survey.is_(self.survey),
+                    Assets.local_path.isnot(None),
+                )
+            ).fetchall()
+            parent_ids = [row.parent_id for row in data]
+            parent_types = conn.execute(
+                sa.select(Assets.id).where(
+                    Assets.id.in_(parent_ids),
+                    Assets.type.is_(source),
+                    Assets.network.is_(self.network),
+                    Assets.station.is_(self.station),
+                    Assets.survey.is_(self.survey),
+                    Assets.local_path.isnot(None),
+                )
+            ).fetchall()
+            data = [x for x in data if x.parent_id in list([x.id for x in parent_types])]
+        # get distinct days that each shotdata spans
+        dates = []
+        data = pd.DataFrame()
+        for row in data:
+            row = dict(row)
+            dates.append(datetime.datetime.fromisoformat(row["timestamp_data_start"]).date())
+            dates.append(datetime.datetime.fromisoformat(row["timestamp_data_end"]).date())
+            try:
+                df = proc_schemas.ShotDataFrame.validate(pd.read_csv(local_path=row["local_path"]),lazy=True)
+                data = pd.concat([data,df])
+            except Exception as e:
+                logger.error(f"Error reading {row['local_path']} {e}")
+                continue
+        dates = list(set(dates))
+        dates.sort()
+        for date in dates:
+            daily_df = data[data.triggerTime.date()==pd.Timestamp(date)]
+            if not daily_df.empty:
+                local_path:Path = self.proc_dir / f"{self.network}_{self.station}_{self.survey}_{str(date)}.csv"
+                timestamp_data_start = daily_df.triggerTime.min()
+                timestamp_data_end = daily_df.triggerTime.max()
+                duration = timestamp_data_end - timestamp_data_start
+                parent_type = source
+                with self.engine.begin() as conn:
+                    conn.execute(
+                        sa.Insert(Session).values(
+                            network=self.network,
+                            station=self.station,
+                            survey=self.survey,
+                            local_path=local_path,
+                            type=parent_type,
+                            timestamp_data_start=timestamp_data_start,
+                            timestamp_data_end=timestamp_data_end,
+                            duration=duration,
+                        )
+                    )
+
+
+
+
+        
     # def get_observation_session_data(self,network:str,station:str,survey:str,plot:bool=False) -> pd.DataFrame:
 
     #     time_groups = self.catalog_data[self.catalog_data.type.isin(['gnss','acoustic','imu'])].groupby('timestamp')
