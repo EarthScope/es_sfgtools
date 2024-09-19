@@ -2,26 +2,81 @@ import sys
 from pathlib import Path
 import json
 import es_sfgtools
+import logging
+logging.basicConfig(level=logging.INFO,filename="dev.log",filemode="w")
+from es_sfgtools.pipeline import DataHandler
+from es_sfgtools.modeling.garpos_tools import merge_to_shotdata
+import os
+import pandas as pd
+from collections import defaultdict
 
-from es_sfgtools.processing.schemas.files import QCPinFile,NovatelPinFile
-from es_sfgtools.processing.functions.acoustic_functions import qcpin_to_acousticdf
-from es_sfgtools.processing.functions.gnss_functions import qcpin_to_novatelpin,novatelpin_to_rinex
-from es_sfgtools.processing.functions.imu_functions import qcpin_to_imudf
-dir = Path("/Users/franklyndunbar/Project/SeaFloorGeodesy/es_sfgtools/dev/")
+data_dir = Path().home() / "Project/SeaFloorGeodesy/Data/NCB1/HR/"
+data_files = [str(x) for x in data_dir.glob("*.raw") if "DFOP00" in str(x)]
+qc_dir = Path().home() / "Project/SeaFloorGeodesy/Data/Sample_QC_UNI1"
+qc_files = [str(x) for x in qc_dir.glob("*.pin") if "pin" in str(x)]
+catalog_path = Path().home() / "Project/SeaFloorGeodesy/Data/TestSV3"
+catalog_path.mkdir(exist_ok=True)
+pride_path = Path.home() / ".PRIDE_PPPAR_BIN"
+# add to path
+os.environ["PATH"] += os.pathsep + str(pride_path)
+if __name__ == "__main__":
 
-fp = dir/"329653-003_20240806_042015_000296_SCRIPPS.pin"
+    network = "NCB"
+    station = "NCB1"
+    survey = "TestSV3"
+    dh = DataHandler(data_dir=catalog_path,
+                     network=network,
+                     station=station,
+                     survey=survey,)
 
-qcnov_path = dir/"qc_nov.text"
+    #dh.process_sv3_data()
+    # dh.add_data_local(qc_files)
+    # dh.add_data_local(data_files,discover_file_type=True)
+    # dh.process_sv3_data()
+    # dh.process_qc_data(override=False,show_details=True)
+    # dh.process_campaign_data(
+    #     override=True,
+    #     show_details=True
+    # )
+    print(dh.get_dtype_counts())
+    dh.dev_group_session_data(override=True)
 
-qcpin = QCPinFile(location=fp)
+    # survey_entries = dh.query_catalog(
+    #     network=network,
+    #     station=station,
+    #     survey=survey,
+    #     type=["gnss", "acoustic", "imu"]
+    # )
 
-df = qcpin_to_acousticdf(qcpin)
+    # entries_grouped = dh.group_observation_session_data(
+    #     data=survey_entries,
+    #     timespan="DAY"
+    # )
 
-print(df.head())
+    # processed = {}
+    # dtypes = ["gnss", "acoustic", "imu"]
+    # for key, value in entries_grouped.items():
+    #     merged = {}
+    #     for dtype in dtypes:
+    #         for x in value[dtype]:
+    #             try:
+    #                 merged[dtype] = pd.concat([merged.get(dtype,pd.DataFrame()), pd.read_csv(x)])
+    #             except:
+    #                 pass
+    #     if list(merged.keys()) == dtypes:
+    #         processed[key] = merged
 
-imu_df = qcpin_to_imudf(qcpin)
+    # path_dict = defaultdict(lambda: defaultdict(str))
+    # for ts,data in processed.items():
+    #     for dtype,df in data.items():
+    #         ts = ts.replace(":","-").replace(" ","-")
+    #         path_name = f"{ts}_{dtype}.csv"
+    #         path = dh.garpos_dir / path_name
+    #         df.to_csv(path)
+    #         path_dict[ts][dtype] = str(path)
 
-print(imu_df.head())
-#novatel = qcpin_to_novatelpin(qcpin,outpath=qcnov_path)
-# novatel = NovatelPinFile(location=qcnov_path)
-# rinex = novatelpin_to_rinex(novatel,site="SEM1",year=2024)
+    # cat_path = dh.garpos_dir / "prep_NCB1_catalog.json"
+    # with open(cat_path, "w") as f:
+    #     json.dump(path_dict, f)
+
+    # print(f"Data processed and saved to {str(cat_path)}")

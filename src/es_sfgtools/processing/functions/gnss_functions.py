@@ -16,6 +16,8 @@ import shutil
 import json
 import platform
 from pathlib import Path
+import numpy as np
+import uuid 
 
 from ..schemas.files.file_schemas import NovatelFile,RinexFile,KinFile,Novatel770File,DFPO00RawFile,QCPinFile,NovatelPinFile
 from ..schemas.observables import PositionDataFrame
@@ -80,7 +82,7 @@ class PridePPP(BaseModel):
     number_of_satellites: int = Field(
         default=1, ge=0, le=125
     )  # Average Number of available satellites
-    pdop: float = Field(default=0, ge=0, le=100)  # Position Dilution of Precision
+    pdop: float = Field(default=0, ge=0, le=1000)  # Position Dilution of Precision
     time: Optional[datetime] = None
 
     class Config:
@@ -88,7 +90,7 @@ class PridePPP(BaseModel):
 
     @model_validator(mode="before")
     def validate_time(cls, values):
-        values["pdop"] = float(values["pdop"])
+        values["pdop"] = float(values.get("pdop", 0.0))
         return values
     
     @model_validator(mode="after")
@@ -124,7 +126,7 @@ class PridePPP(BaseModel):
             raise Exception("Error parsing into PridePPP")
 
 
-def get_metadata(site: str):
+def get_metadata(site: str,serialNumber:str="XXXXXXXXXX") -> dict:
     #TODO: these are placeholder values, need to use real metadata
     return {
         "markerName": site,
@@ -149,7 +151,7 @@ def get_metadata(site: str):
     }
 
 
-def _novatel_to_rinex(
+def novatel_to_rinex(
     source:Union[NovatelFile,Novatel770File,NovatelPinFile],site: str, year: str = None,show_details: bool=False,**kwargs
 ) -> RinexFile:
     """
@@ -165,26 +167,31 @@ def _novatel_to_rinex(
         raise ValueError(f"Unsupported platform: {system}")
     if arch not in ["amd64", "arm64"]:
         raise ValueError(f"Unsupported architecture: {arch}")
-    
-    if isinstance(source,NovatelFile):
+
+    if type(source) in [NovatelFile,NovatelPinFile]:
         binary_path = RINEX_BIN_PATH[f"{system}_{arch}"]
     else:
         binary_path = RINEX_BIN_PATH_BINARY[f"{system}_{arch}"]
 
     assert os.path.exists(binary_path), f"Binary not found: {binary_path}"
 
-    metadata = get_metadata(site)
+    metadata = get_metadata(site,serialNumber=uuid.uuid4().hex[:10])
 
     with tempfile.TemporaryDirectory(dir="/tmp/") as workdir:
         metadata_path = os.path.join(workdir, "metadata.json")
         with open(metadata_path, "w") as f:
             json_object = json.dumps(metadata, indent=4)
             f.write(json_object)
-        file_date = os.path.splitext(os.path.basename(source.location))[0].split("_")[1]
+
+       
+        if source.timestamp_data_start is not None: 
+            file_date = source.timestamp_data_start
+        else:
+            file_date = os.path.splitext(os.path.basename(source.local_path))[0].split("_")[-4]
         if year is None:
             year = file_date[2:4]
         rinex_outfile = os.path.join(workdir, f"{site}_{file_date}_rinex.{year}O")
-        file_tmp_dest = shutil.copy(source.location, os.path.join(workdir, os.path.basename(source.location)))
+        file_tmp_dest = shutil.copy(source.local_path, os.path.join(workdir, os.path.basename(source.local_path)))
 
         cmd = [
             str(binary_path),
@@ -198,64 +205,71 @@ def _novatel_to_rinex(
         if show_details:
             # logger.info("showing details")
             if len(result.stdout.decode()):
-                print(f"{os.path.basename(source.location)}: {result.stdout.decode().rstrip()}")
-            #print(result.stderr.decode())
+                print(f"{os.path.basename(source.local_path)}: {result.stdout.decode().rstrip()}")
+            # print(result.stderr.decode())
         logger.info(f"Converted Novatel files to RINEX: {rinex_outfile}")
-        rinex_data = RinexFile(parent_id=source.uuid)
-        rinex_data.read(rinex_outfile)
-        
-       
+        rinex_data = RinexFile(parent_id=source.uuid,location=rinex_outfile,site=site)
+        rinex_data.read(rinex_outfile) #load into mmap 
+        rinex_data.get_meta()
+
     return rinex_data
 
-def novatel_to_rinex(source:NovatelFile, site: str, year: str = None,outdir:str=None,show_details: bool=False,**kwargs) -> RinexFile:
-    assert isinstance(source, NovatelFile), "Invalid source file type"
-    rinex = _novatel_to_rinex(source,site,year,show_details=show_details,**kwargs)
-    if outdir:
-        rinex.write(outdir)
-    return rinex
 
-def novatel770_to_rinex(source:Novatel770File, site: str, year: str = None,outdir:str=None,show_details: bool=False,**kwargs) -> RinexFile:
-    assert isinstance(source, Novatel770File), "Invalid source file type"
-    rinex = _novatel_to_rinex(source,site,year,show_details=show_details,**kwargs)
-    if outdir:
-        rinex.write(outdir)
-    return rinex
-
-def rinex_to_kin(source: RinexFile, site: str = "IVB1") -> KinFile:
+def rinex_to_kin(source: RinexFile,writedir:Path,pridedir:Path,site="IVB1", show_details:bool=True) -> KinFile:
     """
     Convert a RINEX file to a position file
     """
     assert isinstance(source, RinexFile), "Invalid source file type"
 
-    logger.info(f"Converting RINEX file {source.location} to kin file")
+    logger.info(f"Converting RINEX file {source.local_path} to kin file")
 
     out = []
 
-    with tempfile.TemporaryDirectory(dir="/tmp/",) as tmpoutdir:
+    # simul link the rinex file to the same file with file_uuid attached at the front
 
-        if not os.path.exists(source.location):
-            logger.error(f"RINEX file {source.location} not found")
-            return None
-        result = subprocess.run(
-            ["pdp3", "-m", "K", "--site", site, source.location],
-            capture_output=True,
-            cwd=tmpoutdir,
-        )
+    if not os.path.exists(source.local_path):
+        logger.error(f"RINEX file {source.local_path} not found")
+        return None
+    tag = uuid.uuid4().hex[:4]
+    result = subprocess.run(
+        ["pdp3","--loose-edit" ,"-m","K", "--site",tag , str(source.local_path)],
+        capture_output=True,
+        cwd=str(pridedir),
+    )
 
-    
-        if result.stderr:
-            logger.error(result.stderr)
-  
+    if result.stderr:
+        logger.error(result.stderr)
+    if pd.isna(source.timestamp_data_start):
+        ts = str(source.local_path.name).split("_")[1]
+        year = ts[:4]
+        ts = ts[4:]
+        month = ts[:2]
+        ts = ts[2:]
+        day= max(1,int(ts[:2]))
+        ts = ts[2:]
+        hour = ts[-4:-2]
+        minute = ts[-2:]
+        source.timestamp_data_start = datetime(year=int(year),month=int(month),day=int(day),hour=int(hour))
 
-        for root, _, files in os.walk(tmpoutdir):
-            for file in files:
-                if "kin_" in file:
-                    source_path = os.path.join(root, file)
-                    kin_file = KinFile(parent_id=source.uuid)
-                    kin_file.read(source_path)
-                    kin_file.location = os.path.basename(source_path)
-                    logger.info(f"Converted RINEX file {source.location} to kin file {kin_file.location}")
-                    break
+    file_pattern = f"{source.timestamp_data_start.year}{source.timestamp_data_start.timetuple().tm_yday}"
+    tag_files = pridedir.rglob(f"*{tag}*")
+    for tag_file in tag_files:
+        #print("tag file:", tag_file)
+        if "kin" in tag_file.name:
+            kin_file = tag_file
+            kin_file_new = str(kin_file).split("_")
+            kin_file_new = "_".join(kin_file_new)
+            kin_file_new = writedir/kin_file_new
+            shutil.move(kin_file,kin_file_new)
+            kin_file = KinFile(parent_id=source.uuid,start_time=source.timestamp_data_start,site=site,local_path=kin_file_new)
+            response = f"Converted RINEX file {source.local_path} to kin file {kin_file.local_path}"
+            logger.info(response)
+            if show_details:
+                print(response)
+            break
+        tag_file.unlink()
+
+
     try:
         return kin_file
     except:
@@ -263,7 +277,7 @@ def rinex_to_kin(source: RinexFile, site: str = "IVB1") -> KinFile:
 
 
 @pa.check_types        
-def kin_to_gnssdf(source:KinFile) -> DataFrame[PositionDataFrame]:
+def kin_to_gnssdf(source:KinFile) -> Union[DataFrame[PositionDataFrame],None]:
     """
     Create an PositionDataFrame from a kin file from PRIDE-PPP
 
@@ -274,13 +288,17 @@ def kin_to_gnssdf(source:KinFile) -> DataFrame[PositionDataFrame]:
         dataframe (PositionDataFrame): An instance of the class.
     """
 
-    with open(source.location, "r") as file:
+    with open(source.local_path, "r") as file:
         lines = file.readlines()
 
     end_header_index = next((i for i, line in enumerate(lines) if line.strip() == "END OF HEADER"), None)
 
     # Read data from lines after the end of the header
     data = []
+    if end_header_index is None:
+        error_msg = f"GNSS: No header found in FILE {source.local_path}"
+        logger.error(error_msg)
+        return None
     for idx,line in enumerate(lines[end_header_index + 2:]):
         split_line = line.strip().split()
         selected_columns = split_line[:9] + [split_line[-1]] # Ignore varying satellite numbers
@@ -288,36 +306,41 @@ def kin_to_gnssdf(source:KinFile) -> DataFrame[PositionDataFrame]:
             ppp : Union[PridePPP, ValidationError] = PridePPP.from_kin_file(selected_columns)
             data.append(ppp)
         except:
-            error_msg = f"Error parsing into PridePPP from line {idx} in FILE {source.location} \n"
+            error_msg = f"Error parsing into PridePPP from line {idx} in FILE {source.local_path} \n"
             error_msg += f"Line: {line}"
             logger.error(error_msg)
             pass
 
     # Check if data is empty
     if not data:
-        error_msg = f"GNSS: No data found in FILE {source.location}"
+        error_msg = f"GNSS: No data found in FILE {source.local_path}"
         logger.error(error_msg)
         return None
     dataframe = pd.DataFrame([dict(pride_ppp) for pride_ppp in data])
     #dataframe.drop(columns=["modified_julian_date", "second_of_day"], inplace=True)
 
-    log_response = f"GNSS Parser: {dataframe.shape[0]} shots from FILE {source.location}"
+    log_response = f"GNSS Parser: {dataframe.shape[0]} shots from FILE {source.local_path}"
     logger.info(log_response)
     dataframe["time"] = dataframe["time"].dt.tz_localize("UTC")
     return dataframe
 
 def qcpin_to_novatelpin(source:QCPinFile,outpath:Path) -> NovatelPinFile:
-    with open(source.location) as file:
+    with open(source.local_path) as file:
         pin_data = json.load(file)
 
     range_headers = []
+    time_stamps = []
 
-    for data in pin_data.values():   
-        range_headers.append(
-            data.get("observations").get("NOV_RANGE")
-        )
+    for data in pin_data.values():
+        range_header = data.get("observations").get("NOV_RANGE")
+        time_header = data.get("observations").get("NOV_INS").get("time").get("common")
+        range_headers.append(range_header)
+        time_stamps.append(time_header)
 
-    file_path = outpath/(source.uuid+"_novpin.txt")
+    time_sorted = np.argsort(time_stamps)
+    range_headers = [range_headers[i] for i in time_sorted]
+
+    file_path = outpath/(str(source.uuid)+"_novpin.txt")
     with tempfile.NamedTemporaryFile(mode="w+", delete=True) as temp_file:
         for header in range_headers:
             temp_file.write(header)
@@ -328,11 +351,3 @@ def qcpin_to_novatelpin(source:QCPinFile,outpath:Path) -> NovatelPinFile:
 
     
     return novatel_pin
-
-def novatelpin_to_rinex(source:NovatelPinFile, site: str, year: str = None,outdir:str=None,show_details: bool=False,**kwargs) -> RinexFile:
-    raise NotImplementedError("Conversion from Novatel Pin to RINEX is not yet implemented")
-    # assert isinstance(source, NovatelPinFile), "Invalid source file type"
-    # rinex = _novatel_to_rinex(source,site,year,show_details=show_details,**kwargs)
-    # if outdir:
-    #     rinex.write(outdir)
-    # return rinex

@@ -68,13 +68,13 @@ class INSPVA(BaseModel):
 
 @pa.check_types
 def novatel_to_imudf(source:NovatelFile) -> DataFrame[IMUDataFrame]:
-    if not os.path.exists(source.location):
-        raise FileNotFoundError(f"IMU Parsing: The file {source.location} does not exist.")
+    if not os.path.exists(source.local_path):
+        raise FileNotFoundError(f"IMU Parsing: The file {source.local_path} does not exist.")
 
     inspvaa_pattern = re.compile("#INSPVAA,")
     data_list = []
     line_number = 0
-    with open(source.location) as inspva_file:
+    with open(source.local_path) as inspva_file:
         while True:
             try:
                 line = inspva_file.readline()
@@ -119,7 +119,7 @@ def dfpo00_to_imudf(source:DFPO00RawFile) -> DataFrame[IMUDataFrame]:
     Create an IMUDataFrame from a DFPO00 file
     """
     imu_data = []
-    with open(source.location) as f:
+    with open(source.local_path) as f:
         lines = f.readlines()
         for line in lines:
             data = json.loads(line)
@@ -148,7 +148,7 @@ def dfpo00_to_imudf(source:DFPO00RawFile) -> DataFrame[IMUDataFrame]:
 
 @pa.check_types
 def qcpin_to_imudf(source:QCPinFile) -> Union[None,DataFrame[IMUDataFrame]]:
-    with open(source.location) as file:
+    with open(source.local_path) as file:
         pin_data = json.load(file)
 
     imu_data_entries = []

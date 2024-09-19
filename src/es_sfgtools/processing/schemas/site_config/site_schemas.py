@@ -1,6 +1,11 @@
 from pydantic import BaseModel
-from typing import Optional,List
+from typing import Optional,List,Union
+from pathlib import Path
 import numpy as np
+import datetime
+import logging
+
+logger = logging.getLogger(__name__)
 
 class PositionLLH(BaseModel):
     latitude: float
@@ -38,16 +43,8 @@ class Transponder(BaseModel):
     tat_offset: Optional[float] = None
     name: Optional[str] = None
     id: Optional[str] = None
-    campaign_id: Optional[str] = None
-    site_id: Optional[str] = None
     delta_center_position: Optional[PositionENU] = None
 
-class SiteConfig(BaseModel):
-    position_llh: PositionLLH
-    transponders: Optional[List[Transponder]]
-    name: Optional[str] = None
-    id: Optional[str] = None
-    campaign_id: Optional[str] = None
 
 class ATDOffset(BaseModel):
     forward: float
@@ -56,3 +53,12 @@ class ATDOffset(BaseModel):
     def get_offset(self) -> List[float]:
         return [self.forward, self.rightward, self.downward]
 
+
+class SiteConfig(BaseModel):
+    name: Optional[str] = None
+    campaign: Optional[str] = None
+    date: Optional[datetime.datetime] = None
+    position_llh: PositionLLH
+    transponders: Optional[List[Transponder]]
+    sound_velocity_path: Optional[str] = None
+    atd_offset: Optional[ATDOffset] = None

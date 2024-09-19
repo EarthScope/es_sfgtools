@@ -237,7 +237,7 @@ class InversionParams(BaseModel):
         default=[0.0, 0.0, 0.0], description="Positional offset for the inversion"
     )
     traveltimescale: float = Field(
-        default=1.0e-5,
+        default=1.0e-4,
         description="Typical measurement error for travel time (= 1.e-4 sec is recommended in 10 kHz carrier)",
     )
     maxloop: int = Field(default=100, description="Maximum loop for iteration")
@@ -347,3 +347,17 @@ class GarposResults(BaseModel):
     delta_center_position: PositionENU
     transponders: list[Transponder]
     shot_data: DataFrame[GarposObservationOutput]
+
+    @field_serializer("shot_data")
+    def serialize_shot_data(self, value):
+        return value.to_json(orient="records")
+    
+    @field_validator("shot_data", mode="before")
+    def validate_shot_data(cls, value):
+        try:
+            if isinstance(value, str):
+                value = pd.read_json(value)
+
+            return GarposObservationOutput.validate(value, lazy=True)
+        except ValidationError as e:
+            raise ValueError(f"Invalid shot data: {e}")
