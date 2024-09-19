@@ -965,6 +965,68 @@ def sitedata_to_garpossite(site_config:SiteConfig,atd_offset:ATDOffset) -> Garpo
 
     return garpos_site
 
+def rectify_shotdata_site(
+        site_config:SiteConfig,
+        shot_data:DataFrame[ObservationData]) -> Tuple[SiteConfig,DataFrame[ShotDataFrame]]:
+    
+    site_config = site_config.copy() # avoid aliasing
+    coord_transformer = CoordTransformer(site_config.position_llh)
+    e0,n0,u0 = coord_transformer.ECEF2ENU_vec(shot_data.east0.to_numpy(),shot_data.north0.to_numpy(),shot_data.up0.to_numpy())
+    e1,n1,u1 = coord_transformer.ECEF2ENU_vec(shot_data.east1.to_numpy(),shot_data.north1.to_numpy(),shot_data.up1.to_numpy())
+    shot_data["ant_e0"] = e0
+    shot_data["ant_n0"] = n0
+    shot_data["ant_u0"] = u0
+    shot_data["ant_e1"] = e1
+    shot_data["ant_n1"] = n1
+    shot_data["ant_u1"] = u1
+    shot_data["SET"] = "S01"
+    shot_data["LN"] = "L01"
+    rename_dict = {
+        "trigger_time":"triggertime",
+        "hae0":"height",
+        "pingTime":"ST",
+        "returnTime":"RT",
+        "tt":"TT",
+        "transponderID":"MT",
+    }
+    shot_data = (
+        shot_data.rename(columns=rename_dict)
+        .loc[
+            :,
+            [
+                "triggerTime",
+                "MT",
+                "ST",
+                "RT",
+                "TT",
+                "ant_e0",
+                "ant_n0",
+                "ant_u0",
+                "head0",
+                "pitch0",
+                "roll0",
+                "ant_e1",
+                "ant_n1",
+                "ant_u1",
+                "head1",
+                "pitch1",
+                "roll1",
+            ],
+        ]
+    )
+    for transponder in site_config.transponders:
+        lat, lon, hgt = (
+            transponder.position_llh.latitude,
+            transponder.position_llh.longitude,
+            transponder.position_llh.height,
+        )
+
+        e, n, u = coord_transformer.LLH2ENU(lat, lon, hgt)
+
+        transponder.position_enu = PositionENU(east=e, north=n, up=u)
+        transponder.id = "M" + str(transponder.id) if str(transponder.id)[0].isdigit() else str(transponder.id)
+
+    return site_config,ShotDataFrame.validate(shot_data,lazy=True).sort_values("triggerTime")
 
 def dev_garpos_input_from_site_obs(
     site_config:SiteConfig,
@@ -1112,34 +1174,71 @@ def process_garpos_results(results:GarposInput) -> GarposResults:
 
     return results_out
 
-def main_generic(
+def dev_main(
     site_config:SiteConfig,
     hyper_params:InversionParams,
     shot_data:Union[str,Path],
+    working_dir:Path=Path("/tmp/garpos/")
 ) -> GarposResults:
-    
+
+    working_dir.mkdir(exist_ok=True)
     try:
         shot_data = ShotDataFrame.validate(pd.read_csv(shot_data))
     except Exception as e:
         logging.error(f"ShotDataFrame - Error reading shot data: {e}")
         return None
-    
-    try:
-        sound
-    
-    garpos_input = dev_garpos_input_from_site_obs(
-        site_config=site_config,
-        shot_data=shot_data,
+    # Add "M" to transponder ids if they are numbers
 
-        
-    garpos_input = dev_garpos_input_from_site_obs(
-        site_config,atd_offset,shot_data,sound_velocity
+    # process the shot data
+    site_config_rectified,shot_data_rectified = rectify_shotdata(site_config,shot_data)
+    shot_data_rectified_path = working_dir / "rectified_shot_data.csv"
+    shot_data_rectified.to_csv(shot_data_rectified_path,index=False)
+
+    site_config.delta_center_position.east_sigma = hyper_params.delta_center_position_east_sigma
+    site_config.delta_center_position.north_sigma = hyper_params.delta_center_position_north_sigma
+    site_config.delta_center_position.up_sigma = hyper_params.delta_center_position_up_sigma
+
+    garpos_site = GarposSite(
+        name=site_config.name,
+        center_llh=site_config.position_llh,
+        center_enu=site_config.center_enu,
+        atd_offset=site_config.atd_offset,
+        transponders=site_config.transponders,
+        delta_center_position=site_config.delta_center_position,
     )
-    garpos_input = garpos_input_from_site_obs(
-        site_config,atd_offset,gnss_data,imu_data,acoustic_data,sound_velocity
+    garpos_observation = GarposObservation(
+        campaign=site_config.campaign,
+        date_utc=site_config.date_utc,
+        date_mjd=julian.to_jd(site_config.date_utc, fmt="jd"),
+        ref_frame="ITRF",
+        shot_data=shot_data_rectified,
+        sound_speed_data=site_config.sound_speed_data)
+
+    garpos_input = GarposInput(
+        observation=garpos_observation,
+        site=garpos_site
     )
-    return main(garpos_input,GarposFixed())
-)
+    garpos_fixed = GarposFixed()
+    garpos_fixed.inversion_params = hyper_params
+
+    working_dir.mkdir(exist_ok=True)
+
+    results_dir = working_dir / "results"
+    results_dir.mkdir(exist_ok=True)
+
+    input_path = working_dir / "observation.ini"
+    fixed_path = working_dir / "settings.ini"
+
+    garposinput_to_datafile(input, input_path)
+    garposfixed_to_datafile(fixed, fixed_path)
+
+    rf = drive_garpos(str(input_path), str(fixed_path), str(results_dir), "test", 13)
+
+    results = datafile_to_garposinput(rf)
+    proc_results = process_garpos_results(results)
+
+    return proc_results
+
 
 def main(
     input: GarposInput, fixed: GarposFixed,working_dir:Path=Path("/tmp/garpos/")
