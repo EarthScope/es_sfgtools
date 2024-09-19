@@ -11,7 +11,7 @@ import pandas as pd
 from collections import defaultdict
 
 data_dir = Path().home() / "Project/SeaFloorGeodesy/Data/NCB1/HR/"
-data_files = [str(x) for x in data_dir.glob("*")]
+data_files = [str(x) for x in data_dir.glob("*.raw") if "DFOP00" in str(x)]
 qc_dir = Path().home() / "Project/SeaFloorGeodesy/Data/Sample_QC_UNI1"
 qc_files = [str(x) for x in qc_dir.glob("*.pin") if "pin" in str(x)]
 catalog_path = Path().home() / "Project/SeaFloorGeodesy/Data/TestSV3"
@@ -30,15 +30,16 @@ if __name__ == "__main__":
                      survey=survey,)
 
     #dh.process_sv3_data()
-    dh.add_data_local(qc_files)
-    #dh.add_data_local(data_files)
-    #dh.process_sv3_data()
-    dh.process_qc_data(override=True,show_details=True)
+    # dh.add_data_local(qc_files)
+    # dh.add_data_local(data_files,discover_file_type=True)
+    # dh.process_sv3_data()
+    # dh.process_qc_data(override=False,show_details=True)
     # dh.process_campaign_data(
     #     override=True,
     #     show_details=True
     # )
     print(dh.get_dtype_counts())
+    dh.dev_group_session_data(override=True)
 
     # survey_entries = dh.query_catalog(
     #     network=network,

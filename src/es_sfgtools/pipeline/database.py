@@ -40,7 +40,6 @@ class Session(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     timestamp_start = Column(DateTime)
     timestamp_end = Column(DateTime)
-    duration = Column(Float)
     network = Column(String)
     station = Column(String)
     survey = Column(String)
@@ -49,11 +48,17 @@ class Session(Base):
     is_updated = Column(Boolean, default=False)
 
 class ModelResults(Base):
-    __tablename__ = "model_results"
+    __tablename__ = "modelresults"
     id = Column(Integer, primary_key=True, autoincrement=True)
     session_id = Column(Integer, ForeignKey("session.id"))
-    model_type = Enum("garpos")
-    local_path = Column(String)
+    session_parent_type = Column(String, ForeignKey("session.parent_type"))
+    session_local_path = Column(String,ForeignKey("session.local_path"))
+    sound_velocity_path = Column(String, ForeignKey("assets.local_path"))
+    hyper_params = Column(JSON)
+    rms_tt = Column(Float)
+    abic = Column(Float)
+    delta_center_position = Column(JSON)
+    
     #delta_center_position = Column(JSON)
     #rms = Column(Float)
     #abic = Column(Float)

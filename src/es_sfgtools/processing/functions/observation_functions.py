@@ -273,7 +273,11 @@ def dev_qcpin_to_shotdata(source:QCPinFile) -> DataFrame[ShotDataFrame]:
     processed = []
     interrogation = None
     with open(source.local_path,'r') as f:
-        data = json.load(f)
+        try:
+            data = json.load(f)
+        except json.decoder.JSONDecodeError as e:
+            logger.error(f"Error reading {source.local_path} {e}")
+            return None
         for key, value in data.items():
             if key == "interrogation":
                 interrogation = InterrogationData.from_qcpin_line(value)
