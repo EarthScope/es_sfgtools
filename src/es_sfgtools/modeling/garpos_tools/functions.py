@@ -18,7 +18,7 @@ from sklearn.ensemble import RandomForestRegressor
 from scipy.interpolate import RBFInterpolator,CubicSpline
 from functools import partial
 
-from es_sfgtools.processing.schemas.observables import AcousticDataFrame, IMUDataFrame, PositionDataFrame, SoundVelocityDataFrame
+from es_sfgtools.processing.schemas.observables import AcousticDataFrame, IMUDataFrame, PositionDataFrame, SoundVelocityDataFrame,ShotDataFrame
 from es_sfgtools.processing.schemas.site_config import PositionENU,ATDOffset,Transponder,PositionLLH,SiteConfig
 from es_sfgtools.modeling.garpos_tools.schemas import (
     GarposInput,
@@ -225,7 +225,20 @@ class CoordTransformer:
         )
 
         return e, n, u
+    def ECEF2ENU_vec(self,X:np.ndarray,Y:np.ndarray,Z:np.ndarray) -> Tuple[np.ndarray,np.ndarray,np.ndarray]:
+        dX,dY,dZ = X-self.X0,Y-self.Y0,Z-self.Z0
+        e, n, u = xyz2enu(
+            **{
+                "x": dX,
+                "y": dY,
+                "z": dZ,
+                "lat0": self.lat0,
+                "lon0": self.lon0,
+                "hgt0": self.hgt0,
+            }
+        )
 
+        return e, n, u
 def dev_merge_to_shotdata(acoustic: DataFrame[AcousticDataFrame], imu: DataFrame[IMUDataFrame], gnss: DataFrame[PositionDataFrame]) -> DataFrame[ObservationData]:
     """
     Merge acoustic, imu, and gnss data to create observation data.
@@ -581,20 +594,7 @@ def garposinput_to_datafile(garpos_input:GarposInput,path:Path):
     """
     Write a GarposInput to a datafile
     """
-    path.parent.mkdir(exist_ok=True)
-    if garpos_input.shot_data_file is None:
-        garpos_input.shot_data_file = path.parent / f"{garpos_input.site.name}_shot_data.csv"
-        
-    if garpos_input.sound_speed_file is None:
-        garpos_input.sound_speed_file = path.parent / f"{garpos_input.site.name}_sound_speed.csv"
-
-    #Write the shot data and sound speed data to csv
-    garpos_input.observation.shot_data.MT = garpos_input.observation.shot_data.MT.apply(
-            lambda x: "M" + str(x) if x[0].isdigit() else x
-        )
-    garpos_input.observation.shot_data.to_csv(garpos_input.shot_data_file,index=True)
-    garpos_input.observation.sound_speed_data.to_csv(garpos_input.sound_speed_file,index=False)
-
+    
     # Write the data file
     center_enu: List[float] = garpos_input.site.center_enu.get_position()
     delta_center_position: List[float] = garpos_input.site.delta_center_position.get_position() + garpos_input.site.delta_center_position.get_std_dev() + [0.0, 0.0, 0.0]
@@ -964,17 +964,17 @@ def sitedata_to_garpossite(site_config:SiteConfig,atd_offset:ATDOffset) -> Garpo
     )
 
     return garpos_site
+
+
 def dev_garpos_input_from_site_obs(
     site_config:SiteConfig,
-    atd_offset:ATDOffset,
     shot_data:pd.DataFrame,
-    sound_velocity:pd.DataFrame
 ):
     garpos_site: GarposSite = sitedata_to_garpossite(site_config,atd_offset)
     coord_transformer = CoordTransformer(site_config.position_llh)
-    e0,n0,u0 = coord_transformer.LLH2ENU_vec(shot_data.lat0.to_numpy(),shot_data.lon0.to_numpy(),shot_data.hae0.to_numpy())
-    e1,n1,u1 = coord_transformer.LLH2ENU_vec(shot_data.lat1.to_numpy(),shot_data.lon1.to_numpy(),shot_data.hae1.to_numpy())
-    date_utc = shot_data.trigger_time.min()
+    e0,n0,u0 = coord_transformer.ECEF2ENU_vec(shot_data.east0.to_numpy(),shot_data.north0.to_numpy(),shot_data.up0.to_numpy())
+    e1,n1,u1 = coord_transformer.ECEF2ENU_vec(shot_data.east1.to_numpy(),shot_data.north1.to_numpy(),shot_data.up1.to_numpy())
+    date_utc = shot_data.triggerTime.min()
     date_mjd = julian.to_jd(date_utc, fmt="mjd")
     shot_data["ant_e0"] = e0
     shot_data["ant_n0"] = n0
@@ -987,20 +987,17 @@ def dev_garpos_input_from_site_obs(
     rename_dict = {
         "trigger_time":"triggertime",
         "hae0":"height",
-        "ping_time":"ST",
-        "reply_time":"RT",
+        "pingTime":"ST",
+        "returnTime":"RT",
         "tt":"TT",
-        "transponder_id":"MT",
-        "lat0":"latitude",
-        "lon0":"longitude",
+        "transponderID":"MT",
     }
     shot_data = (
         shot_data.rename(columns=rename_dict)
-        .drop(columns=["event_id", "lat1", "lon1", "hae1"])
         .loc[
             :,
             [
-                "triggertime",
+                "triggerTime",
                 "MT",
                 "ST",
                 "RT",
@@ -1017,15 +1014,11 @@ def dev_garpos_input_from_site_obs(
                 "head1",
                 "pitch1",
                 "roll1",
-                "latitude",
-                "longitude",
-                "height",
             ],
         ]
     )
 
-    shot_data = ObservationData.validate(shot_data,lazy=True).sort_values("triggertime")
-    sound_velocity = SoundVelocityDataFrame.validate(sound_velocity,lazy=True)
+    shot_data = ObservationData.validate(shot_data,lazy=True).sort_values("triggerTime")
     garpos_observation = GarposObservation(
         campaign=site_config.name,
         date_utc=date_utc,
@@ -1118,6 +1111,35 @@ def process_garpos_results(results:GarposInput) -> GarposResults:
     )
 
     return results_out
+
+def main_generic(
+    site_config:SiteConfig,
+    hyper_params:InversionParams,
+    shot_data:Union[str,Path],
+) -> GarposResults:
+    
+    try:
+        shot_data = ShotDataFrame.validate(pd.read_csv(shot_data))
+    except Exception as e:
+        logging.error(f"ShotDataFrame - Error reading shot data: {e}")
+        return None
+    
+    try:
+        sound
+    
+    garpos_input = dev_garpos_input_from_site_obs(
+        site_config=site_config,
+        shot_data=shot_data,
+
+        
+    garpos_input = dev_garpos_input_from_site_obs(
+        site_config,atd_offset,shot_data,sound_velocity
+    )
+    garpos_input = garpos_input_from_site_obs(
+        site_config,atd_offset,gnss_data,imu_data,acoustic_data,sound_velocity
+    )
+    return main(garpos_input,GarposFixed())
+)
 
 def main(
     input: GarposInput, fixed: GarposFixed,working_dir:Path=Path("/tmp/garpos/")

@@ -17,7 +17,9 @@ master_file_path = data_dir / "fromjohn" / "NCB1.master"
 
 cdt_shema = CTDFile(local_path=cdt_file_path)
 master_schema = MasterFile(local_path=master_file_path)
-
+svp_df = seabird_functions.ctd_to_soundvelocity(cdt_shema)
+svp_df_path = data_dir/"processed"/"sound_velocity.csv"
+svp_df.to_csv(svp_df_path,index=False)
 dfo_path = Path(
     "/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/NCB1/HR/329653_002_20210906_141932_00051_DFOP00.raw"
 )
@@ -28,11 +30,15 @@ gnss_path = Path(
 
 if __name__ == "__main__":
     dfo_obj = DFPO00RawFile(local_path=dfo_path)
-    svp_df = seabird_functions.ctd_to_soundvelocity(cdt_shema)
 
-    site_config = site_functions.masterfile_to_siteconfig(master_schema)
-
-    atd_offset = ATDOffset(forward=0.0053, rightward=0, downward=0.92813)
+    site_config = site_functions.build_site(
+        config_source=master_schema,
+        svp_source=svp_df_path,
+        name="NCB1",
+        campaign="TestSV3",
+        date=pd.Timestamp("2021-09-06"),
+        atd_offset={"forward": 0.0053, "rightward": 0, "downward": 0.92813},
+    )
 
     # gnss_df = pd.read_csv(gnss_path)
     # gnss_df.time = pd.to_datetime(gnss_df.time)
@@ -42,14 +48,14 @@ if __name__ == "__main__":
     garpos_input = dev_garpos_input_from_site_obs(
         site_config=site_config,
         sound_velocity=svp_df,
-        atd_offset=atd_offset,
+        atd_offset=site_config.atd_offset,
         shot_data=shot_data,
     )
 
     # Filter input observation to be only one day
-    first_day = garpos_input.observation.shot_data.triggertime.min().date()
+    first_day = garpos_input.observation.shot_data.triggerTime.min().date()
     garpos_input.observation.shot_data = garpos_input.observation.shot_data[
-        garpos_input.observation.shot_data.triggertime.dt.date == first_day
+        garpos_input.observation.shot_data.triggerTime.dt.date == first_day
     ]
     garpos_input.observation.shot_data = garpos_input.observation.shot_data[
         garpos_input.observation.shot_data.TT > 0

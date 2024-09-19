@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import List,Callable,Union,Generator,Tuple
+from typing import List,Callable,Union,Generator,Tuple,LiteralString,Optional
 import pandas as pd
 import datetime
 import logging
@@ -28,9 +28,12 @@ seaborn.set_theme(style="whitegrid")
 from es_sfgtools.utils.archive_pull import download_file_from_archive
 from es_sfgtools.processing import functions as proc_funcs
 from es_sfgtools.processing import schemas as proc_schemas
+from es_sfgtools.modeling.garpos_tools import schemas as modeling_schemas
+from es_sfgtools.modeling.garpos_tools import functions as modeling_funcs
+from es_sfgtools.modeling.garpos_tools import hyper_params
 
 import sqlalchemy as sa
-from .database import Base,Assets
+from .database import Base,Assets,Session,ModelResults
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +83,7 @@ class DATA_TYPE(Enum):
 DATA_TYPES = [x.value for x in DATA_TYPE]
 
 TARGET_MAP = {
-    FILE_TYPE.QCPIN:{DATA_TYPE.SHOTDATA:proc_funcs.dev_qcpin_to_shotdata,FILE_TYPE.NOVATELPIN:proc_funcs.qcpin_to_novatelpin},
+    FILE_TYPE.QCPIN:{DATA_TYPE.SHOTDATA:proc_funcs.dev_qcpin_to_shotdata},
     FILE_TYPE.NOVATELPIN:{FILE_TYPE.RINEX:proc_funcs.novatel_to_rinex},
     FILE_TYPE.NOVATEL:{FILE_TYPE.RINEX:proc_funcs.novatel_to_rinex, DATA_TYPE.IMU:proc_funcs.novatel_to_imudf},
     FILE_TYPE.RINEX:{FILE_TYPE.KIN:proc_funcs.rinex_to_kin},
@@ -236,7 +239,8 @@ class DataHandler:
                 logger.error(f"File type not recognized for {file}")
                 warnings.warn(f"File type not recognized for {file}", UserWarning)
                 continue
-
+            
+            
             file_data = {
                 "network": self.network,
                 "station": self.station,
@@ -978,6 +982,119 @@ class DataHandler:
         # perform forward processing of qc pin data
         self._process_data_graph_forward(FILE_TYPE.QCPIN,override=override, show_details=show_details)
 
+    def dev_group_session_data(self,
+                           source:str= FILE_TYPE.DFPO00.value,
+                           override:bool=False
+                           ) -> dict:
+        """
+        Group the session data by timestamp.
+
+        Args:
+            timespan (str): The timespan to group the data by.
+            show_details (bool): Log verbose output.
+
+        Returns:
+            dict: The grouped data.
+        """
+        assert source in [FILE_TYPE.DFPO00.value,FILE_TYPE.QCPIN.value], "Source must be either DFPO00 or QCPIN"
+        # Get all available shotdata from the assets table
+        with self.engine.begin() as conn:
+            data_all = conn.execute(
+                sa.select(Assets).where(
+                    Assets.type.is_(DATA_TYPE.SHOTDATA.value),
+                    Assets.network.is_(self.network),
+                    Assets.station.is_(self.station),
+                    Assets.survey.is_(self.survey),
+                    Assets.local_path.isnot(None),
+                )
+            ).fetchall()
+            parent_ids = [row.parent_id for row in data_all]
+            parent_types = conn.execute(
+                sa.select(Assets.id).where(
+                    Assets.id.in_(parent_ids),
+                    Assets.type.is_(source),
+                    Assets.network.is_(self.network),
+                    Assets.station.is_(self.station),
+                    Assets.survey.is_(self.survey),
+                    Assets.local_path.isnot(None),
+                )
+            ).fetchall()
+            data = [x for x in data_all if x.parent_id in list([x.id for x in parent_types])]
+        
+        dates = [row.timestamp_data_start.date() for row in data]
+        dates.extend([row.timestamp_data_end.date() for row in data])
+        dates = list(set(dates))
+    
+        # check if there is a session data entry for the source
+        with self.engine.begin() as conn:
+            found_sessions = conn.execute(
+                sa.Select(Session).where(
+                    Session.network.is_(self.network),
+                    Session.station.is_(self.station),
+                    Session.survey.is_(self.survey),
+                    Session.parent_type.is_(source),
+                )
+            ).fetchall()
+        # match the session data to the shotdata
+        if override:
+            with self.engine.begin() as conn:
+                conn.execute(
+                    sa.delete(Session).where(
+                        Session.id.in_([x.id for x in found_sessions])
+                    )
+                )
+        else:
+            # remove the dates that already have session data
+            data = [x for x in data if x.timestamp_data_start.date() not in [row.timestamp_data_start.date() for row in found_sessions]]
+    
+        dates = []
+        df_main = pd.DataFrame()
+        for row in data:
+            dates.extend([row.timestamp_data_start.date(),row.timestamp_data_end.date()])
+            try:
+                df = proc_schemas.ShotDataFrame.validate(pd.read_csv(row.local_path),lazy=True)
+                df_main = pd.concat([df_main,df])
+            except Exception as e:
+                logger.error(f"Error reading {row.local_path} {e}")
+                continue
+        dates = list(set(dates))
+        dates.sort()
+        for date in dates:
+            daily_df = df_main[df_main.triggerTime.apply(lambda x:x.date())==date]
+            if not daily_df.empty:
+                local_path = str(self.proc_dir / f"session_{self.network}_{self.station}_{self.survey}_{str(date)}.csv")
+                timestamp_data_start = daily_df.triggerTime.min()
+                timestamp_data_end = daily_df.triggerTime.max()
+                duration = timestamp_data_end - timestamp_data_start
+                parent_type = source
+                daily_df.to_csv(local_path,index=False)
+                with self.engine.begin() as conn:
+                    conn.execute(
+                        sa.Insert(Session).values(
+                            {
+                                "network":self.network,
+                                "station":self.station,
+                                "survey":self.survey,
+                                "local_path":local_path,
+                                "parent_type":parent_type,
+                                "timestamp_start":timestamp_data_start,
+                                "timestamp_end":timestamp_data_end,
+                             
+
+                            }
+                        )
+                    )
+
+    # def run_session_data(self,
+    #                      siteConfig:proc_schemas.SiteConfig,
+    #                      soundVelocity:proc_schemas.SoundVelocity,
+    #                      atdOffset:proc_schemas.ATDOffset,
+    #                      source_type:str=FILE_TYPE.DFPO00.value,
+    #                      date_range:List[datetime.date]=[]):
+        
+
+
+        
     # def get_observation_session_data(self,network:str,station:str,survey:str,plot:bool=False) -> pd.DataFrame:
 
     #     time_groups = self.catalog_data[self.catalog_data.type.isin(['gnss','acoustic','imu'])].groupby('timestamp')
