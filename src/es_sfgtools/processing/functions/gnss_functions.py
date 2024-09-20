@@ -1,3 +1,4 @@
+from enum import Enum
 import pandas as pd
 from pydantic import BaseModel, Field, model_validator, ValidationError
 import pandera as pa
@@ -215,7 +216,7 @@ def novatel_to_rinex(
     return rinex_data
 
 
-def rinex_to_kin(source: RinexFile,writedir:Path,pridedir:Path,site="IVB1", show_details:bool=True) -> KinFile:
+def rinex_to_kin(source: RinexFile, writedir:Path, pridedir:Path, site="IVB1", show_details:bool=True) -> KinFile:
     """
     Convert a RINEX file to a position file
     """
@@ -231,11 +232,17 @@ def rinex_to_kin(source: RinexFile,writedir:Path,pridedir:Path,site="IVB1", show
         logger.error(f"RINEX file {source.local_path} not found")
         return None
     tag = uuid.uuid4().hex[:4]
+
+    # Generate pdp command with default settings
+    pdp_command = PridePdpConfig().generate_pdp_command(site=tag, 
+                                                        local_file_path=source.local_path)
     result = subprocess.run(
-        ["pdp3","--loose-edit" ,"-m","K", "--site",tag , str(source.local_path)],
+        pdp_command,
         capture_output=True,
         cwd=str(pridedir),
     )
+    # ["pdp3", "--loose-edit" , "-m", "K", "--site", tag, str(source.local_path)],
+
 
     if result.stderr:
         logger.error(result.stderr)
@@ -349,5 +356,122 @@ def qcpin_to_novatelpin(source:QCPinFile,outpath:Path) -> NovatelPinFile:
         novatel_pin = NovatelPinFile(location=temp_file.name)
         novatel_pin.read(path=temp_file.name)
 
-    
     return novatel_pin
+
+
+# define system enum to use 
+class Constellations(str, Enum):
+    GPS = "G"
+    GLONASS = "R"
+    GLAILEO = "E"
+    BDS = "C"
+    BDS_TWO = "2"
+    BDS_THREE = "3"
+    QZSS = "J"
+
+    @classmethod
+    def print_options(cls):
+        print("System options are:")
+        for option in cls:
+            print(f"{option.value} for {option.name}")
+
+class Tides(str, Enum):
+    SOLID = "S"
+    OCEAN = "O"
+    POLAR = "P"
+
+    @classmethod
+    def print_options(cls):
+        print("Tide options are:")
+        for option in cls:
+            print(f"{option.value} for {option.name}")
+
+
+class PridePdpConfig:
+    def __init__(self, 
+                 system: str = "GREC23J", 
+                 frequency: list = ["G12", "R12", "E15", "C26", "J12"], 
+                 loose_edit: bool = True, 
+                 cutoff_elevation: int =7, 
+                 start: datetime = None, 
+                 end: datetime = None, 
+                 interval: float = None, 
+                 high_ion: bool = False, 
+                 tides: str = "SOP"):
+        """
+        Initialize the PridePdpConfig class with the following parameters:
+
+        Args:
+        system (str): The GNSS system(s) to use. Default is "GREC23J" which is “GPS/GLONASS/Galileo/BDS/BDS-2/BDS-3/QZSS”
+        frequency (str): The GNSS frequencies to use. Default is "G12 R12 E15 C26 J12, Refer to Table 5-4 in PRIDE-PPP-AR v.3.0 manual for more options"
+        loose_edit (bool): disable strict editing mode, which should be used when high dynamic data quality is poor. Default is True. 
+        cutoff_elevation (int): The elevation cutoff angle in degrees (0-60 degrees). Default is 7.
+        start (datetime): The start time used for processing. Default is None.
+        end (datetime): The end time used for processing. Default is None.
+        interval (float): Processing interval, values range from 0.02s to 30s. If this item is not specified and the configuration file is specified, the processing interval in the configuration file will be read, otherwise, the sampling rate of the observation file is used by default.
+        high_ion (bool): Use 2nd ionospheric delay model with CODE's GIM product. When this option is not entered, no higher-order ionospheric correction is performed. Default is False.
+        tides (str): Enter one or more of "S" "O" "P", e.g SO for solid, ocean, and polar tides. Default is "SOP", which uses all tides.
+        """
+
+        # Check if system is valid
+        system = system.upper() # Default to GREC23J which is “GPS/GLONASS/Galileo/BDS/BDS-2/BDS-3/QZSS”
+        for char in system:
+            if char not in Constellations._value2member_map_:
+                Constellations.print_options()
+                raise ValueError(f"Invalid constelation character: {char}")
+        self.system = system
+
+        self.frequency = frequency
+        self.loose_edit = loose_edit
+        self.cutoff_elevation = cutoff_elevation
+
+        self.start = start
+        self.end = end
+        self.interval = interval
+        self.high_ion = high_ion
+        
+        # If entered, check if tide characters are valid
+        tides = tides.upper()
+        for char in tides:
+            if char not in Tides._value2member_map_:
+                Tides.print_options()
+                raise ValueError(f"Invalid tide character: {char}")
+        self.tides = tides
+    
+    def generate_pdp_command(self, site: str, local_file_path: str) -> List[str]:
+        """
+        Generate the command to run pdp3 with the given parameters
+        """
+        command = ["pdp3", "-m", "K"]
+
+        if self.system != "GREC23J":
+            command.extend(["--system", self.system])
+
+        if self.frequency != ["G12", "R12", "E15", "C26", "J12"]:
+            command.extend(["--frequency", " ".join(self.frequency)])
+
+        if self.loose_edit:
+            command.append("--loose-edit")
+
+        if self.cutoff_elevation != 7:
+            command.extend(["--cutoff-elev", self.cutoff_elevation])
+
+        if self.start:
+            command.extend(["--start", self.start.strftime("%Y/%m/%d %H:%M:%S")])
+
+        if self.end:
+            command.extend(["--end", self.end.strftime("%Y/%m/%d %H:%M:%S")])
+        
+        if self.interval:
+            command.extend(["--interval", self.interval])
+
+        if self.high_ion:
+            command.append("--high-ion")
+
+        if self.tides != "SOP":
+            command.extend(["--tide-off", self.tides])
+
+        command.extend(["--site", site])
+        command.append(str(local_file_path))
+
+        return command
