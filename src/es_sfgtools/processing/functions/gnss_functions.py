@@ -216,7 +216,7 @@ def novatel_to_rinex(
     return rinex_data
 
 
-def rinex_to_kin(source: RinexFile, writedir:Path, pridedir:Path, site="IVB1", show_details:bool=True) -> KinFile:
+def rinex_to_kin(source: RinexFile, writedir:Path, pridedir:Path, site="IVB1", show_details:bool=True, pdp_command:list=None) -> KinFile:
     """
     Convert a RINEX file to a position file
     """
@@ -234,8 +234,9 @@ def rinex_to_kin(source: RinexFile, writedir:Path, pridedir:Path, site="IVB1", s
     tag = uuid.uuid4().hex[:4]
 
     # Generate pdp command with default settings
-    pdp_command = PridePdpConfig().generate_pdp_command(site=tag, 
-                                                        local_file_path=source.local_path)
+    if not pdp_command:
+        pdp_command = PridePdpConfig().generate_pdp_command(site=tag, 
+                                                            local_file_path=source.local_path)
     result = subprocess.run(
         pdp_command,
         capture_output=True,
