@@ -20,7 +20,8 @@ import json
 import pdb
 from ..schemas.files import SonardyneFile,DFPO00RawFile,QCPinFile
 from ..schemas.observables import AcousticDataFrame
-logger = logging.getLogger(os.path.basename(__file__))
+#logger = logging.getLogger(os.path.basename(__file__))
+logger = logging.getLogger(__name__)
 
 GNSS_START_TIME = datetime(1980, 1, 6, tzinfo=timezone.utc)  # GNSS start time
 GNSS_START_TIME_JULIAN = julian.to_jd(GNSS_START_TIME.replace(tzinfo=None), "mjd")
@@ -379,7 +380,7 @@ def get_transponder_offsets(line: str) -> Dict[str, float]:
     return offset_dict
 
 
-def sonardyne_to_acousticdf(source: SonardyneFile) -> DataFrame[AcousticDataFrame]:
+def sonardyne_to_acousticdf(source: SonardyneFile, show_details: bool=True) -> DataFrame[AcousticDataFrame]:
     """
     Read data from a file and return a validated dataframe.
 
@@ -515,52 +516,71 @@ def sonardyne_to_acousticdf(source: SonardyneFile) -> DataFrame[AcousticDataFram
     return AcousticDataFrame.validate(acoustic_df,lazy=True)
 
 
-def dfpo00_to_acousticdf(source: DFPO00RawFile) -> DataFrame[AcousticDataFrame]:
+def dfpo00_to_acousticdf(source: DFPO00RawFile, show_details: bool=True) -> DataFrame[AcousticDataFrame]:
     processed = []
+    missing_diagnostic_lines = 0
     with open(source.local_path) as f:
         lines = f.readlines()
-        for line in lines:
-            data = json.loads(line)
-            if data.get("event") == "range":
-                range_data = data.get("range", None)
-                time_data = data.get("time", None)
-                if range_data and time_data:
-                    id: str = range_data.get("cn", "").replace("IR", "")
-                    travel_time: float = range_data.get("range", 0)  # travel time [s]
-                    tat: float = range_data.get("tat", 0)  # turn around time [ms]
+        for i, line in enumerate(lines):
+            try:
+                data = json.loads(line)
+                if data.get("event") == "range":
+                    range_data = data.get("range", None)
+                    time_data = data.get("time", None)
+                    if range_data and time_data:
+                        id: str = range_data.get("cn", "").replace("IR", "")
+                        travel_time: float = range_data.get("range", 0)  # travel time [s]
+                        tat: float = range_data.get("tat", 0)  # turn around time [ms]
 
-                    travel_time_true = (
-                        travel_time - (tat/1000) - TRIGGER_DELAY_SV3
-                    )  # travel time corrected for turn around time and trigger delay
+                        travel_time_true = (
+                            travel_time - (tat/1000) - TRIGGER_DELAY_SV3
+                        )  # travel time corrected for turn around time and trigger delay
+                        try:
+                            dbv = range_data.get("diag").get("dbv")[0]
+                            xc = range_data.get("diag").get("xc")[0]
+                            snr = range_data.get("diag").get("snr")[0]
+                        except AttributeError:
+                            missing_diagnostic_lines += 1
+                            dbv = 0
+                            xc = 0
+                            snr = 0
+                        return_time: float = time_data.get(
+                            "common", 0
+                        )  # Time since GNSS start [s]
+                        return_time_dt: datetime = datetime.fromtimestamp(return_time)
+                        ping_time_dt: datetime = return_time_dt - timedelta(seconds=travel_time) #+ timedelta(seconds=TRIGGER_DELAY_SV3)
+                        trigger_time_dt = ping_time_dt - timedelta(seconds=TRIGGER_DELAY_SV3)
 
-                    dbv = range_data.get("diag").get("dbv")[0]
-                    xc = range_data.get("diag").get("xc")[0]
-                    snr = range_data.get("diag").get("snr")[0]
-                    return_time: float = time_data.get(
-                        "common", 0
-                    )  # Time since GNSS start [s]
-                    return_time_dt: datetime = datetime.fromtimestamp(return_time)
-                    ping_time_dt: datetime = return_time_dt - timedelta(seconds=travel_time) #+ timedelta(seconds=TRIGGER_DELAY_SV3)
-                    trigger_time_dt = ping_time_dt - timedelta(seconds=TRIGGER_DELAY_SV3)
+                        # Convert to seconds of day
+                        ping_time_sod = (ping_time_dt - datetime(ping_time_dt.year,ping_time_dt.month,ping_time_dt.day)).total_seconds()
+                        return_time_sod = (return_time_dt - datetime(return_time_dt.year,return_time_dt.month,return_time_dt.day)).total_seconds()
 
-                    # Convert to seconds of day
-                    ping_time_sod = (ping_time_dt - datetime(ping_time_dt.year,ping_time_dt.month,ping_time_dt.day)).total_seconds()
-                    return_time_sod = (return_time_dt - datetime(return_time_dt.year,return_time_dt.month,return_time_dt.day)).total_seconds()
-
-                processed.append(
-                    {
-                        "TriggerTime": trigger_time_dt,
-                        "TransponderID": id,
-                        "TwoWayTravelTime": travel_time_true,
-                        "ReturnTime": return_time_sod,
-                        "DecibalVoltage": dbv,
-                        "CorrelationScore": xc,
-                        "PingTime": ping_time_sod,
-                        "SignalToNoise": snr,
-                        "TurnAroundTime": tat
-                    }
-                )
+                    processed.append(
+                        {
+                            "TriggerTime": trigger_time_dt,
+                            "TransponderID": id,
+                            "TwoWayTravelTime": travel_time_true,
+                            "ReturnTime": return_time_sod,
+                            "DecibalVoltage": dbv,
+                            "CorrelationScore": xc,
+                            "PingTime": ping_time_sod,
+                            "SignalToNoise": snr,
+                            "TurnAroundTime": tat
+                        }
+                    )
+            except AttributeError as e:
+                msg = f"AttributeError parsing {os.path.basename(source.local_path)} line {i}: {line}"
+                logger.error(msg)
+                if show_details:
+                    print(msg)      
     df = pd.DataFrame(processed)
+    if show_details:
+        if missing_diagnostic_lines > 0:
+            msg = f"{os.path.basename(source.local_path)} missing diagnostic info for {missing_diagnostic_lines} of {i+1} lines"
+            logger.warning(msg)
+            print(msg)
+            pd.set_option('display.max_columns', None)
+            print(df)
     return AcousticDataFrame.validate(df,lazy=True)
 
 @pa.check_types

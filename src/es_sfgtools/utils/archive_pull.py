@@ -188,11 +188,11 @@ def list_file_counts_by_type(file_list: list, url: str=None, show_details: bool=
         elif 'bcoffload' in file:
             file_dict.setdefault('offload', []).append(file)
         elif file.endswith('NOV770.raw'):
-            file_dict.setdefault('NOV770', []).append(file)
+            file_dict.setdefault('novatel770', []).append(file)
         elif file.endswith('DFOP00.raw'):
-            file_dict.setdefault('DFOP00', []).append(file)
+            file_dict.setdefault('dfop00', []).append(file)
         elif file.endswith('NOV000.bin'):
-            file_dict.setdefault('NOV000', []).append(file)
+            file_dict.setdefault('novatel000', []).append(file)
         elif "ctd" in file:
             file_dict.setdefault('ctd', []).append(file)
 

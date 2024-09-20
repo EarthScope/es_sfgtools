@@ -55,6 +55,33 @@ RINEX_BIN_PATH_BINARY = {
     "linux_arm64": NOVATEL2RINEX_BINARIES/ "novb2rnxo-linux-arm64",
 }
 
+RINEX_HOUR_CODES = {
+    0: 'a',
+    1: 'b',
+    2: 'c',
+    3: 'd',
+    4: 'e',
+    5: 'f',
+    6: 'g',
+    7: 'h',
+    8: 'i',
+    9: 'j',
+    10: 'k',
+    11: 'l',
+    12: 'm',
+    13: 'n',
+    14: 'o',
+    15: 'p',
+    16: 'q',
+    17: 'r',
+    18: 's',
+    19: 't',
+    20: 'u',
+    21: 'v',
+    22: 'w',
+    23: 'x'
+}
+
 
 class PridePPP(BaseModel):
     """
@@ -183,14 +210,29 @@ def novatel_to_rinex(
             json_object = json.dumps(metadata, indent=4)
             f.write(json_object)
 
-       
-        if source.timestamp_data_start is not None: 
-            file_date = source.timestamp_data_start
-        else:
-            file_date = os.path.splitext(os.path.basename(source.local_path))[0].split("_")[-4]
-        if year is None:
-            year = file_date[2:4]
-        rinex_outfile = os.path.join(workdir, f"{site}_{file_date}_rinex.{year}O")
+        if type(source) == NovatelFile:
+                datestring = os.path.splitext(os.path.basename(source.local_path))[0].split("_")[1]
+
+        elif type(source) ==  Novatel770File:
+            datestring = os.path.splitext(os.path.basename(source.local_path))[0].split("_")[2] + \
+                            os.path.splitext(os.path.basename(source.local_path))[0].split("_")[3]
+
+        #todo: rinex naming convention does not support less than 1 hour granularity, so had 
+
+        filedate = datetime.strptime(datestring, "%Y%m%d%H%M%S")
+        doy = filedate.timetuple().tm_yday
+        rinex_hour = RINEX_HOUR_CODES[filedate.hour]
+        yy = str(filedate.year)[2:4]
+        mmss = str(filedate.minute) + str(filedate.second)
+        # if source.timestamp_data_start is not None: 
+        #     file_date = source.timestamp_data_start
+        # else:
+        #     file_date = os.path.splitext(os.path.basename(source.local_path))[0].split("_")[-4]
+        # if year is None:
+        #     year = file_date[2:4]
+        rinex_outfile = os.path.join(workdir, f"{site}_{datestring}.rinex")
+        
+        #rinex_outfile = os.path.join(workdir, f"{site}{doy}{rinex_hour}{mmss}.{yy}o")
         file_tmp_dest = shutil.copy(source.local_path, os.path.join(workdir, os.path.basename(source.local_path)))
 
         cmd = [
@@ -203,10 +245,15 @@ def novatel_to_rinex(
         cmd.extend([file_tmp_dest])
         result = subprocess.run(cmd, check=True, capture_output=True)
         if show_details:
-            # logger.info("showing details")
-            if len(result.stdout.decode()):
-                print(f"{os.path.basename(source.local_path)}: {result.stdout.decode().rstrip()}")
-            # print(result.stderr.decode())
+            stdout_msg = result.stdout.decode().rstrip()
+            if len(stdout_msg):
+                logger.info(f"{os.path.basename(source.local_path)} stdout: {stdout_msg}")
+                print(f"{os.path.basename(source.local_path)} stdout: {stdout_msg}")
+            stderr_msg = result.stderr.decode().rstrip()
+            if len(stderr_msg):
+                logger.info(f"{os.path.basename(source.local_path)} stdout: {stderr_msg}")
+                print(f"{os.path.basename(source.local_path)} stdout: {stderr_msg}")
+            print(f"Converted Novatel files to RINEX: {rinex_outfile}")
         logger.info(f"Converted Novatel files to RINEX: {rinex_outfile}")
         rinex_data = RinexFile(parent_id=source.uuid,location=rinex_outfile,site=site)
         rinex_data.read(rinex_outfile) #load into mmap 
@@ -221,14 +268,19 @@ def rinex_to_kin(source: RinexFile,writedir:Path,pridedir:Path,site="IVB1", show
     """
     assert isinstance(source, RinexFile), "Invalid source file type"
 
-    logger.info(f"Converting RINEX file {source.local_path} to kin file")
+    response = f"Converting RINEX file {source.local_path} to kin file"
+    logger.info(response)
+    if show_details:
+        print(response)
 
     out = []
 
     # simul link the rinex file to the same file with file_uuid attached at the front
 
     if not os.path.exists(source.local_path):
-        logger.error(f"RINEX file {source.local_path} not found")
+        response = f"RINEX file {source.local_path} not found"
+        logger.error(response)
+        print(response)
         return None
     tag = uuid.uuid4().hex[:4]
     result = subprocess.run(
@@ -237,8 +289,12 @@ def rinex_to_kin(source: RinexFile,writedir:Path,pridedir:Path,site="IVB1", show
         cwd=str(pridedir),
     )
 
-    if result.stderr:
-        logger.error(result.stderr)
+    if len(result.stderr):
+        response = result.stderr.decode()
+        logger.error(response)
+        if show_details:
+            print(response)
+
     if pd.isna(source.timestamp_data_start):
         ts = str(source.local_path.name).split("_")[1]
         year = ts[:4]
@@ -277,7 +333,7 @@ def rinex_to_kin(source: RinexFile,writedir:Path,pridedir:Path,site="IVB1", show
 
 
 @pa.check_types        
-def kin_to_gnssdf(source:KinFile) -> Union[DataFrame[PositionDataFrame],None]:
+def kin_to_gnssdf(source:KinFile, show_details: bool=True) -> Union[DataFrame[PositionDataFrame],None]:
     """
     Create an PositionDataFrame from a kin file from PRIDE-PPP
 
@@ -307,20 +363,25 @@ def kin_to_gnssdf(source:KinFile) -> Union[DataFrame[PositionDataFrame],None]:
             data.append(ppp)
         except:
             error_msg = f"Error parsing into PridePPP from line {idx} in FILE {source.local_path} \n"
-            error_msg += f"Line: {line}"
+            error_msg += f"  Line {idx}: {line}"
             logger.error(error_msg)
+            if show_details:
+                print(error_msg)
             pass
 
     # Check if data is empty
     if not data:
         error_msg = f"GNSS: No data found in FILE {source.local_path}"
         logger.error(error_msg)
+        print(error_msg)
         return None
     dataframe = pd.DataFrame([dict(pride_ppp) for pride_ppp in data])
     #dataframe.drop(columns=["modified_julian_date", "second_of_day"], inplace=True)
 
-    log_response = f"GNSS Parser: {dataframe.shape[0]} shots from FILE {source.local_path}"
+    log_response = f"GNSS Parser: {dataframe.shape[0]} epochs from FILE {source.local_path}"
     logger.info(log_response)
+    if show_details:
+        print(log_response)
     dataframe["time"] = dataframe["time"].dt.tz_localize("UTC")
     return dataframe
 

@@ -369,7 +369,9 @@ class DataHandler:
         Raises:
             Exception: If no matching data found in catalog.
         """
-        #os.environ["DH_SHOW_DETAILS"] = str(show_details)
+        #TODO: add case insensitivity for file_type matching when querying entries, 
+        # also alias nov770 -> novatel770 does not work
+        
         if file_type == 'all':
             file_types = FILE_TYPES
         else:
@@ -381,7 +383,7 @@ class DataHandler:
                 )
             ).fetchall()]
         if len(entries) == 0:
-            response = f"No matching data found in catalog"
+            response = f"No matching data of type {file_type} to download found in catalog"
             logger.error(response)
             print(response)
             return
@@ -673,7 +675,6 @@ class DataHandler:
     ) -> Tuple[dict, dict, bool]:
 
         response = " "
-        # TODO: implement multithreaded logging, had to switch to print statement below
 
         # handle the case when the parent timestamp is None
         child_timestamp = parent.get("timestamp_data_start", None)
@@ -709,7 +710,7 @@ class DataHandler:
             case proc_funcs.qcpin_to_novatelpin:
                 process_func_p = partial(process_func, outpath=inter_dir)
             case _:
-                process_func_p = process_func
+                process_func_p = partial(process_func, show_details=show_details)
 
         processed = None
         timestamp_data_start = parent.get("timestamp_data_start", None)
@@ -726,13 +727,15 @@ class DataHandler:
             case pd.DataFrame:
                 local_path = proc_dir / f"{parent['id']}_{child_type.value}.csv"
                 processed.to_csv(local_path, index=False)
-
+                print(f"{os.path.basename(parent['local_path'])} here1")
                 # handle the case when the child timestamp is None
                 if pd.isna(parent["timestamp_data_start"]):
                     for col in processed.columns:
                         if pd.api.types.is_datetime64_any_dtype(processed[col]):
+                            print(processed)
                             timestamp_data_start = processed[col].min()
                             timestamp_data_end = processed[col].max()
+                            print(timestamp_data_start)
                             break
 
             case proc_schemas.RinexFile:
@@ -844,12 +847,14 @@ class DataHandler:
             response = f"Processing {len(parent_entries_to_process)} Parent Files to {target.value} Data"
             logger.info(response)
             print(response)
-            process_func_partial = partial(self._process_targeted,child_type=target,inter_dir=self.inter_dir,proc_dir=self.proc_dir,pride_dir=self.pride_dir)
+            process_func_partial = partial(self._process_targeted,child_type=target,inter_dir=self.inter_dir,proc_dir=self.proc_dir,pride_dir=self.pride_dir, show_details=show_details)
 
             child_data_list = []
             parent_data_list = []
 
             parent_entries_to_process = [dict(row._mapping) for row in parent_entries_to_process]           
+            for parent in parent_entries_to_process:
+                print(parent['local_path'])
             with multiprocessing.Pool() as pool:
                 results = pool.imap(process_func_partial,parent_entries_to_process)
                 for child_data,parent_data,response in tqdm(results,total=len(parent_entries_to_process),desc=f"Processing {source[0].value} To {target.value}"):
@@ -863,6 +868,8 @@ class DataHandler:
                     # update parent entry
 
                     with self.engine.begin() as conn:
+                        print(parent_data)
+                        print(child_data)
                         conn.execute(
                             sa.update(Assets).where(Assets.id.is_(parent_data["id"])).values(parent_data)
                         )
