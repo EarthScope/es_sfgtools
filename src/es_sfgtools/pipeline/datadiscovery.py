@@ -50,7 +50,8 @@ def _rinex_get_meta(data:DiscoveredFile) -> DiscoveredFile:
     return data
 
 
-def get_file_type(file_path: Path) -> DiscoveredFile:
+
+def get_file_type_local(file_path: Path) -> DiscoveredFile:
     """
     Get the file type of a file.
 
@@ -65,9 +66,14 @@ def get_file_type(file_path: Path) -> DiscoveredFile:
         if pattern.search(str(file_path)):
             file_type = ftype
             break
+        
     size = file_path.stat().st_size
+
+    if size == 0:
+        warnings.warn(f"File {str(file_path)} is empty")
+        return
     if file_type is None:
-        print(f"File type not recognized for {file_path}")
+        warnings.warn(f"File type not recognized for {str(file_path)}")
         return
 
     discoveredFile = DiscoveredFile(
@@ -83,6 +89,32 @@ def get_file_type(file_path: Path) -> DiscoveredFile:
         case _:
             return discoveredFile
 
+def get_file_type_remote(file_path: str) -> DiscoveredFile:
+    """
+    Get the file type of a file.
+
+    Args:
+        file_path (str): The file path.
+
+    Returns:
+        DiscoveredFile: The discovered file.
+    """
+    file_type = None
+    for pattern, ftype in pattern_map.items():
+        if pattern.search(file_path):
+            file_type = ftype
+            break
+    if file_type is None:
+        warnings.warn(f"File type not recognized for {file_path}")
+        return
+
+    discoveredFile = DiscoveredFile(
+        remote_path=file_path,
+        type=file_type.value,
+        timestamp_data_start=None,
+        timestamp_data_end=None,
+    )
+    return discoveredFile
 
 def scrape_directory_local(directory: Union[str, Path]) -> List[DiscoveredFile]:
     """
@@ -100,7 +132,7 @@ def scrape_directory_local(directory: Union[str, Path]) -> List[DiscoveredFile]:
     output = []
     for file in files:
         if file.is_file():
-            discoveredFile: Union[DiscoveredFile, None] = get_file_type(file)
+            discoveredFile: Union[DiscoveredFile, None] = get_file_type_local(file)
             if discoveredFile is not None:
                 output.append(discoveredFile)
     

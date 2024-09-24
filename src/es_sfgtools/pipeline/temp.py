@@ -35,6 +35,7 @@ from es_sfgtools.modeling.garpos_tools import hyper_params
 import sqlalchemy as sa
 from .database import Base,Assets,Session,ModelResults
 from .constants import FILE_TYPE,DATA_TYPE,REMOTE_TYPE,ALIAS_MAP,FILE_TYPES
+from .datadiscovery import scrape_directory_local,DiscoveredFile,get_file_type_local,get_file_type_remote
 logger = logging.getLogger(__name__)
 
 
@@ -171,38 +172,20 @@ class DataHandler:
                 return {"Local files found":0}
         return {x["type"]:x["count_1"] for x in data_type_counts}    
 
-    def add_data_local(self,
-                        local_filepaths:List[str],
-                        discover_file_type:bool=False,
+    def _add_data_local(self,
+                        local_filepaths:List[DiscoveredFile],
                         show_details:bool=True,
                         **kwargs):
         count = 0
         file_data_list = []
-        for file in local_filepaths:
-            assert Path(file).exists(), f"File {file} does not exist"
-            if discover_file_type:
-                discovered_file_type = None
-                file_path_proc = file.replace("_", "").lower()
-
-                for alias, file_type in ALIAS_MAP.items():
-                    if alias in file_path_proc:
-                        discovered_file_type = file_type
-                        break
-            else:
-                discovered_file_type = FILE_TYPE.QCPIN.value
-
-            if discovered_file_type is None:
-                logger.error(f"File type not recognized for {file}")
-                warnings.warn(f"File type not recognized for {file}", UserWarning)
-                continue
+        for discovered_file in local_filepaths:
+           
             
             
-            file_data = {
+            file_data = discovered_file.model_dump() | {
                 "network": self.network,
                 "station": self.station,
                 "survey": self.survey,
-                "local_path": str(file),
-                "type": discovered_file_type,
                 "timestamp_created": datetime.datetime.now(),
             }
 
@@ -224,7 +207,7 @@ class DataHandler:
             if len(file_data_map) == 0:
                 response = f"No new files to add"
                 logger.info(response)
-                if bool(os.environ.get("DH_SHOW_DETAILS",False)):
+                if show_details:
                     print(response)
                 return
             response = f"Adding {len(file_data_map)} new files to the catalog"
@@ -235,7 +218,43 @@ class DataHandler:
             conn.execute(
                 sa.insert(Assets).values(list(file_data_map.values()))
             )
+    
+    def add_data_directory(self,dir_path:Path,show_details:bool=True):
+        """
+        Add all files in a directory to the catalog.
 
+        Args:
+            dir_path (Path): The directory path.
+            show_details (bool): Log details of each file added.
+
+        Returns:
+            None
+        """
+        files = scrape_directory_local(dir_path)
+        if len(files) == 0:
+            response = f"No files found in {dir_path}"
+            logger.error(response)
+            if show_details:
+                print(response)
+            return
+        
+        self._add_data_local(files,show_details=show_details)
+
+    def add_data_local(self,
+                        local_filepaths:List[Union[str,Path]],
+                        show_details:bool=True,
+                        **kwargs):
+        discovered_files : List[DiscoveredFile] = [get_file_type_local(file) for file in local_filepaths]
+        discovered_files = [x for x in discovered_files if x is not None]
+
+        if len(discovered_files) == 0:
+            response = f"No files found in {local_filepaths}"
+            logger.error(response)
+            if show_details:
+                print(response)
+            return
+        self._add_data_local(discovered_files,show_details=show_details)
+        
     def add_data_remote(self, 
                           remote_filepaths: List[str],
                           remote_type:Union[REMOTE_TYPE,str] = REMOTE_TYPE.HTTP,
@@ -260,26 +279,16 @@ class DataHandler:
 
         file_data_list = []
         for file in remote_filepaths:
-            discovered_file_type = None
-            file_path_proc = file.replace("_", "").lower()
-
-            for alias, file_type in ALIAS_MAP.items():
-                if alias in file_path_proc:
-                    discovered_file_type = file_type
-                    break
-
-            if discovered_file_type is None:
-                logger.error(f"File type not recognized for {file}")
-                continue
+            discovered_file: Union[DiscoveredFile,None] = get_file_type_remote(file)
                 # raise ValueError(f"File type not recognized for {file}")
+            if discovered_file is None:
+                continue
 
-            file_data = {
+            
+            file_data = discovered_file.model_dump() | {
                 "network": self.network,
                 "station": self.station,
                 "survey": self.survey,
-                "remote_path": file,
-                "remote_type": remote_type.value,
-                "type": discovered_file_type,
                 "timestamp_created": datetime.datetime.now(),
             }
             file_data_list.append(file_data)

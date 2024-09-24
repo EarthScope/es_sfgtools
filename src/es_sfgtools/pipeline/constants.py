@@ -49,10 +49,11 @@ class DATA_TYPE(Enum):
 DATA_TYPES = [x.value for x in DATA_TYPE]
 
 class DiscoveredFile(BaseModel):
-    local_path: str = Field(..., title="Local path to file")
-    type: str = Field(..., title="Type of file", enum=FILE_TYPES)
-    timestamp_data_start: Optional[datetime.datetime] = Field(..., title="Timestamp of first data point")
+    local_path: str = Field(title="Local path to file",default=None)
+    type: str = Field(title="Type of file", enum=FILE_TYPES)
+    timestamp_data_start: Optional[datetime.datetime] = Field(title="Timestamp of first data point")
     timestamp_data_end: Optional[datetime.datetime] = Field(
-        ..., title="Timestamp of last data point"
+        title="Timestamp of last data point"
     )
-    size:float = Field(..., title="Size of file in bytes")
+    size:Optional[float] = Field(title="Size of file in bytes")
+    remote_path:str = Field(title="Remote path to file",default=None)
