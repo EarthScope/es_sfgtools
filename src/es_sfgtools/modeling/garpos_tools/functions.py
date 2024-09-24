@@ -1,7 +1,7 @@
 import pandera as pa
 from pandera.typing import DataFrame
 from pathlib import Path
-from typing import List,Tuple
+from typing import List,Tuple,Union
 import pandas as pd
 from configparser import ConfigParser
 import matplotlib.pyplot as plt
@@ -13,6 +13,7 @@ import pyproj
 import pymap3d as pm
 import math
 import julian
+import logging
 from scipy.stats import hmean as harmonic_mean
 from sklearn.ensemble import RandomForestRegressor
 from scipy.interpolate import RBFInterpolator,CubicSpline
@@ -34,6 +35,8 @@ from es_sfgtools.modeling.garpos_tools.schemas import (
 
 
 from garpos import drive_garpos
+
+logger = logging.getLogger(__name__)
 
 ECEF = "epsg:4978"
 LLH = "epsg:4326"
@@ -1026,7 +1029,7 @@ def rectify_shotdata_site(
         transponder.position_enu = PositionENU(east=e, north=n, up=u)
         transponder.id = "M" + str(transponder.id) if str(transponder.id)[0].isdigit() else str(transponder.id)
 
-    return site_config,ShotDataFrame.validate(shot_data,lazy=True).sort_values("triggerTime")
+    return site_config,ObservationData.validate(shot_data,lazy=True).sort_values("triggerTime")
 
 def dev_garpos_input_from_site_obs(
     site_config:SiteConfig,
@@ -1183,37 +1186,35 @@ def dev_main(
 
     working_dir.mkdir(exist_ok=True)
     try:
-        shot_data = ShotDataFrame.validate(pd.read_csv(shot_data))
+        shot_data = ShotDataFrame.validate(pd.read_csv(shot_data),lazy=True)
     except Exception as e:
-        logging.error(f"ShotDataFrame - Error reading shot data: {e}")
+        logger.error(f"ShotDataFrame - Error reading shot data: {e}")
         return None
     # Add "M" to transponder ids if they are numbers
 
     # process the shot data
-    site_config_rectified,shot_data_rectified = rectify_shotdata(site_config,shot_data)
+    site_config_rectified,shot_data_rectified = rectify_shotdata_site(site_config,shot_data)
     shot_data_rectified_path = working_dir / "rectified_shot_data.csv"
     shot_data_rectified.to_csv(shot_data_rectified_path,index=False)
 
-    site_config.delta_center_position.east_sigma = hyper_params.delta_center_position_east_sigma
-    site_config.delta_center_position.north_sigma = hyper_params.delta_center_position_north_sigma
-    site_config.delta_center_position.up_sigma = hyper_params.delta_center_position_up_sigma
+    avg_enu,avg_llh = avg_transponder_position(site_config_rectified.transponders)
 
     garpos_site = GarposSite(
         name=site_config.name,
         center_llh=site_config.position_llh,
-        center_enu=site_config.center_enu,
+        center_enu=avg_enu,
         atd_offset=site_config.atd_offset,
         transponders=site_config.transponders,
-        delta_center_position=site_config.delta_center_position,
+        delta_center_position=hyper_params.delta_center_position,
     )
     garpos_observation = GarposObservation(
         campaign=site_config.campaign,
-        date_utc=site_config.date_utc,
-        date_mjd=julian.to_jd(site_config.date_utc, fmt="jd"),
+        date_utc=site_config.date,
+        date_mjd=julian.to_jd(site_config.date, fmt="jd"),
         ref_frame="ITRF",
         shot_data=shot_data_rectified,
-        sound_speed_data=site_config.sound_speed_data)
-
+        sound_speed_data=pd.read_csv(site_config.sound_speed_data)
+    )
     garpos_input = GarposInput(
         observation=garpos_observation,
         site=garpos_site
@@ -1229,8 +1230,8 @@ def dev_main(
     input_path = working_dir / "observation.ini"
     fixed_path = working_dir / "settings.ini"
 
-    garposinput_to_datafile(input, input_path)
-    garposfixed_to_datafile(fixed, fixed_path)
+    garposinput_to_datafile(garpos_input, input_path)
+    garposfixed_to_datafile(garpos_fixed, fixed_path)
 
     rf = drive_garpos(str(input_path), str(fixed_path), str(results_dir), "test", 13)
 

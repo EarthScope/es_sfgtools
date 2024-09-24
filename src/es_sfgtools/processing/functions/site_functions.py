@@ -139,7 +139,7 @@ def build_site(
         name=name,
         campaign=campaign,
         date=date,
-        svp_source=svp_source,
+        sound_speed_data=str(svp_source),
         atd_offset=atd_offset,
     )
     return site

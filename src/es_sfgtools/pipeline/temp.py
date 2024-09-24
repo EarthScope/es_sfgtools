@@ -34,53 +34,9 @@ from es_sfgtools.modeling.garpos_tools import hyper_params
 
 import sqlalchemy as sa
 from .database import Base,Assets,Session,ModelResults
-
+from .constants import FILE_TYPE,DATA_TYPE,REMOTE_TYPE,ALIAS_MAP,FILE_TYPES
 logger = logging.getLogger(__name__)
 
-class REMOTE_TYPE(Enum):
-    S3 = "s3"
-    HTTP = "http"
-
-class FILE_TYPE(Enum):
-    SONARDYNE = "sonardyne"
-    NOVATEL = "novatel"
-    KIN = "kin"
-    RINEX = "rinex"
-    MASTER= "master"    
-    LEVERARM = "leverarm"
-    SEABIRD = "svpavg"
-    NOVATEL770 = "novatel770"
-    DFPO00 = "dfop00"
-    OFFLOAD = "offload"
-    QCPIN = "pin"
-    NOVATELPIN = "novatelpin"
-    
-
-    @classmethod
-    def to_schema(cls):
-        return [x.name for x in cls]
-
-
-FILE_TYPES = [x.value for x in FILE_TYPE]
-ALIAS_MAP = {
-    "nov770":"novatel770"}
-ALIAS_MAP = ALIAS_MAP | {x:x for x in FILE_TYPES}
-
-class DATA_TYPE(Enum):
-    IMU = "imu"
-    GNSS = "gnss"
-    ACOUSTIC = "acoustic"
-    SITECONFIG = "siteconfig"
-    ATDOFFSET = "atdoffset"
-    SVP = "svp"
-    SHOTDATA = "shotdata"
-
-    @classmethod
-    def to_schema(cls):
-        return [x.name for x in cls]
-
-
-DATA_TYPES = [x.value for x in DATA_TYPE]
 
 TARGET_MAP = {
     FILE_TYPE.QCPIN:{DATA_TYPE.SHOTDATA:proc_funcs.dev_qcpin_to_shotdata},

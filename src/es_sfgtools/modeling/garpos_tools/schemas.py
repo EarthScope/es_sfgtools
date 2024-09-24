@@ -250,6 +250,10 @@ class InversionParams(BaseModel):
     deltab: float = Field(
         default=1.0e-6, description="Infinitesimal values to make Jacobian matrix"
     )
+    delta_center_position : PositionENU = Field(
+        default=PositionENU(east_sigma=1,north_sigma=1), description="Delta center position"
+    )
+
 
     class Config:
         coerce = True
