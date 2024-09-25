@@ -16,4 +16,5 @@ Submodules
    es_sfgtools.processing.schemas.observables.constants
    es_sfgtools.processing.schemas.observables.gnss_schemas
    es_sfgtools.processing.schemas.observables.imu_schemas
+   es_sfgtools.processing.schemas.observables.observation_schemas
    es_sfgtools.processing.schemas.observables.sound_speed_schemas

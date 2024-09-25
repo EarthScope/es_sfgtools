@@ -15,6 +15,7 @@ Submodules
    es_sfgtools.processing.functions.acoustic_functions
    es_sfgtools.processing.functions.gnss_functions
    es_sfgtools.processing.functions.imu_functions
+   es_sfgtools.processing.functions.observation_functions
    es_sfgtools.processing.functions.seabird_functions
    es_sfgtools.processing.functions.site_functions
    es_sfgtools.processing.functions.vessel_functions

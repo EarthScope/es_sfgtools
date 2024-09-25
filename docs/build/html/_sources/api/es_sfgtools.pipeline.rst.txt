@@ -12,4 +12,5 @@ Submodules
 .. toctree::
    :maxdepth: 4
 
+   es_sfgtools.pipeline.database
    es_sfgtools.pipeline.temp
