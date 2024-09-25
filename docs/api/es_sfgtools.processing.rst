@@ -1,0 +1,19 @@
+es\_sfgtools.processing package
+===============================
+
+Subpackages
+-----------
+
+.. toctree::
+   :maxdepth: 4
+
+   es_sfgtools.processing.functions
+   es_sfgtools.processing.schemas
+
+Module contents
+---------------
+
+.. automodule:: es_sfgtools.processing
+   :members:
+   :undoc-members:
+   :show-inheritance:

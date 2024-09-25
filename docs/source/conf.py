@@ -35,7 +35,8 @@ extensions = ['sphinx.ext.napoleon',        # support for numpy-style docstrings
 
 # autosummary_generate = True
 # Add Napoleon settings
-napoleon_google_docstring = True
+# napoleon_google_docstring = True
+autosummary_generate = True
 napoleon_numpy_docstring = True
 myst_enable_extensions = ["colon_fence"]    # Enables the use of ::: for fenced code blocks.
 
