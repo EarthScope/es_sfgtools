@@ -8,7 +8,6 @@ sys.path.insert(0, os.path.abspath('../../src/es_sfgtools'))
 
 config = SphinxConfig("../../pyproject.toml", globalns=globals())
 
-#
 # For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
@@ -33,10 +32,6 @@ extensions = ['sphinx.ext.napoleon',        # support for numpy-style docstrings
               ]
 
 
-# autosummary_generate = True
-# Add Napoleon settings
-# napoleon_google_docstring = True
-# autosummary_generate = True
 napoleon_numpy_docstring = True
 myst_enable_extensions = ["colon_fence"]    # Enables the use of ::: for fenced code blocks.
 
