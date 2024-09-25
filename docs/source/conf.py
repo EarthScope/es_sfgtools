@@ -23,8 +23,6 @@ release = '0.0.1'
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-
-
 extensions = ['sphinx.ext.napoleon',        # support for numpy-style docstrings
               'sphinx.ext.autodoc',         # support for automatic documentation
               'sphinx.ext.autosummary',     # support for automatic summaries
@@ -34,6 +32,11 @@ extensions = ['sphinx.ext.napoleon',        # support for numpy-style docstrings
               'myst_parser'                 # support for markdown
               ]
 
+
+# autosummary_generate = True
+# Add Napoleon settings
+napoleon_google_docstring = True
+napoleon_numpy_docstring = True
 myst_enable_extensions = ["colon_fence"]    # Enables the use of ::: for fenced code blocks.
 
 # APIDOC configuration 
@@ -45,8 +48,6 @@ apidoc_module_first = True
 
 templates_path = ['_templates']
 exclude_patterns = []
-
-
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
