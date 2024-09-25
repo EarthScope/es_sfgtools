@@ -18,13 +18,5 @@ SV3 wavegliders, as well as run GNSS-A processing using
    pages/Installation.md
    api
 
-.. autosummary::
-   :toctree: api
-
-   es_sfgtools
-   es_sfgtools.preprocess
-   es_sfgtools.process
-   es_sfgtools.utils
-
 .. note:: 
    This package and its documentation are under development.
