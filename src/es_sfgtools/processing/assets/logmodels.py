@@ -90,7 +90,7 @@ class PositionData(BaseModel):
         self.sdz = data.sdz
         self.east, self.north, self.up = pm.geodetic2ecef(data.latitude, data.longitude, data.hae)
 
-        
+
     @classmethod
     def from_sv2(cls, line) -> "PositionData":
         # process sv2 line
@@ -158,11 +158,9 @@ class PingData(BaseModel):
         TRIGGER_DELAY (float): Trigger delay time.
     """
 
-    Sequence: Optional[int] = None
-    PingTime: float = Field(ge=0, le=24 * 3600, default=None)
-    TriggerTime: datetime = Field(ge=GNSS_START_TIME, default=None)
-    PingOffset: float = Field(ge=-60, le=60, default=None)
-    ADJ_LEAP: float = ADJ_LEAP
+    pingTime: float = Field(ge=0, le=24 * 3600, default=None)
+    triggerTime: datetime = Field(ge=GNSS_START_TIME, default=None)
+
 
     @classmethod
     def from_line(cls, line) -> "PingData":
@@ -182,8 +180,6 @@ class PingData(BaseModel):
             PingData(PingTime=58268.539063657634, TriggerTime=datetime.datetime(2018, 5, 30, 12, 56, 14), PingOffset=0.0, ADJ_LEAP=1.0, TRIGGER_DELAY=0.1)
         """
 
-        TRIGGER_DELAY = TRIGGER_DELAY_SV2
-
         # "2003,327374,1527706574,2018/05/30 18:56:14.697 PING - Offset = 0.000" -> ["2003","327374","1527706574","2018/05/30 18:56:14.697 PING - Offset = 0.000"]
         ping_data_parsed: List[str] = line.split(",")
         # 2018/05/30 18:56:14.697 -> datetime.datetime(2018, 5, 30, 18, 56, 14, 697000)
@@ -195,7 +191,7 @@ class PingData(BaseModel):
         ping_offset: float = float(ping_data_parsed[-1].split(" ")[-1])
 
         # Compute time delta
-        time_delta: float = TRIGGER_DELAY
+        time_delta: float = TRIGGER_DELAY_SV2 
 
         # 2018-05-30 18:56:14 + 0.1 + 0.0 = 2018-05-30 18:56:14.1
         ping_time = (
@@ -206,10 +202,10 @@ class PingData(BaseModel):
 
         # ping_time_julian: float = julian.to_jd(ping_time, "mjd")
 
-        return cls(TriggerTime=trigger_time, PingTime=ping_time, PingOffset=ping_offset)
+        return cls(pingTime=ping_time, triggerTime=trigger_time)
 
 
-class TransponderData(BaseModel):
+class ReplyData(BaseModel):
     """
     Data class representing acoustic data measurements between a transducer and an indivudual transponder.
 
@@ -221,21 +217,21 @@ class TransponderData(BaseModel):
         CorrelationScore (int): Correlation score.
     """
 
-    TransponderID: str  # Transponder ID
-    TwoWayTravelTime: float = Field(ge=0.0, le=600)  # Two-way Travel time [seconds]
-    ReturnTime: float = Field(
+    transponderID: str  # Transponder ID
+    twoWayTravelTime: float = Field(ge=0.0, le=600)  # Two-way Travel time [seconds]
+    returnTime: float = Field(
         ge=0, le=3600 * 24
     )  # Return time since the start of day (modified Julian day) [days]
-    DecibalVoltage: int = Field(
+    decibalVoltage: int = Field(
         ge=-100, le=100
     )  # Signal relative to full scale voltage [dB]
-    CorrelationScore: int = Field(ge=0, le=100)  # Correlation score
+    correlationScore: int = Field(ge=0, le=100)  # Correlation score
 
-    SignalToNoise: Optional[float] = Field(
+    signalToNoise: Optional[float] = Field(
         ge=0, le=100, default=0
     )  # Signal to noise ratio
 
-    TurnAroundTime: Optional[float] = Field(
+    turnAroundTime: Optional[float] = Field(
         ge=0, le=100, default=0
     )  # Turn around time [ms]
 
@@ -277,7 +273,7 @@ class SimultaneousInterrogation(BaseModel):
 
     @classmethod
     def from_line(
-        cls, line, pingdata: PingData
+        cls, line, pingdata: pingData
     ) -> Union["SimultaneousInterrogation", Exception]:
         # Input line sample
         # 2003,327470,1527706670,2018/05/30 18:57:50.495 >SI:2010,INT1,IR5209;R4470626;[XC70,DBV-15],
@@ -316,12 +312,12 @@ class SimultaneousInterrogation(BaseModel):
             # Computing return time from transponder travel time [s] and pingtime[julian date]
             return_time = travel_time + pingdata.PingTime
 
-            transponder_data = TransponderData(
-                TransponderID=transponderID,
-                TwoWayTravelTime=travel_time,
-                ReturnTime=return_time,
-                DecibalVoltage=dbv,
-                CorrelationScore=int(corr_score),
+            transponder_data = replyData(
+                transponderID=transponderID,
+                twoWayTravelTime=travel_time,
+                returnTime=return_time,
+                decibalVoltage=dbv,
+                correlationScore=int(corr_score),
             )
             transponder_data_set.append(transponder_data)
 
