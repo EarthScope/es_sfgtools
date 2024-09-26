@@ -1,6 +1,6 @@
 import logging
-from ..schemas.files.file_schemas import LeverArmFile
-from ..schemas.site_config.site_schemas import ATDOffset
+from ..assets.file_schemas import LeverArmFile
+from ..assets.siteconfig import ATDOffset
 
 logger = logging.getLogger(__name__)
 

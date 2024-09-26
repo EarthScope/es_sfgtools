@@ -10,7 +10,7 @@ import os
 import json
 import pymap3d as pm
 
-from ..schemas.files.file_schemas import NovatelFile, DFPO00RawFile,QCPinFile
+from ..assets.file_schemas import NovatelFile, DFPO00RawFile,QCPinFile
 from ..schemas.observables import IMUDataFrame
 logger = logging.getLogger(os.path.basename(__file__))
 

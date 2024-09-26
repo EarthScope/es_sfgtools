@@ -5,8 +5,8 @@ from typing import Union
 from pathlib import Path
 import datetime
 
-from ..schemas.site_config.site_schemas import SiteConfig,Transponder,ATDOffset,PositionLLH
-from ..schemas.files.file_schemas import MasterFile,LeverArmFile
+from ..assets.siteconfig import SiteConfig,Transponder,ATDOffset,PositionLLH
+from ..assets.file_schemas import MasterFile,LeverArmFile
 
 logger = logging.getLogger(__name__)
 

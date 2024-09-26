@@ -5,7 +5,7 @@ import os
 import pandera as pa
 import numpy as np
 from pandera.typing import DataFrame
-from ..schemas.files.file_schemas import SeaBirdFile,CTDFile
+from ..assets.file_schemas import SeaBirdFile,CTDFile
 from ..schemas.observables import SoundVelocityDataFrame
 
 logger = logging.getLogger(os.path.basename(__file__))

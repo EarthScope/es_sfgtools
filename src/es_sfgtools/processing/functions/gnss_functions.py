@@ -19,7 +19,7 @@ from pathlib import Path
 import numpy as np
 import uuid 
 
-from ..schemas.files.file_schemas import NovatelFile,RinexFile,KinFile,Novatel770File,DFPO00RawFile,QCPinFile,NovatelPinFile
+from ..assets.file_schemas import NovatelFile,RinexFile,KinFile,Novatel770File,DFPO00RawFile,QCPinFile,NovatelPinFile
 from ..schemas.observables import PositionDataFrame
 
 # logger = logging.getLogger(os.path.basename(__file__))
