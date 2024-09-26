@@ -92,11 +92,11 @@ class AcousticDataFrame(pa.DataFrameModel):
         coerce = True
         add_missing_columns = True
         drop_invalid_rows = True
-        check_travel_time = {
-            "TT": "tt",
-            "ST": "pingTime",
-            "RT": "returnTime",
-        }
+        # check_travel_time = {
+        #     "TT": "tt",
+        #     "ST": "pingTime",
+        #     "RT": "returnTime",
+        # }
 
     @pa.parser("triggerTime")
     def parse_trigger_time(cls, series: pd.Series) -> pd.Series:

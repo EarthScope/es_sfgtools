@@ -1,7 +1,7 @@
 import pandas as pd
 from pydantic import BaseModel, Field, ValidationError
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional,Dict,Union,List
 import os
 import logging
 import json
@@ -10,13 +10,14 @@ from pandera.typing import DataFrame
 import pymap3d as pm
 from warnings import warn
 import numpy as np
+import re
 
 from ..assets.constants import STATION_OFFSETS, TRIGGER_DELAY_SV2
-from ..assets.file_schemas import SonardyneFile
+from ..assets.file_schemas import SonardyneFile,NovatelFile
 from ..assets.observables import AcousticDataFrame, PositionDataFrame,ShotDataFrame
-from ..assets.logmodels import PositionData,RangeData,get_traveltime
+from ..assets.logmodels import PositionData,RangeData,get_traveltime,check_sequence_overlap,datetime_to_sod
 
-
+logger = logging.getLogger(__name__)
 
 def get_transponder_offsets(line: str) -> Dict[str, float]:
     """
@@ -54,8 +55,8 @@ def range_data_to_acousticdf(df:pd.DataFrame) -> pd.DataFrame:
     df["tt"] = tt_array
     pingtime_array = df["time"] + timedelta(seconds=TRIGGER_DELAY_SV2)
     returntime_array = pingtime_array + pd.to_timedelta(tt_array,unit="s")
-    df["pingTime"] = pingtime_array
-    df["returnTime"] = returntime_array
+    df["pingTime"] = datetime_to_sod(pingtime_array)
+    df["returnTime"] = datetime_to_sod(returntime_array)
     df = df.rename(columns={"time":"triggerTime"})
     df.triggerTime = df.triggerTime.dt.tz_localize("UTC")
     return df
@@ -129,24 +130,19 @@ def sonardyne_to_acousticdf(source: SonardyneFile) -> DataFrame[AcousticDataFram
 
             # Update transponder time offsets if found
             if tat_pattern.search(line):
-                offset_dict: Union[Dict[str, float], None] = get_transponder_offsets(
-                    line
-                )
-                if offset_dict is None:
-                    continue
-                main_offset_dict.update(offset_dict)
-                pass
-        
-            if si_pattern.search(next_line):
+                if (offset_dict:=get_transponder_offsets(line)) is not None:
+                    main_offset_dict.update(offset_dict)
+         
+            if si_pattern.search(line):
                 try:
                     range_data: List[RangeData] = RangeData.from_sv2(line,main_offset_dict)
-                    simultaneous_interrogation_set.append(range_data)
+                    simultaneous_interrogation_set.extend(range_data)
                 except ValidationError as e:
                     response = f"Error parsing into SimultaneousInterrogation from line {line_number} in {source}\n "
                     response += f"Line: {next_line}"
                     logger.error(response)
                     pass
-                break
+                
 
     # Check if any Simultaneous Interrogation data was found
     if not simultaneous_interrogation_set:
@@ -159,7 +155,7 @@ def sonardyne_to_acousticdf(source: SonardyneFile) -> DataFrame[AcousticDataFram
     acoustic_df = range_data_to_acousticdf(df)
 
     unique_transponders: list = list(
-        acoustic_df.reset_index()["TransponderID"].unique()
+        acoustic_df.reset_index()["transponderID"].unique()
     )
     shot_count: int = int(acoustic_df.shape[0] / len(unique_transponders))
 
@@ -188,9 +184,9 @@ def novatel_to_positiondf(source:NovatelFile) -> DataFrame[PositionDataFrame]:
                     break
                 if re.search(inspvaa_pattern, line):
                     try:
-                        position_data = PositionData.from_sv2(line)
+                        position_data = PositionData.from_sv2_inspvaa(line)
                         data_list.append(position_data.model_dump())
-                    else:
+                    except Exception as e:
                         error_msg = f"IMU Parsing: An error occurred while parsing INVSPA data from FILE {source} at LINE {line_number} \n"
                         error_msg += f"Error: {line}"
                         logger.error(error_msg)
@@ -199,7 +195,11 @@ def novatel_to_positiondf(source:NovatelFile) -> DataFrame[PositionDataFrame]:
                 error_msg = f"Position Parsing:{e} | Error parsing FILE {source.local_path} at LINE {line_number}"
                 logger.error(error_msg)
                 pass
-    df = pd.DataFrame(data_list)
+    df = pd.DataFrame(data_list).rename(columns={
+        "sdx":"east_std",
+        "sdy":"north_std",
+        "sdz":"up_std",
+        })
     return PositionDataFrame.validate(df, lazy=True)
 
 def dev_merge_to_shotdata(acoustic: DataFrame[AcousticDataFrame], position:DataFrame[PositionDataFrame]) -> DataFrame[ShotDataFrame]:
@@ -248,8 +248,8 @@ def dev_merge_to_shotdata(acoustic: DataFrame[AcousticDataFrame], position:DataF
     
     # Convert pingtime and return time to datetime (units are seconds of day)
     acoustic_day_start = acoustic["time"].apply(lambda x: (x.replace(hour=0, minute=0, second=0,microsecond=0)).timestamp())    
-    acoustic_return_dt = acoustic["returntime"].to_numpy() + acoustic_day_start
-    acoustic_ping_dt = acoustic["pingtime"].to_numpy() + acoustic_day_start
+    acoustic_return_dt = acoustic["returnTime"].to_numpy() + acoustic_day_start
+    acoustic_ping_dt = acoustic["pingTime"].to_numpy() + acoustic_day_start
 
     output_df = acoustic.copy()
     for field,target in ping_keys_position.items():

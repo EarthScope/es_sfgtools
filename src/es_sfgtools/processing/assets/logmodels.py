@@ -40,7 +40,7 @@ def get_traveltime(
     return tt
 
 
-def datetime_to_sod(dt: datetime) -> float:
+def datetime_to_sod(dt: Union[datetime,np.ndarray]) -> float:
     """Converts a datetime object to seconds of day
 
     Args:
@@ -49,7 +49,11 @@ def datetime_to_sod(dt: datetime) -> float:
     Returns:
         float: datetime in seconds of day
     """
-    return (dt - datetime(dt.year, dt.month, dt.day)).total_seconds()
+    if isinstance(dt,datetime):
+        dt = np.array([dt])
+    for i in range(len(dt)):
+        dt[i] = (dt[i] - datetime(dt[i].year, dt[i].month, dt[i].day)).total_seconds()
+    return dt
 
 
 def get_triggertime(dt: datetime, triggerDelay: float = TRIGGER_DELAY_SV3) -> datetime:
@@ -121,14 +125,16 @@ class RangeData(BaseModel):
             travel_time_micro = int(travel_time.replace("R", ""))
 
             # 4470626 -> 4.470626, convert from microseconds to seconds
-            range = travel_time_micro / 1000000.000
+            range_ = travel_time_micro / 1000000.000
 
-            tat = station_offsets.get(transponderID, 0)
+            tat = station_offsets.get(transponderID, 0)/1000
             if tat == 0:
                 raise Exception(f"Transponder {transponderID} not found in station offsets")
-            transponder_logs.append(
-                cls(range=range, transponderID=transponderID, dbv=dbv, snr=0, xc=corr_score, tat=tat, time=timestamp)
-            )
+            if range_ > 0:
+                    
+                transponder_data_set.append(
+                    cls(range=range_, transponderID=transponderID, dbv=dbv, snr=0, xc=corr_score, tat=tat, time=timestamp)
+                )
         return transponder_data_set
 
 class PositionData(BaseModel):
