@@ -205,18 +205,18 @@ class TransponderData(BaseModel):
 
     Attributes:
         TransponderID (str): The unique identifier for the transponder.
-        TwoWayTravelTime (float, optional): The two-way travel time in seconds [s].
+        tt (float, optional): The two-way travel time in seconds [s].
         ReturnTime (float, optional): The return time julian day [days]
-        DecibalVoltage (int): Signal relative to full scale voltage in dB.
+        dbv (int): Signal relative to full scale voltage in dB.
         CorrelationScore (int): Correlation score.
     """
 
     TransponderID: str # Transponder ID
-    TwoWayTravelTime: float = Field(ge=0.0, le=600)  # Two-way Travel time [seconds]
+    tt: float = Field(ge=0.0, le=600)  # Two-way Travel time [seconds]
     ReturnTime: float = Field(
         ge=0, le=3600*24
     )  # Return time since the start of day (modified Julian day) [days]
-    DecibalVoltage: int = Field(
+    dbv: int = Field(
         ge=-100, le=100
     )  # Signal relative to full scale voltage [dB]
     CorrelationScore: int = Field(ge=0, le=100)  # Correlation score
@@ -238,7 +238,7 @@ class TransponderData(BaseModel):
         offset_seconds = offset / 1000.0
         offset_fractional_days = offset_seconds / 86400.0
         # self.ReturnTime -= offset_fractional_days
-        self.TwoWayTravelTime -= offset_seconds
+        self.tt -= offset_seconds
 
 
 class SimultaneousInterrogation(BaseModel):
@@ -304,9 +304,9 @@ class SimultaneousInterrogation(BaseModel):
 
             transponder_data = TransponderData(
                 TransponderID=transponderID,
-                TwoWayTravelTime=travel_time,
+                tt=travel_time,
                 ReturnTime=return_time,
-                DecibalVoltage=dbv,
+                dbv=dbv,
                 CorrelationScore=int(corr_score),
             )
             transponder_data_set.append(transponder_data)
@@ -335,8 +335,8 @@ def from_simultaneous_interrogation(si_set: List[SimultaneousInterrogation]
         "TriggerTime",
         "PingTime",
         "ReturnTime",
-        "TwoWayTravelTime",
-        "DecibalVoltage",
+        "tt",
+        "dbv",
         "CorrelationScore",
     ]
     dataframe_pre = dataframe_pre[column_order]
@@ -400,7 +400,7 @@ def sonardyne_to_acousticdf(source: SonardyneFile) -> DataFrame[AcousticDataFram
         >>> df = AcousticDataFrame.from_file(file)
         INFO:root:Processed 4.0 shots from "tests/resources/test_sonardyne_raw.txt"
         >>> print(df.head())
-                                             PingTime      ReturnTime       TwoWayTravelTime  DecibalVoltage  CorrelationScore
+                                             PingTime      ReturnTime       tt  dbv  CorrelationScore
         TriggerTime          TransponderID
         2018-05-30 12:55:59  5209           58268.538890  58268.538942          4.447123             -21                85
                              5210           58268.538890  58268.538928          3.291827               0                85
@@ -550,9 +550,9 @@ def dfpo00_to_acousticdf(source: DFPO00RawFile) -> DataFrame[AcousticDataFrame]:
                     {
                         "TriggerTime": trigger_time_dt,
                         "TransponderID": id,
-                        "TwoWayTravelTime": travel_time_true,
+                        "tt": travel_time_true,
                         "ReturnTime": return_time_sod,
-                        "DecibalVoltage": dbv,
+                        "dbv": dbv,
                         "CorrelationScore": xc,
                         "PingTime": ping_time_sod,
                         "SignalToNoise": snr,
@@ -600,9 +600,9 @@ def qcpin_to_acousticdf(source:QCPinFile) -> Union[None,DataFrame[AcousticDataFr
                 {
                     "TriggerTime": trigger_time_dt,
                     "TransponderID": id,
-                    "TwoWayTravelTime": travel_time_true,
+                    "tt": travel_time_true,
                     "ReturnTime": return_time_sod,
-                    "DecibalVoltage": dbv,
+                    "dbv": dbv,
                     "CorrelationScore": xc,
                     "PingTime": ping_time_sod,
                     "SignalToNoise": snr,
@@ -663,9 +663,9 @@ def dev_dfpo00_to_acousticdf(source: DFPO00RawFile) -> DataFrame[AcousticDataFra
                     {
                         "TriggerTime": trigger_time_dt,
                         "TransponderID": id,
-                        "TwoWayTravelTime": travel_time_true,
+                        "tt": travel_time_true,
                         "ReturnTime": reply_time_sod,
-                        "DecibalVoltage": dbv,
+                        "dbv": dbv,
                         "CorrelationScore": xc,
                         "PingTime": ping_data.PingTime,
                         "SignalToNoise": snr,

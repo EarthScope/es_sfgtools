@@ -24,8 +24,8 @@ def get_traveltime(range:float,tat:float,triggerDelay:float=TRIGGER_DELAY_SV3) -
     assert tat < 1, "Turn around time must be less than 1"
     assert tat >= 0, "Turn around time must be greater than or equal to 0"
 
-    twoWayTravelTime = range - tat - triggerDelay
-    return twoWayTravelTime
+    tt = range - tat - triggerDelay
+    return tt
 
 def datetime_to_sod(dt:datetime) -> float:
     """Converts a datetime object to seconds of day
@@ -79,53 +79,6 @@ class RangeData(BaseModel):
             timestamp = datetime.fromtimestamp(time)
         )
 
-class PositionData(BaseModel):
-    east: float
-    north: float
-    up: float
-    east_std: Optional[float] = None
-    north_std: Optional[float] = None
-    up_std: Optional[float] = None
-    heading: float
-    pitch: float
-    roll: float
-    timestamp: datetime
-
-    @classmethod
-    def sv3_from_dfop00(cls,ahrs:dict,gnss:dict) -> "PositionData":
-        ahrs_data = AHRSData(heading=ahrs.get("h"),pitch=ahrs.get("p"),roll=ahrs.get("r"),timestamp=datetime.fromtimestamp(ahrs.get("time").get("common")))
-        gnss_data = GNSSData(
-            lattitude=gnss.get("latitude"),longitude=gnss.get("longitude"),hae=gnss.get("hae"),
-            sdx=gnss.get("sdx"),sdy=gnss.get("sdy"),sdz=gnss.get("sdz"),timestamp=datetime.fromtimestamp(gnss.get("time").get("common")))
-        east, north, up = pm.geodetic2ecef(gnss_data.lattitude, gnss_data.longitude, gnss_data.hae)
-        return cls(
-            east=east,
-            north=north,
-            up=up,
-            east_std=gnss_data.sdx,
-            north_std=gnss_data.sdy,
-            up_std=gnss_data.sdz,
-            heading=ahrs_data.heading,
-            pitch=ahrs_data.pitch,
-            roll=ahrs_data.roll,
-            timestamp=gnss_data.timestamp
-        )
-    @classmethod
-    def sv3_from_qc(cls,nov_ins:dict) -> "PositionData":
-        ahrs_data = AHRSData(heading=nov_ins.get("h"),pitch=nov_ins.get("p"),roll=nov_ins.get("r"),timestamp=datetime.fromtimestamp(nov_ins.get("time").get("common")))
-        gnss_data = GNSSData(
-            lattitude=nov_ins.get("latitude"),longitude=nov_ins.get("longitude"),hae=nov_ins.get("hae"),
-            timestamp=datetime.fromtimestamp(nov_ins.get("time").get("common")))
-        east, north, up = pm.geodetic2ecef(gnss_data.lattitude, gnss_data.longitude, gnss_data.hae)
-        return cls(
-            east=east,
-            north=north,
-            up=up,
-            heading=ahrs_data.heading,
-            pitch=ahrs_data.pitch,
-            roll=ahrs_data.roll,
-            timestamp=gnss_data.timestamp
-        )
 
 class InterrogationData(BaseModel):
     head0: float

@@ -9,11 +9,13 @@ import pandera as pa
 from pandera.typing import DataFrame
 import pymap3d as pm
 from warnings import warn
+import numpy as np
 
-from ..assets.constants import STATION_OFFSETS
+from ..assets.constants import STATION_OFFSETS, TRIGGER_DELAY_SV2
 from ..assets.file_schemas import SonardyneFile
-from ..assets.observables import AcousticDataFrame, PositionDataFrame
-from ..assets.logmodels import PingData, SimultaneousInterrogation,PositionData
+from ..assets.observables import AcousticDataFrame, PositionDataFrame,ShotDataFrame
+from ..assets.logmodels import PositionData,RangeData,get_traveltime
+
 
 
 def get_transponder_offsets(line: str) -> Dict[str, float]:
@@ -47,37 +49,16 @@ def get_transponder_offsets(line: str) -> Dict[str, float]:
     offset_dict[transponder_id] = offset
     return offset_dict
 
-
-def from_simultaneous_interrogation(
-    si_set: List[SimultaneousInterrogation],
-) -> Union[pd.DataFrame, None]:
-    """
-    Generate a validated AcousticDataFrame from a list of SimultaneousInterrogation instances.
-    """
-    si_data_dicts: List[dict] = []
-    for si_data in si_set:
-        ping_data_dict = dict(si_data.pingData)
-        for response in si_data.responses:
-            response_dict = dict(response)
-            si_data_dicts.append({**response_dict, **ping_data_dict})
-
-    dataframe_pre = pd.DataFrame(si_data_dicts)
-    column_order = [
-        "transponderID",
-        "triggerTime",
-        "pingTime",
-        "returnTime",
-        "twoWayTravelTime",
-        "decibalVoltage",
-        "correlationScore",
-    ]
-    dataframe_pre = dataframe_pre[column_order]
-    dataframe_pre["triggerTime"] = dataframe_pre["triggerTime"].apply(
-        lambda x: pd.Timestamp(x)
-    )
-
-    return dataframe_pre
-
+def range_data_to_acousticdf(df:pd.DataFrame) -> pd.DataFrame:
+    tt_array:np.ndarray = get_traveltime(df["range"].to_numpy(),df["tat"].to_numpy(),triggerDelay=TRIGGER_DELAY_SV2)
+    df["tt"] = tt_array
+    pingtime_array = df["time"] + timedelta(seconds=TRIGGER_DELAY_SV2)
+    returntime_array = pingtime_array + pd.to_timedelta(tt_array,unit="s")
+    df["pingTime"] = pingtime_array
+    df["returnTime"] = returntime_array
+    df = df.rename(columns={"time":"triggerTime"})
+    df.triggerTime = df.triggerTime.dt.tz_localize("UTC")
+    return df
 
 def sonardyne_to_acousticdf(source: SonardyneFile) -> DataFrame[AcousticDataFrame]:
     """
@@ -101,7 +82,7 @@ def sonardyne_to_acousticdf(source: SonardyneFile) -> DataFrame[AcousticDataFram
         >>> df = AcousticDataFrame.from_file(file)
         INFO:root:Processed 4.0 shots from "tests/resources/test_sonardyne_raw.txt"
         >>> print(df.head())
-                                             PingTime      ReturnTime       TwoWayTravelTime  DecibalVoltage  CorrelationScore
+                                             PingTime      ReturnTime       tt  dbv  CorrelationScore
         TriggerTime          TransponderID
         2018-05-30 12:55:59  5209           58268.538890  58268.538942          4.447123             -21                85
                              5210           58268.538890  58268.538928          3.291827               0                85
@@ -122,7 +103,6 @@ def sonardyne_to_acousticdf(source: SonardyneFile) -> DataFrame[AcousticDataFram
         logger.error(response)
         raise FileNotFoundError(response)
 
-    ping_pattern = re.compile("PING - Offset")
     si_pattern = re.compile(">SI:")  # TODO take this out for now
 
     # get transponder offsets from file:
@@ -130,7 +110,7 @@ def sonardyne_to_acousticdf(source: SonardyneFile) -> DataFrame[AcousticDataFram
     # offset_dict = {"2010": 200}
     tat_pattern = re.compile(">CS:")
 
-    simultaneous_interrogation_set: List[SimultaneousInterrogation] = []
+    simultaneous_interrogation_set = []
     line_number = 0
     # Dictionary to store transponder time offsets
     main_offset_dict = STATION_OFFSETS.copy()
@@ -156,40 +136,17 @@ def sonardyne_to_acousticdf(source: SonardyneFile) -> DataFrame[AcousticDataFram
                     continue
                 main_offset_dict.update(offset_dict)
                 pass
-
-            if ping_pattern.search(line):
+        
+            if si_pattern.search(next_line):
                 try:
-                    pingData: PingData = PingData.from_line(line)
-                    found_ping = True
+                    range_data: List[RangeData] = RangeData.from_sv2(line,main_offset_dict)
+                    simultaneous_interrogation_set.append(range_data)
                 except ValidationError as e:
-                    response = f"Error parsing into PingData from line {line_number} in {source}\n "
-                    response += f"Line: {line}"
+                    response = f"Error parsing into SimultaneousInterrogation from line {line_number} in {source}\n "
+                    response += f"Line: {next_line}"
                     logger.error(response)
-                    found_ping = False
-                    break
-
-                while True and found_ping:
-                    next_line = sonardyne_file.readline()
-                    line_number += 1
-                    if si_pattern.search(next_line):
-                        try:
-                            si_data: SimultaneousInterrogation = (
-                                SimultaneousInterrogation.from_line(next_line, pingData)
-                            )
-                            # Apply the time offsets [ms] to the transponder data
-                            si_data.apply_offsets(main_offset_dict)
-                            simultaneous_interrogation_set.append(si_data)
-
-                        except ValidationError as e:
-                            response = f"Error parsing into SimultaneousInterrogation from line {line_number} in {source}\n "
-                            response += f"Line: {next_line}"
-                            logger.error(response)
-                            pass
-                        break
-                    elif ping_pattern.search(next_line) or next_line == "":
-                        break
-
-                found_ping = False
+                    pass
+                break
 
     # Check if any Simultaneous Interrogation data was found
     if not simultaneous_interrogation_set:
@@ -197,9 +154,9 @@ def sonardyne_to_acousticdf(source: SonardyneFile) -> DataFrame[AcousticDataFram
         logger.error(response)
         return None
 
-    acoustic_df: pd.DataFrame = from_simultaneous_interrogation(
-        simultaneous_interrogation_set
-    )
+    df = pd.DataFrame([x.model_dump() for x in simultaneous_interrogation_set]) 
+
+    acoustic_df = range_data_to_acousticdf(df)
 
     unique_transponders: list = list(
         acoustic_df.reset_index()["TransponderID"].unique()
@@ -208,8 +165,8 @@ def sonardyne_to_acousticdf(source: SonardyneFile) -> DataFrame[AcousticDataFram
 
     log_response = f"Acoustic Parser: {acoustic_df.shape[0]} shots from FILE {source.local_path} | {len(unique_transponders)} transponders | {shot_count} shots per transponder"
     logger.info(log_response)
-    acoustic_df.triggerTime = acoustic_df.triggerTime.dt.tz_localize("UTC")
-    # acoustic_df.ReturnTime = acoustic_df.ReturnTime.dt.tz_localize("UTC")
+    
+    acoustic_df = check_sequence_overlap(acoustic_df)
     return AcousticDataFrame.validate(acoustic_df, lazy=True)
 
 
@@ -245,7 +202,7 @@ def novatel_to_positiondf(source:NovatelFile) -> DataFrame[PositionDataFrame]:
     df = pd.DataFrame(data_list)
     return PositionDataFrame.validate(df, lazy=True)
 
-def dev_merge_to_shotdata(acoustic: DataFrame[AcousticDataFrame], imu: DataFrame[IMUDataFrame], gnss: DataFrame[PositionDataFrame]) -> DataFrame[ObservationData]:
+def dev_merge_to_shotdata(acoustic: DataFrame[AcousticDataFrame], position:DataFrame[PositionDataFrame]) -> DataFrame[ShotDataFrame]:
     """
     Merge acoustic, imu, and gnss data to create observation data.
     Args:
@@ -256,45 +213,34 @@ def dev_merge_to_shotdata(acoustic: DataFrame[AcousticDataFrame], imu: DataFrame
         DataFrame[ObservationData]: Merged observation data frame.
     """
 
-    acoustic = acoustic.reset_index()
-    acoustic.columns = acoustic.columns.str.lower()
-    imu.columns = imu.columns.str.lower()
-    gnss.columns = gnss.columns.str.lower()
 
-    acoustic["triggertime"] = pd.to_datetime(acoustic["triggertime"])
-    acoustic["time"] = acoustic["triggertime"]
-    gnss["time"] = pd.to_datetime(gnss["time"])
-    imu["time"] = pd.to_datetime(imu["time"])
+    acoustic["time"] = acoustic["triggerTime"]
+    
 
     # sort
-    acoustic.sort_values("triggertime",inplace=True)
-    gnss.sort_values("time",inplace=True)
-    imu.sort_values("time",inplace=True)
+    acoustic.sort_values("triggerTime",inplace=True)
+    position.sort_values("time",inplace=True)
 
-    ping_keys_gnss = {
-        'ant_e0':"x",
-        'ant_n0':"y",
-        'ant_u0':"z",
+    ping_keys_position = {
+        'ant_e0':"east",
+        'ant_n0':"north",
+        'ant_u0':"up",
         'latitude':"latitude",
         'longitude':"longitude",
+        'roll0': "roll",
+        'pitch0': "pitch",
+        'head0': "head"
     }
-    ping_keys_imu = {
-        'roll0':"roll",
-        'pitch0':"pitch",
-        'head0':"azimuth"
-    }
+ 
 
-    return_keys_gnss = {
-        'ant_e1':"x",
-        'ant_n1':"y",
-        'ant_u1':"z"
+    return_keys_position = {
+        'ant_e1':"east",
+        'ant_n1':"north",
+        'ant_u1':"up",
+        'roll1': "roll",
+        'pitch1': "pitch",
+        'head1': "head"
     }
-    return_keys_imu = {
-        'roll1':"roll",
-        'pitch1':"pitch",
-        'head1':"azimuth"
-    }
-
 
     def interp(x_new,x,y):
         # return CubicSpline(x,y)(x_new)
@@ -306,22 +252,18 @@ def dev_merge_to_shotdata(acoustic: DataFrame[AcousticDataFrame], imu: DataFrame
     acoustic_ping_dt = acoustic["pingtime"].to_numpy() + acoustic_day_start
 
     output_df = acoustic.copy()
-    for field,target in ping_keys_gnss.items():
-        output_df[field] = interp(acoustic_ping_dt.to_numpy(),gnss["time"].apply(lambda x:x.timestamp()).to_numpy(),gnss[target].to_numpy())
-    for field,target in ping_keys_imu.items():
-        output_df[field] = interp(acoustic_ping_dt.to_numpy(),imu["time"].apply(lambda x:x.timestamp()).to_numpy(),imu[target].to_numpy())
+    for field,target in ping_keys_position.items():
+        output_df[field] = interp(acoustic_ping_dt.to_numpy(),position["time"].apply(lambda x:x.timestamp()).to_numpy(),position[target].to_numpy())
 
-    for field,target in return_keys_gnss.items():
-        output_df[field] = interp(acoustic_return_dt.to_numpy(),gnss["time"].apply(lambda x:x.timestamp()).to_numpy(),gnss[target].to_numpy())
-    for field,target in return_keys_imu.items():
-        output_df[field] = interp(acoustic_return_dt.to_numpy(),imu["time"].apply(lambda x:x.timestamp()).to_numpy(),imu[target].to_numpy())
+    for field,target in return_keys_position.items():
+        output_df[field] = interp(acoustic_return_dt.to_numpy(),position["time"].apply(lambda x:x.timestamp()).to_numpy(),position[target].to_numpy())
 
     output_df.rename(
         columns={
-            "transponderid": "MT",
-            "twowaytraveltime": "TT",
-            "pingtime": "ST",
-            "returntime": "RT",
+            "transponderID": "MT",
+            "tt": "TT",
+            "pingTime": "ST",
+            "returnTime": "RT",
         },
         inplace=True,
     )
@@ -333,5 +275,5 @@ def dev_merge_to_shotdata(acoustic: DataFrame[AcousticDataFrame], imu: DataFrame
     output_df = output_df.loc[:, ~output_df.columns.str.contains("^unnamed")].drop(columns=["time"]).dropna().reset_index(drop=True)
     output_df["SET"] = "S01"
     output_df["LN"] = "L01"
-    return ObservationData.validate(output_df,lazy=True)
+    return ShotDataFrame.validate(output_df,lazy=True)
 

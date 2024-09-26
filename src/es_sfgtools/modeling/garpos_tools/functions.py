@@ -365,7 +365,7 @@ def dev_merge_to_shotdata(acoustic: DataFrame[AcousticDataFrame], imu: DataFrame
     output_df.rename(
         columns={
             "transponderid": "MT",
-            "twowaytraveltime": "TT",
+            "tt": "TT",
             "pingtime": "ST",
             "returntime": "RT",
         },
@@ -429,7 +429,7 @@ def merge_to_shotdata(
             10,2018-06-05 00:00:00.550,54.33236476027,-158.46946402185,12.6369,-0.4891,-0.3229,0.3485,2.973482584,7.32876294,60.332332277
 
             Acoustic:
-            TriggerTime,TransponderID,PingTime,ReturnTime,TwoWayTravelTime,DecibalVoltage,CorrelationScore
+            TriggerTime,TransponderID,PingTime,ReturnTime,tt,dbv,CorrelationScore
             2018-06-05 00:00:14,5209,58274.000174768735,58274.00022122925,4.014189,-12,55
             2018-06-05 00:00:14,5210,58274.000174768735,58274.00022204121,4.084342,-12,50
             2018-06-05 00:00:14,5211,58274.000174768735,58274.000174768735,0.0,0,25
@@ -497,7 +497,7 @@ def merge_to_shotdata(
     shot_trigger_merged.rename(
         columns={
             "transponderid": "MT",
-            "twowaytraveltime": "TT",
+            "tt": "TT",
             "x": "ant_e0",
             "y": "ant_n0",
             "z": "ant_u0",
@@ -512,7 +512,7 @@ def merge_to_shotdata(
     shot_return_merged.rename(
         columns={
             "transponderid": "MT",
-            "twowaytraveltime": "TT",
+            "tt": "TT",
             "x": "ant_e1",
             "y": "ant_n1",
             "z": "ant_u1",

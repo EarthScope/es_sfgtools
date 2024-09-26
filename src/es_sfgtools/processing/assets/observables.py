@@ -26,8 +26,8 @@ class AcousticDataFrame(pa.DataFrameModel):
         TriggerTime (Series[datetime]): Time when the ping was triggered.
         PingTime (Series[float]): Time when ping was send in seconds of day .
         ReturnTime (Series[float]): Return time in seconds since the start of day.
-        TwoWayTravelTime (Series[float]): Two-way travel time.
-        DecibalVoltage (Series[int]): Signal relative to full scale voltage.
+        tt (Series[float]): Two-way travel time.
+        dbv (Series[int]): Signal relative to full scale voltage.
         CorrelationScore (Series[int]): Correlation score.
 
     """
@@ -56,21 +56,21 @@ class AcousticDataFrame(pa.DataFrameModel):
         description="Return time in seconds since the start of day (modified Julian day) [days]",
     )
 
-    twoWayTravelTime: Series[float] = pa.Field(
+    tt: Series[float] = pa.Field(
         ge=0.0, le=600, coerce=True, description="Two-way travel time [s]"
     )
 
-    decibalVoltage: Series[int] = pa.Field(
+    dbv: Series[int] = pa.Field(
         ge=-100,
         le=100,
         description="Signal relative to full scale voltage [dB]",
         coerce=True,
     )
 
-    correlationScore: Series[int] = pa.Field(
+    xc: Series[int] = pa.Field(
         ge=0, le=100, coerce=True, description="Correlation score"
     )
-    signalToNoise: Series[float] = pa.Field(
+    snr: Series[float] = pa.Field(
         ge=0,
         le=100.0,
         coerce=True,
@@ -79,7 +79,7 @@ class AcousticDataFrame(pa.DataFrameModel):
         description="Signal to noise ratio",
     )
 
-    turnAroundTime: Series[float] = pa.Field(
+    tat: Series[float] = pa.Field(
         ge=0,
         le=1000,
         coerce=True,
@@ -93,7 +93,7 @@ class AcousticDataFrame(pa.DataFrameModel):
         add_missing_columns = True
         drop_invalid_rows = True
         check_travel_time = {
-            "TT": "twoWayTravelTime",
+            "TT": "tt",
             "ST": "pingTime",
             "RT": "returnTime",
         }
@@ -222,6 +222,18 @@ class PositionDataFrame(pa.DataFrameModel):
         nullable=True,
         description="Standard deviation of the height above ellipsoid of the vessel at the time of the ping",
     )
+    latitude: Series[float] = pa.Field(
+        ge=-90,
+        le=90,
+        coerce=True,
+        description="Latitude from the GNSS receiver (WGS84) [degrees]",
+    )
+    longitude: Series[float] = pa.Field(
+        ge=-180,
+        le=360,
+        coerce=True,
+        description="Longitude from the GNSS receiver (WGS84) [degrees]",
+    )
 
     class Config:
         coerce = True
@@ -232,14 +244,7 @@ class PositionDataFrame(pa.DataFrameModel):
     def parse_time(cls, series: pd.Series) -> pd.Series:
         return pd.to_datetime(series, unit="ms")
 
-class ShotDataFrame(pa.DataFrameModel):
-    triggerTime: Series[pd.Timestamp] = pa.Field(
-        ge=GNSS_START_TIME.replace(tzinfo=None),
-        description="Time when the ping was triggered")
-    pingTime: Series[float] = pa.Field(
-        ge=0,le=3600*24, description="Time when ping was send in seconds of day [s]")
-    returnTime: Series[float] = pa.Field(
-        ge=0,le=3600*24, description="Return time in seconds since the start of day [s]")
+class ShotDataFrame(AcousticDataFrame):
     head0: Series[float] = pa.Field(
         description="Heading of the vessel at the time of the ping")
     pitch0: Series[float] = pa.Field(
@@ -264,13 +269,6 @@ class ShotDataFrame(pa.DataFrameModel):
         description="ECEF North position of the vessel at the time of the ping [m]")
     up1: Series[float] = pa.Field(
         description="Height above ellipsoid of the vessel at the time of the ping")
-    twoWayTravelTime: Series[float] = pa.Field(
-        description="Two-way travel time [s]")
-    tat: Series[float] = pa.Field(ge=0.0, le=1, description="Turn around time [s]")
-    xc: Series[float] = pa.Field(
-        description="Cross-correlation coefficient")
-    snr: Series[float] = pa.Field(
-        description="Signal to noise ratio")
     east0_std: Series[float] = pa.Field(
         description="Standard deviation of the ECEF East position of the vessel at the time of the ping [m]",
         nullable=True,
