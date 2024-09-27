@@ -33,13 +33,13 @@ ALIAS_MAP = ALIAS_MAP | {x: x for x in FILE_TYPES}
 
 
 class DATA_TYPE(Enum):
-    IMU = "imu"
     GNSS = "gnss"
     ACOUSTIC = "acoustic"
     SITECONFIG = "siteconfig"
     ATDOFFSET = "atdoffset"
     SVP = "svp"
     SHOTDATA = "shotdata"
+    POSITION = "position"
 
     @classmethod
     def to_schema(cls):

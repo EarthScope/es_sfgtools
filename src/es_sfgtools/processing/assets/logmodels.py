@@ -72,7 +72,19 @@ def check_sequence_overlap(df: pd.DataFrame) -> pd.DataFrame:
     logger.info(f"Found {found_bad.shape[0]} overlapping ping-reply sequences")
     return df[~filter_main]
 
+class BestGNSSPOSDATA(BaseModel):
+    # https://docs.novatel.com/OEM7/Content/SPAN_Logs/BESTGNSSPOS.htm?tocpath=Commands%20%2526%20Logs%7CLogs%7CSPAN%20Logs%7C_____1
+    sdx: float = None
+    sdy: float = None
+    sdz: float = None
 
+    @classmethod
+    def from_sv2(cls,line:str) -> "BestGNSSPOSDATA":
+        data = line.split(";")[1].split(",")
+        sdx = float(data[7])
+        sdy = float(data[8])
+        sdz = float(data[9])
+        return cls(sdx=sdx,sdy=sdy,sdz=sdz)
 
 class RangeData(BaseModel):
     transponderID: str
@@ -92,7 +104,7 @@ class RangeData(BaseModel):
             xc=data.get("diag").get("xc")[0],
             range=data.get("range"),
             tat=data.get("tat") / 1000,
-            timestamp=datetime.fromtimestamp(time),
+            time=datetime.fromtimestamp(time),
         )
     @classmethod
     def from_sv2(cls,line:str,station_offsets:dict) -> List["RangeData"]:
@@ -152,7 +164,7 @@ class PositionData(BaseModel):
     sdy: Optional[float] = None
     sdz: Optional[float] = None
 
-    def update(data:dict):
+    def update(self,data:dict):
         # update position,time, and standard deviation
         self.time = datetime.fromtimestamp(data.get("time").get("common"))
         self.latitude = data.get("latitude")
@@ -224,84 +236,6 @@ class PositionData(BaseModel):
         positiondata.update(gnss)
         return positiondata
 
-
-# class SimultaneousInterrogation(BaseModel):
-#     # TODO rename to simultaneious interrogation
-#     responses: List[TransponderData]
-#     pingData: PingData
-
-#     def apply_offsets(self, offset_dict: Dict[str, float]):
-#         """
-#         Apply the given offsets to the transponder data.
-
-#         Args:
-#             offset_dict (Dict[str,float]): A dictionary of transponder offsets in milliseconds.
-
-#         Returns:
-#             None
-#         """
-#         for response in self.responses:
-#             transponder_id = response.TransponderID
-#             if transponder_id in offset_dict:
-#                 response.correct_travel_time(offset_dict[transponder_id])
-
-#     @classmethod
-#     def from_line(
-#         cls, line, pingdata: pingData
-#     ) -> Union["SimultaneousInterrogation", Exception]:
-#         # Input line sample
-#         # 2003,327470,1527706670,2018/05/30 18:57:50.495 >SI:2010,INT1,IR5209;R4470626;[XC70,DBV-15],
-#         # IR5210;R3282120;[XC90,DBV0],IR5211;R5403623;[XC60,DBV-24]
-#         transponder_header = "IR"
-#         transponder_data_set: List[TransponderData] = []
-
-#         # parse transponder logs and ditch the header
-#         # 2003,327470,1527706670,2018/05/30 18:57:50.495 >SI:2010,INT1,IR5209;R4470626;[XC70,DBV-15],
-#         # IR5210;R3282120;[XC90,DBV0],IR5211;R5403623;[XC60,DBV-24]
-#         # -> ["5209;R4470626;[XC70,DBV-15],","5210;R3282120;[XC90,DBV0],","5211;R5403623;[XC60,DBV-24]"]
-#         transponder_logs = line.split(transponder_header)[1:]
-
-#         if not transponder_logs:
-#             return Exception(f"Expected 3 transponder logs, None Found")
-
-#         for transponder in transponder_logs:
-#             # "5210;R3282120;[XC90,DBV0]" -> "5209","R4470626","[XC70,DBV-15]"
-#             transponderID, travel_time, xc_db = transponder.split(";")
-
-#             # [XC70,DBV-15] -> "XC70","DBV-15"
-#             corr_score, dbv = xc_db.replace("[", "").replace("]", "").split(",")[:2]
-
-#             # "R4470626" -> 4470626
-#             travel_time = int(travel_time.replace("R", ""))
-
-#             # 4470626 -> 4.470626, convert from microseconds to seconds
-#             travel_time = travel_time / 1000000.000
-
-#             # "DBV-15" -> -15
-#             dbv = int(dbv.replace("DBV", ""))
-
-#             # "XC70" -> "70"
-#             corr_score = corr_score.replace("XC", "")
-
-#             # Computing return time from transponder travel time [s] and pingtime[julian date]
-#             return_time = travel_time + pingdata.PingTime
-
-#             transponder_data = replyData(
-#                 transponderID=transponderID,
-#                 tt=travel_time,
-#                 returnTime=return_time,
-#                 dbv=dbv,
-#                 correlationScore=int(corr_score),
-#             )
-#             transponder_data_set.append(transponder_data)
-
-#         simultaneous_interrogation = cls(
-#             responses=transponder_data_set, pingData=pingdata
-#         )
-
-#         return simultaneous_interrogation
-
-
 class SV3InterrogationData(BaseModel):
     head0: float
     pitch0: float
@@ -309,9 +243,9 @@ class SV3InterrogationData(BaseModel):
     east0: float
     north0: float
     up0: float
-    east0_std: Optional[float] = None
-    north0_std: Optional[float] = None
-    up0_std: Optional[float] = None
+    east_std: Optional[float] = None
+    north_std: Optional[float] = None
+    up_std: Optional[float] = None
     triggerTime: datetime
 
     @classmethod
@@ -319,15 +253,15 @@ class SV3InterrogationData(BaseModel):
         cls, positionData: PositionData, triggerTime: datetime
     ) -> "InterrogationData":
         return cls(
-            head0=positionData.heading,
+            head0=positionData.head,
             pitch0=positionData.pitch,
             roll0=positionData.roll,
             east0=positionData.east,
             north0=positionData.north,
             up0=positionData.up,
-            east0_std=positionData.east_std,
-            north0_std=positionData.north_std,
-            up0_std=positionData.up_std,
+            east_std=positionData.sdx,
+            north_std=positionData.sdy,
+            up_std=positionData.sdz,
             triggerTime=triggerTime,
         )
 
@@ -349,7 +283,6 @@ class SV3InterrogationData(BaseModel):
         triggerTime_dt = get_triggertime(position_data.time)
         return cls.from_schemas(position_data, triggerTime_dt)
 
-
 class SV3ReplyData(BaseModel):
     head1: float
     pitch1: float
@@ -357,9 +290,6 @@ class SV3ReplyData(BaseModel):
     east1: float
     north1: float
     up1: float
-    east1_std: Optional[float] = None
-    north1_std: Optional[float] = None
-    up1_std: Optional[float] = None
     transponderID: str
     dbv: float
     snr: float
@@ -374,63 +304,57 @@ class SV3ReplyData(BaseModel):
         cls,
         positionData: PositionData,
         rangeData: RangeData,
-        travelTime: float,
-        pingTime: float,
-        returnTime: float,
     ) -> "ReplyData":
+
+        if rangeData.range == 0:
+            return None
+        travelTime = get_traveltime(
+            np.array([rangeData.range]),
+            np.array([rangeData.tat]),
+            triggerDelay=TRIGGER_DELAY_SV3,
+        )[0]
+
+        returnTime_sod = datetime_to_sod(
+            rangeData.time
+        )
+        pingTime_sod = returnTime_sod - travelTime
+
         return cls(
-            head1=positionData.heading,
+            head1=positionData.head,
             pitch1=positionData.pitch,
             roll1=positionData.roll,
             east1=positionData.east,
             north1=positionData.north,
             up1=positionData.up,
-            east1_std=positionData.east_std,
-            north1_std=positionData.north_std,
-            up1_std=positionData.up_std,
             transponderID=rangeData.transponderID,
             dbv=rangeData.dbv,
             snr=rangeData.snr,
             xc=rangeData.xc,
             tt=travelTime,
             tat=rangeData.tat,
-            pingTime=pingTime,
-            returnTime=returnTime,
+            pingTime=pingTime_sod,
+            returnTime=returnTime_sod,
         )
 
     @classmethod
     def from_dfopoo_line(cls, line) -> "RangeData":
-        positionData = PositionData.sv3_from_dfop00(
-            line.get("observations").get("AHRS"), line.get("observations").get("GNSS")
+        positionData = PositionData.from_sv3_novins_gnss(
+            line.get("observations").get("NOV_INS"), line.get("observations").get("GNSS")
         )
         rangeData = RangeData.from_sv3(
             line.get("range"), line.get("time").get("common")
         )
-        if rangeData.range == 0:
-            return None
-        travelTime = get_traveltime(rangeData.range, rangeData.tat)
-
-        returnTime_sod = datetime_to_sod(
-            datetime.fromtimestamp(line.get("time").get("common"))
-        )
-        pingTime_sod = returnTime_sod - travelTime
-        return ReplyData.from_schemas(
-            positionData, rangeData, travelTime, pingTime_sod, returnTime_sod
+        return cls.from_schemas(
+            positionData, rangeData,
         )
 
     @classmethod
     def from_qcpin_line(cls, line) -> "RangeData":
-        positionData = PositionData.sv3_from_qc(line.get("observations").get("NOV_INS"))
+        positionData = PositionData.from_sv3_novins(line.get("observations").get("NOV_INS"))
         rangeData = RangeData.from_sv3(
             line.get("range"), line.get("time").get("common")
         )
-        if rangeData.range == 0:
-            return None
-        travelTime = get_traveltime(rangeData.range, rangeData.tat)
-        returnTime_sod = datetime_to_sod(
-            datetime.fromtimestamp(line.get("time").get("common"))
-        )
-        pingTime_sod = returnTime_sod - travelTime
-        return ReplyData.from_schemas(
-            positionData, rangeData, travelTime, pingTime_sod, returnTime_sod
+ 
+        return cls.from_schemas(
+            positionData, rangeData
         )

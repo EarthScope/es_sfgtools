@@ -15,7 +15,7 @@ import re
 from ..assets.constants import STATION_OFFSETS, TRIGGER_DELAY_SV2
 from ..assets.file_schemas import SonardyneFile,NovatelFile
 from ..assets.observables import AcousticDataFrame, PositionDataFrame,ShotDataFrame
-from ..assets.logmodels import PositionData,RangeData,get_traveltime,check_sequence_overlap,datetime_to_sod
+from ..assets.logmodels import PositionData,RangeData,BestGNSSPOSDATA,get_traveltime,check_sequence_overlap,datetime_to_sod
 
 logger = logging.getLogger(__name__)
 
@@ -165,7 +165,6 @@ def sonardyne_to_acousticdf(source: SonardyneFile) -> DataFrame[AcousticDataFram
     acoustic_df = check_sequence_overlap(acoustic_df)
     return AcousticDataFrame.validate(acoustic_df, lazy=True)
 
-
 def novatel_to_positiondf(source:NovatelFile) -> DataFrame[PositionDataFrame]:
     if not os.path.exists(source.local_path):
         raise FileNotFoundError(
@@ -173,8 +172,11 @@ def novatel_to_positiondf(source:NovatelFile) -> DataFrame[PositionDataFrame]:
         )
 
     inspvaa_pattern = re.compile("#INSPVAA,")
+    bestgnss_pattern = re.compile("#BESTGNSSPOSA,")
+
     data_list = []
     line_number = 0
+    gnssMeta = BestGNSSPOSDATA()
     with open(source.local_path) as inspva_file:
         while True:
             try:
@@ -182,9 +184,15 @@ def novatel_to_positiondf(source:NovatelFile) -> DataFrame[PositionDataFrame]:
                 line_number += 1
                 if not line:
                     break
+                if re.search(bestgnss_pattern, line):
+                
+                    gnssMeta = BestGNSSPOSDATA.from_sv2(line)
+           
                 if re.search(inspvaa_pattern, line):
                     try:
                         position_data = PositionData.from_sv2_inspvaa(line)
+                        # update gnss metadata uncertainty
+                        position_data.sdx,position_data.sdy,position_data.sdz = gnssMeta.sdx,gnssMeta.sdy,gnssMeta.sdz
                         data_list.append(position_data.model_dump())
                     except Exception as e:
                         error_msg = f"IMU Parsing: An error occurred while parsing INVSPA data from FILE {source} at LINE {line_number} \n"
