@@ -27,7 +27,7 @@ warnings.filterwarnings("ignore")
 seaborn.set_theme(style="whitegrid")
 from es_sfgtools.utils.archive_pull import download_file_from_archive
 from es_sfgtools.processing.operations import sv2_ops,sv3_ops,gnss_ops,site_ops
-from es_sfgtools.processing.assets import observables,siteconfig,constants
+from es_sfgtools.processing.assets import observables,siteconfig,constants,file_schemas
 from es_sfgtools.modeling.garpos_tools import schemas as modeling_schemas
 from es_sfgtools.modeling.garpos_tools import functions as modeling_funcs
 from es_sfgtools.modeling.garpos_tools import hyper_params
@@ -48,7 +48,7 @@ TARGET_MAP = {
     FILE_TYPE.MASTER:{DATA_TYPE.SITECONFIG:site_ops.masterfile_to_siteconfig},
     FILE_TYPE.LEVERARM:{DATA_TYPE.ATDOFFSET:site_ops.leverarmfile_to_atdoffset},
     FILE_TYPE.SEABIRD:{DATA_TYPE.SVP:site_ops.seabird_to_soundvelocity},
-    FILE_TYPE.NOVATEL770:{FILE_TYPE.RINEX:site_opsnovatel_to_rinex},
+    FILE_TYPE.NOVATEL770:{FILE_TYPE.RINEX:gnss_ops.novatel_to_rinex},
     #FILE_TYPE.DFPO00:{DATA_TYPE.IMU:proc_funcs.dfpo00_to_imudf, DATA_TYPE.ACOUSTIC:proc_funcs.dfpo00_to_acousticdf}
     FILE_TYPE.DFPO00:{DATA_TYPE.SHOTDATA:sv3_ops.dev_dfop00_to_shotdata}
 }
@@ -64,20 +64,20 @@ for parent,children in TARGET_MAP.items():
         SOURCE_MAP[child].append(parent)
 
 SCHEMA_MAP = {
-    FILE_TYPE.NOVATEL:siteconfig.NovatelFile,
-    FILE_TYPE.SONARDYNE:siteconfig.SonardyneFile,
-    FILE_TYPE.RINEX:siteconfig.RinexFile,
-    FILE_TYPE.KIN:siteconfig.KinFile,
-    FILE_TYPE.MASTER:siteconfig.MasterFile,
-    FILE_TYPE.LEVERARM:siteconfig.LeverArmFile,
-    FILE_TYPE.SEABIRD:siteconfig.SeaBirdFile,
-    FILE_TYPE.NOVATEL770:siteconfig.Novatel770File,
-    FILE_TYPE.DFPO00:siteconfig.DFPO00RawFile,
-    DATA_TYPE.ACOUSTIC:siteconfig.AcousticDataFrame,
+    FILE_TYPE.NOVATEL:file_schemas.NovatelFile,
+    FILE_TYPE.SONARDYNE:file_schemas.SonardyneFile,
+    FILE_TYPE.RINEX:file_schemas.RinexFile,
+    FILE_TYPE.KIN:file_schemas.KinFile,
+    FILE_TYPE.MASTER:file_schemas.MasterFile,
+    FILE_TYPE.LEVERARM:file_schemas.LeverArmFile,
+    FILE_TYPE.SEABIRD:file_schemas.SeaBirdFile,
+    FILE_TYPE.NOVATEL770:file_schemas.Novatel770File,
+    FILE_TYPE.DFPO00:file_schemas.DFPO00RawFile,
+    DATA_TYPE.ACOUSTIC:observables.AcousticDataFrame,
     DATA_TYPE.SITECONFIG:siteconfig.SiteConfig,
     DATA_TYPE.ATDOFFSET:siteconfig.ATDOffset,
-    FILE_TYPE.QCPIN:siteconfig.QCPinFile,
-    FILE_TYPE.NOVATELPIN:siteconfig.NovatelPinFile
+    FILE_TYPE.QCPIN:file_schemas.QCPinFile,
+    FILE_TYPE.NOVATELPIN:file_schemas.NovatelPinFile
 }
 
 class MergeFrequency(Enum):

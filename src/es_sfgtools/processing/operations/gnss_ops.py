@@ -298,15 +298,15 @@ def rinex_to_kin(
 
 
 @pa.check_types
-def kin_to_gnssdf(source: KinFile) -> Union[DataFrame[PositionDataFrame], None]:
+def kin_to_gnssdf(source: KinFile) -> Union[DataFrame[GNSSDataFrame], None]:
     """
-    Create an PositionDataFrame from a kin file from PRIDE-PPP
+    Create an GNSSDataFrame from a kin file from PRIDE-PPP
 
     Parameters:
         file_path (str): The path to the kin file
 
     Returns:
-        dataframe (PositionDataFrame): An instance of the class.
+        dataframe (GNSSDataFrame): An instance of the class.
     """
 
     with open(source.local_path, "r") as file:

@@ -9,8 +9,8 @@ import pandas as pd
 from datetime import datetime
 import logging
 
-from ...processing.schemas.observables import SoundVelocityDataFrame
-from ...processing.schemas.site_config import ATDOffset, PositionENU, PositionLLH, Transponder
+from ...processing.assets.observables import SoundVelocityDataFrame
+from ...processing.assets.siteconfig import ATDOffset, PositionENU, PositionLLH, Transponder
 
 from garpos import LIB_DIRECTORY,LIB_RAYTRACE
 
