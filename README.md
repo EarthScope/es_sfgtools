@@ -9,10 +9,12 @@ Conda Install Instructions
 
 clone the library and enter the repo
 > git clone https://github.com/EarthScope/es_sfgtools.git
+
 > cd es_sfgtools
 
 create and activate conda environment
 > conda env create -f environment.yml
+
 > conda activate seafloor_geodesy
 
 
