@@ -12,7 +12,7 @@ build:
 
 # Sepecify the Conda environment to use
 conda:
-  file: environment.yml
+  environment: environment.yml
 
 
 # Build documentation in the "docs/" directory with Sphinx
