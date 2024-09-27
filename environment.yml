@@ -1,0 +1,35 @@
+name: seafloor_geodesy
+channels:
+  - defaults
+dependencies: 
+  - python=3.11
+  - pip
+  - numpy
+  - scipy
+  - pandas
+  - matplotlib
+  - scikit-learn
+  - scikit-sparse
+  - julian
+  - pandera
+  - pyarrow
+  - pydantic
+  - pyproj
+  - pymap3d
+  - boto3
+  - botocore
+  - tqdm
+  - nodejs
+  - nbgitpuller
+  - jupyterlab
+  - jupyterhub-singleuser
+  - ipykernel
+  - ipywidgets
+  - seaborn
+  - folium
+  - sqlalchemy
+  - pip:
+    - -e .
+    - garpos @ git+https://github.com/EarthScope/garpos.git
+    - earthscope-sdk
+    - earthscope-cli
