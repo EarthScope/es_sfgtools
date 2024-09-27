@@ -9,8 +9,8 @@ import pandas as pd
 from datetime import datetime
 import logging
 
-from ...processing.schemas.observables import SoundVelocityDataFrame
-from ...processing.schemas.site_config import ATDOffset, PositionENU, PositionLLH, Transponder
+from ...processing.assets.observables import SoundVelocityDataFrame
+from ...processing.assets.siteconfig import ATDOffset, PositionENU, PositionLLH, Transponder
 
 from garpos import LIB_DIRECTORY,LIB_RAYTRACE
 
@@ -250,6 +250,10 @@ class InversionParams(BaseModel):
     deltab: float = Field(
         default=1.0e-6, description="Infinitesimal values to make Jacobian matrix"
     )
+    delta_center_position : PositionENU = Field(
+        default=PositionENU(east_sigma=1,north_sigma=1), description="Delta center position"
+    )
+
 
     class Config:
         coerce = True

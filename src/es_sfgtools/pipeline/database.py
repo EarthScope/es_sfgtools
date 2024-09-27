@@ -33,7 +33,7 @@ class Assets(Base):
     timestamp_data_end = Column(DateTime,nullable=True)
     timestamp_created = Column(DateTime,default=datetime.datetime.now())
     parent_id = Column(Integer, ForeignKey("assets.id"),nullable=True)
-
+    size = Column(Float,nullable=True)
 
 class Session(Base):
     __tablename__ = "session"

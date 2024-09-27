@@ -26,75 +26,31 @@ import threading
 warnings.filterwarnings("ignore")
 seaborn.set_theme(style="whitegrid")
 from es_sfgtools.utils.archive_pull import download_file_from_archive
-from es_sfgtools.processing import functions as proc_funcs
-from es_sfgtools.processing import schemas as proc_schemas
+from es_sfgtools.processing.operations import sv2_ops,sv3_ops,gnss_ops,site_ops
+from es_sfgtools.processing.assets import observables,siteconfig,constants,file_schemas
 from es_sfgtools.modeling.garpos_tools import schemas as modeling_schemas
 from es_sfgtools.modeling.garpos_tools import functions as modeling_funcs
 from es_sfgtools.modeling.garpos_tools import hyper_params
 
 import sqlalchemy as sa
 from .database import Base,Assets,Session,ModelResults
-
+from .constants import FILE_TYPE,DATA_TYPE,REMOTE_TYPE,ALIAS_MAP,FILE_TYPES
+from .datadiscovery import scrape_directory_local,DiscoveredFile,get_file_type_local,get_file_type_remote
 logger = logging.getLogger(__name__)
 
-class REMOTE_TYPE(Enum):
-    S3 = "s3"
-    HTTP = "http"
-
-class FILE_TYPE(Enum):
-    SONARDYNE = "sonardyne"
-    NOVATEL = "novatel"
-    KIN = "kin"
-    RINEX = "rinex"
-    MASTER= "master"    
-    LEVERARM = "leverarm"
-    SEABIRD = "svpavg"
-    NOVATEL770 = "novatel770"
-    DFPO00 = "dfop00"
-    OFFLOAD = "offload"
-    QCPIN = "pin"
-    NOVATELPIN = "novatelpin"
-    
-
-    @classmethod
-    def to_schema(cls):
-        return [x.name for x in cls]
-
-
-FILE_TYPES = [x.value for x in FILE_TYPE]
-ALIAS_MAP = {
-    "nov770":"novatel770"}
-ALIAS_MAP = ALIAS_MAP | {x:x for x in FILE_TYPES}
-
-class DATA_TYPE(Enum):
-    IMU = "imu"
-    GNSS = "gnss"
-    ACOUSTIC = "acoustic"
-    SITECONFIG = "siteconfig"
-    ATDOFFSET = "atdoffset"
-    SVP = "svp"
-    SHOTDATA = "shotdata"
-
-    @classmethod
-    def to_schema(cls):
-        return [x.name for x in cls]
-
-
-DATA_TYPES = [x.value for x in DATA_TYPE]
 
 TARGET_MAP = {
-    FILE_TYPE.QCPIN:{DATA_TYPE.SHOTDATA:proc_funcs.dev_qcpin_to_shotdata},
-    FILE_TYPE.NOVATELPIN:{FILE_TYPE.RINEX:proc_funcs.novatel_to_rinex},
-    FILE_TYPE.NOVATEL:{FILE_TYPE.RINEX:proc_funcs.novatel_to_rinex, DATA_TYPE.IMU:proc_funcs.novatel_to_imudf},
-    FILE_TYPE.RINEX:{FILE_TYPE.KIN:proc_funcs.rinex_to_kin},
-    FILE_TYPE.KIN:{DATA_TYPE.GNSS:proc_funcs.kin_to_gnssdf},
-    FILE_TYPE.SONARDYNE:{DATA_TYPE.ACOUSTIC:proc_funcs.sonardyne_to_acousticdf},
-    FILE_TYPE.MASTER:{DATA_TYPE.SITECONFIG:proc_funcs.masterfile_to_siteconfig},
-    FILE_TYPE.LEVERARM:{DATA_TYPE.ATDOFFSET:proc_funcs.leverarmfile_to_atdoffset},
-    FILE_TYPE.SEABIRD:{DATA_TYPE.SVP:proc_funcs.seabird_to_soundvelocity},
-    FILE_TYPE.NOVATEL770:{FILE_TYPE.RINEX:proc_funcs.novatel_to_rinex},
+    FILE_TYPE.QCPIN:{DATA_TYPE.SHOTDATA:sv3_ops.dev_qcpin_to_shotdata},
+    FILE_TYPE.NOVATEL:{FILE_TYPE.RINEX:gnss_ops.novatel_to_rinex,DATA_TYPE.POSITION:sv2_ops.novatel_to_positiondf},
+    FILE_TYPE.RINEX:{FILE_TYPE.KIN:gnss_ops.rinex_to_kin},
+    FILE_TYPE.KIN:{DATA_TYPE.GNSS:gnss_ops.kin_to_gnssdf},
+    FILE_TYPE.SONARDYNE:{DATA_TYPE.ACOUSTIC:sv2_ops.sonardyne_to_acousticdf},
+    FILE_TYPE.MASTER:{DATA_TYPE.SITECONFIG:site_ops.masterfile_to_siteconfig},
+    FILE_TYPE.LEVERARM:{DATA_TYPE.ATDOFFSET:site_ops.leverarmfile_to_atdoffset},
+    FILE_TYPE.SEABIRD:{DATA_TYPE.SVP:site_ops.seabird_to_soundvelocity},
+    FILE_TYPE.NOVATEL770:{FILE_TYPE.RINEX:gnss_ops.novatel_to_rinex},
     #FILE_TYPE.DFPO00:{DATA_TYPE.IMU:proc_funcs.dfpo00_to_imudf, DATA_TYPE.ACOUSTIC:proc_funcs.dfpo00_to_acousticdf}
-    FILE_TYPE.DFPO00:{DATA_TYPE.SHOTDATA:proc_funcs.dev_dfop00_to_shotdata}
+    FILE_TYPE.DFPO00:{DATA_TYPE.SHOTDATA:sv3_ops.dev_dfop00_to_shotdata}
 }
 
 
@@ -108,22 +64,20 @@ for parent,children in TARGET_MAP.items():
         SOURCE_MAP[child].append(parent)
 
 SCHEMA_MAP = {
-    FILE_TYPE.NOVATEL:proc_schemas.NovatelFile,
-    FILE_TYPE.SONARDYNE:proc_schemas.SonardyneFile,
-    FILE_TYPE.RINEX:proc_schemas.RinexFile,
-    FILE_TYPE.KIN:proc_schemas.KinFile,
-    FILE_TYPE.MASTER:proc_schemas.MasterFile,
-    FILE_TYPE.LEVERARM:proc_schemas.LeverArmFile,
-    FILE_TYPE.SEABIRD:proc_schemas.SeaBirdFile,
-    FILE_TYPE.NOVATEL770:proc_schemas.Novatel770File,
-    FILE_TYPE.DFPO00:proc_schemas.DFPO00RawFile,
-    DATA_TYPE.IMU:proc_schemas.IMUDataFrame,
-    DATA_TYPE.GNSS:proc_schemas.PositionDataFrame,
-    DATA_TYPE.ACOUSTIC:proc_schemas.AcousticDataFrame,
-    DATA_TYPE.SITECONFIG:proc_schemas.SiteConfig,
-    DATA_TYPE.ATDOFFSET:proc_schemas.ATDOffset,
-    FILE_TYPE.QCPIN:proc_schemas.QCPinFile,
-    FILE_TYPE.NOVATELPIN:proc_schemas.NovatelPinFile
+    FILE_TYPE.NOVATEL:file_schemas.NovatelFile,
+    FILE_TYPE.SONARDYNE:file_schemas.SonardyneFile,
+    FILE_TYPE.RINEX:file_schemas.RinexFile,
+    FILE_TYPE.KIN:file_schemas.KinFile,
+    FILE_TYPE.MASTER:file_schemas.MasterFile,
+    FILE_TYPE.LEVERARM:file_schemas.LeverArmFile,
+    FILE_TYPE.SEABIRD:file_schemas.SeaBirdFile,
+    FILE_TYPE.NOVATEL770:file_schemas.Novatel770File,
+    FILE_TYPE.DFPO00:file_schemas.DFPO00RawFile,
+    DATA_TYPE.ACOUSTIC:observables.AcousticDataFrame,
+    DATA_TYPE.SITECONFIG:siteconfig.SiteConfig,
+    DATA_TYPE.ATDOFFSET:siteconfig.ATDOffset,
+    FILE_TYPE.QCPIN:file_schemas.QCPinFile,
+    FILE_TYPE.NOVATELPIN:file_schemas.NovatelPinFile
 }
 
 class MergeFrequency(Enum):
@@ -215,38 +169,20 @@ class DataHandler:
                 return {"Local files found":0}
         return {x["type"]:x["count_1"] for x in data_type_counts}    
 
-    def add_data_local(self,
-                        local_filepaths:List[str],
-                        discover_file_type:bool=False,
+    def _add_data_local(self,
+                        local_filepaths:List[DiscoveredFile],
                         show_details:bool=True,
                         **kwargs):
         count = 0
         file_data_list = []
-        for file in local_filepaths:
-            assert Path(file).exists(), f"File {file} does not exist"
-            if discover_file_type:
-                discovered_file_type = None
-                file_path_proc = file.replace("_", "").lower()
-
-                for alias, file_type in ALIAS_MAP.items():
-                    if alias in file_path_proc:
-                        discovered_file_type = file_type
-                        break
-            else:
-                discovered_file_type = FILE_TYPE.QCPIN.value
-
-            if discovered_file_type is None:
-                logger.error(f"File type not recognized for {file}")
-                warnings.warn(f"File type not recognized for {file}", UserWarning)
-                continue
+        for discovered_file in local_filepaths:
+           
             
             
-            file_data = {
+            file_data = discovered_file.model_dump() | {
                 "network": self.network,
                 "station": self.station,
                 "survey": self.survey,
-                "local_path": str(file),
-                "type": discovered_file_type,
                 "timestamp_created": datetime.datetime.now(),
             }
 
@@ -268,7 +204,7 @@ class DataHandler:
             if len(file_data_map) == 0:
                 response = f"No new files to add"
                 logger.info(response)
-                if bool(os.environ.get("DH_SHOW_DETAILS",False)):
+                if show_details:
                     print(response)
                 return
             response = f"Adding {len(file_data_map)} new files to the catalog"
@@ -279,7 +215,43 @@ class DataHandler:
             conn.execute(
                 sa.insert(Assets).values(list(file_data_map.values()))
             )
+    
+    def add_data_directory(self,dir_path:Path,show_details:bool=True):
+        """
+        Add all files in a directory to the catalog.
 
+        Args:
+            dir_path (Path): The directory path.
+            show_details (bool): Log details of each file added.
+
+        Returns:
+            None
+        """
+        files = scrape_directory_local(dir_path)
+        if len(files) == 0:
+            response = f"No files found in {dir_path}"
+            logger.error(response)
+            if show_details:
+                print(response)
+            return
+        
+        self._add_data_local(files,show_details=show_details)
+
+    def add_data_local(self,
+                        local_filepaths:List[Union[str,Path]],
+                        show_details:bool=True,
+                        **kwargs):
+        discovered_files : List[DiscoveredFile] = [get_file_type_local(file) for file in local_filepaths]
+        discovered_files = [x for x in discovered_files if x is not None]
+
+        if len(discovered_files) == 0:
+            response = f"No files found in {local_filepaths}"
+            logger.error(response)
+            if show_details:
+                print(response)
+            return
+        self._add_data_local(discovered_files,show_details=show_details)
+        
     def add_data_remote(self, 
                           remote_filepaths: List[str],
                           remote_type:Union[REMOTE_TYPE,str] = REMOTE_TYPE.HTTP,
@@ -304,26 +276,16 @@ class DataHandler:
 
         file_data_list = []
         for file in remote_filepaths:
-            discovered_file_type = None
-            file_path_proc = file.replace("_", "").lower()
-
-            for alias, file_type in ALIAS_MAP.items():
-                if alias in file_path_proc:
-                    discovered_file_type = file_type
-                    break
-
-            if discovered_file_type is None:
-                logger.error(f"File type not recognized for {file}")
-                continue
+            discovered_file: Union[DiscoveredFile,None] = get_file_type_remote(file)
                 # raise ValueError(f"File type not recognized for {file}")
+            if discovered_file is None:
+                continue
 
-            file_data = {
+            
+            file_data = discovered_file.model_dump() | {
                 "network": self.network,
                 "station": self.station,
                 "survey": self.survey,
-                "remote_path": file,
-                "remote_type": remote_type.value,
-                "type": discovered_file_type,
                 "timestamp_created": datetime.datetime.now(),
             }
             file_data_list.append(file_data)
@@ -706,26 +668,26 @@ class DataHandler:
                             timestamp_data_end = processed[col].max()
                             break
 
-            case proc_schemas.RinexFile:
+            case siteconfig.RinexFile:
                 processed.write(inter_dir)
                 local_path = processed.local_path
                 timestamp_data_start = processed.timestamp_data_start
                 timestamp_data_end = processed.timestamp_data_end
 
-            case proc_schemas.KinFile:
+            case siteconfig.KinFile:
                 local_path = processed.local_path
 
-            case proc_schemas.SiteConfig:
+            case siteconfig.SiteConfig:
                 local_path = proc_dir / f"{parent['id']}_{child_type.value}.json"
                 with open(local_path, "w") as f:
                     f.write(processed.model_dump_json())
 
-            case proc_schemas.ATDOffset:
+            case siteconfig.ATDOffset:
                 local_path = proc_dir / f"{parent['id']}_{child_type.value}.json"
                 with open(local_path, "w") as f:
                     f.write(processed.model_dump_json())
 
-            case proc_schemas.NovatelPinFile:
+            case siteconfig.NovatelPinFile:
                 local_path = inter_dir / f"{parent['id']}_{child_type.value}.txt"
                 processed.local_path = local_path
                 processed.write(dir=local_path.parent)
@@ -1052,7 +1014,7 @@ class DataHandler:
         for row in data:
             dates.extend([row.timestamp_data_start.date(),row.timestamp_data_end.date()])
             try:
-                df = proc_schemas.ShotDataFrame.validate(pd.read_csv(row.local_path),lazy=True)
+                df = siteconfig.ShotDataFrame.validate(pd.read_csv(row.local_path),lazy=True)
                 df_main = pd.concat([df_main,df])
             except Exception as e:
                 logger.error(f"Error reading {row.local_path} {e}")
@@ -1086,9 +1048,9 @@ class DataHandler:
                     )
 
     # def run_session_data(self,
-    #                      siteConfig:proc_schemas.SiteConfig,
-    #                      soundVelocity:proc_schemas.SoundVelocity,
-    #                      atdOffset:proc_schemas.ATDOffset,
+    #                      siteConfig:siteconfig.SiteConfig,
+    #                      soundVelocity:siteconfig.SoundVelocity,
+    #                      atdOffset:siteconfig.ATDOffset,
     #                      source_type:str=FILE_TYPE.DFPO00.value,
     #                      date_range:List[datetime.date]=[]):
         
@@ -1210,7 +1172,7 @@ class DataHandler:
     #     plt.tight_layout()
     #     plt.show()
 
-    # def get_site_config(self,network:str,station:str,survey:str) -> proc_schemas.SiteConfig:
+    # def get_site_config(self,network:str,station:str,survey:str) -> siteconfig.SiteConfig:
     #     """
     #     Get the Site Config data for a given network, station, and survey.
 
@@ -1270,7 +1232,7 @@ class DataHandler:
     #     svp_data = pd.read_csv(path)
     #     return svp_data
 
-    # def get_atd_offset(self,network:str,station:str,survey:str) -> proc_schemas.ATDOffset:
+    # def get_atd_offset(self,network:str,station:str,survey:str) -> siteconfig.ATDOffset:
     #     """
     #     Get the ATD Offset data for a given network, station, and survey.
 
@@ -1300,7 +1262,7 @@ class DataHandler:
     #         atd_offset_schema = SCHEMA_MAP[DATA_TYPE.ATDOFFSET](**atd_offset)
     #     return atd_offset_schema
 
-    # def plot_site_config(self,site_config:proc_schemas.SiteConfig,zoom:int=5):
+    # def plot_site_config(self,site_config:siteconfig.SiteConfig,zoom:int=5):
     #     """
     #     Plot the timestamps and data type for processed Site Config data for a given network, station, and survey.
 
