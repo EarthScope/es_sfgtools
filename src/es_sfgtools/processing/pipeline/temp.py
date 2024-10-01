@@ -26,6 +26,7 @@ import threading
 warnings.filterwarnings("ignore")
 seaborn.set_theme(style="whitegrid")
 from es_sfgtools.utils.archive_pull import download_file_from_archive
+from es_sfgtools.processing.assets import AssetEntry,AssetType
 from es_sfgtools.processing.operations import sv2_ops,sv3_ops,gnss_ops,site_ops
 from es_sfgtools.processing.assets import observables,siteconfig,constants,file_schemas
 from es_sfgtools.modeling.garpos_tools import schemas as modeling_schemas
@@ -35,22 +36,22 @@ from es_sfgtools.modeling.garpos_tools import hyper_params
 import sqlalchemy as sa
 from .database import Base,Assets,Session,ModelResults
 from .constants import FILE_TYPE,DATA_TYPE,REMOTE_TYPE,ALIAS_MAP,FILE_TYPES
-from .datadiscovery import scrape_directory_local,DiscoveredFile,get_file_type_local,get_file_type_remote
+from .datadiscovery import scrape_directory_local,get_file_type_local,get_file_type_remote
 logger = logging.getLogger(__name__)
 
 
 TARGET_MAP = {
-    FILE_TYPE.QCPIN:{DATA_TYPE.SHOTDATA:sv3_ops.dev_qcpin_to_shotdata},
-    FILE_TYPE.NOVATEL:{FILE_TYPE.RINEX:gnss_ops.novatel_to_rinex,DATA_TYPE.POSITION:sv2_ops.novatel_to_positiondf},
-    FILE_TYPE.RINEX:{FILE_TYPE.KIN:gnss_ops.rinex_to_kin},
-    FILE_TYPE.KIN:{DATA_TYPE.GNSS:gnss_ops.kin_to_gnssdf},
-    FILE_TYPE.SONARDYNE:{DATA_TYPE.ACOUSTIC:sv2_ops.sonardyne_to_acousticdf},
-    FILE_TYPE.MASTER:{DATA_TYPE.SITECONFIG:site_ops.masterfile_to_siteconfig},
-    FILE_TYPE.LEVERARM:{DATA_TYPE.ATDOFFSET:site_ops.leverarmfile_to_atdoffset},
-    FILE_TYPE.SEABIRD:{DATA_TYPE.SVP:site_ops.seabird_to_soundvelocity},
-    FILE_TYPE.NOVATEL770:{FILE_TYPE.RINEX:gnss_ops.novatel_to_rinex},
-    #FILE_TYPE.DFPO00:{DATA_TYPE.IMU:proc_funcs.dfpo00_to_imudf, DATA_TYPE.ACOUSTIC:proc_funcs.dfpo00_to_acousticdf}
-    FILE_TYPE.DFPO00:{DATA_TYPE.SHOTDATA:sv3_ops.dev_dfop00_to_shotdata}
+    AssetType.QCPIN:{AssetType.SHOTDATA:sv3_ops.dev_qcpin_to_shotdata},
+    AssetType.NOVATEL:{AssetType.RINEX:gnss_ops.novatel_to_rinex,AssetType.POSITION:sv2_ops.novatel_to_positiondf},
+    AssetType.RINEX:{AssetType.KIN:gnss_ops.rinex_to_kin},
+    AssetType.KIN:{AssetType.GNSS:gnss_ops.kin_to_gnssdf},
+    AssetType.SONARDYNE:{AssetType.ACOUSTIC:sv2_ops.sonardyne_to_acousticdf},
+    AssetType.MASTER:{AssetType.SITECONFIG:site_ops.masterfile_to_siteconfig},
+    AssetType.LEVERARM:{AssetType.ATDOFFSET:site_ops.leverarmfile_to_atdoffset},
+    AssetType.SEABIRD:{AssetType.SVP:site_ops.seabird_to_soundvelocity},
+    AssetType.NOVATEL770:{AssetType.RINEX:gnss_ops.novatel_to_rinex},
+    #AssetType.DFPO00:{AssetType.IMU:proc_funcs.dfpo00_to_imudf, AssetType.ACOUSTIC:proc_funcs.dfpo00_to_acousticdf}
+    AssetType.DFOP00:{AssetType.SHOTDATA:sv3_ops.dev_dfop00_to_shotdata}
 }
 
 
@@ -63,22 +64,6 @@ for parent,children in TARGET_MAP.items():
             SOURCE_MAP[child] = []
         SOURCE_MAP[child].append(parent)
 
-SCHEMA_MAP = {
-    FILE_TYPE.NOVATEL:file_schemas.NovatelFile,
-    FILE_TYPE.SONARDYNE:file_schemas.SonardyneFile,
-    FILE_TYPE.RINEX:file_schemas.RinexFile,
-    FILE_TYPE.KIN:file_schemas.KinFile,
-    FILE_TYPE.MASTER:file_schemas.MasterFile,
-    FILE_TYPE.LEVERARM:file_schemas.LeverArmFile,
-    FILE_TYPE.SEABIRD:file_schemas.SeaBirdFile,
-    FILE_TYPE.NOVATEL770:file_schemas.Novatel770File,
-    FILE_TYPE.DFPO00:file_schemas.DFPO00RawFile,
-    DATA_TYPE.ACOUSTIC:observables.AcousticDataFrame,
-    DATA_TYPE.SITECONFIG:siteconfig.SiteConfig,
-    DATA_TYPE.ATDOFFSET:siteconfig.ATDOffset,
-    FILE_TYPE.QCPIN:file_schemas.QCPinFile,
-    FILE_TYPE.NOVATELPIN:file_schemas.NovatelPinFile
-}
 
 class MergeFrequency(Enum):
     HOUR = "h"
@@ -170,15 +155,13 @@ class DataHandler:
         return {x["type"]:x["count_1"] for x in data_type_counts}    
 
     def _add_data_local(self,
-                        local_filepaths:List[DiscoveredFile],
+                        local_filepaths:List[AssetEntry],
                         show_details:bool=True,
                         **kwargs):
         count = 0
         file_data_list = []
         for discovered_file in local_filepaths:
-           
-            
-            
+
             file_data = discovered_file.model_dump() | {
                 "network": self.network,
                 "station": self.station,
@@ -215,7 +198,7 @@ class DataHandler:
             conn.execute(
                 sa.insert(Assets).values(list(file_data_map.values()))
             )
-    
+
     def add_data_directory(self,dir_path:Path,show_details:bool=True):
         """
         Add all files in a directory to the catalog.
@@ -234,14 +217,14 @@ class DataHandler:
             if show_details:
                 print(response)
             return
-        
+
         self._add_data_local(files,show_details=show_details)
 
     def add_data_local(self,
                         local_filepaths:List[Union[str,Path]],
                         show_details:bool=True,
                         **kwargs):
-        discovered_files : List[DiscoveredFile] = [get_file_type_local(file) for file in local_filepaths]
+        discovered_files : List[AssetEntry] = [get_file_type_local(file) for file in local_filepaths]
         discovered_files = [x for x in discovered_files if x is not None]
 
         if len(discovered_files) == 0:
@@ -251,7 +234,7 @@ class DataHandler:
                 print(response)
             return
         self._add_data_local(discovered_files,show_details=show_details)
-        
+
     def add_data_remote(self, 
                           remote_filepaths: List[str],
                           remote_type:Union[REMOTE_TYPE,str] = REMOTE_TYPE.HTTP,
@@ -276,12 +259,11 @@ class DataHandler:
 
         file_data_list = []
         for file in remote_filepaths:
-            discovered_file: Union[DiscoveredFile,None] = get_file_type_remote(file)
-                # raise ValueError(f"File type not recognized for {file}")
+            discovered_file: Union[AssetEntry,None] = get_file_type_remote(file)
+            # raise ValueError(f"File type not recognized for {file}")
             if discovered_file is None:
                 continue
 
-            
             file_data = discovered_file.model_dump() | {
                 "network": self.network,
                 "station": self.station,
@@ -597,8 +579,8 @@ class DataHandler:
 
     @staticmethod
     def _process_targeted(
-        parent: dict,
-        child_type: Union[FILE_TYPE, DATA_TYPE],
+        parent: AssetEntry,
+        child_type: Union[AssetType, DATA_TYPE],
         inter_dir: Path,
         proc_dir: Path,
         pride_dir: Path,
@@ -613,34 +595,32 @@ class DataHandler:
 
         response += f"Processing {parent['local_path']} ({parent['id']}) of Type {parent['type']} to {child_type.value}\n"
         # Get the processing function that converts the parent entry to the child entry
-        process_func = TARGET_MAP.get(FILE_TYPE(parent["type"])).get(child_type)
+        process_func = TARGET_MAP.get(parent.type).get(child_type)
         # Build the source object from the parent entry
-        source = SCHEMA_MAP[FILE_TYPE(parent["type"])](
-            local_path=Path(parent["local_path"]),
-            uuid=parent["id"],
-            timestamp_data_start=parent["timestamp_data_start"],
-        )
+       
         # build partial processing function
         match process_func:
-            case proc_funcs.rinex_to_kin:
+            case gnss_ops.rinex_to_kin:
+       
                 process_func_p = partial(
                     process_func,
                     writedir=inter_dir,
                     pridedir=pride_dir,
-                    site=parent["station"],
+                    site=parent.station,
                     show_details=show_details,
                 )
-
-            case proc_funcs.novatel_to_rinex:
+            case gnss_ops.novatel_to_rinex:
                 process_func_p = partial(
                     process_func,
-                    site=parent["station"],
-                    year=parent.get("timestamp_data_start", datetime.datetime.now().year),
+                    site=parent.station,
+                    year=parent.__dict__.get(
+                        "timestamp_data_start", datetime.datetime.now().year
+                    ),
                     show_details=show_details,
                 )
+            case gnss_ops.qcpin_to_novatelpin:
+                process_func_p = partial(process_func, writedir=inter_dir)
 
-            case proc_funcs.qcpin_to_novatelpin:
-                process_func_p = partial(process_func, outpath=inter_dir)
             case _:
                 process_func_p = process_func
 
@@ -648,12 +628,12 @@ class DataHandler:
         timestamp_data_start = parent.get("timestamp_data_start", None)
         timestamp_data_end = parent.get("timestamp_data_end", None)
 
-        if hasattr(source,"local_path") is not None and source.local_path.exists():
-            if source.local_path.stat().st_size == 0:
-                response += f"File {source.local_path} is empty\n"
+        if hasattr(parent,"local_path") is not None and parent.local_path.exists():
+            if parent.local_path.stat().st_size == 0:
+                response += f"File {parent.local_path} is empty\n"
                 processed = None
             else:
-                processed = process_func_p(source)
+                processed = process_func_p(parent)
 
         match type(processed):
             case pd.DataFrame:
@@ -822,7 +802,6 @@ class DataHandler:
                     parent_data_list.append(parent_data)
                     child_data_list.append(child_data)
                     self._update_parent_child_catalog(parent_data,child_data)
-    
 
             response = f"Processed {len(child_data_list)} Out of {len(parent_entries_to_process)} For {target.value}"
             logger.info(response)
@@ -879,33 +858,33 @@ class DataHandler:
                     processing_queue.append({child:child_targets})
 
     def process_acoustic_data(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
-        self._process_data_graph(DATA_TYPE.ACOUSTIC,override=override, show_details=show_details,update_timestamp=update_timestamp)
+        self._process_data_graph(AssetType.ACOUSTIC,override=override, show_details=show_details,update_timestamp=update_timestamp)
 
     def process_imu_data(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
-        self._process_data_graph(DATA_TYPE.IMU,override=override, show_details=show_details,update_timestamp=update_timestamp)
+        self._process_data_graph(AssetType.IMU,override=override, show_details=show_details,update_timestamp=update_timestamp)
 
     def process_rinex(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
-        self._process_data_graph(FILE_TYPE.RINEX,override=override, show_details=show_details,update_timestamp=update_timestamp)
+        self._process_data_graph(AssetType.RINEX,override=override, show_details=show_details,update_timestamp=update_timestamp)
 
     def process_gnss_data_kin(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
-        self._process_data_graph(FILE_TYPE.KIN,override=override, show_details=show_details,update_timestamp=update_timestamp)
+        self._process_data_graph(AssetType.KIN,override=override, show_details=show_details,update_timestamp=update_timestamp)
 
     def process_gnss_data(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
-        self._process_data_graph(DATA_TYPE.GNSS,override=override, show_details=show_details,update_timestamp=update_timestamp)
+        self._process_data_graph(AssetType.GNSS,override=override, show_details=show_details,update_timestamp=update_timestamp)
 
     def process_metadata(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
-        self._process_data_graph(DATA_TYPE.SITECONFIG,override=override, show_details=show_details,update_timestamp=update_timestamp)
-        self._process_data_graph(DATA_TYPE.ATDOFFSET,override=override, show_details=show_details,update_timestamp=update_timestamp)
-        self._process_data_graph(DATA_TYPE.SVP,override=override, show_details=show_details,update_timestamp=update_timestamp)
+        self._process_data_graph(AssetType.SITECONFIG,override=override, show_details=show_details,update_timestamp=update_timestamp)
+        self._process_data_graph(AssetType.ATDOFFSET,override=override, show_details=show_details,update_timestamp=update_timestamp)
+        self._process_data_graph(AssetType.SVP,override=override, show_details=show_details,update_timestamp=update_timestamp)
 
     def process_siteconfig(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
-        self._process_data_graph(DATA_TYPE.SITECONFIG,override=override, show_details=show_details,update_timestamp=update_timestamp)
+        self._process_data_graph(AssetType.SITECONFIG,override=override, show_details=show_details,update_timestamp=update_timestamp)
 
     def process_atdoffset(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
-        self._process_data_graph(DATA_TYPE.ATDOFFSET,override=override, show_details=show_details,update_timestamp=update_timestamp)
+        self._process_data_graph(AssetType.ATDOFFSET,override=override, show_details=show_details,update_timestamp=update_timestamp)
 
     def process_svp(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
-        self._process_data_graph(DATA_TYPE.SVP,override=override, show_details=show_details,update_timestamp=update_timestamp)
+        self._process_data_graph(AssetType.SVP,override=override, show_details=show_details,update_timestamp=update_timestamp)
 
     def process_target(self,parent:str,child:str,override:bool=False,show_details:bool=False):
         target = DATA_TYPE(child)
@@ -913,10 +892,10 @@ class DataHandler:
         self._process_data_link(target=target,source=[source],override=override,show_details=show_details)
 
     def process_qc_data(self, override:bool=False, show_details:bool=False):
-        self._process_data_graph_forward(FILE_TYPE.QCPIN,override=override, show_details=show_details)
-    
+        self._process_data_graph_forward(AssetType.QCPIN,override=override, show_details=show_details)
+
     def process_sv3_data(self, override:bool=False, show_details:bool=False):
-        self._process_data_graph_forward(FILE_TYPE.DFPO00,override=override, show_details=show_details,)
+        self._process_data_graph_forward(AssetType.DFPO00,override=override, show_details=show_details,)
 
     def process_campaign_data(
         self, override: bool = False, show_details: bool=False,update_timestamp:bool=False
@@ -942,10 +921,10 @@ class DataHandler:
 
     def process_qc_data(self, override:bool=False, show_details:bool=False):
         # perform forward processing of qc pin data
-        self._process_data_graph_forward(FILE_TYPE.QCPIN,override=override, show_details=show_details)
+        self._process_data_graph_forward(AssetType.QCPIN,override=override, show_details=show_details)
 
     def dev_group_session_data(self,
-                           source:str= FILE_TYPE.DFPO00.value,
+                           source:str= AssetType.DFPO00.value,
                            override:bool=False
                            ) -> dict:
         """
@@ -958,12 +937,12 @@ class DataHandler:
         Returns:
             dict: The grouped data.
         """
-        assert source in [FILE_TYPE.DFPO00.value,FILE_TYPE.QCPIN.value], "Source must be either DFPO00 or QCPIN"
+        assert source in [AssetType.DFPO00.value,AssetType.QCPIN.value], "Source must be either DFPO00 or QCPIN"
         # Get all available shotdata from the assets table
         with self.engine.begin() as conn:
             data_all = conn.execute(
                 sa.select(Assets).where(
-                    Assets.type.is_(DATA_TYPE.SHOTDATA.value),
+                    Assets.type.is_(AssetType.SHOTDATA.value),
                     Assets.network.is_(self.network),
                     Assets.station.is_(self.station),
                     Assets.survey.is_(self.survey),
@@ -982,11 +961,11 @@ class DataHandler:
                 )
             ).fetchall()
             data = [x for x in data_all if x.parent_id in list([x.id for x in parent_types])]
-        
+
         dates = [row.timestamp_data_start.date() for row in data]
         dates.extend([row.timestamp_data_end.date() for row in data])
         dates = list(set(dates))
-    
+
         # check if there is a session data entry for the source
         with self.engine.begin() as conn:
             found_sessions = conn.execute(
@@ -1008,7 +987,7 @@ class DataHandler:
         else:
             # remove the dates that already have session data
             data = [x for x in data if x.timestamp_data_start.date() not in [row.timestamp_data_start.date() for row in found_sessions]]
-    
+
         dates = []
         df_main = pd.DataFrame()
         for row in data:
@@ -1046,17 +1025,18 @@ class DataHandler:
                             }
                         )
                     )
+    def query_catalog(self,
+                      query:str) -> pd.DataFrame:
+        with self.engine.begin() as conn:
+            return pd.read_sql_query(query,conn)
 
     # def run_session_data(self,
     #                      siteConfig:siteconfig.SiteConfig,
     #                      soundVelocity:siteconfig.SoundVelocity,
     #                      atdOffset:siteconfig.ATDOffset,
-    #                      source_type:str=FILE_TYPE.DFPO00.value,
+    #                      source_type:str=AssetType.DFPO00.value,
     #                      date_range:List[datetime.date]=[]):
-        
 
-
-        
     # def get_observation_session_data(self,network:str,station:str,survey:str,plot:bool=False) -> pd.DataFrame:
 
     #     time_groups = self.catalog_data[self.catalog_data.type.isin(['gnss','acoustic','imu'])].groupby('timestamp')
@@ -1101,7 +1081,7 @@ class DataHandler:
     #         grouper = pd.Grouper(key="timestamp", freq="D")
     #     out = {}
 
-    #     obs_types = [DATA_TYPE.IMU.value, DATA_TYPE.GNSS.value, DATA_TYPE.ACOUSTIC.value]
+    #     obs_types = [AssetType.IMU.value, AssetType.GNSS.value, AssetType.ACOUSTIC.value]
     #     for timestamp, group in data.groupby(grouper):
     #         if group.shape[0] < 1:
     #             continue
@@ -1126,7 +1106,7 @@ class DataHandler:
     #         Exception: If no matching data is found in the catalog.
     #     """
 
-    #     data_type_to_plot = [DATA_TYPE.IMU.value,DATA_TYPE.GNSS.value,DATA_TYPE.ACOUSTIC.value]
+    #     data_type_to_plot = [AssetType.IMU.value,AssetType.GNSS.value,AssetType.ACOUSTIC.value]
 
     #     entries = self.catalog_data[
     #         (self.catalog_data.network == network)
@@ -1140,9 +1120,9 @@ class DataHandler:
 
     #     # plot the timestamps and data type for processed IMU,GNSS,and Acoustic data
     #     cmap = {
-    #         DATA_TYPE.IMU.value: "blue",
-    #         DATA_TYPE.GNSS.value: "green",
-    #         DATA_TYPE.ACOUSTIC.value: "red",
+    #         AssetType.IMU.value: "blue",
+    #         AssetType.GNSS.value: "green",
+    #         AssetType.ACOUSTIC.value: "red",
     #     }
 
     #     fig, axes = plt.subplots(3, 1, figsize=(10, 4), sharex=True)
@@ -1154,9 +1134,9 @@ class DataHandler:
     #         ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
 
     #     data_type_titles = {
-    #         DATA_TYPE.IMU.value: "IMU Data",
-    #         DATA_TYPE.GNSS.value: "GNSS Data",
-    #         DATA_TYPE.ACOUSTIC.value: "Acoustic Data",
+    #         AssetType.IMU.value: "IMU Data",
+    #         AssetType.GNSS.value: "GNSS Data",
+    #         AssetType.ACOUSTIC.value: "Acoustic Data",
     #     }
 
     #     for i, data_type in enumerate(data_type_to_plot):
@@ -1185,7 +1165,7 @@ class DataHandler:
     #         Exception: If no matching data is found in the catalog.
     #     """
 
-    #     data_type_to_plot = [DATA_TYPE.SITECONFIG.value]
+    #     data_type_to_plot = [AssetType.SITECONFIG.value]
 
     #     entries = self.catalog_data[
     #         (self.catalog_data.network == network)
@@ -1201,7 +1181,7 @@ class DataHandler:
     #     path = entries.local_path.values[0]
     #     with open(path, "r") as f:
     #         site_config = json.load(f)
-    #         site_config_schema = SCHEMA_MAP[DATA_TYPE.SITECONFIG](**site_config)
+    #         site_config_schema = SCHEMA_MAP[AssetType.SITECONFIG](**site_config)
     #     return site_config_schema
 
     # def get_svp_data(self,network:str,station:str,survey:str) -> pd.DataFrame:
@@ -1221,7 +1201,7 @@ class DataHandler:
     #         (self.catalog_data.network == network)
     #         & (self.catalog_data.station == station)
     #         & (self.catalog_data.survey == survey)
-    #         & (self.catalog_data.type==DATA_TYPE.SVP.value)
+    #         & (self.catalog_data.type==AssetType.SVP.value)
     #     ]
 
     #     if entries.shape[0] < 1:
@@ -1249,7 +1229,7 @@ class DataHandler:
     #         (self.catalog_data.network == network)
     #         & (self.catalog_data.station == station)
     #         & (self.catalog_data.survey == survey)
-    #         & (self.catalog_data.type == DATA_TYPE.ATDOFFSET.value)
+    #         & (self.catalog_data.type == AssetType.ATDOFFSET.value)
     #     ]
 
     #     if entries.shape[0] < 1:
@@ -1259,7 +1239,7 @@ class DataHandler:
     #     path = entries.local_path.values[0]
     #     with open(path, "r") as f:
     #         atd_offset = json.load(f)
-    #         atd_offset_schema = SCHEMA_MAP[DATA_TYPE.ATDOFFSET](**atd_offset)
+    #         atd_offset_schema = SCHEMA_MAP[AssetType.ATDOFFSET](**atd_offset)
     #     return atd_offset_schema
 
     # def plot_site_config(self,site_config:siteconfig.SiteConfig,zoom:int=5):

@@ -63,7 +63,7 @@ class BaseObservable(BaseModel):
 class AssetType(Enum):
     NOVATEL = "novatel"
     NOVATEL770 = "novatel770"
-    DFOPOO = "dfop00"
+    DFOP00 = "dfop00"
     SONARDYNE = "sonardyne"
     RINEX = "rinex"
     KIN = "kin"
@@ -73,12 +73,20 @@ class AssetType(Enum):
     MASTER = "master"
     QCPIN = "qcpin"
     NOVATELPIN = "novatelpin"
-    DEFAULT = "default"
+    GNSS = "gnss"
+    ACOUSTIC = "acoustic"
+    SITECONFIG = "siteconfig"
+    ATDOFFSET = "atdoffset"
+    SVP = "svp"
+    SHOTDATA = "shotdata"
+    POSITION = "position"
+
+    _ = "default"
 
 
 class AssetEntry(BaseModel):
     local_path: Union[str,Path] = Field(default=None)
-    type: Optional[AssetType] = Field(default=AssetType.DEFAULT)
+    type: Optional[AssetType] = Field(default=None)
     id: Optional[int] = Field(default=None)
     network: Optional[str] = Field(default=None)
     station: Optional[str] = Field(default=None)

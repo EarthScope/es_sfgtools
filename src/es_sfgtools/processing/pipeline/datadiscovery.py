@@ -11,13 +11,13 @@ pattern_map = {
     re.compile("kin"): AssetType.KIN,
     re.compile("rinex"): AssetType.RINEX,
     re.compile(r"\.\d{2}O$"): AssetType.RINEX,
-    re.compile("NOV770"): FILE_TYPE.NOVATEL770,
-    re.compile("DFOP00.raw"): FILE_TYPE.DFPO00,
-    re.compile("lever_arms"): FILE_TYPE.LEVERARM,
-    re.compile("master"): FILE_TYPE.MASTER,
-    re.compile(r"\.pin$"): FILE_TYPE.QCPIN,
-    re.compile("CTD"): FILE_TYPE.CTD,
-    re.compile("svpavg"): FILE_TYPE.SEABIRD,
+    re.compile("NOV770"): AssetType.NOVATEL770,
+    re.compile("DFOP00.raw"): AssetType.DFOP00,
+    re.compile("lever_arms"): AssetType.LEVERARM,
+    re.compile("master"): AssetType.MASTER,
+    re.compile(r"\.pin$"): AssetType.QCPIN,
+    re.compile("CTD"): AssetType.CTD,
+    re.compile("svpavg"): AssetType.SEABIRD,
 }
 
 def _get_time(line):
@@ -32,8 +32,8 @@ def _get_time(line):
     )
     return start_time
 
-def _rinex_get_meta(data:DiscoveredFile) -> DiscoveredFile:
-    assert data.type == FILE_TYPE.RINEX.value
+def _rinex_get_meta(data:AssetType) -> AssetType:
+    assert data.type == AssetType.RINEX.value
     with open(data.local_path) as f:
         files = f.readlines()
         for line in files:
@@ -50,7 +50,7 @@ def _rinex_get_meta(data:DiscoveredFile) -> DiscoveredFile:
 
 
 
-def get_file_type_local(file_path: Path) -> DiscoveredFile:
+def get_file_type_local(file_path: Path) -> AssetType:
     """
     Get the file type of a file.
 
@@ -75,20 +75,20 @@ def get_file_type_local(file_path: Path) -> DiscoveredFile:
         warnings.warn(f"File type not recognized for {str(file_path)}")
         return
 
-    discoveredFile = DiscoveredFile(
+    discoveredFile =AssetType(
         local_path=str(file_path),
-        type=file_type.value,
+        type=AssetType.value,
         size=size,
         timestamp_data_start=None,
         timestamp_data_end=None,
     )
     match file_type:
-        case FILE_TYPE.RINEX:
+        case AssetType.RINEX:
             return _rinex_get_meta(discoveredFile)
         case _:
             return discoveredFile
 
-def get_file_type_remote(file_path: str) -> DiscoveredFile:
+def get_file_type_remote(file_path: str) -> AssetType:
     """
     Get the file type of a file.
 
@@ -107,15 +107,15 @@ def get_file_type_remote(file_path: str) -> DiscoveredFile:
         warnings.warn(f"File type not recognized for {file_path}")
         return
 
-    discoveredFile = DiscoveredFile(
+    discoveredFile = AssetType(
         remote_path=file_path,
-        type=file_type.value,
+        type=AssetType.value,
         timestamp_data_start=None,
         timestamp_data_end=None,
     )
     return discoveredFile
 
-def scrape_directory_local(directory: Union[str, Path]) -> List[DiscoveredFile]:
+def scrape_directory_local(directory: Union[str, Path]) -> List[AssetType]:
     """
     Scrape a directory for files.
 

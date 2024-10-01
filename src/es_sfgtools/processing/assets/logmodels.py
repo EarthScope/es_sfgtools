@@ -266,7 +266,7 @@ class SV3InterrogationData(BaseModel):
         )
 
     @classmethod
-    def from_dfopoo_line(cls, line) -> "InterrogationData":
+    def from_DFOP00_line(cls, line) -> "InterrogationData":
         position_data = PositionData.from_sv3_novins_gnss(
             novins=line.get("observations").get("NOV_INS"),
             gnss=line.get("observations").get("GNSS"),
@@ -337,7 +337,7 @@ class SV3ReplyData(BaseModel):
         )
 
     @classmethod
-    def from_dfopoo_line(cls, line) -> "RangeData":
+    def from_DFOP00_line(cls, line) -> "RangeData":
         positionData = PositionData.from_sv3_novins_gnss(
             line.get("observations").get("NOV_INS"), line.get("observations").get("GNSS")
         )

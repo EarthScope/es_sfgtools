@@ -189,7 +189,7 @@ def novatel_to_rinex(
     show_details: bool = False,
 
     **kwargs,
-) -> Annotated[AssetEntry, AssetEntry.type==AssetType.RINEX]:
+) -> AssetEntry:
     """
     Batch convert Novatel files to RINEX
     """
@@ -288,7 +288,7 @@ def rinex_to_kin(
     pridedir: Path,
     site="IVB1",
     show_details: bool = True,
-) -> Annotated[AssetEntry, AssetEntry.type==AssetType.KIN]:
+) -> AssetEntry:
     """
     Convert a RINEX file to a position file
     """
@@ -413,7 +413,7 @@ def kin_to_gnssdf(source:AssetEntry) -> Union[DataFrame[GNSSDataFrame], None]:
     return dataframe
 
 
-def qcpin_to_novatelpin(source: AssetEntry, writedir: Path) -> Annotated[AssetEntry, AssetEntry.type==AssetType.NOVATELPIN]:
+def qcpin_to_novatelpin(source: AssetEntry, writedir: Path) -> AssetEntry:
     with open(source.local_path) as file:
         pin_data = json.load(file)
 

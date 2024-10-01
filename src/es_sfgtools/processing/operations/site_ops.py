@@ -8,14 +8,18 @@ from pandera.typing import DataFrame
 from typing import Union
 from pathlib import Path
 from datetime import datetime,timedelta
-from ..assets.file_schemas import SeaBirdFile, CTDFile,SeaBirdFile,MasterFile,LeverArmFile
+from ..assets.file_schemas import AssetEntry,AssetType
 from ..assets.siteconfig import SiteConfig,Transponder,ATDOffset,PositionLLH
 from ..assets.observables import SoundVelocityDataFrame
 
 logger = logging.getLogger(os.path.basename(__file__))
 
 @pa.check_types
-def ctd_to_soundvelocity(source: CTDFile) -> DataFrame[SoundVelocityDataFrame]:
+def ctd_to_soundvelocity(source: Union[AssetEntry,str,Path]) -> DataFrame[SoundVelocityDataFrame]:
+    if isinstance(source,AssetEntry):
+        assert source.type == AssetType.CTD
+    else:
+        source = AssetEntry(local_path=source,type=AssetType.CTD)
     df = pd.read_csv(
         source.local_path,
         sep=" ",
@@ -35,7 +39,7 @@ def ctd_to_soundvelocity(source: CTDFile) -> DataFrame[SoundVelocityDataFrame]:
 
 @pa.check_types
 def seabird_to_soundvelocity(
-    source: SeaBirdFile, show_details: bool = True
+    source: Union[AssetEntry,str,Path], show_details: bool = True
 ) -> DataFrame[SoundVelocityDataFrame]:
     """
     Read the sound velocity profile from a file
@@ -56,6 +60,11 @@ def seabird_to_soundvelocity(
         14.000   54.34268 -158.42683     6.2515    32.3469    1472.63 0.0000e+00
     ...
     """
+    if isinstance(source,AssetEntry):
+        assert source.type == AssetType.SEABIRD
+    else:
+        source = AssetEntry(local_path=source,type=AssetType.SEABIRD)
+
     with open(source.local_path, "r") as f:
         lines = f.readlines()
         data = []
@@ -117,12 +126,12 @@ def show_site_config(site_config: SiteConfig):
 
 
 def build_site(
-    config_source: Union[MasterFile],
-    svp_source: Union[str, Path],
+    config_source: Union[AssetEntry, Path, str],
+    svp_source: Union[AssetEntry, Path, str],
+    atd_offset: Union[dict,AssetEntry,str,Path],
     name: str,
     campaign: str,
     date: datetime.date,
-    atd_offset: dict,
 ) -> SiteConfig:
     """
     Build a site configuration.
@@ -138,9 +147,28 @@ def build_site(
     Returns:
         SiteConfig: The built site configuration.
     """
+    if isinstance(config_source,AssetEntry):
+        assert config_source.type in [AssetType.MASTER]
+    else:
+        config_source = AssetEntry(local_path=config_source,type=AssetType.MASTER)
 
     if isinstance(svp_source, str):
         svp_source = Path(svp_source)
+    
+    match type(atd_offset):
+        case type(dict()):
+            atd_offset = ATDOffset(**atd_offset)
+        case type(AssetEntry):
+            assert atd_offset.type == AssetType.LEVERARM
+        case type(str):
+            atd_offset = AssetEntry(local_path=atd_offset,type=AssetType.LEVERARM)
+            atd_offset = leverarmfile_to_atdoffset(atd_offset)
+        case type(Path):
+            atd_offset = AssetEntry(local_path=atd_offset,type=AssetType.LEVERARM)
+            atd_offset = leverarmfile_to_atdoffset(atd_offset)
+        case _:
+            raise ValueError(f"Invalid type for atd_offset {type(atd_offset)}")
+
     assert svp_source.exists(), FileNotFoundError(f"Masterfile {svp_source} not found")
 
     loginfo = (
@@ -215,7 +243,7 @@ def build_site(
         longitude=center_llh["longitude"],
         height=center_llh["height"],
     )
-    atd_offset = ATDOffset(**atd_offset)
+
     site = SiteConfig(
         position_llh=site_position_llh,
         transponders=transponders,
@@ -229,11 +257,16 @@ def build_site(
 
 
 def masterfile_to_siteconfig(
-    source: MasterFile, show_details: bool = True
+    source: Union[AssetEntry,str,Path], show_details: bool = True
 ) -> Union[SiteConfig, None]:
     """
     Convert a MasterFile to a SiteConfig
     """
+    if isinstance(source,AssetEntry):
+        assert source.type == AssetType.MASTER
+    else:
+        source = AssetEntry(local_path=source,type=AssetType.MASTER)
+
     if not os.path.exists(source.local_path):
         raise FileNotFoundError(f"File {source.local_path} not found")
 
@@ -316,7 +349,7 @@ def masterfile_to_siteconfig(
 
 
 def leverarmfile_to_atdoffset(
-    source: LeverArmFile, show_details: bool = True
+    source: Union[AssetEntry,str,Path], show_details: bool = True
 ) -> ATDOffset:
     """
     Read the ATD offset from a "lever_arms" file
@@ -326,6 +359,11 @@ def leverarmfile_to_atdoffset(
     0.0 +0.575 -0.844
 
     """
+    if isinstance(source,AssetEntry):
+        assert source.type == AssetType.LEVERARM
+    else:
+        source = AssetEntry(local_path=source,type=AssetType.LEVERARM)
+        
     with open(source.local_path, "r") as f:
         line = f.readlines()[0]
         values = [float(x) for x in line.split()]
