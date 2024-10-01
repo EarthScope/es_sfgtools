@@ -1,8 +1,9 @@
-from pydantic import BaseModel,Field
+from pydantic import BaseModel,Field,field_validator
 from typing import Optional,Union
 from datetime import datetime
 from pathlib import Path
 import mmap
+from enum import Enum
 
 class BaseObservable(BaseModel):
     """
@@ -59,23 +60,48 @@ class BaseObservable(BaseModel):
             f.write(self.data)
         self.local_path = path
 
+class AssetType(Enum):
+    NOVATEL = "novatel"
+    NOVATEL770 = "novatel770"
+    DFOPOO = "dfop00"
+    SONARDYNE = "sonardyne"
+    RINEX = "rinex"
+    KIN = "kin"
+    SEABIRD = "seabird"
+    CTD = "ctd"
+    LEVERARM = "leverarm"
+    MASTER = "master"
+    QCPIN = "qcpin"
+    NOVATELPIN = "novatelpin"
+    DEFAULT = "default"
 
-class BaseSite(BaseModel):
-    """
-    Represents a base site file for geodesy processing.
 
-    Attributes:
-        local_path (Union[str, Path]): The local_path of the base site.
-        id (Optional[str]): The ID of the base site.
-        site_id (Optional[str]): The site ID of the base site.
-        campaign_id (Optional[str]): The campaign ID of the base site.
-        timestamp_data_start (Optional[datetime]): The capture time of the base site.
-    """
-    local_path: Union[str, Path]
-    uuid: Optional[int] = Field(default=None)
-    site_id: Optional[str] = Field(default=None)
-    campaign_id: Optional[str] = Field(default=None)
+class AssetEntry(BaseModel):
+    local_path: Union[str,Path] = Field(default=None)
+    type: Optional[AssetType] = Field(default=AssetType.DEFAULT)
+    id: Optional[int] = Field(default=None)
+    network: Optional[str] = Field(default=None)
+    station: Optional[str] = Field(default=None)
+    survey: Optional[str] = Field(default=None)
+
     timestamp_data_start: Optional[datetime] = Field(default=None)
+    timestamp_data_end: Optional[datetime] = Field(default=None)
+    timestamp_created: Optional[datetime] = Field(default=None)
+    parent_id: Optional[int] = Field(default=None)
+    size: Optional[float] = Field(default=None)
+
+    @field_validator('local_path',mode='before')
+    def _check_local_path(cls, v:Union[str,Path]):
+        if v is None:
+            raise ValueError("local_path must be set")
+        if isinstance(v,str):
+            v = Path(v)
+        if not v.exists():
+            raise ValueError(f"local_path {str(v)} does not exist")
+        return v
+    
+    class Config:
+        arbitrary_types_allowed = True
 
 class NovatelFile(BaseObservable):
     """
@@ -173,69 +199,3 @@ class RinexFile(BaseObservable):
                     end_time = self._get_time(line)
                     self.timestamp_data_end = end_time
                     break
-
-
-class KinFile(BaseObservable):
-    """
-    Represents a Kin file, an intermediate file between RINEX and position files.
-
-    Processing Functions:
-        src.processing.functions.gnss_functions.kin_to_gnssdf
-
-    Attributes:
-        parent_id (Optional[str]): The parent ID of the Kin file.
-    
-    """
-    name:str = "kin"
-    extension:str =".kin"
-    parent_uuid: Optional[str] = None
-    start_time: Optional[datetime] = None
-
-
-class SeaBirdFile(BaseSite):
-    """
-    Represents a SeaBird file. Used to parse out Sound Velocity Profile (SVP) data.
-
-    Processing Functions:
-        src.processing.functions.site_functions.seabird_to_svp
-   
-    """
-
-    name:str = "seabird"
-
-class CTDFile(BaseSite):
-    """
-    Represents a CTD file. Used to parse out Conductivity-Temperature-Depth (CTD) data.
-
-    Processing Functions:
-        src.processing.functions.site_functions.ctd_to_ctdprofile
-    """
-    name:str = "ctd"
-
-
-class LeverArmFile(BaseSite):
-    """
-    Represents a lever arm file.
-    Used to parse out Antenna-transducer-offset data
-    
-    Processing Functions:
-        src.processing.functions.site_functions.leverarm_to_atdoffset
-    """
-    name:str = "leverarm"
-
-class MasterFile(BaseSite):
-    """
-    Represents a master file for processing site data.
-    
-    Used to parse out site configuration data (transponder data and site center).
-
-    Processing Functions:
-        src.processing.functions.site_functions.masterfile_to_siteconfig
-    """
-    name:str = "master"
-
-class QCPinFile(BaseObservable):
-    name:str = "qcpin"
-
-class NovatelPinFile(BaseObservable):
-    name:str = "novatelpin"

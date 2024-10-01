@@ -3,15 +3,14 @@ import re
 import warnings
 from typing import List, Union
 import datetime
-from .constants import FILE_TYPE,DiscoveredFile
-
+from ..assets.file_schemas import AssetType,AssetEntry
 
 pattern_map = {
-    re.compile("sonardyne"): FILE_TYPE.SONARDYNE,
-    re.compile("novatel"): FILE_TYPE.NOVATEL,
-    re.compile("kin"): FILE_TYPE.KIN,
-    re.compile("rinex"): FILE_TYPE.RINEX,
-    re.compile(r"\.\d{2}O$"): FILE_TYPE.RINEX,
+    re.compile("sonardyne"): AssetType.SONARDYNE,
+    re.compile("novatel"): AssetType.NOVATEL,
+    re.compile("kin"): AssetType.KIN,
+    re.compile("rinex"): AssetType.RINEX,
+    re.compile(r"\.\d{2}O$"): AssetType.RINEX,
     re.compile("NOV770"): FILE_TYPE.NOVATEL770,
     re.compile("DFOP00.raw"): FILE_TYPE.DFPO00,
     re.compile("lever_arms"): FILE_TYPE.LEVERARM,
