@@ -38,6 +38,7 @@ class Assets(Base):
 class MultiAssets(Base):
     __tablename__ = "multiassets"
     id = Column(Integer, primary_key=True, autoincrement=True)
+    type = Column(String)
     timestamp_data_start = Column(DateTime)
     timestamp__data_end = Column(DateTime)
     network = Column(String)

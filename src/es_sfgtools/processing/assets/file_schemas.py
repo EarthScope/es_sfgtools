@@ -83,9 +83,8 @@ class AssetType(Enum):
 
     _ = "default"
 
-
-class AssetEntry(BaseModel):
-    local_path: Union[str,Path] = Field(default=None)
+class _AssetBase(BaseModel):
+    local_path: Union[str, Path] = Field(default=None)
     type: Optional[AssetType] = Field(default=None)
     id: Optional[int] = Field(default=None)
     network: Optional[str] = Field(default=None)
@@ -95,52 +94,19 @@ class AssetEntry(BaseModel):
     timestamp_data_start: Optional[datetime] = Field(default=None)
     timestamp_data_end: Optional[datetime] = Field(default=None)
     timestamp_created: Optional[datetime] = Field(default=None)
-    parent_id: Optional[int] = Field(default=None)
-    size: Optional[float] = Field(default=None)
 
-    @field_validator('local_path',mode='before')
-    def _check_local_path(cls, v:Union[str,Path]):
-        if v is None:
-            raise ValueError("local_path must be set")
-        if isinstance(v,str):
-            v = Path(v)
-        if not v.exists():
-            raise ValueError(f"local_path {str(v)} does not exist")
+    @field_validator("type", mode="before")
+    def _check_type(cls, v: Union[str, AssetType]):
+        if isinstance(v, str):
+            v = AssetType(v)
         return v
-    
-    @field_serializer('local_path',when_used='always')
-    def _serialize_local_path(self, v:Union[str,Path]):
-        if isinstance(v,Path):
-            return str(v)
-        return v
-    
-    class Config:
-        arbitrary_types_allowed = True
 
-class MultiAssetEntry(BaseModel):
-    local_path: Optional[Union[str,Path]] = Field(default=None)
-    type: Optional[AssetType] = Field(default=None)
-    id: Optional[int] = Field(default=None)
-    network: Optional[str] = Field(default=None)
-    station: Optional[str] = Field(default=None)
-    survey: Optional[str] = Field(default=None)
-    timestamp_data_start: Optional[datetime] = Field(default=None)
-    timestamp_data_end: Optional[datetime] = Field(default=None)
-    timestamp_created: Optional[datetime] = Field(default=None)
-    parent_id: Optional[List[int]] = Field(default=None)
-    size: Optional[float] = Field(default=None)
+    @field_serializer("type", when_used="always")
+    def _serialize_type(self, v: Union[str, AssetType]):
+        if isinstance(v, AssetType):
+            return v.value
+        return v
 
-    @field_validator('parent_ids',mode='before')
-    def _check_parent_ids(cls,v:Union[str,List[int]]):
-        if isinstance(v,str):
-            v = [int(x) for x in v.split(",")]
-        return v
-    @field_serializer('parent_ids',when_used='always')
-    def _serialize_parent_ids(self,v:Union[str,List[int]]):
-        if isinstance(v,list):
-            return ",".join([str(x) for x in v])
-        return v
-    
     @field_validator("local_path", mode="before")
     def _check_local_path(cls, v: Union[str, Path]):
         if v is None:
@@ -159,6 +125,25 @@ class MultiAssetEntry(BaseModel):
 
     class Config:
         arbitrary_types_allowed = True
+
+
+class AssetEntry(_AssetBase):
+    parent_id: Optional[int] = Field(default=None)
+
+
+class MultiAssetEntry(_AssetBase):
+    parent_ids: Optional[List[int]] = Field(default=None)
+
+    @field_validator('parent_ids',mode='before')
+    def _check_parent_ids(cls,v:Union[str,List[int]]):
+        if isinstance(v,str):
+            v = [int(x) for x in v.split(",")]
+        return v
+    @field_serializer('parent_ids',when_used='always')
+    def _serialize_parent_ids(self,v:Union[str,List[int]]):
+        if isinstance(v,list):
+            return ",".join([str(x) for x in v])
+        return v
 
 
 class NovatelFile(BaseObservable):

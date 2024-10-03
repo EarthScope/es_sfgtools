@@ -210,7 +210,7 @@ def novatel_to_positiondf(source:NovatelFile) -> DataFrame[PositionDataFrame]:
         })
     return PositionDataFrame.validate(df, lazy=True)
 
-def dev_merge_to_shotdata(acoustic: DataFrame[AcousticDataFrame], position:DataFrame[PositionDataFrame]) -> DataFrame[ShotDataFrame]:
+def dev_merge_to_shotdata(acoustic: DataFrame[AcousticDataFrame], position:DataFrame[PositionDataFrame],**kwargs) -> DataFrame[ShotDataFrame]:
     """
     Merge acoustic, imu, and gnss data to create observation data.
     Args:
@@ -224,6 +224,18 @@ def dev_merge_to_shotdata(acoustic: DataFrame[AcousticDataFrame], position:DataF
 
     acoustic["time"] = acoustic["triggerTime"]
     
+    acoustic_min_time = acoustic["time"].min()
+    acoustic_max_time = acoustic["time"].max()
+    position_min_time = position["time"].min()
+    position_max_time = position["time"].max()
+    min_time = max(acoustic_min_time,position_min_time)
+    max_time = min(acoustic_max_time,position_max_time)
+    acoustic = acoustic[(acoustic["time"] >= min_time) & (acoustic["time"] <= max_time)]
+    position = position[(position["time"] >= min_time) & (position["time"] <= max_time)]
+
+    if acoustic.empty or position.empty:
+        logger.error("No data found in the time range")
+        return None
 
     # sort
     acoustic.sort_values("triggerTime",inplace=True)

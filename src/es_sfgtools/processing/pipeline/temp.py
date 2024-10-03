@@ -26,7 +26,7 @@ import threading
 warnings.filterwarnings("ignore")
 seaborn.set_theme(style="whitegrid")
 from es_sfgtools.utils.archive_pull import download_file_from_archive
-from es_sfgtools.processing.assets import AssetEntry,AssetType
+from es_sfgtools.processing.assets import AssetEntry,AssetType,MultiAssetEntry
 from es_sfgtools.processing.operations import sv2_ops,sv3_ops,gnss_ops,site_ops
 from es_sfgtools.processing.assets import observables,siteconfig,constants,file_schemas
 from es_sfgtools.modeling.garpos_tools import schemas as modeling_schemas
@@ -37,6 +37,7 @@ import sqlalchemy as sa
 from .database import Base,Assets,Session,ModelResults
 from .constants import FILE_TYPE,DATA_TYPE,REMOTE_TYPE,ALIAS_MAP,FILE_TYPES
 from .datadiscovery import scrape_directory_local,get_file_type_local,get_file_type_remote
+from .data_ops import create_multi_asset_dataframe,merge_multi_assets
 logger = logging.getLogger(__name__)
 
 class OneToOne:
@@ -854,7 +855,7 @@ class DataHandler:
             parent_type = list(parent_targets.keys())[0]
             for child in parent_targets[parent_type].keys():
 
-                self._process_data_link(target=child,source=[parent_type],override=override,show_details=show_details)
+                self._process_data_link(target=child,source=parent_type,override=override,show_details=show_details)
                 child_targets = TARGET_MAP.get(child,{})
                 if child_targets:
                     processing_queue.append({child:child_targets})
@@ -887,11 +888,6 @@ class DataHandler:
 
     def process_svp(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
         self._process_data_graph(AssetType.SVP,override=override, show_details=show_details,update_timestamp=update_timestamp)
-
-    def process_target(self,parent:str,child:str,override:bool=False,show_details:bool=False):
-        target = DATA_TYPE(child)
-        source = FILE_TYPE(parent)
-        self._process_data_link(target=target,source=[source],override=override,show_details=show_details)
 
     def process_qc_data(self, override:bool=False, show_details:bool=False):
         self._process_data_graph_forward(AssetType.QCPIN,override=override, show_details=show_details)
@@ -926,9 +922,9 @@ class DataHandler:
         self._process_data_graph_forward(AssetType.QCPIN,override=override, show_details=show_details)
 
     def dev_group_session_data(self,
-                           source:str= AssetType.DFOP00.value,
+                           source:Union[str,AssetType] = AssetType.SHOTDATA,
                            override:bool=False
-                           ) -> dict:
+                           ) -> Union[List[MultiAssetEntry],None]:
         """
         Group the session data by timestamp.
 
@@ -938,95 +934,31 @@ class DataHandler:
 
         Returns:
             dict: The grouped data.
-        """
-        assert source in [AssetType.DFOP00.value,AssetType.QCPIN.value], "Source must be either DFPO00 or QCPIN"
-        # Get all available shotdata from the assets table
-        with self.engine.begin() as conn:
-            data_all = conn.execute(
-                sa.select(Assets).where(
-                    Assets.type.is_(AssetType.SHOTDATA.value),
-                    Assets.network.is_(self.network),
-                    Assets.station.is_(self.station),
-                    Assets.survey.is_(self.survey),
-                    Assets.local_path.isnot(None),
-                )
-            ).fetchall()
-            parent_ids = [row.parent_id for row in data_all]
-            parent_types = conn.execute(
-                sa.select(Assets.id).where(
-                    Assets.id.in_(parent_ids),
-                    Assets.type.is_(source),
-                    Assets.network.is_(self.network),
-                    Assets.station.is_(self.station),
-                    Assets.survey.is_(self.survey),
-                    Assets.local_path.isnot(None),
-                )
-            ).fetchall()
-            data = [x for x in data_all if x.parent_id in list([x.id for x in parent_types])]
-
-        dates = [row.timestamp_data_start.date() for row in data]
-        dates.extend([row.timestamp_data_end.date() for row in data])
-        dates = list(set(dates))
-
-        # check if there is a session data entry for the source
-        with self.engine.begin() as conn:
-            found_sessions = conn.execute(
-                sa.Select(Session).where(
-                    Session.network.is_(self.network),
-                    Session.station.is_(self.station),
-                    Session.survey.is_(self.survey),
-                    Session.parent_type.is_(source),
-                )
-            ).fetchall()
-        # match the session data to the shotdata
-        if override:
-            with self.engine.begin() as conn:
-                conn.execute(
-                    sa.delete(Session).where(
-                        Session.id.in_([x.id for x in found_sessions])
-                    )
-                )
-        else:
-            # remove the dates that already have session data
-            data = [x for x in data if x.timestamp_data_start.date() not in [row.timestamp_data_start.date() for row in found_sessions]]
-
-        dates = []
-        df_main = pd.DataFrame()
-        for row in data:
-            dates.extend([row.timestamp_data_start.date(),row.timestamp_data_end.date()])
+        """ 
+        if isinstance(source,str):
             try:
-                df = siteconfig.ShotDataFrame.validate(pd.read_csv(row.local_path),lazy=True)
-                df_main = pd.concat([df_main,df])
-            except Exception as e:
-                logger.error(f"Error reading {row.local_path} {e}")
-                continue
-        dates = list(set(dates))
-        dates.sort()
-        for date in dates:
-            daily_df = df_main[df_main.triggerTime.apply(lambda x:x.date())==date]
-            if not daily_df.empty:
-                local_path = str(self.proc_dir / f"session_{self.network}_{self.station}_{self.survey}_{str(date)}.csv")
-                timestamp_data_start = daily_df.triggerTime.min()
-                timestamp_data_end = daily_df.triggerTime.max()
-                duration = timestamp_data_end - timestamp_data_start
-                parent_type = source
-                daily_df.to_csv(local_path,index=False)
-                with self.engine.begin() as conn:
-                    conn.execute(
-                        sa.Insert(Session).values(
-                            {
-                                "network":self.network,
-                                "station":self.station,
-                                "survey":self.survey,
-                                "local_path":local_path,
-                                "parent_type":parent_type,
-                                "timestamp_start":timestamp_data_start,
-                                "timestamp_end":timestamp_data_end,
-                             
+                source = AssetType(source)
+            except:
+                raise ValueError(f"Source {source} must be one of {AssetType.__members__.keys()}")
+            
+        match source:
+            case AssetType.POSITION | AssetType.SHOTDATA | AssetType.ACOUSTIC | AssetType.GNSS:
+                multi_asset_list: List[MultiAssetEntry] = create_multi_asset_dataframe(
+                assetType=source,
+                writedir=self.proc_dir,
+                network=self.network,
+                station=self.station,
+                survey=self.survey,
+                override=override,
+                engine=self.engine,
+            )
+            case AssetType.RINEX:
+                pass
 
-                            }
-                        )
-                    )
+        logger.info(f"Created {len(multi_asset_list)} MultiAssetEntries for {source.value}")
+       
+        return multi_asset_list
+    
     def query_catalog(self,
                       query:str) -> pd.DataFrame:
         with self.engine.begin() as conn:
