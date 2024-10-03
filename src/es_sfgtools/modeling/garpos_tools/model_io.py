@@ -17,7 +17,7 @@ import logging
 from  garpos import LIB_DIRECTORY,LIB_RAYTRACE
 # Local Imports
 
-from ...processing.schemas import ATDOffset
+from ...processing.assets.siteconfig import PositionENU, PositionLLH, Transponder, ATDOffset
 
 from .hyper_params import InversionParams, InversionType
 from .schemas import GarposObservation,GarposSite,ObservationData,GarposResults
