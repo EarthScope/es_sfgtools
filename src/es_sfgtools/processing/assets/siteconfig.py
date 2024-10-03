@@ -60,5 +60,5 @@ class SiteConfig(BaseModel):
     date: Optional[datetime.datetime] = None
     position_llh: PositionLLH
     transponders: Optional[List[Transponder]]
-    sound_velocity_path: Optional[str] = None
+    sound_speed_data: Optional[str] = None
     atd_offset: Optional[ATDOffset] = None

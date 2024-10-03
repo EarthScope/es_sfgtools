@@ -12,7 +12,7 @@ if __name__ == "__main__":
     os.environ["PATH"] += os.pathsep + str(pride_path)
     qc_data_dir = Path("/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/Sample_QC_UNI1/")
 
-    data_handler = DataHandler(qc_data_dir.parent,
+    data_handler = DataHandler(data_dir=qc_data_dir.parent,
                                network="QC",
                                station="QC1",
                                survey="QC"

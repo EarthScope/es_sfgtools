@@ -69,6 +69,15 @@ class InversionParams(BaseModel):
     deltab: float = Field(
         default=1.0e-6, description="Infinitesimal values to make Jacobian matrix"
     )
+    delta_center_position_east_sigma: float = Field(
+        default=0.0, description="Standard deviation of the ECEF East position"
+    )
+    delta_center_position_north_sigma: float = Field(
+        default=0.0, description="Standard deviation of the ECEF North position"
+    )
+    delta_center_position_up_sigma: float = Field(
+        default=0.0, description="Standard deviation of the height above ellipsoid"
+    )
 
     class Config:
         coerce = True
