@@ -66,7 +66,7 @@ def check_sequence_overlap(df: pd.DataFrame) -> pd.DataFrame:
 
     filter_main = filter_0 | filter_1
     if filter_main.any():
-        warn(DateOverlapWarning)
+        warnings.warn(DateOverlapWarning)
         logger.warning(DateOverlapWarning.message)
     found_bad = df[filter_main]
     logger.info(f"Found {found_bad.shape[0]} overlapping ping-reply sequences")
@@ -251,7 +251,7 @@ class SV3InterrogationData(BaseModel):
     @classmethod
     def from_schemas(
         cls, positionData: PositionData, triggerTime: datetime
-    ) -> "InterrogationData":
+    ) -> "SV3InterrogationData":
         return cls(
             head0=positionData.head,
             pitch0=positionData.pitch,
@@ -266,7 +266,7 @@ class SV3InterrogationData(BaseModel):
         )
 
     @classmethod
-    def from_dfopoo_line(cls, line) -> "InterrogationData":
+    def from_DFOP00_line(cls, line) -> "SV3InterrogationData":
         position_data = PositionData.from_sv3_novins_gnss(
             novins=line.get("observations").get("NOV_INS"),
             gnss=line.get("observations").get("GNSS"),
@@ -337,7 +337,7 @@ class SV3ReplyData(BaseModel):
         )
 
     @classmethod
-    def from_dfopoo_line(cls, line) -> "RangeData":
+    def from_DFOP00_line(cls, line) -> "RangeData":
         positionData = PositionData.from_sv3_novins_gnss(
             line.get("observations").get("NOV_INS"), line.get("observations").get("GNSS")
         )

@@ -35,17 +35,18 @@ class Assets(Base):
     parent_id = Column(Integer, ForeignKey("assets.id"),nullable=True)
     size = Column(Float,nullable=True)
 
-class Session(Base):
-    __tablename__ = "session"
+class MultiAssets(Base):
+    __tablename__ = "multiassets"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    timestamp_start = Column(DateTime)
-    timestamp_end = Column(DateTime)
+    timestamp_data_start = Column(DateTime)
+    timestamp__data_end = Column(DateTime)
     network = Column(String)
     station = Column(String)
     survey = Column(String)
     parent_type = Column(String) # SV3, SV3,SV3_QC
     local_path = Column(String, nullable=True, unique=True)
     is_updated = Column(Boolean, default=False)
+    parent_ids = Column(String)
 
 class ModelResults(Base):
     __tablename__ = "modelresults"

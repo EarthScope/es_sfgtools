@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field, model_validator, ValidationError
 import pandera as pa
 from pandera.typing import DataFrame
 from datetime import datetime
-from typing import List, Optional, Union
+from typing import List, Optional, Union,Annotated
 import logging
 import julian
 import os
@@ -19,7 +19,7 @@ from pathlib import Path
 import numpy as np
 import uuid
 
-from ..assets.file_schemas import NovatelFile, Novatel770File, NovatelPinFile, RinexFile, KinFile, QCPinFile
+from ..assets.file_schemas import AssetEntry,AssetType
 from ..assets.observables import GNSSDataFrame
 
 logger = logging.getLogger(__name__)
@@ -150,16 +150,61 @@ def get_metadata(site: str, serialNumber: str = "XXXXXXXXXX") -> dict:
     }
 
 
+def _rinex_get_time(line):
+    time_values = line.split("GPS")[0].strip().split()
+    start_time = datetime.datetime(
+        year=int(time_values[0]),
+        month=int(time_values[1]),
+        day=int(time_values[2]),
+        hour=int(time_values[3]),
+        minute=int(time_values[4]),
+        second=int(float(time_values[5])),
+    )
+    return start_time
+
+
+def rinex_get_meta(source:AssetEntry) ->AssetEntry:
+    assert source.type == AssetType.RINEX
+    with open(source.local_path) as f:
+        files = f.readlines()
+        for line in files:
+            if "TIME OF FIRST OBS" in line:
+                start_time = _rinex_get_time(line)
+                file_date = start_time.strftime("%Y%m%d%H%M%S")
+                source.timestamp_data_start = start_time
+
+            if "TIME OF LAST OBS" in line:
+                end_time = _rinex_get_time(line)
+                source.timestamp_data_end = end_time
+                break
+    return source
+
+
 def novatel_to_rinex(
-    source: Union[NovatelFile, Novatel770File, NovatelPinFile],
+    source: Union[AssetEntry,str,Path],
     site: str,
     year: str = None,
+    writedir: Path = None,
+    source_type:AssetType = AssetType.NOVATEL,
     show_details: bool = False,
+
     **kwargs,
-) -> RinexFile:
+) -> AssetEntry:
     """
     Batch convert Novatel files to RINEX
     """
+    if isinstance(source,str) or isinstance(source,Path):
+        try:
+            source_type = AssetType(source_type)
+        except:
+            raise ValueError("Argument source_type must be a valid AssetType ['novatel','novatel770','novatelpin']")
+        
+        source = AssetEntry(local_path=source,source_type=source_type)
+
+    assert source.local_path.exists(), f"File not found: {source.local_path}"
+
+    if writedir is None:
+        writedir = source.local_path.parent
 
     # get system platform and architecture
     system = platform.system().lower()
@@ -171,7 +216,7 @@ def novatel_to_rinex(
     if arch not in ["amd64", "arm64"]:
         raise ValueError(f"Unsupported architecture: {arch}")
 
-    if type(source) in [NovatelFile, NovatelPinFile]:
+    if source.type in [AssetType.NOVATEL,AssetType.NOVATELPIN]:
         binary_path = RINEX_BIN_PATH[f"{system}_{arch}"]
     else:
         binary_path = RINEX_BIN_PATH_BINARY[f"{system}_{arch}"]
@@ -187,13 +232,14 @@ def novatel_to_rinex(
             f.write(json_object)
 
         if source.timestamp_data_start is not None:
-            file_date = source.timestamp_data_start
+            file_date = source.timestamp_data_start.date().strftime("%Y%m%d")
         else:
             file_date = os.path.splitext(os.path.basename(source.local_path))[0].split(
                 "_"
             )[-4]
         if year is None:
-            year = file_date[2:4]
+            year = '23'
+
         rinex_outfile = os.path.join(workdir, f"{site}_{file_date}_rinex.{year}O")
         file_tmp_dest = shutil.copy(
             source.local_path,
@@ -209,32 +255,46 @@ def novatel_to_rinex(
         ]
         cmd.extend([file_tmp_dest])
         result = subprocess.run(cmd, check=True, capture_output=True)
+        if result.stderr:
+            logger.error(result.stderr)
+            return None
+        rinex_asset = AssetEntry(
+            parent_id=source.id,
+            local_path=rinex_outfile,
+        )
+
+        rinex_asset = rinex_get_meta(rinex_asset)
+        rinex_asset_year = rinex_asset.timestamp_data_start.year.__str__()[2:]
+        rinex_asset_date_str = rinex_asset.timestamp_data_start.strftime("%Y%m%d%H%M%S")
+        new_rinex_path_name = f"{site}_{rinex_asset_date_str}_rinex.{rinex_asset_year}O"
+        new_rinex_path = writedir / new_rinex_path_name
+        shutil.move(rinex_outfile, new_rinex_path)
+        rinex_asset.local_path = new_rinex_path
         if show_details:
             # logger.info("showing details")
             if len(result.stdout.decode()):
                 print(
-                    f"{os.path.basename(source.local_path)}: {result.stdout.decode().rstrip()}"
+                    f"{source.local_path.name}: {result.stdout.decode().rstrip()}"
                 )
             # print(result.stderr.decode())
-        logger.info(f"Converted Novatel files to RINEX: {rinex_outfile}")
-        rinex_data = RinexFile(parent_id=source.uuid, location=rinex_outfile, site=site)
-        rinex_data.read(rinex_outfile)  # load into mmap
-        rinex_data.get_meta()
 
-    return rinex_data
+
+    return rinex_asset
 
 
 def rinex_to_kin(
-    source: RinexFile,
+    source: Union[AssetEntry,str,Path],
     writedir: Path,
     pridedir: Path,
     site="IVB1",
     show_details: bool = True,
-) -> KinFile:
+) -> AssetEntry:
     """
     Convert a RINEX file to a position file
     """
-    assert isinstance(source, RinexFile), "Invalid source file type"
+    if isinstance(source,str) or isinstance(source,Path):
+        source = AssetEntry(local_path=source,type=AssetType.RINEX)
+    assert AssetEntry.type == AssetType.RINEX, "Invalid source file type"
 
     logger.info(f"Converting RINEX file {source.local_path} to kin file")
 
@@ -278,10 +338,10 @@ def rinex_to_kin(
             kin_file_new = "_".join(kin_file_new)
             kin_file_new = writedir / kin_file_new
             shutil.move(kin_file, kin_file_new)
-            kin_file = KinFile(
-                parent_id=source.uuid,
+            kin_file = AssetEntry(
+                type=AssetType.KIN,
+                parent_id=source.id,
                 start_time=source.timestamp_data_start,
-                site=site,
                 local_path=kin_file_new,
             )
             response = f"Converted RINEX file {source.local_path} to kin file {kin_file.local_path}"
@@ -298,7 +358,7 @@ def rinex_to_kin(
 
 
 @pa.check_types
-def kin_to_gnssdf(source: KinFile) -> Union[DataFrame[GNSSDataFrame], None]:
+def kin_to_gnssdf(source:AssetEntry) -> Union[DataFrame[GNSSDataFrame], None]:
     """
     Create an GNSSDataFrame from a kin file from PRIDE-PPP
 
@@ -308,6 +368,7 @@ def kin_to_gnssdf(source: KinFile) -> Union[DataFrame[GNSSDataFrame], None]:
     Returns:
         dataframe (GNSSDataFrame): An instance of the class.
     """
+    assert source.type == AssetType.KIN, "Invalid source file type"
 
     with open(source.local_path, "r") as file:
         lines = file.readlines()
@@ -354,7 +415,7 @@ def kin_to_gnssdf(source: KinFile) -> Union[DataFrame[GNSSDataFrame], None]:
     return dataframe
 
 
-def qcpin_to_novatelpin(source: QCPinFile, outpath: Path) -> NovatelPinFile:
+def qcpin_to_novatelpin(source: AssetEntry, writedir: Path) -> AssetEntry:
     with open(source.local_path) as file:
         pin_data = json.load(file)
 
@@ -370,13 +431,37 @@ def qcpin_to_novatelpin(source: QCPinFile, outpath: Path) -> NovatelPinFile:
     time_sorted = np.argsort(time_stamps)
     range_headers = [range_headers[i] for i in time_sorted]
 
-    file_path = outpath / (str(source.uuid) + "_novpin.txt")
+    file_path = writedir / (str(source.id) + "_novpin.txt")
     with tempfile.NamedTemporaryFile(mode="w+", delete=True) as temp_file:
         for header in range_headers:
             temp_file.write(header)
             temp_file.write("\n")
         temp_file.seek(0)
-        novatel_pin = NovatelPinFile(location=temp_file.name)
-        novatel_pin.read(path=temp_file.name)
+        shutil.copy(temp_file.name, file_path)
+        novatel_pin = AssetEntry(
+            parent_id=source.id,
+            local_path=file_path,
+            type=AssetType.NOVATELPIN,
+            timestamp_data_start=source.timestamp_data_start,
+            timestamp_data_end=source.timestamp_data_end,
+            timestamp_created=datetime.now(),
+        )
 
     return novatel_pin
+
+
+def dev_merge_rinex(sources: List[AssetEntry],output:Path) -> List[AssetEntry]:
+    """
+    Merge multiple RINEX files into a single RINEX file
+    """
+    sources.sort(key=lambda x: x.timestamp_data_start)
+    # rinex_files = [source.local_path for source in sources]
+    # rinex_files = " ".join(rinex_files)
+    # output = output / "merged_rinex.20O"
+    # cmd = f"teqc +obs {' '.join(rinex_files)} > {output}"
+    # result = subprocess.run(cmd, shell=True, capture_output=True)
+    # if result.stderr:
+    #     logger.error(result.stderr)
+    #     return None
+    # return AssetEntry(local_path=output,type=AssetType.RINEX)
+    pass
