@@ -39,7 +39,23 @@ from .constants import FILE_TYPE,DATA_TYPE,REMOTE_TYPE,ALIAS_MAP,FILE_TYPES
 from .datadiscovery import scrape_directory_local,get_file_type_local,get_file_type_remote
 logger = logging.getLogger(__name__)
 
+class OneToOne:
+    def __init__(self,parent:AssetType,child:AssetType,func:Callable):
+        self.parent = parent
+        self.child = child
+        self.func = func
 
+class ManyToOne:
+    def __init__(self,parents:List[AssetType],child:AssetType,func:Callable):
+        self.parents = parents
+        self.child = child
+        self.func = func
+RELATIONSHIPS = [
+    OneToOne(AssetType.QCPIN,AssetType.SHOTDATA,sv3_ops.dev_qcpin_to_shotdata),
+    OneToOne(AssetType.NOVATEL,AssetType.RINEX,gnss_ops.novatel_to_rinex),
+    OneToOne(AssetType.NOVATEL770,AssetType.RINEX,gnss_ops.novatel_to_rinex),
+    OneToOne(AssetType.RINEX,AssetType.KIN,gnss_ops.rinex_to_kin),
+]
 TARGET_MAP = {
     AssetType.QCPIN:{AssetType.SHOTDATA:sv3_ops.dev_qcpin_to_shotdata},
     AssetType.NOVATEL:{AssetType.RINEX:gnss_ops.novatel_to_rinex,AssetType.POSITION:sv2_ops.novatel_to_positiondf},
@@ -50,7 +66,6 @@ TARGET_MAP = {
     AssetType.LEVERARM:{AssetType.ATDOFFSET:site_ops.leverarmfile_to_atdoffset},
     AssetType.SEABIRD:{AssetType.SVP:site_ops.seabird_to_soundvelocity},
     AssetType.NOVATEL770:{AssetType.RINEX:gnss_ops.novatel_to_rinex},
-    #AssetType.DFPO00:{AssetType.IMU:proc_funcs.dfpo00_to_imudf, AssetType.ACOUSTIC:proc_funcs.dfpo00_to_acousticdf}
     AssetType.DFOP00:{AssetType.SHOTDATA:sv3_ops.dev_dfop00_to_shotdata}
 }
 
@@ -543,8 +558,8 @@ class DataHandler:
             conn.execute(sa.insert(Assets).values(entry))
 
     def get_parent_stack(
-        self, child_type: Union[FILE_TYPE, DATA_TYPE]
-    ) -> List[Union[FILE_TYPE, DATA_TYPE]]:
+        self, child_type: AssetType
+    ) -> List[AssetType]:
         """
         Get a list of parent types for a given child type.
 
@@ -557,7 +572,7 @@ class DataHandler:
         stack = [child_type]
         pointer = 0
         while pointer < len(stack):
-            parents: List[Union[FILE_TYPE, DATA_TYPE]] = SOURCE_MAP.get(
+            parents: List[AssetType] = SOURCE_MAP.get(
                 stack[pointer], []
             )
             for parent in parents:
@@ -578,30 +593,10 @@ class DataHandler:
         return stack
 
     @staticmethod
-    def _process_targeted(
-        parent: AssetEntry,
-        child_type: Union[AssetType, DATA_TYPE],
-        inter_dir: Path,
-        proc_dir: Path,
-        pride_dir: Path,
-        show_details: bool=False,
-    ) -> Tuple[dict, dict, bool]:
-
-        response = " "
-        # TODO: implement multithreaded logging, had to switch to print statement below
-
-        # handle the case when the parent timestamp is None
-        child_timestamp = parent.get("timestamp_data_start", None)
-
-        response += f"Processing {parent['local_path']} ({parent['id']}) of Type {parent['type']} to {child_type.value}\n"
-        # Get the processing function that converts the parent entry to the child entry
-        process_func = TARGET_MAP.get(parent.type).get(child_type)
-        # Build the source object from the parent entry
-       
-        # build partial processing function
+    def _partial_function(process_func,inter_dir:Path,proc_dir:Path,pride_dir:Path,show_details:bool=False) -> Callable:
         match process_func:
             case gnss_ops.rinex_to_kin:
-       
+
                 process_func_p = partial(
                     process_func,
                     writedir=inter_dir,
@@ -612,6 +607,7 @@ class DataHandler:
             case gnss_ops.novatel_to_rinex:
                 process_func_p = partial(
                     process_func,
+                    writedir=inter_dir,
                     site=parent.station,
                     year=parent.__dict__.get(
                         "timestamp_data_start", datetime.datetime.now().year
@@ -623,52 +619,80 @@ class DataHandler:
 
             case _:
                 process_func_p = process_func
+        return process_func_p
 
-        processed = None
-        timestamp_data_start = parent.get("timestamp_data_start", None)
-        timestamp_data_end = parent.get("timestamp_data_end", None)
+    @staticmethod
+    def _process_targeted(
+        parent: AssetEntry,
+        child_type: AssetType,
+        inter_dir: Path,
+        proc_dir: Path,
+        pride_dir: Path,
+        show_details: bool = False,
+    ) -> Union[Tuple[AssetEntry,AssetEntry, str],Tuple[None,None,str]]:
 
-        if hasattr(parent,"local_path") is not None and parent.local_path.exists():
-            if parent.local_path.stat().st_size == 0:
-                response += f"File {parent.local_path} is empty\n"
-                processed = None
-            else:
-                processed = process_func_p(parent)
+        response = f"Processing {parent['local_path']} ({parent['id']}) of Type {parent['type']} to {child_type.value}\n"
 
-        match type(processed):
-            case pd.DataFrame:
-                local_path = proc_dir / f"{parent['id']}_{child_type.value}.csv"
+        # Get the processing function that converts the parent entry to the child entry
+        process_func = TARGET_MAP.get(parent.type).get(child_type)
+        process_func_partial = DataHandler._partial_function(process_func,inter_dir,proc_dir,pride_dir,show_details)
+
+        try:
+            processed = process_func_partial(parent)
+            if processed is None:
+                raise Exception(f"Processing failed for {parent.id}")
+        except Exception as e:
+            response += f"{process_func.__name__} failed with error: {e}"
+            logger.error(response)
+            return None, None, ''
+
+        local_path = None
+        timestamp_data_start = None
+        timestamp_data_end = None
+        match child_type:
+            case (
+                AssetType.GNSS
+                | AssetType.ACOUSTIC
+                | AssetType.POSITION
+                | AssetType.SHOTDATA
+            ):
+                local_path = proc_dir / f"{parent.id}_{child_type.value}.csv"
                 processed.to_csv(local_path, index=False)
 
                 # handle the case when the child timestamp is None
-                if pd.isna(parent["timestamp_data_start"]):
+                if pd.isna(parent.timestamp_data_end):
                     for col in processed.columns:
                         if pd.api.types.is_datetime64_any_dtype(processed[col]):
                             timestamp_data_start = processed[col].min()
                             timestamp_data_end = processed[col].max()
                             break
+                processed = AssetEntry(
+                    local_path=local_path,
+                    type=child_type,
+                    parent_id=parent.id,
+                    timestamp_data_start=timestamp_data_start,
+                    timestamp_data_end=timestamp_data_end,
+                    timestamp_created=datetime.datetime.now(),
+                    network=parent.network,
+                    station=parent.station,
+                    survey=parent.survey,
+                )
 
-            case siteconfig.RinexFile:
-                processed.write(inter_dir)
+            case AssetType.RINEX:
                 local_path = processed.local_path
                 timestamp_data_start = processed.timestamp_data_start
                 timestamp_data_end = processed.timestamp_data_end
 
-            case siteconfig.KinFile:
+            case AssetType.KIN:
                 local_path = processed.local_path
 
-            case siteconfig.SiteConfig:
-                local_path = proc_dir / f"{parent['id']}_{child_type.value}.json"
+            case AssetType.SITECONFIG | AssetType.ATDOFFSET:
+                local_path = proc_dir / f"{parent.id}_{child_type.value}.json"
                 with open(local_path, "w") as f:
                     f.write(processed.model_dump_json())
 
-            case siteconfig.ATDOffset:
-                local_path = proc_dir / f"{parent['id']}_{child_type.value}.json"
-                with open(local_path, "w") as f:
-                    f.write(processed.model_dump_json())
-
-            case siteconfig.NovatelPinFile:
-                local_path = inter_dir / f"{parent['id']}_{child_type.value}.txt"
+            case AssetType.NOVATELPIN:
+                local_path = inter_dir / f"{parent.id}_{child_type.value}.txt"
                 processed.local_path = local_path
                 processed.write(dir=local_path.parent)
 
@@ -677,34 +701,16 @@ class DataHandler:
                 pass
 
         if (
-            pd.isna(parent.get("timestamp_data_start", None))
-            and timestamp_data_start is not None
+            pd.isna(parent.timestamp_data_start)
+            and processed.timestamp_data_start is not None
         ):
-            parent["timestamp_data_start"] = timestamp_data_start
-            parent["timestamp_data_end"] = timestamp_data_end
-            response += f"  Discovered timestamp: {timestamp_data_start} for parent {parent['type']} uuid {parent['id']}\n"
+            parent.timestamp_data_start = processed.timestamp_data_start
+            parent.timestamp_data_end = processed.timestamp_data_end
+            response += f"  Discovered timestamp: {timestamp_data_start} for parent {parent.type.value} uuid {parent.id}\n"
 
-        if local_path is not None and local_path.exists():
-            local_path = str(local_path)
-        else:
-            local_path = None
+        assert local_path.exists(), f"Local path {local_path} does not exist"
 
-        processed_meta = {
-            "network": parent["network"],
-            "station": parent["station"],
-            "survey": parent["survey"],
-            "local_path": local_path,
-            "type": child_type.value,
-            "timestamp_data_start": timestamp_data_start,
-            "timestamp_data_end": timestamp_data_end,
-            "parent_id": parent["id"],
-        }
-        if local_path is not None and Path(local_path).exists():
-            response += f"  Successful Processing: {str(processed_meta)}\n"
-        else:
-            response += f"  Failed Processing: {str(processed_meta)}\n"
-
-        return processed_meta, parent, response
+        return processed, parent, response
 
     def _update_parent_child_catalog(self,
                               parent_data:dict,
@@ -734,9 +740,44 @@ class DataHandler:
                 conn.execute(sa.insert(Assets).values([child_data]))
             conn.commit()
 
+    def _get_entries_to_process(self,parent_type:AssetType,child_type:AssetType,override:bool=False) -> List[AssetEntry]:
+        with self.engine.begin() as conn:
+            parent_entries = conn.execute(
+                sa.select(Assets).where(
+                    Assets.network.is_(self.network),Assets.station.is_(self.station),Assets.survey.is_(self.survey),
+                    Assets.local_path.isnot(None),Assets.type.is_(parent_type.value)
+                )
+            ).fetchall()
+            if not parent_entries:
+                logger.error("No entries of type {parent_type.value} found in catalog for {self.network} {self.station} {self.survey}")
+                return
+
+            # Create a map of parent entries for easy lookup
+            parent_entries_map = {x.id: x for x in parent_entries}
+
+            # Fetch child entries matching the parent entries
+            parent_ids = list(parent_entries_map.keys())
+            child_entries = conn.execute(
+                sa.select(Assets).where(
+                    Assets.network == self.network,
+                    Assets.station == self.station,
+                    Assets.survey == self.survey,
+                    Assets.type == child_type.value,
+                    Assets.parent_id.in_(parent_ids),
+                )
+            ).fetchall()
+
+            # If not overriding, remove processed parent entries
+            if not override:
+                while child_entries:
+                    child = child_entries.pop()
+                    parent_entries_map.pop(int(child.parent_id), None)
+
+            return [AssetEntry(**dict(row._mapping)) for row in parent_entries_map.values()]
+
     def _process_data_link(self,
-                           target:Union[FILE_TYPE,DATA_TYPE],
-                           source:List[FILE_TYPE],
+                           target:AssetType,
+                           source:AssetType,
                            override:bool=False,
                            show_details:bool=False) -> pd.DataFrame:
         """
@@ -751,69 +792,30 @@ class DataHandler:
             Exception: If no matching data is found in the catalog.
         """
         # Get the parent entries
-        with self.engine.begin() as conn:
-            parent_entries = conn.execute(
-                sa.select(Assets).where(
-                    Assets.network.is_(self.network),Assets.station.is_(self.station),Assets.survey.is_(self.survey),
-                    Assets.local_path.isnot(None),Assets.type.in_([x.value for x in source]),Assets.local_path.isnot(None)
-                )
-            ).fetchall()
-
-        if not parent_entries:
-            response = f"No unprocessed data found in catalog for types {[x.value for x in source]}"
-            logger.error(response)
-            print(response)
-            return
-
-        # Filter out parent entries that have already been processed
-        parent_entries_map = {x.id:x for x in parent_entries}
-        with self.engine.begin() as conn:
-            child_entries = conn.execute(
-                sa.select(Assets).where(
-                    Assets.network.is_(self.network),Assets.station.is_(self.station),Assets.survey.is_(self.survey),
-                    Assets.type.is_(target.value),Assets.parent_id.in_([x.id for x in parent_entries])
-                )
-            ).fetchall()
-        if not override:
-            while child_entries:
-                child = child_entries.pop()
-                found = parent_entries_map.pop(int(child.parent_id),None)
-
-        parent_entries_to_process = list(parent_entries_map.values())
-
-        if parent_entries_to_process:
-            response = f"Processing {len(parent_entries_to_process)} Parent Files to {target.value} Data"
-            logger.info(response)
-            print(response)
-            process_func_partial = partial(self._process_targeted,child_type=target,inter_dir=self.inter_dir,proc_dir=self.proc_dir,pride_dir=self.pride_dir)
-
-            child_data_list = []
-            parent_data_list = []
-
-            parent_entries_to_process = [dict(row._mapping) for row in parent_entries_to_process]
-            with multiprocessing.Pool() as pool:
-                results = pool.imap(process_func_partial,parent_entries_to_process)
-                for child_data,parent_data,response in tqdm(results,total=len(parent_entries_to_process),desc=f"Processing {source[0].value} To {target.value}"):
-                    if show_details:
-                        print(response)
-                        logger.info(response)
-                    if child_data is None:
-                        continue
-                    parent_data_list.append(parent_data)
-                    child_data_list.append(child_data)
-                    self._update_parent_child_catalog(parent_data,child_data)
-
+        parent_entries_to_process = self._get_entries_to_process(parent_type=source,target_type=target,override=override)
+        process_func_partial = partial(self._process_targeted,child_type=target,inter_dir=self.inter_dir,proc_dir=self.proc_dir,pride_dir=self.pride_dir)
+        parent_data_list = []
+        child_data_list = []
+        with multiprocessing.Pool() as pool:
+            results = pool.imap(process_func_partial,parent_entries_to_process)
+            for child_data,parent_data,response in tqdm(results,total=len(parent_entries_to_process),desc=f"Processing {source[0].value} To {target.value}"):
+                if child_data is None:
+                    logger.error(response)
+                    continue
+                self._update_parent_child_catalog(parent_data,child_data)
+                parent_data_list.append(parent_data)
+                child_data_list.append(child_data)
+                logger.info(response)
+                if show_details:
+                    print(response)
             response = f"Processed {len(child_data_list)} Out of {len(parent_entries_to_process)} For {target.value}"
             logger.info(response)
-            print(response)
-
             return parent_data_list
 
     def _process_data_graph(self, 
-                            child_type:Union[FILE_TYPE,DATA_TYPE],
+                            child_type:AssetType,
                             override:bool=False,
-                            show_details:bool=False,
-                            update_timestamp:bool=False):
+                            show_details:bool=False):
 
         processing_queue = self.get_parent_stack(child_type=child_type)
         if show_details:
@@ -924,7 +926,7 @@ class DataHandler:
         self._process_data_graph_forward(AssetType.QCPIN,override=override, show_details=show_details)
 
     def dev_group_session_data(self,
-                           source:str= AssetType.DFPO00.value,
+                           source:str= AssetType.DFOP00.value,
                            override:bool=False
                            ) -> dict:
         """
@@ -937,7 +939,7 @@ class DataHandler:
         Returns:
             dict: The grouped data.
         """
-        assert source in [AssetType.DFPO00.value,AssetType.QCPIN.value], "Source must be either DFPO00 or QCPIN"
+        assert source in [AssetType.DFOP00.value,AssetType.QCPIN.value], "Source must be either DFPO00 or QCPIN"
         # Get all available shotdata from the assets table
         with self.engine.begin() as conn:
             data_all = conn.execute(

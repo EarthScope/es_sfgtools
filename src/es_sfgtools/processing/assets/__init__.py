@@ -1,1 +1,1 @@
-from .file_schemas import AssetType,AssetEntry
+from .file_schemas import AssetType,AssetEntry,MultiAssetEntry

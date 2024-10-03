@@ -33,7 +33,7 @@ def _get_time(line):
     return start_time
 
 def _rinex_get_meta(data:AssetType) -> AssetType:
-    assert data.type == AssetType.RINEX.value
+    assert data.type == AssetType.RINEX, f"Expected RINEX file, got {data.type}"
     with open(data.local_path) as f:
         files = f.readlines()
         for line in files:
@@ -75,9 +75,9 @@ def get_file_type_local(file_path: Path) -> AssetType:
         warnings.warn(f"File type not recognized for {str(file_path)}")
         return
 
-    discoveredFile =AssetType(
+    discoveredFile =AssetEntry(
         local_path=str(file_path),
-        type=AssetType.value,
+        type=file_type,
         size=size,
         timestamp_data_start=None,
         timestamp_data_end=None,

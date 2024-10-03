@@ -7,6 +7,7 @@ dh.add_data_directory(directory)
 
 print(dh.get_dtype_counts())
 
-query = "SELECT * FROM assets WHERE network='NCB' AND station='NCB1' AND survey='TestSV3' AND type='DFOP00"
+query = "SELECT * FROM assets WHERE network='NCB' AND station='NCB1' AND survey='TestSV3' AND type='DFOP00'"
 
 entries = dh.query_catalog(query)
+print(entries)

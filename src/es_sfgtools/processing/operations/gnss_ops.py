@@ -181,11 +181,11 @@ def rinex_get_meta(source:AssetEntry) ->AssetEntry:
 
 
 def novatel_to_rinex(
-    source: Union[AssetEntry,str],
+    source: Union[AssetEntry,str,Path],
     site: str,
     year: str = None,
     writedir: Path = None,
-    source_type:str=None,
+    source_type:AssetType = AssetType.NOVATEL,
     show_details: bool = False,
 
     **kwargs,
@@ -193,7 +193,7 @@ def novatel_to_rinex(
     """
     Batch convert Novatel files to RINEX
     """
-    if isinstance(source,str):
+    if isinstance(source,str) or isinstance(source,Path):
         try:
             source_type = AssetType(source_type)
         except:
@@ -283,7 +283,7 @@ def novatel_to_rinex(
 
 
 def rinex_to_kin(
-    source: AssetEntry,
+    source: Union[AssetEntry,str,Path],
     writedir: Path,
     pridedir: Path,
     site="IVB1",
@@ -292,6 +292,8 @@ def rinex_to_kin(
     """
     Convert a RINEX file to a position file
     """
+    if isinstance(source,str) or isinstance(source,Path):
+        source = AssetEntry(local_path=source,type=AssetType.RINEX)
     assert AssetEntry.type == AssetType.RINEX, "Invalid source file type"
 
     logger.info(f"Converting RINEX file {source.local_path} to kin file")
@@ -446,3 +448,20 @@ def qcpin_to_novatelpin(source: AssetEntry, writedir: Path) -> AssetEntry:
         )
 
     return novatel_pin
+
+
+def dev_merge_rinex(sources: List[AssetEntry],output:Path) -> List[AssetEntry]:
+    """
+    Merge multiple RINEX files into a single RINEX file
+    """
+    sources.sort(key=lambda x: x.timestamp_data_start)
+    # rinex_files = [source.local_path for source in sources]
+    # rinex_files = " ".join(rinex_files)
+    # output = output / "merged_rinex.20O"
+    # cmd = f"teqc +obs {' '.join(rinex_files)} > {output}"
+    # result = subprocess.run(cmd, shell=True, capture_output=True)
+    # if result.stderr:
+    #     logger.error(result.stderr)
+    #     return None
+    # return AssetEntry(local_path=output,type=AssetType.RINEX)
+    pass
