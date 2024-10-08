@@ -913,6 +913,7 @@ class DataHandler:
                 engine=self.engine,
                 network=self.network,
                 station=self.station,
+                survey=self.survey,
                 working_dir=self.inter_dir,
                 ovveride=override
                 )

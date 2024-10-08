@@ -12,10 +12,6 @@ if __name__ == "__main__":
     survey = "TestSV3"
 
     dh = DataHandler(network=network, station=station, survey=survey, data_dir=dh_dir_sv3)
-    [x.unlink() for x in dh.proc_dir.rglob("*")]
-    [x.unlink() for x in dh.raw_dir.rglob("*")]
-    [x.unlink() for x in dh.proc_dir.rglob("*")]
-
     dh.add_data_directory(dh_dir_sv3)
     print(dh.get_dtype_counts())
     dh.query_catalog(

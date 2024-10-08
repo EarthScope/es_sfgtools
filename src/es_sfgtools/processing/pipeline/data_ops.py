@@ -49,7 +49,8 @@ def create_multi_asset_dataframe(
                 Assets.type == assetType.value
         )
         ).fetchall()
-        ].sort(key=lambda x:x.timestamp_data_start)
+        ]
+        individual_assets.sort(key=lambda x: x.timestamp_data_start)
         if not individual_assets:
             logger.error(f"No assets found for {network} {station} {survey} {assetType.value}")
             return []
