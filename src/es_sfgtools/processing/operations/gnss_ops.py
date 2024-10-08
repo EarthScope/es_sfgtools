@@ -164,7 +164,8 @@ class PridePdpConfig:
                  end: datetime = None, 
                  interval: float = None, 
                  high_ion: bool = False, 
-                 tides: str = "SOP"):
+                 tides: str = "SOP",
+                 local_pdp3_path: str = None):
         """
         Initialize the PridePdpConfig class with the following parameters:
 
@@ -178,6 +179,7 @@ class PridePdpConfig:
         interval (float): Processing interval, values range from 0.02s to 30s. If this item is not specified and the configuration file is specified, the processing interval in the configuration file will be read, otherwise, the sampling rate of the observation file is used by default.
         high_ion (bool): Use 2nd ionospheric delay model with CODE's GIM product. When this option is not entered, no higher-order ionospheric correction is performed. Default is False.
         tides (str): Enter one or more of "S" "O" "P", e.g SO for solid, ocean, and polar tides. Default is "SOP", which uses all tides.
+        local_pdp3_path (str): The path to the local pdp3 binary. Default is None.
         """
 
         # Check if system is valid
@@ -204,12 +206,23 @@ class PridePdpConfig:
                 Tides.print_options()
                 raise ValueError(f"Invalid tide character: {char}")
         self.tides = tides
+
+        self.local_pdp3_path = local_pdp3_path
     
     def generate_pdp_command(self, site: str, local_file_path: str) -> List[str]:
         """
         Generate the command to run pdp3 with the given parameters
         """
-        command = ["pdp3", "-m", "K"]
+
+        if self.local_pdp3_path:
+            if 'pdp3' in self.local_pdp3_path:
+                command = [self.local_pdp3_path]
+            else:
+                command = [os.path.join(self.local_pdp3_path, 'pdp3')]
+        else:
+            command = ["pdp3"]
+
+        command.extend(["-m", "K"])
 
         if self.system != "GREC23J":
             command.extend(["--system", self.system])
@@ -305,7 +318,6 @@ def novatel_to_rinex(
     writedir: Path = None,
     source_type:AssetType = AssetType.NOVATEL,
     show_details: bool = False,
-
     **kwargs,
 ) -> AssetEntry:
     """
@@ -355,8 +367,8 @@ def novatel_to_rinex(
             file_date = os.path.splitext(os.path.basename(source.local_path))[0].split(
                 "_"
             )[-4]
-        if year is None:
-            year = '23'
+        if year is None:        
+            year = '23'     # todo what is this for?
 
         rinex_outfile = os.path.join(workdir, f"{site}_{file_date}_rinex.{year}O")
         file_tmp_dest = shutil.copy(
@@ -404,32 +416,44 @@ def rinex_to_kin(
     source: Union[AssetEntry,str,Path],
     writedir: Path,
     pridedir: Path,
-    site="IVB1",
+    site: str = None,
     show_details: bool = True,
     PridePdpConfig: PridePdpConfig = None,
 ) -> AssetEntry:
     """
     Convert a RINEX file to a position file
+
+    Parameters:
+        source (str): The path to the RINEX file
+        writedir (Path): The directory to write the kin file to
+        pridedir (Path): The directory to run pride in
+        site (str): The site name (4 characters), default is None
+        show_details (bool): Print details to the console, default is True
+        PridePdpConfig (PridePdpConfig): The configuration object for PRIDE-PPP, default is None
+
+    Returns:
+        kin_file (str): The path to the kin file
     """
-    if isinstance(source,str) or isinstance(source,Path):
-        source = AssetEntry(local_path=source,type=AssetType.RINEX)
-    assert AssetEntry.type == AssetType.RINEX, "Invalid source file type"
+    if isinstance(source, str) or isinstance(source, Path):
+        source = AssetEntry(local_path=source, type=AssetType.RINEX)
+        print("source:", source)
+    assert source.type == AssetType.RINEX, "Invalid source file type"
 
     logger.info(f"Converting RINEX file {source.local_path} to kin file")
 
-    out = []
-
     # simul link the rinex file to the same file with file_uuid attached at the front
-
     if not os.path.exists(source.local_path):
         logger.error(f"RINEX file {source.local_path} not found")
         return None
-    tag = uuid.uuid4().hex[:4]
+    
+    if not site:
+        site = uuid.uuid4().hex[:4]
 
     # If PridePdpConfig is not provided, use the default configuration
     if PridePdpConfig is None:
         PridePdpConfig = PridePdpConfig()
-    pdp_command = PridePdpConfig.generate_pdp_command(site=tag, local_file_path=source.local_path)
+    pdp_command = PridePdpConfig.generate_pdp_command(site=site, 
+                                                        local_file_path=source.local_path)
 
     logger.info(f"Running PDP3 command: {' '.join(pdp_command)}")
     result = subprocess.run(
@@ -437,11 +461,10 @@ def rinex_to_kin(
         capture_output=True,
         cwd=str(pridedir),
     )
-    # ["pdp3", "--loose-edit" , "-m", "K", "--site", tag, str(source.local_path)],
-
 
     if result.stderr:
         logger.error(result.stderr)
+        
     if pd.isna(source.timestamp_data_start):
         ts = str(source.local_path.name).split("_")[1]
         year = ts[:4]
