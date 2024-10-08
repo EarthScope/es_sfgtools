@@ -19,12 +19,12 @@ from pathlib import Path
 import numpy as np
 import uuid
 
-from ..assets.file_schemas import AssetEntry,AssetType
+from ..assets.file_schemas import AssetEntry,AssetType,MultiAssetEntry
 from ..assets.observables import GNSSDataFrame
 
 logger = logging.getLogger(__name__)
 
-NOVATEL2RINEX_BINARIES = Path(__file__).resolve().parent / "binaries/"
+RINEX_BINARIES = Path(__file__).resolve().parent / "binaries/"
 
 PRIDE_PPP_LOG_INDEX = {
     0: "modified_julian_date",
@@ -40,20 +40,26 @@ PRIDE_PPP_LOG_INDEX = {
 }
 
 RINEX_BIN_PATH = {
-    "darwin_amd64": NOVATEL2RINEX_BINARIES / "nova2rnxo-darwin-amd64",
-    "darwin_arm64": NOVATEL2RINEX_BINARIES / "nova2rnxo-darwin-arm64",
-    "linux_amd64": NOVATEL2RINEX_BINARIES / "nova2rnxo-linux-amd64",
-    "linux_arm64": NOVATEL2RINEX_BINARIES / "nova2rnxo-linux-arm64",
+    "darwin_amd64": RINEX_BINARIES / "nova2rnxo-darwin-amd64",
+    "darwin_arm64": RINEX_BINARIES / "nova2rnxo-darwin-arm64",
+    "linux_amd64": RINEX_BINARIES / "nova2rnxo-linux-amd64",
+    "linux_arm64": RINEX_BINARIES / "nova2rnxo-linux-arm64",
 }
 
 
 RINEX_BIN_PATH_BINARY = {
-    "darwin_amd64": NOVATEL2RINEX_BINARIES / "novb2rnxo-darwin-amd64",
-    "darwin_arm64": NOVATEL2RINEX_BINARIES / "novb2rnxo-darwin-arm64",
-    "linux_amd64": NOVATEL2RINEX_BINARIES / "novb2rnxo-linux-amd64",
-    "linux_arm64": NOVATEL2RINEX_BINARIES / "novb2rnxo-linux-arm64",
+    "darwin_amd64": RINEX_BINARIES / "novb2rnxo-darwin-amd64",
+    "darwin_arm64": RINEX_BINARIES / "novb2rnxo-darwin-arm64",
+    "linux_amd64": RINEX_BINARIES / "novb2rnxo-linux-amd64",
+    "linux_arm64": RINEX_BINARIES / "novb2rnxo-linux-arm64",
 }
 
+TEQC_BIN_PATH = {
+    "darwin_amd64": RINEX_BINARIES / "teqc_OSX",
+    "darwin_arm64": RINEX_BINARIES / "teqc_OSX",
+    "linux_amd64": RINEX_BINARIES / "teqc_x86",
+    "linux_arm64": RINEX_BINARIES / "teqc_x86",
+}
 
 class PridePPP(BaseModel):
     """
@@ -152,7 +158,7 @@ def get_metadata(site: str, serialNumber: str = "XXXXXXXXXX") -> dict:
 
 def _rinex_get_time(line):
     time_values = line.split("GPS")[0].strip().split()
-    start_time = datetime.datetime(
+    start_time = datetime(
         year=int(time_values[0]),
         month=int(time_values[1]),
         day=int(time_values[2]),
@@ -450,18 +456,73 @@ def qcpin_to_novatelpin(source: AssetEntry, writedir: Path) -> AssetEntry:
     return novatel_pin
 
 
-def dev_merge_rinex(sources: List[AssetEntry],output:Path) -> List[AssetEntry]:
+def dev_merge_rinex(sources: List[AssetEntry],working_dir:Path) -> List[MultiAssetEntry]:
     """
     Merge multiple RINEX files into a single RINEX file
+
+    Parameters:
+        sources (List[AssetEntry]): A list of AssetEntry instances
+        working_dir (Path): The working directory
+
+    Returns:
+        merged_files (List[MultiAssetEntry]): A list of MultiAssetEntry instances containing the merged RINEX files
+    
+    Raises:
+        ValueError: If no merged files are found/created or if the binary is not found
     """
-    sources.sort(key=lambda x: x.timestamp_data_start)
-    # rinex_files = [source.local_path for source in sources]
-    # rinex_files = " ".join(rinex_files)
-    # output = output / "merged_rinex.20O"
-    # cmd = f"teqc +obs {' '.join(rinex_files)} > {output}"
-    # result = subprocess.run(cmd, shell=True, capture_output=True)
-    # if result.stderr:
-    #     logger.error(result.stderr)
-    #     return None
-    # return AssetEntry(local_path=output,type=AssetType.RINEX)
-    pass
+
+    # get system platform and architecture
+    system = platform.system().lower()
+    arch = platform.machine().lower()
+    if arch == "x86_64":
+        arch = "amd64"
+    if system not in ["darwin", "linux"]:
+        raise ValueError(f"Unsupported platform: {system}")
+    if arch not in ["amd64", "arm64"]:
+        raise ValueError(f"Unsupported architecture: {arch}")
+
+    binary_path = TEQC_BIN_PATH[f"{system}_{arch}"]
+    assert os.path.exists(binary_path), f"Binary not found: {binary_path}"
+
+    # Gen rinex metadata
+    sources = [rinex_get_meta(source) for source in sources]
+    doy_filemap = {}
+    for source in sources:
+        doy_filemap.setdefault(source.timestamp_data_start.timetuple().tm_yday, []).append(
+            str(source.id)
+        )
+    survey = sources[0].station
+
+    cmd = [
+        str(binary_path),
+        "+obs",
+        "+",
+        "-tbin",
+        "1d", # Time binning interval
+        survey,
+    ] + [str(source.local_path) for source in sources]
+
+
+    result = subprocess.run("".join(cmd), shell=True,cwd=str(working_dir))
+    if result.stderr:
+        logger.error(result.stderr)
+        return None
+    # get all merged rinex files
+    # merged_files = list(Path(tempdir).rglob(f"{survey}*"))
+    merged_files = []
+    for doy,source_id_str in doy_filemap.items():
+        merged_file = list(Path(working_dir).rglob(f"{survey}{doy:03d}*"))
+        assert len(merged_file) == 1, f"Expected 1 merged file, got {len(merged_file)}"
+        merged_asset = MultiAssetEntry(
+            parent_ids=source_id_str,
+            local_path=merged_file[0],
+            type=AssetType.RINEX,
+            network=sources[0].network,
+            station=sources[0].station,
+            survey=sources[0].survey,
+            timestamp_created=datetime.now(),
+        )
+        merged_files.append(merged_asset)
+    if not merged_files:
+        raise ValueError("No merged files found")
+    return merged_files

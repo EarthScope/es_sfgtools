@@ -9,8 +9,8 @@ pattern_map = {
     re.compile("sonardyne"): AssetType.SONARDYNE,
     re.compile("novatel"): AssetType.NOVATEL,
     re.compile("kin"): AssetType.KIN,
-    re.compile("rinex"): AssetType.RINEX,
-    re.compile(r"\.\d{2}O$"): AssetType.RINEX,
+    #re.compile("rinex"): AssetType.RINEX,
+    #re.compile(r"\.\d{2}O$"): AssetType.RINEX,
     re.compile("NOV770"): AssetType.NOVATEL770,
     re.compile("DFOP00.raw"): AssetType.DFOP00,
     re.compile("lever_arms"): AssetType.LEVERARM,
@@ -82,11 +82,12 @@ def get_file_type_local(file_path: Path) -> AssetType:
         timestamp_data_start=None,
         timestamp_data_end=None,
     )
-    match file_type:
-        case AssetType.RINEX:
-            return _rinex_get_meta(discoveredFile)
-        case _:
-            return discoveredFile
+    return discoveredFile
+    # match file_type:
+    #     case AssetType.RINEX:
+    #         return _rinex_get_meta(discoveredFile)
+    #     case _:
+    #         return discoveredFile
 
 def get_file_type_remote(file_path: str) -> AssetType:
     """
@@ -131,7 +132,7 @@ def scrape_directory_local(directory: Union[str, Path]) -> List[AssetType]:
     output = []
     for file in files:
         if file.is_file():
-            discoveredFile: Union[DiscoveredFile, None] = get_file_type_local(file)
+            discoveredFile: Union[AssetEntry, None] = get_file_type_local(file)
             if discoveredFile is not None:
                 output.append(discoveredFile)
     

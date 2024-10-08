@@ -40,7 +40,7 @@ class MultiAssets(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     type = Column(String)
     timestamp_data_start = Column(DateTime)
-    timestamp__data_end = Column(DateTime)
+    timestamp_data_end = Column(DateTime)
     network = Column(String)
     station = Column(String)
     survey = Column(String)

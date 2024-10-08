@@ -16,7 +16,7 @@ from multiprocessing import Pool, cpu_count
 from functools import partial
 import numpy as np
 import warnings
-import  folium
+import folium
 import json
 import concurrent.futures
 import logging
@@ -27,7 +27,7 @@ warnings.filterwarnings("ignore")
 seaborn.set_theme(style="whitegrid")
 from es_sfgtools.utils.archive_pull import download_file_from_archive
 from es_sfgtools.processing.assets import AssetEntry,AssetType,MultiAssetEntry
-from es_sfgtools.processing.operations import sv2_ops,sv3_ops,gnss_ops,site_ops
+from es_sfgtools.processing.operations import sv2_ops,sv3_ops,gnss_ops,site_ops,data_ops
 from es_sfgtools.processing.assets import observables,siteconfig,constants,file_schemas
 from es_sfgtools.modeling.garpos_tools import schemas as modeling_schemas
 from es_sfgtools.modeling.garpos_tools import functions as modeling_funcs
@@ -37,7 +37,7 @@ import sqlalchemy as sa
 from .database import Base,Assets,Session,ModelResults
 from .constants import FILE_TYPE,DATA_TYPE,REMOTE_TYPE,ALIAS_MAP,FILE_TYPES
 from .datadiscovery import scrape_directory_local,get_file_type_local,get_file_type_remote
-from .data_ops import create_multi_asset_dataframe,merge_multi_assets
+from .data_ops import create_multi_asset_dataframe,merge_multi_assets,create_multi_asset_rinex
 logger = logging.getLogger(__name__)
 
 class OneToOne:
@@ -51,6 +51,7 @@ class ManyToOne:
         self.parents = parents
         self.child = child
         self.func = func
+
 RELATIONSHIPS = [
     OneToOne(AssetType.QCPIN,AssetType.SHOTDATA,sv3_ops.dev_qcpin_to_shotdata),
     OneToOne(AssetType.NOVATEL,AssetType.RINEX,gnss_ops.novatel_to_rinex),
@@ -834,9 +835,9 @@ class DataHandler:
                 for child in children_to_process:
                     if show_details:
                         print(f"processing child:{child.value}")
-                    processed_parents:List[dict] = self._process_data_link(
+                    processed_parents:List[AssetEntry] = self._process_data_link(
                         target=child,
-                        source=[parent],
+                        source=parent,
                         override=override,
                         show_details=show_details)
                     # Check if all children of this parent have been processed
@@ -844,7 +845,7 @@ class DataHandler:
                     # TODO check if all children of this parent have been processed
 
     def _process_data_graph_forward(self, 
-                            parent_type:FILE_TYPE,
+                            parent_type:AssetType,
                             override:bool=False,
                             show_details:bool=False):
 
@@ -860,18 +861,6 @@ class DataHandler:
                 if child_targets:
                     processing_queue.append({child:child_targets})
 
-    def process_acoustic_data(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
-        self._process_data_graph(AssetType.ACOUSTIC,override=override, show_details=show_details,update_timestamp=update_timestamp)
-
-    def process_imu_data(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
-        self._process_data_graph(AssetType.IMU,override=override, show_details=show_details,update_timestamp=update_timestamp)
-
-    def process_rinex(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
-        self._process_data_graph(AssetType.RINEX,override=override, show_details=show_details,update_timestamp=update_timestamp)
-
-    def process_gnss_data_kin(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
-        self._process_data_graph(AssetType.KIN,override=override, show_details=show_details,update_timestamp=update_timestamp)
-
     def process_gnss_data(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
         self._process_data_graph(AssetType.GNSS,override=override, show_details=show_details,update_timestamp=update_timestamp)
 
@@ -880,46 +869,11 @@ class DataHandler:
         self._process_data_graph(AssetType.ATDOFFSET,override=override, show_details=show_details,update_timestamp=update_timestamp)
         self._process_data_graph(AssetType.SVP,override=override, show_details=show_details,update_timestamp=update_timestamp)
 
-    def process_siteconfig(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
-        self._process_data_graph(AssetType.SITECONFIG,override=override, show_details=show_details,update_timestamp=update_timestamp)
-
-    def process_atdoffset(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
-        self._process_data_graph(AssetType.ATDOFFSET,override=override, show_details=show_details,update_timestamp=update_timestamp)
-
-    def process_svp(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
-        self._process_data_graph(AssetType.SVP,override=override, show_details=show_details,update_timestamp=update_timestamp)
-
     def process_qc_data(self, override:bool=False, show_details:bool=False):
         self._process_data_graph_forward(AssetType.QCPIN,override=override, show_details=show_details)
 
     def process_sv3_data(self, override:bool=False, show_details:bool=False):
-        self._process_data_graph_forward(AssetType.DFPO00,override=override, show_details=show_details,)
-
-    def process_campaign_data(
-        self, override: bool = False, show_details: bool=False,update_timestamp:bool=False
-    ):
-        """
-        Process all data for a given network, station, and survey, generating child entries where applicable.
-
-        Args:
-            override (bool): Whether to override existing child entries. 
-            show_details (bool): Log verbose output
-
-        Raises:
-            Exception: If no matching data is found in the catalog.
-        """
-        self.process_acoustic_data(override=override, show_details=show_details,update_timestamp=update_timestamp)
-        self.process_imu_data(override=override, show_details=show_details,update_timestamp=update_timestamp)
-        self.process_gnss_data(override=override, show_details=show_details,update_timestamp=update_timestamp)
-        self.process_metadata(override=override, show_details=show_details,update_timestamp=update_timestamp)
-
-        response = f"Network {self.network} Station {self.station} Survey {self.survey} Preprocessing complete"
-        logger.info(response)
-        print(response)
-
-    def process_qc_data(self, override:bool=False, show_details:bool=False):
-        # perform forward processing of qc pin data
-        self._process_data_graph_forward(AssetType.QCPIN,override=override, show_details=show_details)
+        self._process_data_graph_forward(AssetType.DFOP00,override=override, show_details=show_details,)
 
     def dev_group_session_data(self,
                            source:Union[str,AssetType] = AssetType.SHOTDATA,
@@ -953,7 +907,13 @@ class DataHandler:
                 engine=self.engine,
             )
             case AssetType.RINEX:
-                pass
+                multi_asset_list:List[MultiAssetEntry] = create_multi_asset_rinex(
+                engine=self.engine,
+                network=self.network,
+                station=self.station,
+                working_dir=self.inter_dir,
+                ovveride=override
+                )
 
         logger.info(f"Created {len(multi_asset_list)} MultiAssetEntries for {source.value}")
        
@@ -964,6 +924,14 @@ class DataHandler:
         with self.engine.begin() as conn:
             return pd.read_sql_query(query,conn)
 
+    def pipeline_sv2(self,override:bool=False,show_details:bool=False):
+        self._process_data_graph(AssetType.POSITION,override=override,show_details=show_details)
+        self._process_data_graph(AssetType.ACOUSTIC,override=override,show_details=show_details)
+        self._process_data_graph(AssetType.RINEX,override=override,show_details=show_details)
+        position_ma_list: List[MultiAssetEntry] = self.dev_group_session_data(source=AssetType.POSITION,override=override)
+        acoustic_ma_list: List[MultiAssetEntry] = self.dev_group_session_data(source=AssetType.ACOUSTIC,override=override)
+        rinex_ma_list: List[MultiAssetEntry] = self.dev_group_session_data(source=AssetType.RINEX,override=override)
+        #shot_ma_list: List[MultiAssetEntry] = self.dev_group_session_data(source=AssetType.SHOTDATA,override=override)
     # def run_session_data(self,
     #                      siteConfig:siteconfig.SiteConfig,
     #                      soundVelocity:siteconfig.SoundVelocity,

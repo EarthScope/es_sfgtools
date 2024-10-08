@@ -5,8 +5,20 @@ from pathlib import Path
 import pandas as pd
 from collections import defaultdict
 from .database import Base,Assets,MultiAssets
+from ..operations.gnss_ops import dev_merge_rinex,rinex_get_meta
 import logging
 logger = logging.getLogger(__name__)
+
+def create_multi_asset_rinex(
+        engine:sa.Engine,
+        network:str,
+        station:str,
+        survey:str,
+        writedir:Path,
+        override:bool=False) -> Union[List[MultiAssetEntry],List[None]]:
+
+    new_multi_asset_list = []
+
 
 def create_multi_asset_dataframe(
         engine:sa.Engine,
@@ -103,6 +115,63 @@ def create_multi_asset_dataframe(
     
     return new_multi_asset_list
 
+def create_multi_asset_rinex(
+        engine:sa.engine,
+        network:str,
+        station:str,
+        survey:str,
+        working_dir:Path,
+        ovveride:bool
+) -> Union[List[MultiAssetEntry],List[None]]:  
+    
+    with engine.begin() as conn:
+        found_assets = [
+            rinex_get_meta(AssetEntry(**x._mapping))
+            for x in conn.execute(
+                sa.select(Assets).where(
+                    Assets.network == network,
+                    Assets.station == station,
+                    Assets.survey == survey,
+                    Assets.type == AssetType.RINEX.value,
+
+                )
+            )
+        ]
+        if not found_assets:
+            raise ValueError(f'No found assets of type {AssetType.RINEX.value} in Network {network}, Station {station}, Survey {survey}')
+        # create date asset map
+        doy_asset_map = {}
+        for asset in found_assets:
+            doy_start,doy_end = asset.timestamp_data_start.timetuple().tm_yday,asset.timestamp_data_end.timetuple().tm_yday
+            doy_all_list = list(set(doy_start,doy_end))
+            for doy in doy_all_list:
+                doy_asset_map.setdefault(doy,[]).append(
+                    asset
+                )
+
+        rinex_multi_assets = []
+        for doy in doy_all_list:
+            try:
+                rinex_multi_assets.extend(dev_merge_rinex(sources=doy_asset_map[doy],working_dir=working_dir))
+            except ValueError as e:
+                logger.error(f"Error merging RINEX files for {network} {station} {survey} {doy} {e}")
+                pass
+
+        for multi_asset in rinex_multi_assets:
+            if not ovveride:
+                continue
+            else:
+                conn.execute(
+                    sa.delete(MultiAssets).where(
+                        MultiAssets.local_path == str(multi_asset.local_path)
+                    )
+                )
+            conn.execute(
+                sa.insert(MultiAssets).values(multi_asset.model_dump())
+            )
+    return rinex_multi_assets
+        
+                
             
 def merge_multi_assets(
         engine:sa.Engine,
@@ -178,18 +247,3 @@ def merge_multi_assets(
             )
             new_multi_asset_list.append(new_multi_asset)
     return new_multi_asset_list
-
-            
-
-
-
-        
-    
-
-
-
-
-
-
-            
-
