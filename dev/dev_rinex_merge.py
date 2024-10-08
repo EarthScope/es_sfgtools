@@ -1,10 +1,13 @@
 import logging
 logging.basicConfig(level=logging.DEBUG,filename="dev_rinex_merge.log")
 import es_sfgtools
+import os
 from es_sfgtools.processing.pipeline import DataHandler
 from es_sfgtools.processing.assets.file_schemas import AssetType,AssetEntry
 from pathlib import Path
 if __name__ == "__main__":
+    pride_dir = "/Users/franklyndunbar/.PRIDE_PPPAR_BIN"
+    os.environ["PATH"] += os.pathsep + pride_dir
     dh_dir_sv2 = Path("/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/TestGage")
     dh_dir_sv3 = Path(
         "/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/Cascadia2023/NCL1/"

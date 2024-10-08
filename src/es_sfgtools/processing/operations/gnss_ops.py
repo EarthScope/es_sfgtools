@@ -29,9 +29,9 @@ RINEX_BINARIES = Path(__file__).resolve().parent / "binaries/"
 PRIDE_PPP_LOG_INDEX = {
     0: "modified_julian_date",
     1: "second_of_day",
-    2: "x",
-    3: "y",
-    4: "z",
+    2: "east",
+    3: "north",
+    4: "up",
     5: "latitude",
     6: "longitude",
     7: "height",
@@ -300,7 +300,7 @@ def rinex_to_kin(
     """
     if isinstance(source,str) or isinstance(source,Path):
         source = AssetEntry(local_path=source,type=AssetType.RINEX)
-    assert AssetEntry.type == AssetType.RINEX, "Invalid source file type"
+    assert source.type == AssetType.RINEX, "Invalid source file type"
 
     logger.info(f"Converting RINEX file {source.local_path} to kin file")
 
@@ -308,12 +308,27 @@ def rinex_to_kin(
 
     # simul link the rinex file to the same file with file_uuid attached at the front
 
-    if not os.path.exists(source.local_path):
+    if not source.local_path.exists():
         logger.error(f"RINEX file {source.local_path} not found")
-        return None
-    tag = uuid.uuid4().hex[:4]
+        raise FileNotFoundError(f"RINEX file {source.local_path} not found")
+    # tag = uuid.uuid4().hex[:4]
+    # FROM JOHN "pdp3 -m K -i 1 -l -c15 rinex"
+    cmd = [
+        "pdp3", 
+        "--loose-edit", 
+        "-m", 
+        "K",
+        "-i",
+        "1", # 1hz decimation
+        "-c",
+        "15",
+        "--site",
+        site, 
+        str(source.local_path)]
+
     result = subprocess.run(
-        ["pdp3", "--loose-edit", "-m", "K", "--site", tag, str(source.local_path)],
+        " ".join(cmd),
+        shell=True,
         capture_output=True,
         cwd=str(pridedir),
     )
@@ -321,28 +336,30 @@ def rinex_to_kin(
     if result.stderr:
         logger.error(result.stderr)
     if pd.isna(source.timestamp_data_start):
-        ts = str(source.local_path.name).split("_")[1]
-        year = ts[:4]
-        ts = ts[4:]
-        month = ts[:2]
-        ts = ts[2:]
-        day = max(1, int(ts[:2]))
-        ts = ts[2:]
-        hour = ts[-4:-2]
-        minute = ts[-2:]
-        source.timestamp_data_start = datetime(
-            year=int(year), month=int(month), day=int(day), hour=int(hour)
-        )
+        try:
+            ts = str(source.local_path.name).split("_")[1]
+            year = ts[:4]
+            ts = ts[4:]
+            month = ts[:2]
+            ts = ts[2:]
+            day = max(1, int(ts[:2]))
+            ts = ts[2:]
+            hour = ts[-4:-2]
+            minute = ts[-2:]
+            source.timestamp_data_start = datetime(
+                year=int(year), month=int(month), day=int(day), hour=int(hour)
+            )
+        except:
+            logger.error(f"Error parsing timestamp from RINEX file {source.local_path}")
+            pass
 
-    file_pattern = f"{source.timestamp_data_start.year}{source.timestamp_data_start.timetuple().tm_yday}"
-    tag_files = pridedir.rglob(f"*{tag}*")
+    #file_pattern = f"{source.timestamp_data_start.year}{source.timestamp_data_start.timetuple().tm_yday}"
+    tag_files = pridedir.rglob(f"*{site.lower()}*")
     for tag_file in tag_files:
         # print("tag file:", tag_file)
         if "kin" in tag_file.name:
             kin_file = tag_file
-            kin_file_new = str(kin_file).split("_")
-            kin_file_new = "_".join(kin_file_new)
-            kin_file_new = writedir / kin_file_new
+            kin_file_new = writedir / (kin_file.name + ".kin")
             shutil.move(kin_file, kin_file_new)
             kin_file = AssetEntry(
                 type=AssetType.KIN,
@@ -410,6 +427,8 @@ def kin_to_gnssdf(source:AssetEntry) -> Union[DataFrame[GNSSDataFrame], None]:
         error_msg = f"GNSS: No data found in FILE {source.local_path}"
         logger.error(error_msg)
         return None
+    
+    # TODO convert lat/long to ecef
     dataframe = pd.DataFrame([dict(pride_ppp) for pride_ppp in data])
     # dataframe.drop(columns=["modified_julian_date", "second_of_day"], inplace=True)
 

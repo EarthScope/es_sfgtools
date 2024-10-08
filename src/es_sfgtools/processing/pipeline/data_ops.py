@@ -188,10 +188,10 @@ def create_multi_asset_rinex(
                 doy_asset_map.setdefault(doy, []).append(asset)
 
         rinex_multi_assets = []
-        for doy in doy_all_list:
+        for assets in doy_asset_map.values():
             try:
                 rinex_multi_assets.extend(
-                    dev_merge_rinex(sources=doy_asset_map[doy], working_dir=working_dir)
+                    dev_merge_rinex(sources=assets, working_dir=working_dir)
                 )
             except ValueError as e:
                 logger.error(
@@ -200,15 +200,15 @@ def create_multi_asset_rinex(
                 pass
 
         for multi_asset in rinex_multi_assets:
-            if not ovveride:
-                continue
-            else:
-                conn.execute(
-                    sa.delete(MultiAssets).where(
-                        MultiAssets.local_path == str(multi_asset.local_path)
-                    )
+            # if not ovveride:
+            #     continue
+            # else:
+            conn.execute(
+                sa.delete(MultiAssets).where(
+                    MultiAssets.local_path == str(multi_asset.local_path)
                 )
-            conn.execute(sa.insert(MultiAssets).values(multi_asset.model_dump()))
+            )
+        conn.execute(sa.insert(MultiAssets).values(multi_asset.model_dump()))
     return rinex_multi_assets
 
 

@@ -609,7 +609,7 @@ class DataHandler:
 
     @staticmethod
     def _process_targeted(
-        parent: AssetEntry,
+        parent: AssetEntry|MultiAssetEntry,
         child_type: AssetType,
         inter_dir: Path,
         proc_dir: Path,
@@ -952,6 +952,7 @@ class DataHandler:
         print(rinex_ma_list)
         processed_rinex_kin:Tuple[List[AssetEntry | MultiAssetEntry],List[AssetEntry | MultiAssetEntry]] = self._process_data_link(
             target=AssetType.KIN,source=AssetType.RINEX,override=override,parent_entries=rinex_ma_list,show_details=show_details)
+        print(processed_rinex_kin)
         processed_kin_gnss: Tuple[List[AssetEntry | MultiAssetEntry],List[AssetEntry | MultiAssetEntry]] = self._process_data_link(
             target=AssetType.GNSS,source=AssetType.KIN,override=override,parent_entries=processed_rinex_kin[1],show_details=show_details)
         print(processed_kin_gnss)
