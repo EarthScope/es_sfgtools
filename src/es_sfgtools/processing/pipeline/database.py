@@ -48,6 +48,7 @@ class MultiAssets(Base):
     local_path = Column(String, nullable=True, unique=True)
     is_updated = Column(Boolean, default=False)
     parent_id = Column(String)
+    timestamp_created = Column(DateTime,default=datetime.datetime.now())
 
 class ModelResults(Base):
     __tablename__ = "modelresults"

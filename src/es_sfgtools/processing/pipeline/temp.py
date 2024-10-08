@@ -629,8 +629,6 @@ class DataHandler:
             show_details=show_details,
         )
                                                              
-           
-
         try:
             processed = process_func_partial(parent)
             if processed is None:
