@@ -241,8 +241,8 @@ def novatel_to_rinex(
             file_date = source.timestamp_data_start.date().strftime("%Y%m%d")
         else:
             file_date = datetime.now().date().strftime("%Y%m%d")
-        if year is None:
-            year_name = '23'
+     
+        year_name = '23' if year is None else year
 
         rinex_outfile = Path(writedir)/f"{site}_{file_date}_rinex.{year_name}O"
         cmd = [
@@ -272,10 +272,10 @@ def novatel_to_rinex(
         rinex_asset = rinex_get_meta(rinex_asset)
         if year is None and rinex_asset.timestamp_data_start is not None:
             year_name = str(rinex_asset.timestamp_data_start.year)[-2:]
-            file_date = rinex_asset.timestamp_data_start.date().strftime("%Y%m%d")
+            file_date = rinex_asset.timestamp_data_start.date().strftime("%Y%m%d%H%M%S")
             new_rinex_path = rinex_asset.local_path.parent / f"{site}_{file_date}_rinex.{year_name}O"
-            rinex_asset.local_path.rename(new_rinex_path)
-            rinex_asset.local_path = new_rinex_path
+            rinex_asset.local_path = rinex_asset.local_path.rename(new_rinex_path)
+         
       
         if show_details:
             # logger.info("showing details")

@@ -50,7 +50,9 @@ def create_multi_asset_dataframe(
         )
         ).fetchall()
         ].sort(key=lambda x:x.timestamp_data_start)
-
+        if not individual_assets:
+            logger.error(f"No assets found for {network} {station} {survey} {assetType.value}")
+            return []
         dates = [x.timestamp_data_start for x in individual_assets]
         dates.extend([x.timestamp_data_end for x in individual_assets])
         dates = list(set([x.date() for x in dates].sort()))

@@ -945,7 +945,7 @@ class DataHandler:
             target=AssetType.GNSS,source=AssetType.KIN,override=override,parent_entries=processed_rinex_kin[1],show_details=show_details)
 
     def pipeline_sv3(self,override:bool=False,show_details:bool=False):
-        self._process_data_graph(AssetType.POSITION,override=override,show_details=show_details)
+        self._process_data_graph_forward(AssetType.DFOP00,override=override,show_details=show_details)
         self._process_data_graph(AssetType.RINEX,override=override,show_details=show_details)
         shotdata_ma_list: List[MultiAssetEntry] = self.dev_group_session_data(source=AssetType.SHOTDATA,override=override)
         rinex_ma_list: List[MultiAssetEntry] = self.dev_group_session_data(source=AssetType.RINEX,override=override)
