@@ -1,7 +1,7 @@
 import pandas as pd
 from pydantic import BaseModel, Field, ValidationError
 from datetime import datetime, timedelta
-from typing import Optional,Dict,Union,List
+from typing import Optional,Dict,Union,List,Annotated
 import os
 import logging
 import json
@@ -11,9 +11,10 @@ import pymap3d as pm
 from warnings import warn
 import numpy as np
 import re
+from pathlib import Path
 
 from ..assets.constants import STATION_OFFSETS, TRIGGER_DELAY_SV2
-from ..assets.file_schemas import SonardyneFile,NovatelFile
+from ..assets.file_schemas import SonardyneFile,NovatelFile,MultiAssetEntry,AssetType,AssetEntry
 from ..assets.observables import AcousticDataFrame, PositionDataFrame,ShotDataFrame
 from ..assets.logmodels import PositionData,RangeData,BestGNSSPOSDATA,get_traveltime,check_sequence_overlap,datetime_to_sod
 
@@ -235,7 +236,7 @@ def dev_merge_to_shotdata(acoustic: DataFrame[AcousticDataFrame], position:DataF
 
     if acoustic.empty or position.empty:
         logger.error("No data found in the time range")
-        return None
+        raise ValueError("No data found in the time range")
 
     # sort
     acoustic.sort_values("triggerTime",inplace=True)
@@ -297,3 +298,60 @@ def dev_merge_to_shotdata(acoustic: DataFrame[AcousticDataFrame], position:DataF
     output_df["LN"] = "L01"
     return ShotDataFrame.validate(output_df,lazy=True)
 
+def multiasset_to_shotdata(acoustic_assets:List[MultiAssetEntry],
+                           position_assets:List[MultiAssetEntry],
+                           working_dir:Path,
+                           **kwargs) -> List[MultiAssetEntry]:
+    """
+    Merge acoustic, imu, and gnss data to create observation data.
+    Args:
+        acoustic (DataFrame[AcousticDataFrame]): Acoustic data frame.
+        imu (DataFrame[IMUDataFrame]): IMU data frame.
+        gnss (DataFrame[PositionDataFrame]): GNSS data frame.
+    Returns:
+        DataFrame[ObservationData]: Merged observation data frame.
+    """
+    assert all([x.type == AssetType.ACOUSTIC for x in acoustic_assets]), "All assets must be acoustic"
+    assert all([x.type == AssetType.POSITION for x in position_assets]), "All assets must be position"
+
+    acoustic_doy_map = {}
+    position_doy_map = {}
+    merged_doy_map = {}
+    for asset in acoustic_assets:
+        doy = asset.timestamp_data_start.timetuple().tm_yday
+        acoustic_doy_map[doy] = asset
+    for asset in position_assets:
+        doy = asset.timestamp_data_start.timetuple().tm_yday
+        position_doy_map[doy] = asset
+
+    output: List[MultiAssetEntry] = []
+    for doy,acoustic_asset in acoustic_doy_map.items():
+        if doy in position_doy_map:
+            position_df = pd.read_csv(position_doy_map[doy].local_path)
+            acoustic_df = pd.read_csv(acoustic_asset.local_path)
+            try:
+                timestamp_data_start = None
+                timestamp_data_end = None
+                shot_df:DataFrame[ShotDataFrame] = dev_merge_to_shotdata(acoustic_df,position_df)
+                for col in shot_df.columns:
+                    if pd.api.types.is_datetime64_any_dtype(shot_df[col]):
+                        timestamp_data_start = shot_df[col].min()
+                        timestamp_data_end = shot_df[col].max()
+                local_path = working_dir / f"{acoustic_asset.network}_{acoustic_assets.station}_{acoustic_assets.survey}_shot_data_{doy}.csv"
+                shot_df.to_csv(local_path,index=False)
+                new_multi_asset = MultiAssetEntry(
+                    local_path = str(local_path),
+                    type = AssetType.SHOTDATA,
+                    network = acoustic_asset.network,
+                    station = acoustic_asset.station,
+                    survey = acoustic_asset.survey,
+                    timestamp_data_start = timestamp_data_start,
+                    timestamp_data_end = timestamp_data_end,
+                    parent_ids = f"{acoustic_asset.id},{position_doy_map[doy].id}"
+                )
+                output.append(new_multi_asset)
+
+            except Exception as e:
+                logger.error(f"Error merging acoustic and position data for DOY {doy} {e}")
+                continue
+    return output

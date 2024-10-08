@@ -777,11 +777,12 @@ class DataHandler:
 
             return [AssetEntry(**dict(row._mapping)) for row in parent_entries_map.values()]
 
-    def _process_data_link(self,
+    def  _process_data_link(self,
                            target:AssetType,
                            source:AssetType,
                            override:bool=False,
-                           show_details:bool=False) -> pd.DataFrame:
+                           parent_entries:Union[List[AssetEntry],List[MultiAssetEntry]]=None,
+                           show_details:bool=False) -> Tuple[List[AssetEntry | MultiAssetEntry],List[AssetEntry | MultiAssetEntry]]:
         """
         Process data from a source to a target.
 
@@ -794,13 +795,14 @@ class DataHandler:
             Exception: If no matching data is found in the catalog.
         """
         # Get the parent entries
-        parent_entries_to_process = self._get_entries_to_process(parent_type=source,target_type=target,override=override)
+        if parent_entries is None:
+            parent_entries = self._get_entries_to_process(parent_type=source,target_type=target,override=override)
         process_func_partial = partial(self._process_targeted,child_type=target,inter_dir=self.inter_dir,proc_dir=self.proc_dir,pride_dir=self.pride_dir)
         parent_data_list = []
         child_data_list = []
         with multiprocessing.Pool() as pool:
-            results = pool.imap(process_func_partial,parent_entries_to_process)
-            for child_data,parent_data,response in tqdm(results,total=len(parent_entries_to_process),desc=f"Processing {source[0].value} To {target.value}"):
+            results = pool.imap(process_func_partial,parent_entries)
+            for child_data,parent_data,response in tqdm(results,total=len(parent_entries),desc=f"Processing {source[0].value} To {target.value}"):
                 if child_data is None:
                     logger.error(response)
                     continue
@@ -810,9 +812,9 @@ class DataHandler:
                 logger.info(response)
                 if show_details:
                     print(response)
-            response = f"Processed {len(child_data_list)} Out of {len(parent_entries_to_process)} For {target.value}"
+            response = f"Processed {len(child_data_list)} Out of {len(parent_entries)} For {target.value}"
             logger.info(response)
-            return parent_data_list
+            return parent_data_list,child_data_list
 
     def _process_data_graph(self, 
                             child_type:AssetType,
@@ -835,7 +837,7 @@ class DataHandler:
                 for child in children_to_process:
                     if show_details:
                         print(f"processing child:{child.value}")
-                    processed_parents:List[AssetEntry] = self._process_data_link(
+                    processed_parents,processed_children = self._process_data_link(
                         target=child,
                         source=parent,
                         override=override,
@@ -843,7 +845,8 @@ class DataHandler:
                     # Check if all children of this parent have been processed
 
                     # TODO check if all children of this parent have been processed
-
+                
+                
     def _process_data_graph_forward(self, 
                             parent_type:AssetType,
                             override:bool=False,
@@ -856,7 +859,7 @@ class DataHandler:
             parent_type = list(parent_targets.keys())[0]
             for child in parent_targets[parent_type].keys():
 
-                self._process_data_link(target=child,source=parent_type,override=override,show_details=show_details)
+                proc_parents,proc_children = self._process_data_link(target=child,source=parent_type,override=override,show_details=show_details)
                 child_targets = TARGET_MAP.get(child,{})
                 if child_targets:
                     processing_queue.append({child:child_targets})
@@ -931,7 +934,22 @@ class DataHandler:
         position_ma_list: List[MultiAssetEntry] = self.dev_group_session_data(source=AssetType.POSITION,override=override)
         acoustic_ma_list: List[MultiAssetEntry] = self.dev_group_session_data(source=AssetType.ACOUSTIC,override=override)
         rinex_ma_list: List[MultiAssetEntry] = self.dev_group_session_data(source=AssetType.RINEX,override=override)
-        #shot_ma_list: List[MultiAssetEntry] = self.dev_group_session_data(source=AssetType.SHOTDATA,override=override)
+        shot_ma_list: List[MultiAssetEntry] = sv2_ops.multiasset_to_shotdata(
+            acoustic_assets=acoustic_ma_list,position_assets=position_ma_list,working_dir=self.proc_dir)
+        processed_rinex_kin:Tuple[List[AssetEntry | MultiAssetEntry],List[AssetEntry | MultiAssetEntry]] = self._process_data_link(
+            target=AssetType.KIN,source=AssetType.RINEX,override=override,parent_entries=rinex_ma_list,show_details=show_details)
+        processed_kin_gnss: Tuple[List[AssetEntry | MultiAssetEntry],List[AssetEntry | MultiAssetEntry]] = self._process_data_link(
+            target=AssetType.GNSS,source=AssetType.KIN,override=override,parent_entries=processed_rinex_kin[1],show_details=show_details)
+
+    def pipeline_sv3(self,override:bool=False,show_details:bool=False):
+        self._process_data_graph(AssetType.POSITION,override=override,show_details=show_details)
+        self._process_data_graph(AssetType.RINEX,override=override,show_details=show_details)
+        shotdata_ma_list: List[MultiAssetEntry] = self.dev_group_session_data(source=AssetType.SHOTDATA,override=override)
+        rinex_ma_list: List[MultiAssetEntry] = self.dev_group_session_data(source=AssetType.RINEX,override=override)
+        processed_rinex_kin:Tuple[List[AssetEntry | MultiAssetEntry],List[AssetEntry | MultiAssetEntry]] = self._process_data_link(
+            target=AssetType.KIN,source=AssetType.RINEX,override=override,parent_entries=rinex_ma_list,show_details=show_details)
+        processed_kin_gnss: Tuple[List[AssetEntry | MultiAssetEntry],List[AssetEntry | MultiAssetEntry]] = self._process_data_link(
+            target=AssetType.GNSS,source=AssetType.KIN,override=override,parent_entries=processed_rinex_kin[1],show_details=show_details)
     # def run_session_data(self,
     #                      siteConfig:siteconfig.SiteConfig,
     #                      soundVelocity:siteconfig.SoundVelocity,
