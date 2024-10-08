@@ -160,11 +160,11 @@ def create_multi_asset_rinex(
     found_assets = []
     with engine.begin() as conn:
         for x in conn.execute(
-            sa.select(MultiAssets).where(
-                MultiAssets.network == network,
-                MultiAssets.station == station,
-                MultiAssets.survey == survey,
-                MultiAssets.type == AssetType.RINEX.value,
+            sa.select(Assets).where(
+                Assets.network == network,
+                Assets.station == station,
+                Assets.survey == survey,
+                Assets.type == AssetType.RINEX.value,
             )
         ).fetchall():
             try:
@@ -183,7 +183,7 @@ def create_multi_asset_rinex(
                 asset.timestamp_data_start.timetuple().tm_yday,
                 asset.timestamp_data_end.timetuple().tm_yday,
             )
-            doy_all_list = list(set(doy_start, doy_end))
+            doy_all_list = list(set([doy_start, doy_end]))
             for doy in doy_all_list:
                 doy_asset_map.setdefault(doy, []).append(asset)
 

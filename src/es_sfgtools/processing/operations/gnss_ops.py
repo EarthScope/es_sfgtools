@@ -176,7 +176,7 @@ def rinex_get_meta(source:AssetEntry) ->AssetEntry:
         for line in files:
             if "TIME OF FIRST OBS" in line:
                 start_time = _rinex_get_time(line)
-                file_date = start_time.strftime("%Y%m%d%H%M%S")
+                file_date = start_time.strftime("%Y%m%d%H%M")
                 source.timestamp_data_start = start_time
 
             if "TIME OF LAST OBS" in line:
@@ -204,7 +204,7 @@ def novatel_to_rinex(
             source_type = AssetType(source_type)
         except:
             raise ValueError("Argument source_type must be a valid AssetType ['novatel','novatel770','novatelpin']")
-        
+
         source = AssetEntry(local_path=source,source_type=source_type)
 
     assert source.local_path.exists(), f"File not found: {source.local_path}"
@@ -238,10 +238,10 @@ def novatel_to_rinex(
             f.write(json_object)
 
         if source.timestamp_data_start is not None:
-            file_date = source.timestamp_data_start.date().strftime("%Y%m%d")
+            file_date = source.timestamp_data_start.strftime("%Y%m%d%H%M")
         else:
-            file_date = datetime.now().date().strftime("%Y%m%d")
-     
+            file_date = datetime.now().strftime("%Y%m%d%H%M")
+
         year_name = '23' if year is None else year
 
         rinex_outfile = Path(writedir)/f"{site}_{file_date}_rinex.{year_name}O"
@@ -253,7 +253,7 @@ def novatel_to_rinex(
             str(rinex_outfile),
             str(source.local_path),
         ]
-    
+
         result = subprocess.run(cmd, check=True, capture_output=True,cwd=workdir)
         if not rinex_outfile.exists():
             logger.error(result.stderr)
@@ -272,11 +272,11 @@ def novatel_to_rinex(
         rinex_asset = rinex_get_meta(rinex_asset)
         if year is None and rinex_asset.timestamp_data_start is not None:
             year_name = str(rinex_asset.timestamp_data_start.year)[-2:]
-            file_date = rinex_asset.timestamp_data_start.date().strftime("%Y%m%d%H%M%S")
-            new_rinex_path = rinex_asset.local_path.parent / f"{site}_{file_date}_rinex.{year_name}O"
+            file_date = rinex_asset.timestamp_data_start.strftime("%Y%m%d")
+            start_time = rinex_asset.timestamp_data_start.strftime("%H%M%S")
+            new_rinex_path = rinex_asset.local_path.parent / f"{site}_{file_date}_{start_time}rinex.{year_name}O"
             rinex_asset.local_path = rinex_asset.local_path.rename(new_rinex_path)
-         
-      
+
         if show_details:
             # logger.info("showing details")
             if len(result.stdout.decode()):
@@ -284,7 +284,6 @@ def novatel_to_rinex(
                     f"{source.local_path.name}: {result.stdout.decode().rstrip()}"
                 )
             # print(result.stderr.decode())
-
 
     return rinex_asset
 
@@ -488,7 +487,8 @@ def dev_merge_rinex(sources: List[AssetEntry],working_dir:Path) -> List[MultiAss
     assert os.path.exists(binary_path), f"Binary not found: {binary_path}"
 
     # Gen rinex metadata
-    sources = [rinex_get_meta(source) for source in sources]
+    #sources = [rinex_get_meta(source) for source in sources if source.timestamp_data_start is None else source]
+    sources = sorted(sources, key=lambda x: x.timestamp_data_start)
     doy_filemap = {}
     for source in sources:
         doy_filemap.setdefault(source.timestamp_data_start.timetuple().tm_yday, []).append(
@@ -506,7 +506,7 @@ def dev_merge_rinex(sources: List[AssetEntry],working_dir:Path) -> List[MultiAss
     ] + [str(source.local_path) for source in sources]
 
 
-    result = subprocess.run("".join(cmd), shell=True,cwd=str(working_dir))
+    result = subprocess.run(" ".join(cmd), shell=True,cwd=str(working_dir))
     if result.stderr:
         logger.error(result.stderr)
         return None
@@ -515,6 +515,8 @@ def dev_merge_rinex(sources: List[AssetEntry],working_dir:Path) -> List[MultiAss
     merged_files = []
     for doy,source_id_str in doy_filemap.items():
         merged_file = list(Path(working_dir).rglob(f"{survey}{doy:03d}*"))
+        if not merged_file:
+            continue
         assert len(merged_file) == 1, f"Expected 1 merged file, got {len(merged_file)}"
         merged_asset = MultiAssetEntry(
             parent_id=source_id_str,
