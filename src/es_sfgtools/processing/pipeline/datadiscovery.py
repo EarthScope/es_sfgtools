@@ -7,10 +7,11 @@ from ..assets.file_schemas import AssetType,AssetEntry
 
 pattern_map = {
     re.compile("sonardyne"): AssetType.SONARDYNE,
-    re.compile("novatel"): AssetType.NOVATEL,
+    re.compile(r"^(?=.*novatel)(?!.*pin).*$", re.IGNORECASE): AssetType.NOVATELPIN,
+    re.compile(f"novatel"): AssetType.NOVATEL,
     re.compile("kin"): AssetType.KIN,
-    #re.compile("rinex"): AssetType.RINEX,
-    #re.compile(r"\.\d{2}O$"): AssetType.RINEX,
+    # re.compile("rinex"): AssetType.RINEX,
+    # re.compile(r"\.\d{2}O$"): AssetType.RINEX,
     re.compile("NOV770"): AssetType.NOVATEL770,
     re.compile("DFOP00.raw"): AssetType.DFOP00,
     re.compile("lever_arms"): AssetType.LEVERARM,
@@ -47,7 +48,6 @@ def _rinex_get_meta(data:AssetType) -> AssetType:
                 data.timestamp_data_end = end_time
                 break
     return data
-
 
 
 def get_file_type_local(file_path: Path) -> AssetType:

@@ -347,7 +347,7 @@ def multiasset_to_shotdata(acoustic_assets:List[MultiAssetEntry],
                     survey = acoustic_asset.survey,
                     timestamp_data_start = timestamp_data_start,
                     timestamp_data_end = timestamp_data_end,
-                    parent_ids = f"{acoustic_asset.id},{position_doy_map[doy].id}"
+                    parent_id = f"{acoustic_asset.id},{position_doy_map[doy].id}"
                 )
                 output.append(new_multi_asset)
 

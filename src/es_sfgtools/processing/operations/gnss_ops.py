@@ -170,7 +170,7 @@ def _rinex_get_time(line):
 
 
 def rinex_get_meta(source:AssetEntry) ->AssetEntry:
-    assert source.type == AssetType.RINEX
+    assert source.type == AssetType.RINEX, f"Expected RINEX file, got {source.type}"
     with open(source.local_path) as f:
         files = f.readlines()
         for line in files:
@@ -232,7 +232,7 @@ def novatel_to_rinex(
     metadata = get_metadata(site, serialNumber=uuid.uuid4().hex[:10])
 
     with tempfile.TemporaryDirectory(dir="/tmp/") as workdir:
-        metadata_path = os.path.join(workdir, "metadata.json")
+        metadata_path = Path(workdir)/ "metadata.json"
         with open(metadata_path, "w") as f:
             json_object = json.dumps(metadata, indent=4)
             f.write(json_object)
@@ -240,42 +240,43 @@ def novatel_to_rinex(
         if source.timestamp_data_start is not None:
             file_date = source.timestamp_data_start.date().strftime("%Y%m%d")
         else:
-            file_date = os.path.splitext(os.path.basename(source.local_path))[0].split(
-                "_"
-            )[-4]
+            file_date = datetime.now().date().strftime("%Y%m%d")
         if year is None:
-            year = '23'
+            year_name = '23'
 
-        rinex_outfile = os.path.join(workdir, f"{site}_{file_date}_rinex.{year}O")
-        file_tmp_dest = shutil.copy(
-            source.local_path,
-            os.path.join(workdir, os.path.basename(source.local_path)),
-        )
-
+        rinex_outfile = Path(writedir)/f"{site}_{file_date}_rinex.{year_name}O"
         cmd = [
             str(binary_path),
             "-meta",
-            metadata_path,
+            str(metadata_path),
             "-out",
-            rinex_outfile,
+            str(rinex_outfile),
+            str(source.local_path),
         ]
-        cmd.extend([file_tmp_dest])
-        result = subprocess.run(cmd, check=True, capture_output=True)
-        if result.stderr:
+    
+        result = subprocess.run(cmd, check=True, capture_output=True,cwd=workdir)
+        if not rinex_outfile.exists():
             logger.error(result.stderr)
             return None
         rinex_asset = AssetEntry(
             parent_id=source.id,
             local_path=rinex_outfile,
+            type=AssetType.RINEX,
+            network=source.network,
+            station=source.station,
+            survey=source.survey,
+            timestamp_created=datetime.now(),
+
         )
 
         rinex_asset = rinex_get_meta(rinex_asset)
-        rinex_asset_year = rinex_asset.timestamp_data_start.year.__str__()[2:]
-        rinex_asset_date_str = rinex_asset.timestamp_data_start.strftime("%Y%m%d%H%M%S")
-        new_rinex_path_name = f"{site}_{rinex_asset_date_str}_rinex.{rinex_asset_year}O"
-        new_rinex_path = writedir / new_rinex_path_name
-        shutil.move(rinex_outfile, new_rinex_path)
-        rinex_asset.local_path = new_rinex_path
+        if year is None and rinex_asset.timestamp_data_start is not None:
+            year_name = str(rinex_asset.timestamp_data_start.year)[-2:]
+            file_date = rinex_asset.timestamp_data_start.date().strftime("%Y%m%d")
+            new_rinex_path = rinex_asset.local_path.parent / f"{site}_{file_date}_rinex.{year_name}O"
+            rinex_asset.local_path.rename(new_rinex_path)
+            rinex_asset.local_path = new_rinex_path
+      
         if show_details:
             # logger.info("showing details")
             if len(result.stdout.decode()):
@@ -435,6 +436,8 @@ def qcpin_to_novatelpin(source: AssetEntry, writedir: Path) -> AssetEntry:
         time_stamps.append(time_header)
 
     time_sorted = np.argsort(time_stamps)
+    timestamp_data_start = time_stamps[time_sorted[0]]
+    timestamp_data_end = time_stamps[time_sorted[-1]]
     range_headers = [range_headers[i] for i in time_sorted]
 
     file_path = writedir / (str(source.id) + "_novpin.txt")
@@ -448,8 +451,8 @@ def qcpin_to_novatelpin(source: AssetEntry, writedir: Path) -> AssetEntry:
             parent_id=source.id,
             local_path=file_path,
             type=AssetType.NOVATELPIN,
-            timestamp_data_start=source.timestamp_data_start,
-            timestamp_data_end=source.timestamp_data_end,
+            timestamp_data_start=timestamp_data_start,
+            timestamp_data_end=timestamp_data_end,
             timestamp_created=datetime.now(),
         )
 
@@ -514,7 +517,7 @@ def dev_merge_rinex(sources: List[AssetEntry],working_dir:Path) -> List[MultiAss
         merged_file = list(Path(working_dir).rglob(f"{survey}{doy:03d}*"))
         assert len(merged_file) == 1, f"Expected 1 merged file, got {len(merged_file)}"
         merged_asset = MultiAssetEntry(
-            parent_ids=source_id_str,
+            parent_id=source_id_str,
             local_path=merged_file[0],
             type=AssetType.RINEX,
             network=sources[0].network,

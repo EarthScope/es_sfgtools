@@ -33,7 +33,7 @@ class Assets(Base):
     timestamp_data_end = Column(DateTime,nullable=True)
     timestamp_created = Column(DateTime,default=datetime.datetime.now())
     parent_id = Column(Integer, ForeignKey("assets.id"),nullable=True)
-    size = Column(Float,nullable=True)
+
 
 class MultiAssets(Base):
     __tablename__ = "multiassets"
@@ -47,15 +47,15 @@ class MultiAssets(Base):
     parent_type = Column(String) # SV3, SV3,SV3_QC
     local_path = Column(String, nullable=True, unique=True)
     is_updated = Column(Boolean, default=False)
-    parent_ids = Column(String)
+    parent_id = Column(String)
 
 class ModelResults(Base):
     __tablename__ = "modelresults"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    session_id = Column(Integer, ForeignKey("session.id"))
-    session_parent_type = Column(String, ForeignKey("session.parent_type"))
-    session_local_path = Column(String,ForeignKey("session.local_path"))
-    sound_velocity_path = Column(String, ForeignKey("assets.local_path"))
+    asset_id = Column(Integer, ForeignKey("multiassets.id"))
+    asset_parent_type = Column(String, ForeignKey("multiassets.parent_type"))
+    asset_local_path = Column(String,ForeignKey("multiassets.local_path"))
+    sound_velocity_path = Column(String, ForeignKey("multiassets.local_path"))
     hyper_params = Column(JSON)
     rms_tt = Column(Float)
     abic = Column(Float)

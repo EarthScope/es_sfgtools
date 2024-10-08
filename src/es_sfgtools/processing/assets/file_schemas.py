@@ -133,16 +133,16 @@ class AssetEntry(_AssetBase):
 
 
 class MultiAssetEntry(_AssetBase):
-    parent_ids: Optional[List[int]] = Field(default=None)
+    parent_id: Optional[List[int]] = Field(default=None)
 
-    @field_validator('parent_ids',mode='before')
-    def _check_parent_ids(cls,v:Union[str,List[int]]):
+    @field_validator('parent_id',mode='before')
+    def _check_parent_id(cls,v:Union[str,List[int]]):
         if isinstance(v,str):
             v = [int(x) for x in v.split(",")]
         return v
     
-    @field_serializer('parent_ids',when_used='always')
-    def _serialize_parent_ids(self,v:Union[str,List[int]]):
+    @field_serializer('parent_id',when_used='always')
+    def _serialize_parent_id(self,v:Union[str,List[int]]):
         if isinstance(v,list):
             return ",".join([str(x) for x in v])
         return v
