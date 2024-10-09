@@ -96,6 +96,15 @@ class _AssetBase(BaseModel):
     timestamp_data_end: Optional[datetime] = Field(default=None)
     timestamp_created: Optional[datetime] = Field(default=None)
 
+    # @field_serializer("timestamp_data_start","timestamp_data_end","timestamp_created",when_used="always")
+    # def _serialize_timestamp_data_start(self, v: Optional[datetime]):
+    #     if v is not None:
+    #         return v.isoformat()
+    #     return v
+   
+    # @field_validator("timestamp_data_start","timestamp_data_end","timestamp_created",mode="before")
+    # def _validate_timestamp(cls,v:Optional[str]) 
+
     @field_validator("type", mode="before")
     def _check_type(cls, v: Union[str, AssetType]):
         if isinstance(v, str):

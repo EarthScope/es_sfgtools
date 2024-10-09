@@ -777,11 +777,7 @@ class DataHandler:
                     sa.insert(table).values([child_data.model_dump()])
                 )
             except sa.exc.IntegrityError:
-                conn.execute(
-                    sa.update(table=table)
-                    .where(table.local_path.is_(str(child_data.local_path)))
-                    .values(child_data.model_dump())
-                )
+                pass
 
           
 
