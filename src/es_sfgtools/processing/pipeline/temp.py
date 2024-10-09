@@ -772,24 +772,18 @@ class DataHandler:
                 .where(table.local_path.is_(str(parent_data.local_path)))
                 .values(parent_data.model_dump())
             )
-            found = conn.execute(
-                sa.select(table).where(
-                    table.local_path.is_(str(child_data.local_path)),
-                )
-            ).fetchall()
-            if found:
-                child_data.parent_id = parent_data.id
-                child_data.id = found[0].id
-                if child_data.timestamp_data_start is None:
-                    child_data.timestamp_data_start = found[0].timestamp_data_start
-                    child_data.timestamp_data_end = found[0].timestamp_data_end  
-
+            try:
                 conn.execute(
-                    sa.delete(table=table).where(
-                        table.local_path.in_([x.local_path for x in found])
-                    ))
+                    sa.insert(table).values([child_data.model_dump()])
+                )
+            except sa.exc.IntegrityError:
+                conn.execute(
+                    sa.update(table=table)
+                    .where(table.local_path.is_(str(child_data.local_path)))
+                    .values(child_data.model_dump())
+                )
 
-            conn.execute(sa.insert(table).values([child_data.model_dump()]))
+          
 
     def _get_entries_to_process(self,parent_type:AssetType,child_type:AssetType,override:bool=False) -> List[AssetEntry]:
 
@@ -1083,9 +1077,9 @@ class DataHandler:
         
         _,processed_gnss = self._process_data_link(
             target=AssetType.GNSS,source=AssetType.KIN,override=override,parent_entries=[x for x in processed_kin if x is not None],show_details=show_details)
-        if not processed_gnss:
-            return
        
+        #[self.add_entry(x) for x in processed_gnss if x is not None]
+    
     # def run_session_data(self,
     #                      siteConfig:siteconfig.SiteConfig,
     #                      soundVelocity:siteconfig.SoundVelocity,
