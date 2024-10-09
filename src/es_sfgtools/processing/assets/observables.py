@@ -8,7 +8,7 @@ import pandas as pd
 import pandera as pa
 from pandera.typing import Series
 import pandera.extensions as paext
-from typing import List, Dict
+from typing import List, Dict,Optional
 from .constants import (
     GNSS_START_TIME,
     GNSS_START_TIME_JULIAN,
@@ -151,15 +151,15 @@ class GNSSDataFrame(pa.DataFrameModel):
         coerce=True,  # todo unsure of the full range, below 4 is great, 4-8 acceptable, above 8 is poor (should we throw these out?)
         description="Position Dilution of Precision",
     )
-    east_std: Series[float] = pa.Field(
+    east_std: Optional[Series[float]] = pa.Field(
         nullable=True,
         description="Standard deviation of the ECEF X coordinate [m]",
     )
-    north_std: Series[float] = pa.Field(
+    north_std: Optional[Series[float]] = pa.Field(
         nullable=True,
         description="Standard deviation of the ECEF Y coordinate [m]",
     )
-    up_std: Series[float] = pa.Field(
+    up_std: Optional[Series[float]] = pa.Field(
         nullable=True,
         description="Standard deviation of the ECEF Z coordinate [m]",
     )
