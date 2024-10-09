@@ -69,15 +69,15 @@ class PridePPP(BaseModel):
 
     modified_julian_date: float = Field(ge=0)
     second_of_day: float = Field(ge=0, le=86400)
-    x: float = Field(
+    east: float = Field(
         ge=-6378100,
         le=6378100,
     )  # ECEF X coordinate
-    y: float = Field(
+    north: float = Field(
         ge=-6378100,
         le=6378100,
     )  # ECEF Y coordinate
-    z: float = Field(
+    up: float = Field(
         ge=-6378100,
         le=6378100,
     )  # ECEF Z coordinate
@@ -127,8 +127,8 @@ class PridePPP(BaseModel):
                 field = PRIDE_PPP_LOG_INDEX[i]
                 data_dict[field] = item
             return cls(**data_dict)
-        except ValidationError:
-            raise Exception("Error parsing into PridePPP")
+        except ValidationError as e:
+            raise Exception(f"Error parsing into PridePPP {e}")
 
 
 def get_metadata(site: str, serialNumber: str = "XXXXXXXXXX") -> dict:
@@ -380,7 +380,7 @@ def rinex_to_kin(
         return None
 
 
-@pa.check_types
+#@pa.check_types
 def kin_to_gnssdf(source:AssetEntry) -> Union[DataFrame[GNSSDataFrame], None]:
     """
     Create an GNSSDataFrame from a kin file from PRIDE-PPP

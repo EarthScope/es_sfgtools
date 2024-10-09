@@ -658,7 +658,12 @@ class DataHandler:
                             timestamp_data_start = processed[col].min()
                             timestamp_data_end = processed[col].max()
                             break
-                processed = AssetEntry(
+                if isinstance(parent, MultiAssetEntry):
+                    schema = MultiAssetEntry
+                else:
+                    schema = AssetEntry
+
+                processed = schema(
                     local_path=local_path,
                     type=child_type,
                     parent_id=parent.id,
@@ -713,6 +718,7 @@ class DataHandler:
             conn.execute(
                 sa.update(table=table)
                 .where(table.id.is_(parent_data.id))
+                .where(table.local_path.is_(str(parent_data.local_path)))
                 .values(parent_data.model_dump())
             )
             found = conn.execute(
@@ -725,19 +731,15 @@ class DataHandler:
                 child_data.id = found[0].id
                 if child_data.timestamp_data_start is None:
                     child_data.timestamp_data_start = found[0].timestamp_data_start
-                    child.timestamp_data_end = found[0].timestamp_data_end  
+                    child_data.timestamp_data_end = found[0].timestamp_data_end  
                     
                 conn.execute(
                     sa.delete(table=table).where(
                         table.local_path.in_([x.local_path for x in found])
                     ))
-                conn.execute(
-                    sa.insert(table).values(child_data.model_dump())
-                )
-            else:
-                conn.execute(sa.insert(table).values([child_data.model_dump()]))
-            conn.commit()
-
+      
+            conn.execute(sa.insert(table).values([child_data.model_dump()]))
+          
     def _get_entries_to_process(self,parent_type:AssetType,child_type:AssetType,override:bool=False) -> List[AssetEntry]:
         with self.engine.begin() as conn:
             parent_entries = conn.execute(
@@ -773,8 +775,8 @@ class DataHandler:
             return [AssetEntry(**dict(row._mapping)) for row in parent_entries_map.values()]
 
     def  _process_data_link(self,
-                           target:AssetType,
-                           source:AssetType,
+                           target:AssetType | MultiAssetEntry,
+                           source:AssetType | MultiAssetEntry,
                            override:bool=False,
                            parent_entries:Union[List[AssetEntry],List[MultiAssetEntry]]=None,
                            show_details:bool=False) -> Tuple[List[AssetEntry | MultiAssetEntry],List[AssetEntry | MultiAssetEntry]]:
