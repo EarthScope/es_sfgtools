@@ -380,7 +380,7 @@ def rinex_to_kin(
         return None
 
 
-#@pa.check_types
+@pa.check_types(lazy=True)
 def kin_to_gnssdf(source:AssetEntry) -> Union[DataFrame[GNSSDataFrame], None]:
     """
     Create an GNSSDataFrame from a kin file from PRIDE-PPP
