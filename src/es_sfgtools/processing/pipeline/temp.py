@@ -771,18 +771,28 @@ class DataHandler:
             return
         table = Assets if isinstance(parent_data,AssetEntry) else MultiAssets
         with self.engine.begin() as conn:
-            conn.execute(
-                sa.update(table=table)
-                .where(table.id.is_(parent_data.id))
-                .where(table.local_path.is_(str(parent_data.local_path)))
-                .values(parent_data.model_dump())
-            )
+            try:
+                conn.execute(
+                    sa.insert(table).values([parent_data.model_dump()])
+                )
+            except sa.exc.IntegrityError:
+                conn.execute(
+                    sa.update(table=table)
+                    .where(table.id.is_(parent_data.id))
+                    .where(table.local_path.is_(str(parent_data.local_path)))
+                    .values(parent_data.model_dump())
+                )
             try:
                 conn.execute(
                     sa.insert(table).values([child_data.model_dump()])
                 )
             except sa.exc.IntegrityError:
-                pass
+                conn.execute(
+                    sa.update(table=table)
+                    .where(table.id.is_(child_data.id))
+                    .where(table.local_path.is_(str(child_data.local_path)))
+                    .values(child_data.model_dump())
+                )
 
     def _get_entries_to_process(self,parent_type:AssetType,child_type:AssetType,override:bool=False) -> List[AssetEntry]:
 
@@ -1076,10 +1086,11 @@ class DataHandler:
         # rinex_ma_list: List[MultiAssetEntry] = self.dev_group_session_data(source=AssetType.RINEX,override=override)
 
         rinex_ma_list: List[MultiAssetEntry] = self.get_asset_data(AssetType.RINEX,multiasset=True)
-        self._process_data_link(
+        _,kin_ma_list= self._process_data_link(
             target=AssetType.KIN,source=AssetType.RINEX,override=override,parent_entries=rinex_ma_list,show_details=show_details)
 
-        kin_ma_list: List[MultiAssetEntry] = self.get_asset_data(AssetType.KIN,multiasset=True)
+        kin_ma_list_q: List[MultiAssetEntry] = self.get_asset_data(AssetType.KIN,multiasset=True)
+        
         _,processed_gnss = self._process_data_link(target=AssetType.GNSS,source=AssetType.KIN,override=override,parent_entries=kin_ma_list,show_details=show_details)
 
         # [self.add_entry(x) for x in processed_gnss if x is not None]
