@@ -85,7 +85,7 @@ class AssetType(Enum):
     _ = "default"
 
 class _AssetBase(BaseModel):
-    local_path: Union[str, Path] = Field(default=None)
+    local_path: Optional[Union[str, Path]] = Field(default=None)
     type: Optional[AssetType] = Field(default=None)
     id: Optional[int] = Field(default=None)
     network: Optional[str] = Field(default=None)
@@ -146,6 +146,8 @@ class MultiAssetEntry(_AssetBase):
 
     @field_validator('parent_id',mode='before')
     def _check_parent_id(cls,v:Union[str,List[int]]):
+        if isinstance(v,int):
+            v = [v]
         if isinstance(v,str):
             v = [int(x) for x in v.split(",")]
         return v

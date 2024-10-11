@@ -355,16 +355,23 @@ def rinex_to_kin(
 
     #file_pattern = f"{source.timestamp_data_start.year}{source.timestamp_data_start.timetuple().tm_yday}"
     tag_files = pridedir.rglob(f"*{site.lower()}*")
+    if isinstance(source,AssetEntry):
+        schema = AssetEntry
+    else:
+        schema = MultiAssetEntry
+
     for tag_file in tag_files:
         # print("tag file:", tag_file)
         if "kin" in tag_file.name:
             kin_file = tag_file
             kin_file_new = writedir / (kin_file.name + ".kin")
             shutil.move(kin_file, kin_file_new)
-            kin_file = AssetEntry(
+            kin_file = schema(
                 type=AssetType.KIN,
                 parent_id=source.id,
-                start_time=source.timestamp_data_start,
+                timestamp_data_start=source.timestamp_data_start,
+                timestamp_data_end=source.timestamp_data_end,
+                timestamp_created=datetime.now(),
                 local_path=kin_file_new,
             )
             response = f"Converted RINEX file {source.local_path} to kin file {kin_file.local_path}"

@@ -568,7 +568,7 @@ class DataHandler:
         return stack[::-1]
 
     def get_child_stack(
-        self, parent_type: FILE_TYPE) -> List[Union[FILE_TYPE, DATA_TYPE]]:
+        self, parent_type: AssetType) -> List[AssetType]:
 
         stack = [parent_type]
         pointer = 0
@@ -629,7 +629,7 @@ class DataHandler:
             response += f"  No processing function found for {parent.type} to {child_type.value}\n"
             logger.error(response)
             return None, None, response
-        
+
         process_func_partial = DataHandler._partial_function(
             process_func=process_func,
             parent=parent,
@@ -724,17 +724,20 @@ class DataHandler:
             parent.timestamp_data_end = processed.timestamp_data_end
             response += f"  Discovered timestamp: {timestamp_data_start} for parent {parent.type.value} uuid {parent.id}\n"
 
-        assert local_path.exists(), f"Local path {local_path} does not exist"
+        if not local_path.exists():
+            response += f"  {child_type.value} not created for {parent.id}\n"
+            logger.error(response)
+            return None, parent, response
 
         return processed, parent, response
-    
+
     def _process_entries(
             self,
             parent_entries: List[AssetEntry | MultiAssetEntry],
             child_type: AssetType,
             show_details: bool = False,
     ) -> List[Tuple[List[AssetEntry | MultiAssetEntry], List[AssetEntry | MultiAssetEntry]]]:
-        
+
         process_func_partial = partial(
             self._process_targeted,
             child_type=child_type,
@@ -764,6 +767,8 @@ class DataHandler:
                               parent_data:AssetEntry | MultiAssetEntry,
                               child_data:AssetEntry | MultiAssetEntry):
 
+        if not child_data.local_path.exists():
+            return
         table = Assets if isinstance(parent_data,AssetEntry) else MultiAssets
         with self.engine.begin() as conn:
             conn.execute(
@@ -779,8 +784,6 @@ class DataHandler:
             except sa.exc.IntegrityError:
                 pass
 
-          
-
     def _get_entries_to_process(self,parent_type:AssetType,child_type:AssetType,override:bool=False) -> List[AssetEntry]:
 
         with self.engine.begin() as conn:
@@ -791,7 +794,9 @@ class DataHandler:
                 )
             ).fetchall()
             if not parent_entries:
-                logger.error(f"No entries of type {parent_type.value} found in catalog for {self.network} {self.station} {self.survey}")
+                msg = f"No entries of type {parent_type.value} found in catalog for {self.network} {self.station} {self.survey}"
+                logger.error(msg)
+                print(msg)
                 return []
             # Create a map of parent entries for easy lookup
             parent_entries_map = {x.id: x for x in parent_entries}
@@ -813,7 +818,8 @@ class DataHandler:
                 while child_entries:
                     child = child_entries.pop()
                     parent_entries_map.pop(int(child.parent_id), None)
-
+            msg = f"Found {len(parent_entries_map)} entries of type {parent_type.value} to process to {child_type.value}"
+            logger.info(msg)
             return [AssetEntry(**dict(row._mapping)) for row in parent_entries_map.values()]
 
     def  _process_data_link(self,
@@ -842,7 +848,7 @@ class DataHandler:
         for parent_data,child_data in zip(parent_data_list,child_data_list):
             if child_data is not None:
                 self._update_parent_child_catalog(parent_data,child_data)
-        
+
         return parent_data_list,child_data_list
 
     def _process_data_graph(self, 
@@ -850,30 +856,30 @@ class DataHandler:
                             override:bool=False,
                             show_details:bool=False):
 
+        msg = f"\nProcessing Upstream Data for {child_type.value}\n"
+        logger.info(msg)
+        if show_details: print(msg)
+            
+    
         processing_queue = self.get_parent_stack(child_type=child_type)
-        if show_details:
-            print(f"processing queue: {[item.value for item in processing_queue]}")
         while processing_queue:
             parent = processing_queue.pop(0)
             if parent != child_type:
-
                 children:dict = TARGET_MAP.get(parent,{})
-
                 children_to_process = [k for k in children.keys() if k in processing_queue]
-                if show_details:
-                    print(f"parent: {parent.value}")
-                    print(f"children to process: {[item.value for item in children_to_process]}")
                 for child in children_to_process:
-                    if show_details:
-                        print(f"processing child:{child.value}")
-                    processed_parents,processed_children = self._process_data_link(
+                    msg = f"\nProcessing {parent.value} to {child.value}"
+                    logger.info(msg)
+                    if show_details: print(msg)
+                 
+                    self._process_data_link(
                         target=child,
                         source=parent,
                         override=override,
                         show_details=show_details)
-                    # Check if all children of this parent have been processed
-
-                    # TODO check if all children of this parent have been processed
+        msg = f"Processed Upstream Data for {child_type.value}\n"
+        logger.info(msg)
+        if show_details: print(msg)
 
     def _process_data_graph_forward(self, 
                             parent_type:AssetType,
@@ -887,7 +893,7 @@ class DataHandler:
             parent_type = list(parent_targets.keys())[0]
             for child in parent_targets[parent_type].keys():
 
-                proc_parents,proc_children = self._process_data_link(target=child,source=parent_type,override=override,show_details=show_details)
+                self._process_data_link(target=child,source=parent_type,override=override,show_details=show_details)
                 child_targets = TARGET_MAP.get(child,{})
                 if child_targets:
                     processing_queue.append({child:child_targets})
@@ -906,10 +912,22 @@ class DataHandler:
     def process_sv3_data(self, override:bool=False, show_details:bool=False):
         self._process_data_graph_forward(AssetType.DFOP00,override=override, show_details=show_details,)
 
+    def _get_assets(self,asset_type:AssetType) -> List[AssetEntry]:
+        with self.engine.begin() as conn:
+            entries = conn.execute(
+                sa.select(Assets).where(
+                    Assets.network == self.network,
+                    Assets.station == self.station,
+                    Assets.survey == self.survey,
+                    Assets.type == asset_type.value
+                )
+            ).fetchall()
+        return [AssetEntry(**dict(row._mapping)) for row in entries]
+
     def dev_group_session_data(self,
                            source:Union[str,AssetType] = AssetType.SHOTDATA,
                            override:bool=False
-                           ) -> Union[List[MultiAssetEntry],None]:
+                           ):
         """
         Group the session data by timestamp.
 
@@ -926,6 +944,10 @@ class DataHandler:
             except:
                 raise ValueError(f"Source {source} must be one of {AssetType.__members__.keys()}")
 
+        assets:List[AssetEntry] = self._get_assets(source)
+        if not assets:
+            raise ValueError(f"No assets of type {source.value} found in catalog for {self.network} {self.station} {self.survey}")
+
         match source:
             case (
                 AssetType.POSITION
@@ -934,27 +956,23 @@ class DataHandler:
                 | AssetType.GNSS
             ):
                 multi_asset_list: List[MultiAssetEntry] = create_multi_asset_dataframe(
-                    assetType=source,
-                    writedir=self.proc_dir,
-                    network=self.network,
-                    station=self.station,
-                    survey=self.survey,
-                    override=override,
-                    engine=self.engine,
+                    assets=assets, writedir=self.inter_dir
                 )
+
             case AssetType.RINEX:
                 multi_asset_list:List[MultiAssetEntry] = create_multi_asset_rinex(
-                engine=self.engine,
-                network=self.network,
-                station=self.station,
-                survey=self.survey,
-                working_dir=self.inter_dir,
-                ovveride=override
+                assets=assets,
+                working_dir=self.inter_dir
                 )
 
         logger.info(f"Created {len(multi_asset_list)} MultiAssetEntries for {source.value}")
 
-        return multi_asset_list
+        for multi_asset in multi_asset_list:
+            try:
+                self.add_entry(multi_asset)
+            except Exception as e:
+                logger.error(f"Error adding MultiAssetEntry {multi_asset.id} to catalog: {e}")
+                continue
 
     def query_catalog(self,
                       query:str) -> pd.DataFrame:
@@ -975,7 +993,7 @@ class DataHandler:
                 table.station == self.station,
                 table.survey == self.survey)).fetchall()
         return [entrySchema(**row._mapping) for row in entries]
-    
+
     def interpolate_enu(self,tenu_l:np.ndarray,enu_l_sig:np.ndarray,tenu_r:np.ndarray,enu_r_sig:np.ndarray) -> np.ndarray:
         # interpolate the enu values between the left and right enu values
         # t is the time values in unix epoch
@@ -999,9 +1017,6 @@ class DataHandler:
             prediction_dict[idx] = np.hstack([tenu_r[:,0],mu,sigma])
         return prediction_dict
 
-
-
-        
     def update_shotdata(self,plot:bool=False):
         # For each shotdata multiasset entry, update the shotdata position with gnss data
         shotdata_ma_list: List[MultiAssetEntry] = self.get_asset_data(AssetType.SHOTDATA,multiasset=True)
@@ -1036,11 +1051,6 @@ class DataHandler:
                 response = f"Found matching gnss data for shotdata on {date}"
                 logger.info(response)
                 shotdata_df.to_csv(shotdata_date_map[date].local_path,index=False)
-        
-
-            
-    
-
 
     def pipeline_sv2(self,override:bool=False,show_details:bool=False):
         self._process_data_graph(AssetType.POSITION,override=override,show_details=show_details)
@@ -1057,25 +1067,23 @@ class DataHandler:
             target=AssetType.GNSS,source=AssetType.KIN,override=override,parent_entries=processed_rinex_kin[1],show_details=show_details)
 
     def pipeline_sv3(self,override:bool=False,show_details:bool=False):
-        self._process_data_graph(AssetType.POSITION,override=override,show_details=show_details)
-        self._process_data_graph(AssetType.RINEX,override=override,show_details=show_details)
-        shotdata_ma_list: List[MultiAssetEntry] = self.dev_group_session_data(source=AssetType.SHOTDATA,override=override)
-        # add the merged shotdata to the catalog
-        [self.add_entry(x) for x in shotdata_ma_list]
-        rinex_ma_list: List[MultiAssetEntry] = self.dev_group_session_data(source=AssetType.RINEX,override=override)
-        
-        if not rinex_ma_list:
-            return
-        _,processed_kin = self._process_data_link(
+        # self._process_data_graph(AssetType.POSITION,override=override,show_details=show_details)
+        # self._process_data_graph(AssetType.RINEX,override=override,show_details=show_details)
+        # self._process_data_graph_forward(AssetType.DFOP00,override=override,show_details=show_details)
+        # shotdata_ma_list: List[MultiAssetEntry] = self.dev_group_session_data(source=AssetType.SHOTDATA,override=override)
+        # # add the merged shotdata to the catalog
+
+        # rinex_ma_list: List[MultiAssetEntry] = self.dev_group_session_data(source=AssetType.RINEX,override=override)
+
+        rinex_ma_list: List[MultiAssetEntry] = self.get_asset_data(AssetType.RINEX,multiasset=True)
+        self._process_data_link(
             target=AssetType.KIN,source=AssetType.RINEX,override=override,parent_entries=rinex_ma_list,show_details=show_details)
-        if not processed_kin:
-            return
-        
-        _,processed_gnss = self._process_data_link(
-            target=AssetType.GNSS,source=AssetType.KIN,override=override,parent_entries=[x for x in processed_kin if x is not None],show_details=show_details)
-       
-        #[self.add_entry(x) for x in processed_gnss if x is not None]
-    
+
+        kin_ma_list: List[MultiAssetEntry] = self.get_asset_data(AssetType.KIN,multiasset=True)
+        _,processed_gnss = self._process_data_link(target=AssetType.GNSS,source=AssetType.KIN,override=override,parent_entries=kin_ma_list,show_details=show_details)
+
+        # [self.add_entry(x) for x in processed_gnss if x is not None]
+
     # def run_session_data(self,
     #                      siteConfig:siteconfig.SiteConfig,
     #                      soundVelocity:siteconfig.SoundVelocity,

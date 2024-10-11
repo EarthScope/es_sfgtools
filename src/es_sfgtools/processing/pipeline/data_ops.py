@@ -1,4 +1,5 @@
 from es_sfgtools.processing.assets import AssetEntry, AssetType, MultiAssetEntry
+from es_sfgtools.processing.assets.observables import ShotDataFrame, PositionDataFrame, AcousticDataFrame, GNSSDataFrame
 import sqlalchemy as sa
 from typing import List, Union, Callable, Dict
 from pathlib import Path
@@ -11,204 +12,337 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+class PridePdpConfig:
+    def __init__(self, config: Dict):
+        self.config = config
 
-def create_multi_asset_rinex(
-    engine: sa.Engine,
-    network: str,
-    station: str,
-    survey: str,
-    writedir: Path,
-    override: bool = False,
-) -> Union[List[MultiAssetEntry], List[None]]:
 
-    new_multi_asset_list = []
-
+ASSET_DF_MAP = {
+    AssetType.POSITION: PositionDataFrame,
+    AssetType.ACOUSTIC: AcousticDataFrame,
+    AssetType.SHOTDATA: ShotDataFrame,
+    AssetType.GNSS: GNSSDataFrame,
+}
 
 def create_multi_asset_dataframe(
-    engine: sa.Engine,
-    network: str,
-    station: str,
-    survey: str,
-    assetType: AssetType,
-    writedir: Path,
-    override: bool = False,
-) -> Union[List[MultiAssetEntry], List[None]]:
-    """Create a new MultiAsset entry in the database
+    assets: List[AssetEntry], writedir: Path
+) -> List[MultiAssetEntry]:
 
-    Args:
-        connection (sa.engine.Connection): The database connection
-        asset (AssetEntry): The asset entry to create the MultiAsset entry from
+    assert (
+        len(list(set([x.type for x in assets]))) == 1
+    ), "All assets must be of the same type"
+    assert (
+        len(list(set([x.network for x in assets]))) == 1
+    ), "All assets must be of the same network"
+    assert (
+        len(list(set([x.station for x in assets]))) == 1
+    ), "All assets must be of the same station"
+    assert (
+        len(list(set([x.survey for x in assets]))) == 1
+    ), "All assets must be of the same survey"
 
-    Returns:
-        MultiAssets: The newly created MultiAsset entry
-    """
-    assert assetType in [
-        AssetType.POSITION,
-        AssetType.ACOUSTIC,
-        AssetType.SHOTDATA,
-        AssetType.GNSS,
-    ], f"AssetType {assetType} not supported for MultiAsset creation"
+    response = f"\n *** Creating MultiAsset DataFrame: \n Creating MultiAsset from {len(assets)} for {assets[0].network} {assets[0].station} {assets[0].survey} {assets[0].type}"
+    logger.info(response)
+
+    dates = [x.timestamp_data_start for x in assets]
+    dates.extend([x.timestamp_data_end for x in assets])
+    dates = list(set([x.date() for x in dates if x is not None]))
+    logger.info(f"Merging on dates {[str(x) for x in dates]}")
+    date_asset_map = {}
+    for date in dates:
+        date_assets_id = ",".join(
+            [str(x.id) for x in assets if ((x.timestamp_data_start.date() == date) or (x.timestamp_data_end.date() == date))]
+        )
+        date_asset_map[date] = date_assets_id
+
+    merged_df = pd.concat([pd.read_csv(x.local_path) for x in assets])
+    merged_df = ASSET_DF_MAP[assets[0].type].validate(merged_df,lazy=True)
+    time_col = None
+    for col in merged_df.columns:
+        # get the date of the datetime column
+        if pd.api.types.is_datetime64_any_dtype(merged_df[col]):
+            temp_date: pd.Series = merged_df[col].apply(lambda x: x.date())
+            time_col = col
+            logger.info(f"Merging on column {col}")
+            break
+    if time_col is None:
+        raise ValueError("No datetime column found in DataFrame")
     new_multi_asset_list = []
-    with engine.begin() as conn:
-        # Get all the individual assets for the given network,station,survey, and asset type
-        individual_assets = [
-            AssetEntry(**x._mapping)
-            for x in conn.execute(
-                sa.select(Assets).where(
-                    Assets.network == network,
-                    Assets.station == station,
-                    Assets.survey == survey,
-                    Assets.type == assetType.value,
-                )
-            ).fetchall()
-        ]
-        individual_assets.sort(key=lambda x: x.timestamp_data_start)
-        if not individual_assets:
-            logger.error(
-                f"No assets found for {network} {station} {survey} {assetType.value}"
-            )
-            return []
-        dates = [x.timestamp_data_start for x in individual_assets]
-        dates.extend([x.timestamp_data_end for x in individual_assets])
-        dates = list(set([x.date() for x in dates if x is not None]))
+    for date, ids_str in date_asset_map.items():
+        temp_df = merged_df[temp_date == date]
+        timestamp_data_start = temp_df[time_col].min()
+        timestamp_data_end = temp_df[time_col].max()
+        local_path = writedir / f"{assets[0].type.value}_{ids_str}_{str(date)}.csv"
+        temp_df.to_csv(local_path, index=False)
 
-        date_asset_map = {
-            date: [
-                x
-                for x in individual_assets
-                if x is not None
-                and (
-                    x.timestamp_data_start.date() == date
-                )
-            ]
-            for date in dates
-        }
+        logger.info(
+            f"Writing DF of type {assets[0].type} with {temp_df.shape[0]} entries to {str(local_path)}"
+        )
 
-        found_multi_assets = [
-            MultiAssetEntry(**x._mapping)
-            for x in conn.execute(
-                sa.select(MultiAssets).where(
-                    MultiAssets.network == network,
-                    MultiAssets.station == station,
-                    MultiAssets.survey == survey,
-                    MultiAssets.parent_type == assetType.value,
-                    MultiAssets.timestamp_data_start.in_(dates),
-                )
-            ).fetchall()
-        ]
-
-        if not override and found_multi_assets:
-            while found_multi_assets:
-                date_asset_map.remove(
-                    found_multi_assets.pop().timestamp_data_start.date()
-                )
-        else:
-            for multi_asset in found_multi_assets:
-                multi_asset.local_path.unlink()
-                conn.execute(
-                    sa.delete(MultiAssets).where(MultiAssets.id == multi_asset.id)
-                )
-        if not date_asset_map:
-            return []
-
-        for date, assets in date_asset_map.items():
-            if not assets:
-                continue
-            parent_id_string = ",".join([str(x.id) for x in assets])
-            merged_df = pd.concat([pd.read_csv(x.local_path) for x in assets])
-            for col in merged_df.columns:
-                if pd.api.types.is_datetime64_any_dtype(merged_df[col]):
-                    merged_df = merged_df[
-                        merged_df[col].apply(lambda x: x.date() == date)
-                    ]
-
-            local_path = (
-                writedir
-                / f"{network}_{station}_{survey}_{assetType.value}_{str(date)}.csv"
-            )
-            merged_df.to_csv(local_path, index=False)
-            new_multi_asset = MultiAssetEntry(
-                local_path=str(local_path),
-                type=assetType,
-                network=network,
-                station=station,
-                survey=survey,
-                timestamp_data_start=date,
-                timestamp_data_end=date,
-                parent_id=parent_id_string,
-                timestamp_created=datetime.now(),
-            )
-            try:
-                conn.execute(sa.insert(MultiAssets).values(new_multi_asset.model_dump()))
-            except Exception as e:
-                logger.error(f"Error inserting MultiAsset {new_multi_asset} {e}")
-                continue
-            new_multi_asset_list.append(new_multi_asset)
-
+        new_multi_asset = MultiAssetEntry(
+            local_path=str(local_path),
+            type=assets[0].type,
+            network=assets[0].network,
+            station=assets[0].station,
+            survey=assets[0].survey,
+            timestamp_data_start=timestamp_data_start,
+            timestamp_data_end=timestamp_data_end,
+            parent_id=ids_str,
+            timestamp_created=datetime.now(),
+        )
+        new_multi_asset_list.append(new_multi_asset)
+    logger.info(f"\n *** Created {len(new_multi_asset_list)} MultiAssets \n")
     return new_multi_asset_list
 
 
+# def create_multi_asset_dataframe(
+#     engine: sa.Engine,
+#     network: str,
+#     station: str,
+#     survey: str,
+#     assetType: AssetType,
+#     writedir: Path,
+#     override: bool = False,
+# ) -> Union[List[MultiAssetEntry], List[None]]:
+#     """Create a new MultiAsset entry in the database
+
+#     Args:
+#         connection (sa.engine.Connection): The database connection
+#         asset (AssetEntry): The asset entry to create the MultiAsset entry from
+
+#     Returns:
+#         MultiAssets: The newly created MultiAsset entry
+#     """
+#     assert assetType in [
+#         AssetType.POSITION,
+#         AssetType.ACOUSTIC,
+#         AssetType.SHOTDATA,
+#         AssetType.GNSS,
+#     ], f"AssetType {assetType} not supported for MultiAsset creation"
+#     new_multi_asset_list = []
+#     with engine.begin() as conn:
+#         # Get all the individual assets for the given network,station,survey, and asset type
+#         individual_assets = [
+#             AssetEntry(**x._mapping)
+#             for x in conn.execute(
+#                 sa.select(Assets).where(
+#                     Assets.network == network,
+#                     Assets.station == station,
+#                     Assets.survey == survey,
+#                     Assets.type == assetType.value,
+#                 )
+#             ).fetchall()
+#         ]
+#         individual_assets.sort(key=lambda x: x.timestamp_data_start)
+#         if not individual_assets:
+#             logger.error(
+#                 f"No assets found for {network} {station} {survey} {assetType.value}"
+#             )
+#             return []
+#         dates = [x.timestamp_data_start for x in individual_assets]
+#         dates.extend([x.timestamp_data_end for x in individual_assets])
+#         dates = list(set([x.date() for x in dates if x is not None]))
+
+#         date_asset_map = {
+#             date: [
+#                 x
+#                 for x in individual_assets
+#                 if x is not None
+#                 and (
+#                     x.timestamp_data_start.date() == date
+#                 )
+#             ]
+#             for date in dates
+#         }
+
+#         found_multi_assets = [
+#             MultiAssetEntry(**x._mapping)
+#             for x in conn.execute(
+#                 sa.select(MultiAssets).where(
+#                     MultiAssets.network == network,
+#                     MultiAssets.station == station,
+#                     MultiAssets.survey == survey,
+#                     MultiAssets.parent_type == assetType.value,
+#                     MultiAssets.timestamp_data_start.in_(dates),
+#                 )
+#             ).fetchall()
+#         ]
+
+#         if not override and found_multi_assets:
+#             while found_multi_assets:
+#                 date_asset_map.remove(
+#                     found_multi_assets.pop().timestamp_data_start.date()
+#                 )
+#         else:
+#             for multi_asset in found_multi_assets:
+#                 multi_asset.local_path.unlink()
+#                 conn.execute(
+#                     sa.delete(MultiAssets).where(MultiAssets.id == multi_asset.id)
+#                 )
+#         if not date_asset_map:
+#             return []
+
+#         for date, assets in date_asset_map.items():
+#             if not assets:
+#                 continue
+#             parent_id_string = ",".join([str(x.id) for x in assets])
+#             merged_df = pd.concat([pd.read_csv(x.local_path) for x in assets])
+#             for col in merged_df.columns:
+#                 if pd.api.types.is_datetime64_any_dtype(merged_df[col]):
+#                     merged_df = merged_df[
+#                         merged_df[col].apply(lambda x: x.date() == date)
+#                     ]
+
+#             local_path = (
+#                 writedir
+#                 / f"{network}_{station}_{survey}_{assetType.value}_{str(date)}.csv"
+#             )
+#             merged_df.to_csv(local_path, index=False)
+#             new_multi_asset = MultiAssetEntry(
+#                 local_path=str(local_path),
+#                 type=assetType,
+#                 network=network,
+#                 station=station,
+#                 survey=survey,
+#                 timestamp_data_start=date,
+#                 timestamp_data_end=date,
+#                 parent_id=parent_id_string,
+#                 timestamp_created=datetime.now(),
+#             )
+#             try:
+#                 conn.execute(sa.insert(MultiAssets).values(new_multi_asset.model_dump()))
+#             except Exception as e:
+#                 logger.error(f"Error inserting MultiAsset {new_multi_asset} {e}")
+#                 continue
+#             new_multi_asset_list.append(new_multi_asset)
+
+#     return new_multi_asset_list
+
+
+def daily_rinex_to_kin(
+    source: Union[AssetEntry, str, Path],
+    writedir: Path,
+    pridedir: Path,
+    site: str = None,
+    show_details: bool = True,
+    PridePdpConfig: PridePdpConfig = None,
+) -> AssetEntry:
+    """
+    Convert a RINEX file to a position file
+
+    Parameters:
+        source (str): The path to the RINEX file
+        writedir (Path): The directory to write the kin file to
+        pridedir (Path): The directory to run pride in
+        site (str): The site name (4 characters), default is None
+        show_details (bool): Print details to the console, default is True
+        PridePdpConfig (PridePdpConfig): The configuration object for PRIDE-PPP, default is None
+
+    Returns:
+        kin_file (str): The path to the kin file
+    """
+    if isinstance(source, str) or isinstance(source, Path):
+        source = AssetEntry(local_path=source, type=AssetType.RINEX)
+        print("source:", source)
+    assert source.type == AssetType.RINEX, "Invalid source file type"
+
+    logger.info(f"Converting RINEX file {source.local_path} to kin file")
+
+    # simul link the rinex file to the same file with file_uuid attached at the front
+    if not os.path.exists(source.local_path):
+        logger.error(f"RINEX file {source.local_path} not found")
+        return None
+
+    if not site:
+        site = uuid.uuid4().hex[:4]
+
+    # If PridePdpConfig is not provided, use the default configuration
+    if PridePdpConfig is None:
+        PridePdpConfig = PridePdpConfig()
+    pdp_command = PridePdpConfig.generate_pdp_command(
+        site=site, local_file_path=source.local_path
+    )
+
+    logger.info(f"Running PDP3 command: {' '.join(pdp_command)}")
+    if show_details:
+        print(f"Running PDP3 command: {' '.join(pdp_command)}")
+    result = subprocess.run(
+        pdp_command,
+        capture_output=True,
+        cwd=str(pridedir),
+    )
+
+    if result.stderr:
+        logger.error(result.stderr)
+
+    with open(source.local_path, "r") as f:
+        for line in f:
+            if "TIME OF FIRST OBS" in line:
+                line_data = line.split()
+                # print(line_data)
+                source.timestamp_data_start = datetime.fromisoformat(
+                    f"{line_data[0]}-{line_data[1].zfill(2)}-{line_data[2].zfill(2)}T{line_data[3].zfill(2)}:{line_data[4].zfill(2)}:00"
+                )
+                year = source.timestamp_data_start.year
+                dayOfYear = source.timestamp_data_start.timetuple().tm_yday
+                break
+
+    kin_filepath = os.path.join(pridedir, str(year), str(dayOfYear))
+    kin_file = AssetEntry(
+        type=AssetType.KIN,
+        parent_id=source.id,
+        start_time=source.timestamp_data_start,
+        local_path=kin_filepath,
+    )
+    response = (
+        f"Converted RINEX file {source.local_path} to kin file {kin_file.local_path}"
+    )
+    logger.info(response)
+    if show_details:
+        print(response)
+
+    try:
+        return kin_file
+    except:
+        return None
+
 def create_multi_asset_rinex(
-    engine: sa.engine,
-    network: str,
-    station: str,
-    survey: str,
-    working_dir: Path,
-    ovveride: bool,
-) -> Union[List[MultiAssetEntry], List[None]]:
+        assets:List[AssetEntry],
+        working_dir:Path,
+) -> List[MultiAssetEntry]:
+    
+    assert len(list(set([x.network for x in assets]))) == 1, "All assets must be of the same network"
+    assert len(list(set([x.station for x in assets]))) == 1, "All assets must be of the same station"
+    assert len(list(set([x.survey for x in assets]))) == 1, "All assets must be of the same survey"
+    assert len(list(set([x.type for x in assets]))) == 1, "All assets must be of the same type"
 
+    logger.info(f"\n*** Creating MultiAsset RINEX \n From {len(assets)} for {assets[0].network} {assets[0].station} {assets[0].survey}")
     found_assets = []
-    with engine.begin() as conn:
-        for x in conn.execute(
-            sa.select(Assets).where(
-                Assets.network == network,
-                Assets.station == station,
-                Assets.survey == survey,
-                Assets.type == AssetType.RINEX.value,
-            )
-        ).fetchall():
-            try:
-                found_assets.append(rinex_get_meta(AssetEntry(**x._mapping)))
-            except ValueError as e:
-                logger.error(f"Error with RINEX file {x.local_path} {e}")
-            
-        if not found_assets:
-            raise ValueError(
-                f"No found assets of type {AssetType.RINEX.value} in Network {network}, Station {station}, Survey {survey}"
-            )
-        # create date asset map
-        doy_asset_map = {}
-        for asset in found_assets:
-            doy_start, doy_end = (
-                asset.timestamp_data_start.timetuple().tm_yday,
-                asset.timestamp_data_end.timetuple().tm_yday,
-            )
-            doy_all_list = list(set([doy_start, doy_end]))
-            for doy in doy_all_list:
-                doy_asset_map.setdefault(doy, []).append(asset)
-
-        rinex_multi_assets = []
-        for assets in doy_asset_map.values():
-            try:
-                rinex_multi_assets.extend(
-                    dev_merge_rinex(sources=assets, working_dir=working_dir)
-                )
-            except ValueError as e:
-                logger.error(
-                    f"Error merging RINEX files for {network} {station} {survey} {doy} {e}"
-                )
-                pass
-
-        for multi_asset in rinex_multi_assets:
-            # if not ovveride:
-            #     continue
-            # else:
-            conn.execute(
-                sa.delete(MultiAssets).where(
-                    MultiAssets.local_path == str(multi_asset.local_path)
-                )
-            )
-        conn.execute(sa.insert(MultiAssets).values(multi_asset.model_dump()))
+    for asset in assets:
+        try:
+            found_assets.append(rinex_get_meta(asset))
+        except ValueError as e:
+            logger.error(f"Error with RINEX file {asset.local_path} {e}")
+            pass
+    if not found_assets:
+        raise ValueError(f"No found assets of type {AssetType.RINEX.value} in Network {assets[0].network}, Station {assets[0].station}, Survey {assets[0].survey}")
+    # create date asset map
+    doy_asset_map = {}
+    for asset in found_assets:
+        doy_start,doy_end = asset.timestamp_data_start.timetuple().tm_yday,asset.timestamp_data_end.timetuple().tm_yday
+        doy_all_list = list(set([doy_start,doy_end]))
+        for doy in doy_all_list:
+            doy_asset_map.setdefault(doy,[]).append(asset)
+    
+    rinex_multi_assets = []
+    for doy,assets in doy_asset_map.items():
+        try:
+            merged_rinex:List[MultiAssetEntry] = dev_merge_rinex(sources=assets,working_dir=working_dir)
+            rinex_multi_assets.extend(merged_rinex)
+            logger.info(f"Created MultiAsset RINEX for Network {assets[0].network} Station {assets[0].station} Survey {assets[0].survey} Doy {doy} To {str(merged_rinex[0].local_path)}")
+        except ValueError as e:
+            logger.error(f"Error merging RINEX files for {assets[0].network} {assets[0].station} {assets[0].survey} {doy} {e}")
+            pass
     return rinex_multi_assets
 
 

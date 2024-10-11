@@ -1,5 +1,5 @@
 import logging
-logging.basicConfig(level=logging.DEBUG,filename="dev_rinex_merge.log")
+logging.basicConfig(level=logging.DEBUG,filename="dev_rinex_merge.log",filemode="w")
 import es_sfgtools
 import os
 from es_sfgtools.processing.pipeline import DataHandler
@@ -17,8 +17,8 @@ if __name__ == "__main__":
     survey = "TestSV3"
 
     dh = DataHandler(network=network, station=station, survey=survey, data_dir=dh_dir_sv3)
-    # dh.add_data_directory(dh_dir_sv3)
-    # print(dh.get_dtype_counts())
+    dh.add_data_directory(dh_dir_sv3)
+    print(dh.get_dtype_counts())
     # dh.query_catalog(
     #     f"DELETE FROM assets WHERE network='NCB' AND station='NCB1' AND survey='TestSV3' AND type='{AssetType.NOVATELPIN.value}'")
     dh.pipeline_sv3(override=False,show_details=True)
