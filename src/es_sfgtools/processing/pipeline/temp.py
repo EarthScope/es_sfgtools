@@ -27,18 +27,19 @@ from sklearn.gaussian_process.kernels import RBF, WhiteKernel
 warnings.filterwarnings("ignore")
 seaborn.set_theme(style="whitegrid")
 from es_sfgtools.utils.archive_pull import download_file_from_archive
-from es_sfgtools.processing.assets import AssetEntry,AssetType,MultiAssetEntry
+from es_sfgtools.processing.assets.file_schemas import AssetEntry,AssetType,MultiAssetEntry,MultiAssetPre
 from es_sfgtools.processing.operations import sv2_ops,sv3_ops,gnss_ops,site_ops
 from es_sfgtools.processing.assets import observables,siteconfig,constants,file_schemas
 from es_sfgtools.modeling.garpos_tools import schemas as modeling_schemas
 from es_sfgtools.modeling.garpos_tools import functions as modeling_funcs
 from es_sfgtools.modeling.garpos_tools import hyper_params
+from .catalog import Catalog
 
 import sqlalchemy as sa
 from .database import Base,Assets,MultiAssets,ModelResults
 from .constants import FILE_TYPE,DATA_TYPE,REMOTE_TYPE,ALIAS_MAP,FILE_TYPES
 from .datadiscovery import scrape_directory_local,get_file_type_local,get_file_type_remote
-from .data_ops import create_multi_asset_dataframe,create_multi_asset_rinex
+from .data_ops import create_multi_asset_dataframe,create_multi_asset_rinex,dev_create_multi_asset_dataframe,dev_create_multiasset_rinex
 logger = logging.getLogger(__name__)
 
 TARGET_MAP = {
@@ -129,8 +130,7 @@ class DataHandler:
         if not self.db_path.exists():
             self.db_path.touch()
 
-        self.engine = sa.create_engine(f"sqlite+pysqlite:///{self.db_path}",poolclass=sa.pool.NullPool)
-        Base.metadata.create_all(self.engine)
+        self.catalog = Catalog(self.db_path)
 
         logging.basicConfig(level=logging.INFO,
                             format="{asctime} {message}",
@@ -143,16 +143,7 @@ class DataHandler:
             print(response)
 
     def get_dtype_counts(self):
-
-        with self.engine.begin() as conn:
-            data_type_counts = [dict(row._mapping) for row in conn.execute(
-                sa.select(sa.func.count(Assets.type),Assets.type).where(
-                    Assets.network.in_([self.network]),Assets.station.in_([self.station]),Assets.survey.in_([self.survey]),Assets.local_path.is_not(None)
-                    ).group_by(Assets.type)
-                ).fetchall()]
-            if len(data_type_counts) == 0:
-                return {"Local files found":0}
-        return {x["type"]:x["count_1"] for x in data_type_counts}    
+        return self.catalog.get_dtype_counts()
 
     def _add_data_local(self,
                         local_filepaths:List[AssetEntry],
@@ -173,31 +164,15 @@ class DataHandler:
             count += 1
 
         # See if the data is already in the catalog
-        with self.engine.begin() as conn:
-            # get local file paths under the same network, station, survey
-            file_data_map = {x['local_path']:x for x in file_data_list}
-            existing_files = [row[0] for row in conn.execute(sa.select(Assets.local_path).where(
-                Assets.network.in_([self.network]),Assets.station.in_([self.station]),Assets.survey.in_([self.survey])
-            )).fetchall()]            
-            # remove existing files from the file_data_map
-            while existing_files:
-                file = existing_files.pop()
-                file_data_map.pop(file,None)
-
-            if len(file_data_map) == 0:
-                response = f"No new files to add"
-                logger.info(response)
-                if show_details:
-                    print(response)
-                return
-            response = f"Adding {len(file_data_map)} new files to the catalog"
-            logger.info(response)
-            if show_details:
-                print(response)
-            # now add the new files
-            conn.execute(
-                sa.insert(Assets).values(list(file_data_map.values()))
-            )
+        file_paths = [AssetEntry(**x) for x in file_data_list]
+        uploadCount = 0
+        for asset in file_paths:
+            if self.catalog.add_entry(asset):
+                uploadCount += 1
+        response = f"Added {uploadCount} out of {count} files to the catalog"
+        logger.info(response)
+        if show_details:
+            print(response)
 
     def add_data_directory(self,dir_path:Path,show_details:bool=True):
         """
@@ -221,9 +196,11 @@ class DataHandler:
         self._add_data_local(files,show_details=show_details)
 
     def add_data_local(self,
-                        local_filepaths:List[Union[str,Path]],
+                        local_filepaths:Union[List[Union[str,Path]],str],
                         show_details:bool=True,
                         **kwargs):
+        if isinstance(local_filepaths,str):
+            local_filepaths = [Path(local_filepaths)]
         discovered_files : List[AssetEntry] = [get_file_type_local(file) for file in local_filepaths]
         discovered_files = [x for x in discovered_files if x is not None]
 
@@ -264,44 +241,24 @@ class DataHandler:
             if discovered_file is None:
                 continue
 
-            file_data = discovered_file.model_dump() | {
+            file_data = AssetEntry(**(discovered_file.model_dump() | {
                 "network": self.network,
                 "station": self.station,
                 "survey": self.survey,
                 "timestamp_created": datetime.datetime.now(),
             }
+            ))
             file_data_list.append(file_data)
 
-        # See if the data is already in the catalog
-        file_data_map = {x['remote_path']:x for x in file_data_list}
-        response = f"Total remote files found {len(file_data_map)}"
+        count = len(file_data_list)
+        uploadCount = 0
+        for asset in file_data_list:
+            if self.catalog.add_entry(asset):
+                uploadCount += 1
+        response = f"Added {uploadCount} out of {count} files to the catalog"
         logger.info(response)
         if show_details:
             print(response)
-        with self.engine.begin() as conn:
-            existing_files = [dict(row._mapping) for row in conn.execute(sa.select(Assets.remote_path).where(
-                Assets.network.in_([self.network]),Assets.station.in_([self.station]),Assets.survey.in_([self.survey])
-            )).fetchall()]
-            response = f"Total files tracked in catalog {len(existing_files)}"
-            logger.info(response)
-            if show_details:
-                print(response)
-            # remove existing files from the file_data_map
-            for file in existing_files:
-                file_data_map.pop(file['remote_path'],None)
-
-            if len(file_data_map) == 0:
-                response = f"No new files found to add"
-                logger.info(response)
-                print(response)
-                return
-            response = f"Adding {len(file_data_map)} new files to the catalog"
-            logger.info(response)
-            print(response)
-            # now add the new files
-            conn.execute(
-                sa.insert(Assets).values(list(file_data_map.values()))
-            )
 
     def download_data(self,
                     file_type: str="all",
@@ -528,21 +485,6 @@ class DataHandler:
 
     # pbar.close()
 
-    def add_entry(self, entry: AssetEntry | MultiAssetEntry):
-        """
-        Add an entry in the catalog.  This may result in duplicates, which need to be cleaned up via
-        consolidate_entries()
-
-        Args:
-            entry (dict): The new entry.
-
-        Returns:
-            None
-        """
-        assert isinstance(entry, AssetEntry) or isinstance(entry, MultiAssetEntry), "Entry must be of type AssetEntry or MultiAssetEntry"
-        table = Assets if isinstance(entry,AssetEntry) else MultiAssets
-        with self.engine.begin() as conn:
-            conn.execute(sa.insert(table).values(entry.model_dump()))   #s)ues(e
 
     def get_parent_stack(
         self, child_type: AssetType
@@ -763,75 +705,6 @@ class DataHandler:
             print(response)
         return parent_data_list, child_data_list
 
-    def _update_parent_child_catalog(self,
-                              parent_data:AssetEntry | MultiAssetEntry,
-                              child_data:AssetEntry | MultiAssetEntry):
-
-        if not child_data.local_path.exists():
-            return
-        table = Assets if isinstance(parent_data,AssetEntry) else MultiAssets
-        with self.engine.begin() as conn:
-            try:
-                conn.execute(
-                    sa.insert(table).values([parent_data.model_dump()])
-                )
-            except sa.exc.IntegrityError:
-                conn.execute(
-                    sa.update(table=table)
-                    .where(table.id.is_(parent_data.id))
-                    .where(table.local_path.is_(str(parent_data.local_path)))
-                    .values(parent_data.model_dump())
-                )
-            try:
-                conn.execute(
-                    sa.insert(table).values([child_data.model_dump()])
-                )
-            except sa.exc.IntegrityError:
-                conn.execute(
-                    sa.update(table=table)
-                    .where(table.id.is_(child_data.id))
-                    .where(table.local_path.is_(str(child_data.local_path)))
-                    .values(child_data.model_dump())
-                )
-
-    def _get_entries_to_process(self,parent_type:AssetType,child_type:AssetType,override:bool=False) -> List[AssetEntry]:
-
-        with self.engine.begin() as conn:
-            parent_entries = conn.execute(
-                sa.select(Assets).where(
-                    Assets.network.is_(self.network),Assets.station.is_(self.station),Assets.survey.is_(self.survey),
-                    Assets.local_path.isnot(None),Assets.type.is_(parent_type.value)
-                )
-            ).fetchall()
-            if not parent_entries:
-                msg = f"No entries of type {parent_type.value} found in catalog for {self.network} {self.station} {self.survey}"
-                logger.error(msg)
-                print(msg)
-                return []
-            # Create a map of parent entries for easy lookup
-            parent_entries_map = {x.id: x for x in parent_entries}
-
-            # Fetch child entries matching the parent entries
-            parent_id = list(parent_entries_map.keys())
-            child_entries = conn.execute(
-                sa.select(Assets).where(
-                    Assets.network == self.network,
-                    Assets.station == self.station,
-                    Assets.survey == self.survey,
-                    Assets.type == child_type.value,
-                    Assets.parent_id.in_(parent_id),
-                )
-            ).fetchall()
-
-            # If not overriding, remove processed parent entries
-            if not override:
-                while child_entries:
-                    child = child_entries.pop()
-                    parent_entries_map.pop(int(child.parent_id), None)
-            msg = f"Found {len(parent_entries_map)} entries of type {parent_type.value} to process to {child_type.value}"
-            logger.info(msg)
-            return [AssetEntry(**dict(row._mapping)) for row in parent_entries_map.values()]
-
     def  _process_data_link(self,
                            target:AssetType | MultiAssetEntry,
                            source:AssetType | MultiAssetEntry,
@@ -851,13 +724,18 @@ class DataHandler:
         """
         # Get the parent entries
         if parent_entries is None:
-            parent_entries = self._get_entries_to_process(parent_type=source,child_type=target,override=override)
+            parent_entries = self.catalog.get_single_entries_to_process(
+                network=self.network,station=self.station,survey=self.survey,parent_type=source,child_type=target,override=override)
+            
         if parent_entries is None:
             return [],[]
         parent_data_list,child_data_list = self._process_entries(parent_entries=parent_entries,child_type=target,show_details=show_details)
         for parent_data,child_data in zip(parent_data_list,child_data_list):
+
+            self.catalog.add_or_update(parent_data)
             if child_data is not None:
-                self._update_parent_child_catalog(parent_data,child_data)
+                self.catalog.add_or_update(child_data)
+
 
         return parent_data_list,child_data_list
 
@@ -922,18 +800,6 @@ class DataHandler:
     def process_sv3_data(self, override:bool=False, show_details:bool=False):
         self._process_data_graph_forward(AssetType.DFOP00,override=override, show_details=show_details,)
 
-    def _get_assets(self,asset_type:AssetType) -> List[AssetEntry]:
-        with self.engine.begin() as conn:
-            entries = conn.execute(
-                sa.select(Assets).where(
-                    Assets.network == self.network,
-                    Assets.station == self.station,
-                    Assets.survey == self.survey,
-                    Assets.type == asset_type.value
-                )
-            ).fetchall()
-        return [AssetEntry(**dict(row._mapping)) for row in entries]
-
     def dev_group_session_data(self,
                            source:Union[str,AssetType] = AssetType.SHOTDATA,
                            override:bool=False
@@ -954,8 +820,10 @@ class DataHandler:
             except:
                 raise ValueError(f"Source {source} must be one of {AssetType.__members__.keys()}")
 
-        assets:List[AssetEntry] = self._get_assets(source)
-        if not assets:
+        pre_multi_assets: List[MultiAssetPre] = self.catalog.get_multi_entries_to_process(
+            network=self.network,station=self.station,survey=self.survey,source=source,override=override,child_type=source,parent_type=source
+        )
+        if not pre_multi_assets:
             raise ValueError(f"No assets of type {source.value} found in catalog for {self.network} {self.station} {self.survey}")
 
         match source:
@@ -965,44 +833,29 @@ class DataHandler:
                 | AssetType.ACOUSTIC
                 | AssetType.GNSS
             ):
-                multi_asset_list: List[MultiAssetEntry] = create_multi_asset_dataframe(
-                    assets=assets, writedir=self.inter_dir
+                multi_asset_list: List[MultiAssetEntry] = dev_create_multi_asset_dataframe(
+                    multi_asset_pre=pre_multi_assets, working_dir=self.inter_dir
                 )
-
+                   
             case AssetType.RINEX:
-                multi_asset_list:List[MultiAssetEntry] = create_multi_asset_rinex(
-                assets=assets,
-                working_dir=self.inter_dir
+                multi_asset_list:List[MultiAssetEntry] = dev_create_multiasset_rinex(
+                    multi_asset_pre=pre_multi_assets, working_dir=self.inter_dir
                 )
-
+                
         logger.info(f"Created {len(multi_asset_list)} MultiAssetEntries for {source.value}")
-
+        uploadCount = 0
         for multi_asset in multi_asset_list:
-            try:
-                self.add_entry(multi_asset)
-            except Exception as e:
-                logger.error(f"Error adding MultiAssetEntry {multi_asset.id} to catalog: {e}")
-                continue
+            if self.catalog.add_entry(multi_asset):
+                uploadCount += 1
+        response = f"Added {uploadCount} out of {len(multi_asset_list)} MultiAssetEntries to the catalog"
+        logger.info(response)
+        print(response)
+            
 
     def query_catalog(self,
                       query:str) -> pd.DataFrame:
-        with self.engine.begin() as conn:
-            try:
-                return pd.read_sql_query(query,conn)
-            except sa.exc.ResourceClosedError:
-                # handle queries that don't return results
-                conn.execute(sa.text(query))
+       return self.catalog.query(query)
 
-    def get_asset_data(self,asset_type:AssetType,multiasset:bool=False) -> List[AssetEntry | MultiAssetEntry]:
-        table = MultiAssets if multiasset else Assets
-        entrySchema = MultiAssetEntry if multiasset else AssetEntry
-        with self.engine.begin() as conn:
-            entries = conn.execute(sa.select(table).where(
-                table.type == asset_type.value,
-                table.network == self.network,
-                table.station == self.station,
-                table.survey == self.survey)).fetchall()
-        return [entrySchema(**row._mapping) for row in entries]
 
     def interpolate_enu(self,tenu_l:np.ndarray,enu_l_sig:np.ndarray,tenu_r:np.ndarray,enu_r_sig:np.ndarray) -> np.ndarray:
         # interpolate the enu values between the left and right enu values
@@ -1029,8 +882,8 @@ class DataHandler:
 
     def update_shotdata(self,plot:bool=False):
         # For each shotdata multiasset entry, update the shotdata position with gnss data
-        shotdata_ma_list: List[MultiAssetEntry] = self.get_asset_data(AssetType.SHOTDATA,multiasset=True)
-        gnss_ma_list: List[MultiAssetEntry] = self.get_asset_data(AssetType.GNSS,multiasset=True)
+        shotdata_ma_list: List[MultiAssetEntry] = self.catalog.get_assets(network=self.network,station=self.station,survey=self.survey,asset_type=AssetType.SHOTDATA,multiasset=True)#self.get_asset_data(AssetType.SHOTDATA,multiasset=True)
+        gnss_ma_list: List[MultiAssetEntry] = self.catalog.get_assets(network=self.network,station=self.station,survey=self.survey,asset_type=AssetType.GNSS,multiasset=True)
         shotdata_date_map = {x.timestamp_data_start.date():x for x in shotdata_ma_list}
         gnss_date_map = {x.timestamp_data_start.date():x for x in gnss_ma_list}
         merged_date_map = {}
@@ -1090,7 +943,7 @@ class DataHandler:
             target=AssetType.KIN,source=AssetType.RINEX,override=override,parent_entries=rinex_ma_list,show_details=show_details)
 
         kin_ma_list_q: List[MultiAssetEntry] = self.get_asset_data(AssetType.KIN,multiasset=True)
-        
+
         _,processed_gnss = self._process_data_link(target=AssetType.GNSS,source=AssetType.KIN,override=override,parent_entries=kin_ma_list,show_details=show_details)
 
         # [self.add_entry(x) for x in processed_gnss if x is not None]
