@@ -249,12 +249,17 @@ def novatel_to_rinex(
             str(binary_path),
             "-meta",
             str(metadata_path),
-            "-out",
-            str(rinex_outfile),
             str(source.local_path),
         ]
 
         result = subprocess.run(cmd, check=True, capture_output=True,cwd=workdir)
+        rnx_files = Path(workdir).rglob(f"*{site}*")
+        for rnx_file in rnx_files:
+            if "o" in str(rnx_file.suffix):
+                shutil.move(rnx_file, rinex_outfile)
+                break
+        
+
         if not rinex_outfile.exists():
             logger.error(result.stderr)
             return None
@@ -518,7 +523,7 @@ def dev_merge_rinex(sources: List[AssetEntry],working_dir:Path) -> List[MultiAss
     doy_filemap = {}
     for source in sources:
         doy_filemap.setdefault(source.timestamp_data_start.timetuple().tm_yday, []).append(
-            str(source.id)
+            str(source.id) if source.id is not None else str(source.parent_id)
         )
     survey = sources[0].station
 
@@ -557,3 +562,4 @@ def dev_merge_rinex(sources: List[AssetEntry],working_dir:Path) -> List[MultiAss
     if not merged_files:
         raise ValueError("No merged files found")
     return merged_files
+

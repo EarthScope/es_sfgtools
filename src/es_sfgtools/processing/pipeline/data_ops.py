@@ -105,7 +105,7 @@ def dev_create_multi_asset_dataframe(
         AssetType.GNSS,
     ], f"AssetType {multi_asset_pre.child_type} not supported for MultiAsset creation"
 
-    merged_df = pd.concat([pd.read_csv(x.local_path) for x in multi_asset_pre.parent_assets])
+    merged_df = pd.concat([pd.read_csv(x) for x in multi_asset_pre.source_paths])
     merged_df = ASSET_DF_MAP[multi_asset_pre.child_type].validate(merged_df,lazy=True)
     if merged_df.empty:
         raise ValueError(f"Empty DataFrame for {multi_asset_pre.network} {multi_asset_pre.station} {multi_asset_pre.survey} {multi_asset_pre.child_type}")
@@ -121,7 +121,7 @@ def dev_create_multi_asset_dataframe(
         raise ValueError("No datetime column found in DataFrame")
     timestamp_data_start = merged_df[time_col].min()
     timestamp_data_end = merged_df[time_col].max()
-    ids_str = ",".join([str(x.id) for x in multi_asset_pre.parent_id])
+    ids_str = ",".join([str(x) for x in multi_asset_pre.parent_id])
     local_path = working_dir / f"{multi_asset_pre.network}_{multi_asset_pre.station}_{multi_asset_pre.survey}_{multi_asset_pre.child_type.value}_{ids_str}_{str(timestamp_data_start.date())}.csv"
 
     merged_df.to_csv(local_path, index=False)

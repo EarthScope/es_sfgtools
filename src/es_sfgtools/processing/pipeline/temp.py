@@ -19,6 +19,7 @@ import warnings
 import folium
 import json
 import concurrent.futures
+import itertools
 import logging
 import multiprocessing
 import threading
@@ -143,7 +144,7 @@ class DataHandler:
             print(response)
 
     def get_dtype_counts(self):
-        return self.catalog.get_dtype_counts()
+        return self.catalog.get_dtype_counts(network=self.network,station=self.station,survey=self.survey)
 
     def _add_data_local(self,
                         local_filepaths:List[AssetEntry],
@@ -630,7 +631,6 @@ class DataHandler:
                     parent_id=parent.id,
                     timestamp_data_start=timestamp_data_start,
                     timestamp_data_end=timestamp_data_end,
-                    timestamp_created=datetime.datetime.now(),
                     network=parent.network,
                     station=parent.station,
                     survey=parent.survey,
@@ -821,7 +821,7 @@ class DataHandler:
                 raise ValueError(f"Source {source} must be one of {AssetType.__members__.keys()}")
 
         pre_multi_assets: List[MultiAssetPre] = self.catalog.get_multi_entries_to_process(
-            network=self.network,station=self.station,survey=self.survey,source=source,override=override,child_type=source,parent_type=source
+            network=self.network,station=self.station,survey=self.survey,override=override,child_type=source,parent_type=source
         )
         if not pre_multi_assets:
             raise ValueError(f"No assets of type {source.value} found in catalog for {self.network} {self.station} {self.survey}")
@@ -833,20 +833,22 @@ class DataHandler:
                 | AssetType.ACOUSTIC
                 | AssetType.GNSS
             ):
-                multi_asset_list: List[MultiAssetEntry] = dev_create_multi_asset_dataframe(
-                    multi_asset_pre=pre_multi_assets, working_dir=self.inter_dir
-                )
+                multi_asset_list: List[MultiAssetEntry] = [dev_create_multi_asset_dataframe(
+                    multi_asset_pre=pre_multi_asset, working_dir=self.inter_dir
+                ) for pre_multi_asset in pre_multi_assets]
                    
             case AssetType.RINEX:
-                multi_asset_list:List[MultiAssetEntry] = dev_create_multiasset_rinex(
-                    multi_asset_pre=pre_multi_assets, working_dir=self.inter_dir
-                )
+                multi_asset_list = []
+                [multi_asset_list.extend(dev_create_multiasset_rinex(
+                    multi_asset_pre=pre_multi_asset, working_dir=self.inter_dir)
+                ) for pre_multi_asset in pre_multi_assets]
                 
         logger.info(f"Created {len(multi_asset_list)} MultiAssetEntries for {source.value}")
         uploadCount = 0
         for multi_asset in multi_asset_list:
-            if self.catalog.add_entry(multi_asset):
-                uploadCount += 1
+            if multi_asset is not None:
+                if self.catalog.add_entry(multi_asset):
+                    uploadCount += 1
         response = f"Added {uploadCount} out of {len(multi_asset_list)} MultiAssetEntries to the catalog"
         logger.info(response)
         print(response)
@@ -930,19 +932,18 @@ class DataHandler:
             target=AssetType.GNSS,source=AssetType.KIN,override=override,parent_entries=processed_rinex_kin[1],show_details=show_details)
 
     def pipeline_sv3(self,override:bool=False,show_details:bool=False):
-        # self._process_data_graph(AssetType.POSITION,override=override,show_details=show_details)
-        # self._process_data_graph(AssetType.RINEX,override=override,show_details=show_details)
-        # self._process_data_graph_forward(AssetType.DFOP00,override=override,show_details=show_details)
-        # shotdata_ma_list: List[MultiAssetEntry] = self.dev_group_session_data(source=AssetType.SHOTDATA,override=override)
-        # # add the merged shotdata to the catalog
+        self._process_data_graph(AssetType.POSITION,override=override,show_details=show_details)
+        self._process_data_graph(AssetType.RINEX,override=override,show_details=show_details)
+        self._process_data_graph_forward(AssetType.DFOP00,override=override,show_details=show_details)
+        shotdata_ma_list: List[MultiAssetEntry] = self.dev_group_session_data(source=AssetType.SHOTDATA,override=override)
+        # add the merged shotdata to the catalog
 
-        # rinex_ma_list: List[MultiAssetEntry] = self.dev_group_session_data(source=AssetType.RINEX,override=override)
+        rinex_ma_list: List[MultiAssetEntry] = self.dev_group_session_data(source=AssetType.RINEX,override=override)
 
-        rinex_ma_list: List[MultiAssetEntry] = self.get_asset_data(AssetType.RINEX,multiasset=True)
+      
         _,kin_ma_list= self._process_data_link(
             target=AssetType.KIN,source=AssetType.RINEX,override=override,parent_entries=rinex_ma_list,show_details=show_details)
 
-        kin_ma_list_q: List[MultiAssetEntry] = self.get_asset_data(AssetType.KIN,multiasset=True)
 
         _,processed_gnss = self._process_data_link(target=AssetType.GNSS,source=AssetType.KIN,override=override,parent_entries=kin_ma_list,show_details=show_details)
 

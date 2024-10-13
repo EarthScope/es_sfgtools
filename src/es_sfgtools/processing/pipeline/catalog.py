@@ -18,16 +18,16 @@ class Catalog:
         )
         Base.metadata.create_all(self.engine)
     
-    def get_dtype_counts(self) -> Dict[str,int]:
+    def get_dtype_counts(self,network:str,station:str,survey:str,**kwargs) -> Dict[str,int]:
         with self.engine.begin() as conn:
             data_type_counts = [
                 dict(row._mapping)
                 for row in conn.execute(
                     sa.select(sa.func.count(Assets.type), Assets.type)
                     .where(
-                        Assets.network.in_([self.network]),
-                        Assets.station.in_([self.station]),
-                        Assets.survey.in_([self.survey]),
+                        Assets.network.in_([network]),
+                        Assets.station.in_([station]),
+                        Assets.survey.in_([survey]),
                         Assets.local_path.is_not(None),
                     )
                     .group_by(Assets.type)
@@ -88,12 +88,14 @@ class Catalog:
         parent_entries: List[AssetEntry] = self.get_assets(network,station,survey,parent_type,multiasset=False)
         doy_ma_map: Dict[datetime.date : MultiAssetPre] = MultiAssetPre.from_asset_list(parent_entries,child_type=child_type)
         # Search for the multiasset entries that are already in the database
+        to_remove = []
         for doy,multiasset_pre in doy_ma_map.items():
-            matching_entry = self.find_entry(multiasset_pre.to_multiasset())
+            matching_entry = self.find_entry(multiasset_pre[0].to_multiasset())
             if matching_entry and not override:
-                doy_ma_map.pop(doy)
+                to_remove.append(doy)
+        [doy_ma_map.pop(doy) for doy in to_remove]
 
-        return list(doy_ma_map.values())
+        return [x[0] for x in doy_ma_map.values()]
 
     def find_entry(self,entry:AssetEntry | MultiAssetEntry) -> AssetEntry | MultiAssetEntry | None:
         table = Assets if isinstance(entry, AssetEntry) else MultiAssets
@@ -110,16 +112,27 @@ class Catalog:
         return None
 
     def add_or_update(self,entry: AssetEntry | MultiAssetEntry):
+        if entry is None:
+            return
         table = Assets if isinstance(entry, AssetEntry) else MultiAssets
+    
         with self.engine.begin() as conn:
+
             try:
-                conn.execute(sa.insert(table).values(entry.model_dump()))
-            except sa.exc.IntegrityError:
                 conn.execute(
-                    sa.update(table=table)
-                    .where(table.local_path.is_(str(entry.local_path)))
-                    .values(entry.model_dump())
-                )
+                    sa.insert(table).values(entry.model_dump()))
+            except Exception as e:
+                print(e)
+                try:
+                    conn.execute(
+                        sa.update(table=table)
+                        .where(table.local_path.is_(str(entry.local_path)))
+                        .values(entry.model_dump()) 
+                    )
+                except Exception as e:
+       
+                    logger.error(f"Error adding or updating entry {entry}")
+                    pass
 
     def query_catalog(self,
                       query:str) -> pd.DataFrame:

@@ -94,7 +94,7 @@ class _AssetBase(BaseModel):
 
     timestamp_data_start: Optional[datetime] = Field(default=None)
     timestamp_data_end: Optional[datetime] = Field(default=None)
-    timestamp_created: Optional[datetime] = Field(default=None)
+    # timestamp_created: Optional[datetime] = Field(default=None)
 
     # @field_serializer("timestamp_data_start","timestamp_data_end","timestamp_created",when_used="always")
     # def _serialize_timestamp_data_start(self, v: Optional[datetime]):
@@ -188,18 +188,21 @@ class MultiAssetPre(BaseModel):
                 survey=self.survey,
                 timestamp_data_start=self.timestamp_data_start,
                 timestamp_data_end=self.timestamp_data_end,
-                parent_id=self.parent_id,
+                parent_id=id,
                 local_path=str(path),
             )
-            for path in self.source_paths
+            for id,path in zip(self.parent_id,self.source_paths)
         ]
     
     @classmethod
-    def from_asset_list(cls,assets:List[AssetEntry],child_type:AssetType)->Dict[datetime.date : "MultiAssetPre"]:
+    def from_asset_list(cls,assets:List[AssetEntry],child_type:AssetType)->Dict[datetime.date ,"MultiAssetPre"]:
         doy_map = {}
         for entry in sorted(assets, key=lambda x: x.timestamp_data_start):
             start_date = entry.timestamp_data_start.date()
-            stop_date = entry.timestamp_data_end.date()
+            try:
+                stop_date = entry.timestamp_data_end.date()
+            except AttributeError:
+                stop_date = start_date
             [
                 doy_map.setdefault(date, []).append(entry)
                 for date in list(set([start_date, stop_date]))
