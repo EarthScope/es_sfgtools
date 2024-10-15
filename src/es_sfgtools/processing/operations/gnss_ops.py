@@ -19,7 +19,7 @@ from pathlib import Path
 import numpy as np
 import uuid
 
-from ..assets.file_schemas import AssetEntry,AssetType,MultiAssetEntry
+from ..assets.file_schemas import AssetEntry,AssetType,MultiAssetEntry,MultiAssetPre
 from ..assets.observables import GNSSDataFrame
 
 logger = logging.getLogger(__name__)
@@ -169,7 +169,7 @@ def _rinex_get_time(line):
     return start_time
 
 
-def rinex_get_meta(source:AssetEntry) ->AssetEntry:
+def rinex_get_meta(source:AssetEntry | MultiAssetEntry) ->AssetEntry|MultiAssetEntry:
     assert source.type == AssetType.RINEX, f"Expected RINEX file, got {source.type}"
     with open(source.local_path) as f:
         files = f.readlines()
@@ -362,14 +362,16 @@ def rinex_to_kin(
     tag_files = pridedir.rglob(f"*{site.lower()}*")
     if isinstance(source,AssetEntry):
         schema = AssetEntry
+        tag = str(source.id)
     else:
         schema = MultiAssetEntry
+        tag = "-".join([str(x) for x in source.parent_id])
 
     for tag_file in tag_files:
         # print("tag file:", tag_file)
         if "kin" in tag_file.name:
             kin_file = tag_file
-            kin_file_new = writedir / (kin_file.name + ".kin")
+            kin_file_new = writedir / (tag + "_" + kin_file.name + ".kin")
             shutil.move(kin_file, kin_file_new)
             kin_file = schema(
                 type=AssetType.KIN,
@@ -378,6 +380,9 @@ def rinex_to_kin(
                 timestamp_data_end=source.timestamp_data_end,
                 timestamp_created=datetime.now(),
                 local_path=kin_file_new,
+                network=source.network,
+                station=source.station,
+                survey=source.survey,
             )
             response = f"Converted RINEX file {source.local_path} to kin file {kin_file.local_path}"
             logger.info(response)
@@ -545,13 +550,16 @@ def dev_merge_rinex(sources: List[AssetEntry],working_dir:Path) -> List[MultiAss
     # merged_files = list(Path(tempdir).rglob(f"{survey}*"))
     merged_files = []
     for doy,source_id_str in doy_filemap.items():
-        merged_file = list(Path(working_dir).rglob(f"{survey}{doy:03d}*"))
+        merged_file = list(Path(working_dir).rglob(f"{survey}{doy:03d}0*"))
         if not merged_file:
             continue
         assert len(merged_file) == 1, f"Expected 1 merged file, got {len(merged_file)}"
+        merged_file:Path = merged_file[0]
+        new_merged_rinex_name = "-".join(source_id_str) + "_" + merged_file.name
+        merged_file = merged_file.rename(working_dir / new_merged_rinex_name)
         merged_asset = MultiAssetEntry(
             parent_id=source_id_str,
-            local_path=merged_file[0],
+            local_path=merged_file,
             type=AssetType.RINEX,
             network=sources[0].network,
             station=sources[0].station,
@@ -563,3 +571,51 @@ def dev_merge_rinex(sources: List[AssetEntry],working_dir:Path) -> List[MultiAss
         raise ValueError("No merged files found")
     return merged_files
 
+def dev_merge_rinex_multiasset(source:MultiAssetPre,working_dir:Path) -> MultiAssetEntry:
+
+    # get system platform and architecture
+    system = platform.system().lower()
+    arch = platform.machine().lower()
+    if arch == "x86_64":
+        arch = "amd64"
+    if system not in ["darwin", "linux"]:
+        raise ValueError(f"Unsupported platform: {system}")
+    if arch not in ["amd64", "arm64"]:
+        raise ValueError(f"Unsupported architecture: {arch}")
+
+    binary_path = TEQC_BIN_PATH[f"{system}_{arch}"]
+    assert os.path.exists(binary_path), f"Binary not found: {binary_path}"
+
+    doy = source.timestamp_data_start.timetuple().tm_yday
+    survey = source.station
+    cmd = [
+        str(binary_path),
+        "+obs",
+        "+",
+        "-tbin",
+        "1d", # Time binning interval
+        survey,
+    ] + [str(x) for x in source.source_paths]
+    result = subprocess.run(" ".join(cmd), shell=True, cwd=str(working_dir))
+    if result.stderr:
+        logger.error(result.stderr)
+        return None
+
+    merged_file = list(Path(working_dir).rglob(f"*{survey}{doy}0*"))
+    if not merged_file:
+        raise ValueError("No merged files found")
+
+    merged_file = merged_file[0]
+    parent_id_str = "-".join([str(x) for x in source.parent_id])
+    new_merged_rinex_name = parent_id_str + "_" + merged_file.name
+    merged_file = merged_file.rename(working_dir / new_merged_rinex_name)
+    merged_asset = MultiAssetEntry(
+        parent_id=source.parent_id,
+        local_path=merged_file,
+        type=AssetType.RINEX,
+        network=source.network,
+        station=source.station,
+        survey=source.survey,
+        timestamp_created=datetime.now(),
+    )
+    return rinex_get_meta(merged_asset)

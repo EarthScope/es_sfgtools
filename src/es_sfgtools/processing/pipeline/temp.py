@@ -486,7 +486,6 @@ class DataHandler:
 
     # pbar.close()
 
-
     def get_parent_stack(
         self, child_type: AssetType
     ) -> List[AssetType]:
@@ -697,8 +696,13 @@ class DataHandler:
                 total=len(parent_entries),
                 desc=f"Processing {source_values} To {child_type.value}",
             ):
-                parent_data_list.append(parent_data)
-                child_data_list.append(child_data)
+                if parent_data is not None and child_data is not None:
+                    if parent_data.timestamp_data_start is None and child_data.timestamp_data_start is not None:
+                        parent_data.timestamp_data_start = child_data.timestamp_data_start
+                        parent_data.timestamp_data_end = child_data.timestamp_data_end
+                    parent_data_list.append(parent_data)
+                    child_data_list.append(child_data)
+
         response = f"Processed {len(child_data_list)} Out of {len(parent_entries)} For {child_type.value}"
         logger.info(response)
         if show_details:
@@ -726,7 +730,7 @@ class DataHandler:
         if parent_entries is None:
             parent_entries = self.catalog.get_single_entries_to_process(
                 network=self.network,station=self.station,survey=self.survey,parent_type=source,child_type=target,override=override)
-            
+
         if parent_entries is None:
             return [],[]
         parent_data_list,child_data_list = self._process_entries(parent_entries=parent_entries,child_type=target,show_details=show_details)
@@ -735,7 +739,6 @@ class DataHandler:
             self.catalog.add_or_update(parent_data)
             if child_data is not None:
                 self.catalog.add_or_update(child_data)
-
 
         return parent_data_list,child_data_list
 
@@ -747,8 +750,7 @@ class DataHandler:
         msg = f"\nProcessing Upstream Data for {child_type.value}\n"
         logger.info(msg)
         if show_details: print(msg)
-            
-    
+
         processing_queue = self.get_parent_stack(child_type=child_type)
         while processing_queue:
             parent = processing_queue.pop(0)
@@ -759,7 +761,7 @@ class DataHandler:
                     msg = f"\nProcessing {parent.value} to {child.value}"
                     logger.info(msg)
                     if show_details: print(msg)
-                 
+
                     self._process_data_link(
                         target=child,
                         source=parent,
@@ -824,7 +826,10 @@ class DataHandler:
             network=self.network,station=self.station,survey=self.survey,override=override,child_type=source,parent_type=source
         )
         if not pre_multi_assets:
-            raise ValueError(f"No assets of type {source.value} found in catalog for {self.network} {self.station} {self.survey}")
+            if override:
+                raise ValueError(f"No assets of type {source.value} found in catalog for {self.network} {self.station} {self.survey}")
+            else:
+                return
 
         match source:
             case (
@@ -833,16 +838,25 @@ class DataHandler:
                 | AssetType.ACOUSTIC
                 | AssetType.GNSS
             ):
-                multi_asset_list: List[MultiAssetEntry] = [dev_create_multi_asset_dataframe(
-                    multi_asset_pre=pre_multi_asset, working_dir=self.inter_dir
-                ) for pre_multi_asset in pre_multi_assets]
-                   
+                multi_asset_list: List[MultiAssetEntry] = [
+                    dev_create_multi_asset_dataframe(
+                        multi_asset_pre=pre_multi_asset, working_dir=self.inter_dir
+                    )
+                    for pre_multi_asset in pre_multi_assets
+                ]
+
             case AssetType.RINEX:
                 multi_asset_list = []
-                [multi_asset_list.extend(dev_create_multiasset_rinex(
-                    multi_asset_pre=pre_multi_asset, working_dir=self.inter_dir)
-                ) for pre_multi_asset in pre_multi_assets]
-                
+                for pre_multi_asset in pre_multi_assets:
+                    try:
+                        rinex_ma:MultiAssetEntry = gnss_ops.dev_merge_rinex_multiasset(
+                            source=pre_multi_asset,working_dir=self.inter_dir
+                        )
+                        multi_asset_list.append(rinex_ma)
+                    except Exception as e:
+                        print(e)
+                        continue
+
         logger.info(f"Created {len(multi_asset_list)} MultiAssetEntries for {source.value}")
         uploadCount = 0
         for multi_asset in multi_asset_list:
@@ -852,12 +866,11 @@ class DataHandler:
         response = f"Added {uploadCount} out of {len(multi_asset_list)} MultiAssetEntries to the catalog"
         logger.info(response)
         print(response)
-            
+        return [x for x in multi_asset_list if x is not None]
 
     def query_catalog(self,
                       query:str) -> pd.DataFrame:
-       return self.catalog.query(query)
-
+        return self.catalog.query(query)
 
     def interpolate_enu(self,tenu_l:np.ndarray,enu_l_sig:np.ndarray,tenu_r:np.ndarray,enu_r_sig:np.ndarray) -> np.ndarray:
         # interpolate the enu values between the left and right enu values
@@ -865,21 +878,23 @@ class DataHandler:
         # enu is the east,north,up values in ECEF coordinates
         # sig is the standard deviation of the east,north,up values
         # returns the interpolated enu values and the standard deviation of the interpolated enu values predicted at the time values from tenu_r
-        kernel = RBF(length_scale=10)
-        X_train = np.vstack([tenu_l[:,0],tenu_r[:,0]]).T
-        X_predict = tenu_r[:,0].reshape(-1,1)
+        kernel = RBF(length_scale=4) + WhiteKernel(noise_level=0.01)
+        X_train = np.hstack((tenu_l[:,0],tenu_r[:,0])).T.astype(float).reshape(-1,1)
+        X_predict = tenu_r[:,0].reshape(-1,1).astype(float)
         K = kernel(X_train)
         Ks = kernel(X_train,X_predict)
         Kss = kernel(X_predict)
-        K_inv = np.linalg.inv(K)
+
         prediction_dict = {}
         for i,idx in enumerate(["east","north","up"]):
-            y_train = np.vstack([tenu_l[:,i],tenu_r[:,i]]).T
-            obsvar = np.diag(np.vstack([enu_l_sig[:,i],enu_r_sig[:,i]]).T.squeeze())
-            pseudo_kinv = K_inv + obsvar
-            mu = Ks@pseudo_kinv@y_train
-            sigma = Kss - Ks@pseudo_kinv@Ks.T + np.diag(enu_r_sig[:,i])
-            prediction_dict[idx] = np.hstack([tenu_r[:,0],mu,sigma])
+            y_train = np.hstack((tenu_l[:,i],tenu_r[:,i])).T
+            obsvar = np.diag(np.hstack((enu_l_sig[:,i],enu_r_sig[:,i])).T.squeeze()).astype(float)
+            pseudo_kinv = np.linalg.inv(K + obsvar)
+            mu = Ks.T@pseudo_kinv@y_train
+            sigma = Kss - Ks.T@pseudo_kinv@Ks + np.diag(enu_r_sig[:,i])
+            prediction_dict[idx] = np.hstack(
+                [tenu_r[:, 0].reshape(-1, 1), mu.reshape(-1, 1), sigma]
+            )
         return prediction_dict
 
     def update_shotdata(self,plot:bool=False):
@@ -895,11 +910,12 @@ class DataHandler:
                 shotdata_df = observables.ShotDataFrame(pd.read_csv(shotdata_date_map[date].local_path),lazy=True)
                 gnss_df = observables.GNSSDataFrame.validate(pd.read_csv(gnss_date_map[date].local_path),lazy=True)
                 # perform the interpolation of east,north,up positions between the shotdata and gnss data
+                delta_tenur = shotdata_df[['east1','north1','up1']].to_numpy() - shotdata_df[['east0','north0','up0']].to_numpy()
                 tenu_l = gnss_df[['time','east','north','up']].to_numpy()
-                tenu_l[:,0] = np.apply_along_axis(lambda x: pd.Timestamp(x,unit='s'),1,tenu_l[:,0])
+                tenu_l[:,0] = [x.timestamp() for x in tenu_l[:,0].tolist()]
                 enu_l_sig = 0.1*np.ones_like(tenu_l)
-                tenu_r = shotdata_df[['triggerTime','east','north','up']].to_numpy()
-                tenu_r[:,0] = np.apply_along_axis(lambda x: pd.Timestamp(x,unit='s'),1,tenu_r[:,0])
+                tenu_r = shotdata_df[['triggerTime','east0','north0','up0']].to_numpy()
+                tenu_r[:,0] = [x.timestamp() for x in tenu_r[:,0].tolist()]
                 enu_r_sig = shotdata_df[["east_std","north_std","up_std"]].to_numpy()
                 enu_r_sig[np.isnan(enu_r_sig)] = 1.0 # set the standard deviation to 1.0 meters if it is nan
                 prediction_dict : Dict[str,np.ndarray] = self.interpolate_enu(tenu_l,enu_l_sig,tenu_r,enu_r_sig)
@@ -912,6 +928,7 @@ class DataHandler:
                 if plot:
                     plt.legend()
                     plt.show()
+                shotdata_df[['east1','north1','up1']] = shotdata_df[['east0','north0','up0']].to_numpy() - delta_tenur 
 
                 response = f"Found matching gnss data for shotdata on {date}"
                 logger.info(response)
@@ -932,253 +949,18 @@ class DataHandler:
             target=AssetType.GNSS,source=AssetType.KIN,override=override,parent_entries=processed_rinex_kin[1],show_details=show_details)
 
     def pipeline_sv3(self,override:bool=False,show_details:bool=False):
-        self._process_data_graph(AssetType.POSITION,override=override,show_details=show_details)
-        self._process_data_graph(AssetType.RINEX,override=override,show_details=show_details)
+        # self._process_data_graph(AssetType.POSITION,override=override,show_details=show_details)
+        #     self._process_data_graph(AssetType.RINEX,override=override,show_details=show_details)
+        #     #self._process_data_graph_forward(AssetType.DFOP00,override=override,show_details=show_details)
+        #     #shotdata_ma_list: List[MultiAssetEntry] = self.dev_group_session_data(source=AssetType.SHOTDATA,override=override)
+        #     # add the merged shotdata to the catalog
+
+        #     rinex_ma_list: List[MultiAssetEntry] = self.dev_group_session_data(source=AssetType.RINEX,override=override)
+
+        #     _,kin_ma_list= self._process_data_link(
+        #         target=AssetType.KIN,source=AssetType.RINEX,override=override,parent_entries=rinex_ma_list,show_details=show_details)
+
+        #    # kin_ma_list = self.catalog.get_multi_entries_to_process(network=self.network,station=self.station,survey=self.survey,child_type=AssetType.KIN,parent_type=AssetType.RINEX,override=override)
+        #     _,processed_gnss = self._process_data_link(target=AssetType.GNSS,source=AssetType.KIN,override=override,parent_entries=kin_ma_list,show_details=show_details)
         self._process_data_graph_forward(AssetType.DFOP00,override=override,show_details=show_details)
-        shotdata_ma_list: List[MultiAssetEntry] = self.dev_group_session_data(source=AssetType.SHOTDATA,override=override)
-        # add the merged shotdata to the catalog
-
-        rinex_ma_list: List[MultiAssetEntry] = self.dev_group_session_data(source=AssetType.RINEX,override=override)
-
-      
-        _,kin_ma_list= self._process_data_link(
-            target=AssetType.KIN,source=AssetType.RINEX,override=override,parent_entries=rinex_ma_list,show_details=show_details)
-
-
-        _,processed_gnss = self._process_data_link(target=AssetType.GNSS,source=AssetType.KIN,override=override,parent_entries=kin_ma_list,show_details=show_details)
-
-        # [self.add_entry(x) for x in processed_gnss if x is not None]
-
-    # def run_session_data(self,
-    #                      siteConfig:siteconfig.SiteConfig,
-    #                      soundVelocity:siteconfig.SoundVelocity,
-    #                      atdOffset:siteconfig.ATDOffset,
-    #                      source_type:str=AssetType.DFPO00.value,
-    #                      date_range:List[datetime.date]=[]):
-
-    # def get_observation_session_data(self,network:str,station:str,survey:str,plot:bool=False) -> pd.DataFrame:
-
-    #     time_groups = self.catalog_data[self.catalog_data.type.isin(['gnss','acoustic','imu'])].groupby('timestamp')
-    #     valid_groups = [group for name, group in time_groups] #
-    #     result = pd.concat(valid_groups)
-    #     primary_colums = ['network','station','survey','timestamp','type','local_path']
-    #     all_columns = list(result.columns)
-    #     for column in primary_colums[::-1]:
-    #         all_columns.remove(column)
-    #         all_columns.insert(0,column)
-
-    #     result = result[all_columns]
-    #     result = DataCatalog.validate(result)
-    #     times = result.timestamp.unique()
-    #     result.set_index(["network", "station", "survey", "timestamp"], inplace=True)
-    #     result.sort_index(inplace=True)
-
-    #     if plot:
-    #         fig, ax = plt.subplots(figsize=(16, 2))
-    #         ax.set_title(f"Observable Data Availability For Network: {network} Station: {station} Survey: {survey}")
-
-    #         ax.xaxis.set_major_locator(mdates.DayLocator(interval=2))
-    #         ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
-
-    #         for time in times:
-    #             ax.scatter(pd.to_datetime(time), 1,marker='o',color='green')
-
-    #         plt.xticks(rotation=45)
-    #         ax.set_xlabel("Timestamp")
-    #         ax.set_yticks([])
-
-    #         plt.show()
-
-    #     return result
-
-    # def group_observation_session_data(self,data:pd.DataFrame,timespan:str="DAY") -> dict:
-    #     # Create a group of dataframes for each timestamp
-    #     assert timespan in ['HOUR','DAY'], "Timespan must be either 'HOUR' or 'DAY'"
-    #     if timespan == 'HOUR':
-    #         grouper = pd.Grouper(key="timestamp", freq="h")
-    #     else:
-    #         grouper = pd.Grouper(key="timestamp", freq="D")
-    #     out = {}
-
-    #     obs_types = [AssetType.IMU.value, AssetType.GNSS.value, AssetType.ACOUSTIC.value]
-    #     for timestamp, group in data.groupby(grouper):
-    #         if group.shape[0] < 1:
-    #             continue
-    #         out[timestamp] = {}
-    #         for obs_type in obs_types:
-    #             out[timestamp][obs_type] = list(group[group.type == obs_type].local_path.values)
-
-    #     # prune empty entries
-    #     out = {str(k):v for k,v in out.items() if any([len(x) > 0 for x in v.values()])}
-    #     return out
-
-    # def plot_campaign_data(self,network:str,station:str,survey:str):
-    #     """
-    #     Plot the timestamps and data type for processed IMU,GNSS,and Acoustic data for a given network, station, and survey.
-
-    #     Args:
-    #         network (str): The network name.
-    #         station (str): The station name.
-    #         survey (str): The survey name.
-
-    #     Raises:
-    #         Exception: If no matching data is found in the catalog.
-    #     """
-
-    #     data_type_to_plot = [AssetType.IMU.value,AssetType.GNSS.value,AssetType.ACOUSTIC.value]
-
-    #     entries = self.catalog_data[
-    #         (self.catalog_data.network == network)
-    #         & (self.catalog_data.station == station)
-    #         & (self.catalog_data.survey == survey)
-    #         & (self.catalog_data.type.isin(data_type_to_plot))
-    #     ]
-
-    #     if entries.shape[0] < 1:
-    #         raise Exception('No matching data found in catalog')
-
-    #     # plot the timestamps and data type for processed IMU,GNSS,and Acoustic data
-    #     cmap = {
-    #         AssetType.IMU.value: "blue",
-    #         AssetType.GNSS.value: "green",
-    #         AssetType.ACOUSTIC.value: "red",
-    #     }
-
-    #     fig, axes = plt.subplots(3, 1, figsize=(10, 4), sharex=True)
-
-    #     fig.suptitle(f"Observable Data Availablility For Network: {network} Station: {station} Survey: {survey}")
-    #     # Set the x-axis to display dates
-    #     for ax in axes:
-    #         ax.xaxis.set_major_locator(mdates.WeekdayLocator())
-    #         ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
-
-    #     data_type_titles = {
-    #         AssetType.IMU.value: "IMU Data",
-    #         AssetType.GNSS.value: "GNSS Data",
-    #         AssetType.ACOUSTIC.value: "Acoustic Data",
-    #     }
-
-    #     for i, data_type in enumerate(data_type_to_plot):
-    #         data = entries[entries.type == data_type]
-    #         for timestamp in data.timestamp:
-    #             axes[i].axvline(pd.to_datetime(timestamp), color=cmap[data_type], linestyle="-")
-    #         axes[i].set_title(data_type_titles[data_type])
-    #         axes[i].get_yaxis().set_visible(False)  # Hide y-axis values
-
-    #     # Add x-axis label to the bottom subplot
-    #     axes[-1].set_xlabel("Timestamp")
-
-    #     plt.tight_layout()
-    #     plt.show()
-
-    # def get_site_config(self,network:str,station:str,survey:str) -> siteconfig.SiteConfig:
-    #     """
-    #     Get the Site Config data for a given network, station, and survey.
-
-    #     Args:
-    #         network (str): The network name.
-    #         station (str): The station name.
-    #         survey (str): The survey name.
-
-    #     Raises:
-    #         Exception: If no matching data is found in the catalog.
-    #     """
-
-    #     data_type_to_plot = [AssetType.SITECONFIG.value]
-
-    #     entries = self.catalog_data[
-    #         (self.catalog_data.network == network)
-    #         & (self.catalog_data.station == station)
-    #         & (self.catalog_data.survey == survey)
-    #         & (self.catalog_data.type.isin(data_type_to_plot))
-    #     ]
-
-    #     if entries.shape[0] < 1:
-    #         raise Exception('No matching site config data found in catalog')
-
-    #     # load the site config data
-    #     path = entries.local_path.values[0]
-    #     with open(path, "r") as f:
-    #         site_config = json.load(f)
-    #         site_config_schema = SCHEMA_MAP[AssetType.SITECONFIG](**site_config)
-    #     return site_config_schema
-
-    # def get_svp_data(self,network:str,station:str,survey:str) -> pd.DataFrame:
-    #     """
-    #     Get the Sound Velocity Profile data for a given network, station, and survey.
-
-    #     Args:
-    #         network (str): The network name.
-    #         station (str): The station name.
-    #         survey (str): The survey name.
-
-    #     Raises:
-    #         Exception: If no matching data is found in the catalog.
-    #     """
-
-    #     entries = self.catalog_data[
-    #         (self.catalog_data.network == network)
-    #         & (self.catalog_data.station == station)
-    #         & (self.catalog_data.survey == survey)
-    #         & (self.catalog_data.type==AssetType.SVP.value)
-    #     ]
-
-    #     if entries.shape[0] < 1:
-    #         raise Exception('No matching SVP data found in catalog')
-
-    #     # load the SVP data
-    #     path = entries.local_path.values[0]
-    #     svp_data = pd.read_csv(path)
-    #     return svp_data
-
-    # def get_atd_offset(self,network:str,station:str,survey:str) -> siteconfig.ATDOffset:
-    #     """
-    #     Get the ATD Offset data for a given network, station, and survey.
-
-    #     Args:
-    #         network (str): The network name.
-    #         station (str): The station name.
-    #         survey (str): The survey name.
-
-    #     Raises:
-    #         Exception: If no matching data is found in the catalog.
-    #     """
-
-    #     entries = self.catalog_data[
-    #         (self.catalog_data.network == network)
-    #         & (self.catalog_data.station == station)
-    #         & (self.catalog_data.survey == survey)
-    #         & (self.catalog_data.type == AssetType.ATDOFFSET.value)
-    #     ]
-
-    #     if entries.shape[0] < 1:
-    #         raise Exception('No matching ATD Offset data found in catalog')
-
-    #     # load the ATD Offset data
-    #     path = entries.local_path.values[0]
-    #     with open(path, "r") as f:
-    #         atd_offset = json.load(f)
-    #         atd_offset_schema = SCHEMA_MAP[AssetType.ATDOFFSET](**atd_offset)
-    #     return atd_offset_schema
-
-    # def plot_site_config(self,site_config:siteconfig.SiteConfig,zoom:int=5):
-    #     """
-    #     Plot the timestamps and data type for processed Site Config data for a given network, station, and survey.
-
-    #     """
-
-    #     map = folium.Map(location=[site_config.position_llh.latitude, site_config.position_llh.longitude], zoom_start=zoom)
-    #     folium.Marker(
-    #         location=[site_config.position_llh.latitude, site_config.position_llh.longitude],
-    #         icon=folium.Icon(color="blue"),
-    #     ).add_to(map)
-
-    #     for transponder in site_config.transponders:
-    #         folium.Marker(
-    #             location=[transponder.position_llh.latitude, transponder.position_llh.longitude],
-    #             popup=f"Transponder: {transponder.id}",
-    #             icon=folium.Icon(color="red"),
-    #         ).add_to(map)
-
-    #     # map.save(self.working_dir/f"site_config_{network}_{station}_{survey}.html")
-    #     return map
+        self.dev_group_session_data(source=AssetType.SHOTDATA,override=override)

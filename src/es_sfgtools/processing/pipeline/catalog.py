@@ -90,12 +90,12 @@ class Catalog:
         # Search for the multiasset entries that are already in the database
         to_remove = []
         for doy,multiasset_pre in doy_ma_map.items():
-            matching_entry = self.find_entry(multiasset_pre[0].to_multiasset())
+            matching_entry = self.find_entry(multiasset_pre.to_multiasset())
             if matching_entry and not override:
                 to_remove.append(doy)
         [doy_ma_map.pop(doy) for doy in to_remove]
 
-        return [x[0] for x in doy_ma_map.values()]
+        return [x for x in doy_ma_map.values()]
 
     def find_entry(self,entry:AssetEntry | MultiAssetEntry) -> AssetEntry | MultiAssetEntry | None:
         table = Assets if isinstance(entry, AssetEntry) else MultiAssets

@@ -218,7 +218,7 @@ class MultiAssetPre(BaseModel):
                 survey=entries[0].survey,
                 timestamp_data_start=entries[0].timestamp_data_start,
                 timestamp_data_end=entries[-1].timestamp_data_end,
-                parent_id=[entry.id for entry in entries]),
+                parent_id=[entry.id for entry in entries])
             
             out[date] = multiasset
         return out

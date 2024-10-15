@@ -7,7 +7,7 @@ import pandas as pd
 from datetime import datetime
 from collections import defaultdict
 from .database import Assets, MultiAssets
-from ..operations.gnss_ops import dev_merge_rinex, rinex_get_meta
+from ..operations.gnss_ops import dev_merge_rinex, rinex_get_meta,dev_merge_rinex_multiasset
 import logging
 
 logger = logging.getLogger(__name__)

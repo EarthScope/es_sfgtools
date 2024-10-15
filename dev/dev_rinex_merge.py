@@ -21,5 +21,5 @@ if __name__ == "__main__":
     print(dh.get_dtype_counts())
     # dh.query_catalog(
     #     f"DELETE FROM assets WHERE network='NCB' AND station='NCB1' AND survey='TestSV3' AND type='{AssetType.NOVATELPIN.value}'")
-    dh.pipeline_sv3(override=False,show_details=True)
+    #dh.pipeline_sv3(override=False,show_details=True)
     dh.update_shotdata(plot=True)
