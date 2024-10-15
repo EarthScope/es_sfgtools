@@ -25,6 +25,9 @@ import multiprocessing
 import threading
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, WhiteKernel
+from sklearn.neighbors import KDTree
+import time
+import itertools
 warnings.filterwarnings("ignore")
 seaborn.set_theme(style="whitegrid")
 from es_sfgtools.utils.archive_pull import download_file_from_archive
@@ -878,26 +881,40 @@ class DataHandler:
         # enu is the east,north,up values in ECEF coordinates
         # sig is the standard deviation of the east,north,up values
         # returns the interpolated enu values and the standard deviation of the interpolated enu values predicted at the time values from tenu_r
-        kernel = RBF(length_scale=4) + WhiteKernel(noise_level=0.01)
-        X_train = np.hstack((tenu_l[:,0],tenu_r[:,0])).T.astype(float).reshape(-1,1)
-        X_predict = tenu_r[:,0].reshape(-1,1).astype(float)
-        K = kernel(X_train)
-        Ks = kernel(X_train,X_predict)
-        Kss = kernel(X_predict)
 
-        prediction_dict = {}
-        for i,idx in enumerate(["east","north","up"]):
-            y_train = np.hstack((tenu_l[:,i],tenu_r[:,i])).T
-            obsvar = np.diag(np.hstack((enu_l_sig[:,i],enu_r_sig[:,i])).T.squeeze()).astype(float)
-            pseudo_kinv = np.linalg.inv(K + obsvar)
-            mu = Ks.T@pseudo_kinv@y_train
-            sigma = Kss - Ks.T@pseudo_kinv@Ks + np.diag(enu_r_sig[:,i])
-            prediction_dict[idx] = np.hstack(
-                [tenu_r[:, 0].reshape(-1, 1), mu.reshape(-1, 1), sigma]
-            )
-        return prediction_dict
+        length_scale = 10.0 # seconds
+        kernel = RBF(length_scale=length_scale)
+        X_train = np.hstack((tenu_l[:,0],tenu_r[:,0])).T.astype(float).reshape(-1,1)
+        Y_train = np.vstack((tenu_l[:,1:],tenu_r[:,1:])).astype(float)
+        var_train = np.vstack((enu_l_sig,enu_r_sig)).astype(float)
+        # take the inverse of the variance to get the precision
+
+        TS_TREE = KDTree(X_train)
+
+        block_size = 200
+        # neighbors = 5
+        start = time.time()
+        for i in range(0,tenu_r.shape[0],block_size):
+            idx = np.s_[i:i+block_size]
+            ind,dist = TS_TREE.query_radius(tenu_r[idx,0].astype(float).reshape(-1,1),r=length_scale,return_distance=True)
+            # dist,ind = TS_TREE.query(tenu_r[idx,0].astype(float).reshape(-1,1),k=neighbors,return_distance=True)
+            dist,ind = list(itertools.chain.from_iterable(dist)),list(itertools.chain.from_iterable(ind))
+            ind = np.unique(ind).astype(int)
+            dist = np.array(dist)
+            if any(dist != 0):
+                for j in range(3):
+                    gp = GaussianProcessRegressor(kernel=kernel)#,alpha=var_train[ind,j]**2)
+                    gpr = gp.fit(X_train[ind],Y_train[ind,j])
+                    y_mean,y_std = gpr.predict(tenu_r[idx,0].reshape(-1,1),return_std=True)
+                    enu_r_sig[idx,j] = y_std
+                    tenu_r[idx,j+1] = y_mean
+
+        print(f"Interpolation took {time.time()-start:.3f} seconds for {tenu_r.shape[0]} x {tenu_r.shape[1]} points")
+        return tenu_r.astype(float),enu_r_sig.astype(float)
 
     def update_shotdata(self,plot:bool=False):
+
+        # TODO Need to only update positions for a single shot and not each transponder
         # For each shotdata multiasset entry, update the shotdata position with gnss data
         shotdata_ma_list: List[MultiAssetEntry] = self.catalog.get_assets(network=self.network,station=self.station,survey=self.survey,asset_type=AssetType.SHOTDATA,multiasset=True)#self.get_asset_data(AssetType.SHOTDATA,multiasset=True)
         gnss_ma_list: List[MultiAssetEntry] = self.catalog.get_assets(network=self.network,station=self.station,survey=self.survey,asset_type=AssetType.GNSS,multiasset=True)
@@ -908,27 +925,42 @@ class DataHandler:
             merged_date_map.setdefault(date,[]).append(shotdata_date_map[date])
             if date in gnss_date_map.keys():
                 shotdata_df = observables.ShotDataFrame(pd.read_csv(shotdata_date_map[date].local_path),lazy=True)
+                shotdata_df_distilled = shotdata_df.drop_duplicates("triggerTime")
                 gnss_df = observables.GNSSDataFrame.validate(pd.read_csv(gnss_date_map[date].local_path),lazy=True)
                 # perform the interpolation of east,north,up positions between the shotdata and gnss data
-                delta_tenur = shotdata_df[['east1','north1','up1']].to_numpy() - shotdata_df[['east0','north0','up0']].to_numpy()
+                delta_tenur = shotdata_df_distilled[['east1','north1','up1']].to_numpy() - shotdata_df_distilled[['east0','north0','up0']].to_numpy()
                 tenu_l = gnss_df[['time','east','north','up']].to_numpy()
                 tenu_l[:,0] = [x.timestamp() for x in tenu_l[:,0].tolist()]
-                enu_l_sig = 0.1*np.ones_like(tenu_l)
-                tenu_r = shotdata_df[['triggerTime','east0','north0','up0']].to_numpy()
+                enu_l_sig = 0.05*np.ones_like(tenu_l[:,1:])
+                tenu_r = shotdata_df_distilled[['triggerTime','east0','north0','up0']].to_numpy()
                 tenu_r[:,0] = [x.timestamp() for x in tenu_r[:,0].tolist()]
-                enu_r_sig = shotdata_df[["east_std","north_std","up_std"]].to_numpy()
+                enu_r_sig = shotdata_df_distilled[["east_std","north_std","up_std"]].to_numpy()
                 enu_r_sig[np.isnan(enu_r_sig)] = 1.0 # set the standard deviation to 1.0 meters if it is nan
-                prediction_dict : Dict[str,np.ndarray] = self.interpolate_enu(tenu_l,enu_l_sig,tenu_r,enu_r_sig)
-                for key,arr in prediction_dict.items():
-                    shotdata_df[key] = arr[:,1]
-                    shotdata_df[f"{key}_std"] = arr[:,2]
-                    if plot:
-                        plt.plot(arr[:,0],arr[:,1],label=f"{key} interpolated")
-                        plt.fill_between(arr[:,0],arr[:,1]-arr[:,2],arr[:,1]+arr[:,2],alpha=0.5)
+                pred_mu,pred_std = self.interpolate_enu(tenu_l,enu_l_sig,tenu_r,enu_r_sig)
+                # create filter that matches the undistiled triggerTime with the first column of pred_mu
+                triggerTimePred = pred_mu[:,0]
+                triggerTimeDF = shotdata_df["triggerTime"].apply(lambda x: x.timestamp()).to_numpy()
+                shot_df_inds = np.searchsorted(triggerTimePred,triggerTimeDF,side="left")
+
+                for i,key in enumerate(["east0","north0","up0"]):
+                    shotdata_df.iloc[shot_df_inds][key] = pred_mu[shot_df_inds,i+1]
+                    shotdata_df.iloc[shot_df_inds][f"{key}_std"] = pred_std[shot_df_inds,i]
+                    if plot and i == 0:
+                        plt.scatter(
+                            tenu_l[:, 0],
+                            tenu_l[:, i + 1],
+                            marker="o",
+                            c="r",
+                            linewidths=0.15,
+                            label=f"{key} gnss",
+                        )
+                        plt.plot(pred_mu[:,0],pred_mu[:,i+1],label=f"{key} interpolated")
+                        plt.fill_between(pred_mu[:,0],pred_mu[:,i+1]-pred_std[:,i],pred_mu[:,i+1]+pred_std[:,i],alpha=0.5)
                 if plot:
                     plt.legend()
                     plt.show()
-                shotdata_df[['east1','north1','up1']] = shotdata_df[['east0','north0','up0']].to_numpy() - delta_tenur 
+
+                shotdata_df.iloc[shot_df_inds][['east1','north1','up1']] = shotdata_df.iloc[shot_df_inds][['east0','north0','up0']].to_numpy() - delta_tenur[shot_df_inds]
 
                 response = f"Found matching gnss data for shotdata on {date}"
                 logger.info(response)
