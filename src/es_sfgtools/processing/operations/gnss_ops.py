@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field, model_validator, ValidationError
 import pandera as pa
 from pandera.typing import DataFrame
 from datetime import datetime
-from typing import List, Optional, Union,Annotated,Literal
+from typing import List, Optional, Union,Annotated,Literal,overload
 import logging
 import julian
 import os
@@ -183,32 +183,36 @@ def rinex_get_meta(source:AssetEntry | MultiAssetEntry) ->AssetEntry|MultiAssetE
 
     return source
 
-@dispatch(object,Path,bool)
-def novatel_to_rinex(
-    source: List[AssetEntry],
-    writedir: Path|str = None,
+
+def _novatel_to_rinex(
+    source_list: List[str],
+    writedir: Path,
+    site: str,
+    source_type: Literal[AssetType.NOVATEL,AssetType.NOVATEL770],
     show_details: bool = False
-) -> List[AssetEntry]:
+) -> List[Path]:
     """
-    Batch convert Novatel files to RINEX
+    Given a list of paths to NovAtel files, convert them to daily RINEX files.
+
+    Args:
+        source_list (List[str]): List of source file paths.
+        writedir (Path): Directory where the generated RINEX files will be written.
+        site (str): Site identifier.
+        source_type (Literal[AssetType.NOVATEL,AssetType.NOVATEL770]): Type of source files.
+        show_details (bool, optional): Flag to indicate whether to show conversion details. Defaults to False.
+
+    Returns:
+        List[Path]: List of paths to the generated RINEX files.
+
+    Examples:
+        >>> novatel_paths = ["/path/to/NCB1_09052024_NOV777.raw", "/path/to/NCB1_09062024_NOV777.raw"]
+        >>> writedir = Path("/writedir")
+        >>> site = "NCB1"
+        >>> source_type = AssetType.NOVATEL
+        >>> rinex_files: List[Path] = _novatel_to_rinex(novatel_paths, writedir, site, source_type)
+
     """
-    
-    assert len(set([x.type for x in source])) == 1, "All sources must be of the same type"
 
-    source_type = source[0].type
-    site = source[0].station
-    network = source[0].network
-    survey = source[0].survey
-    station = source[0].station
-
-    if isinstance(writedir, str):
-        writedir = Path(writedir)
-    elif writedir is None:
-        writedir = source[0].local_path.parent
-
-
-
-    # get system platform and architecture
     system = platform.system().lower()
     arch = platform.machine().lower()
     if arch == "x86_64":
@@ -223,79 +227,9 @@ def novatel_to_rinex(
     else:
         binary_path = RINEX_BIN_PATH_BINARY[f"{system}_{arch}"]
 
-
     metadata = get_metadata(site, serialNumber=uuid.uuid4().hex[:10])
-
-    with tempfile.TemporaryDirectory(dir="/tmp/") as workdir:
-        metadata_path = Path(workdir)/ "metadata.json"
-        with open(metadata_path, "w") as f:
-            json_object = json.dumps(metadata, indent=4)
-            f.write(json_object)
-
-
-        cmd = [
-            str(binary_path),
-            "-meta",
-            str(metadata_path)
-        ] + [str(x.local_path) for x in source]
-
-        result = subprocess.run(cmd, check=True, capture_output=True,cwd=workdir)
-        if result.stderr:
-            logger.error(result.stderr)
-            if show_details:
-                print(result.stderr)
-        rnx_files = list(Path(workdir).rglob(f"*{site}*"))
-        response = f"Converted {len(source)} files of type {source_type.value} to {len(rnx_files)} Daily RINEX files"
-        logger.info(response)
-        if show_details: print(response)
-        rinex_assets = []
-        for rinex_file_path in rnx_files:
-            new_rinex_path = writedir / rinex_file_path.name
-            shutil.move(src=rinex_file_path,dst=new_rinex_path)
-            rinex_asset = AssetEntry(
-                local_path=new_rinex_path,
-                type=AssetType.RINEX,
-                network=network,
-                station=station,
-                survey=survey,
-                timestamp_created=datetime.now(),
-            )
-            rinex_asset = rinex_get_meta(rinex_asset)
-            rinex_assets.append(rinex_asset)
-            if show_details:
-                print(f"Generated Daily RINEX file {str(rinex_asset.local_path)}")  
-
-    return rinex_assets
-
-@dispatch(str,bool)
-def novatel_to_rinex(
-    source:str,
-    show_details: bool = False
-) -> List[str]:
-
-    source = Path(source)
-    if "NOV770" in source.name:
-        source_type = AssetType.NOVATEL770
-    else:
-        source_type = AssetType.NOVATEL
-    print(f"Converting Novatel file at {str(source)} of type {source_type.value} to RINEX")
-    site = "NON1"
-    # get system platform and architecture
-    system = platform.system().lower()
-    arch = platform.machine().lower()
-    if arch == "x86_64":
-        arch = "amd64"
-    if system not in ["darwin", "linux"]:
-        raise ValueError(f"Unsupported platform: {system}")
-    if arch not in ["amd64", "arm64"]:
-        raise ValueError(f"Unsupported architecture: {arch}")
-
-    if source_type in [AssetType.NOVATEL, AssetType.NOVATELPIN]:
-        binary_path = RINEX_BIN_PATH[f"{system}_{arch}"]
-    else:
-        binary_path = RINEX_BIN_PATH_BINARY[f"{system}_{arch}"]
-
-    metadata = get_metadata(site, serialNumber=uuid.uuid4().hex[:10])
+    if show_details:
+        print(f"Converting and merging {len(source_list)} files of type {source_type.value} to RINEX")
 
     with tempfile.TemporaryDirectory(dir="/tmp/") as workdir:
         metadata_path = Path(workdir) / "metadata.json"
@@ -303,26 +237,129 @@ def novatel_to_rinex(
             json_object = json.dumps(metadata, indent=4)
             f.write(json_object)
 
-        cmd = [str(binary_path), "-meta", str(metadata_path), str(source)]
+        cmd = [
+            str(binary_path),
+            "-meta",
+            str(metadata_path)
+        ] + source_list
+
         result = subprocess.run(cmd, check=True, capture_output=True, cwd=workdir)
         if result.stderr:
             logger.error(result.stderr)
             if show_details:
                 print(result.stderr)
         rnx_files = list(Path(workdir).rglob(f"*{site}*"))
-        response = f"Converted Novatel file {source} to {len(rnx_files)} Daily RINEX files"
+        response = f"Converted {len(source_list)} files of type {source_type.value} to {len(rnx_files)} Daily RINEX files"
         logger.info(response)
-        if show_details:
-            print(response)
+        if show_details: print(response)
         rinex_files = []
         for rinex_file_path in rnx_files:
-            new_rinex_path = Path(source.parent) / rinex_file_path.name
+            new_rinex_path = writedir / rinex_file_path.name
             shutil.move(src=rinex_file_path, dst=new_rinex_path)
             if show_details:
                 print(f"Generated Daily RINEX file {str(new_rinex_path)}")
-            rinex_files.append(str(new_rinex_path))
+            rinex_files.append(new_rinex_path)
     return rinex_files
-            
+
+
+@overload
+@dispatch(list,Path,bool)
+def novatel_to_rinex(
+    source: List[AssetEntry],
+    writedir: Path|str = None,
+    show_details: bool = False
+) -> List[AssetEntry]:
+
+    """
+    Given a set of AssetEntry objects representing AssetType.NOVATEL or AssetType.NOVATEL770 files, convert them to daily RINEX files representing
+    each distinct day of data.
+
+    Args:
+        source (List[AssetEntry]): List of AssetEntry objects representing the source files.
+        writedir (Path|str, optional): Directory where the RINEX files will be written. If not provided, the RINEX files will be written to the same directory as the source files. Defaults to None.
+        show_details (bool, optional): Flag indicating whether to show detailed conversion information. Defaults to False.
+    Returns:
+        List[AssetEntry]: List of AssetEntry objects representing the converted RINEX files.
+
+    Examples:
+        >>> asset_entry_0 = AssetEntry(local_path="/path/to/NCB1_09052024_NOV777.raw", type=AssetType.NOVATEL, network="NCB", station="NCB1", survey="JULY2024")
+        >>> asset_entry_1 = AssetEntry(local_path="/path/to/NCB1_09062024_NOV777.raw", type=AssetType.NOVATEL, network="NCB", station="NCB1", survey="JULY2024")
+        >>> writedir = Path("/writedir")
+        >>> rinex_assets: List[AssetEntry] = novatel_to_rinex([asset_entry_0, asset_entry_1], writedir, show_details=True)
+        >>> rinex_assets[0].model_dump()
+        {'local_path': '/writedir/NCB1_09052024_NOV777.raw', 'type': 'rinex', 'network': 'NCB', 'station': 'NCB1', 'survey': 'JULY2024', 'timestamp_created': datetime.datetime(2024, 7, 9, 12, 0, 0, 0)}
+    """
+    assert len(set([x.type for x in source])) == 1, "All sources must be of the same type"
+
+    source_type = source[0].type
+    site = source[0].station
+    network = source[0].network
+    survey = source[0].survey
+    station = source[0].station
+
+    if isinstance(writedir, str):
+        writedir = Path(writedir)
+    elif writedir is None:
+        writedir = source[0].local_path.parent
+
+    rinex_paths = _novatel_to_rinex(
+        source_list=[x.local_path for x in source],
+        writedir=writedir,
+        show_details=show_details,
+        site=site,
+        source_type=source_type
+    )
+    rinex_assets = []
+    for rinex_path in rinex_paths:
+        rinex_asset = AssetEntry(
+            local_path=rinex_path,
+            type=AssetType.RINEX,
+            network=network,
+            station=station,
+            survey=survey,
+            timestamp_created=datetime.now(),
+        )
+        rinex_asset = rinex_get_meta(rinex_asset)
+        rinex_assets.append(rinex_asset)
+
+    return rinex_assets
+
+@overload
+@dispatch(str,bool)
+def novatel_to_rinex(
+    source:str,
+    show_details: bool = False
+) -> List[str]:
+    """
+    Given a path to a Novatel ascii or raw file, convert it to daily RINEX files representing each distinct day of data.
+    
+    Parameters:
+        source (str): The path to the Novatel GNSS file.
+        show_details (bool, optional): Whether to show detailed information during the conversion process. Defaults to False.
+    Returns:
+        List[str]: A list of paths to the generated RINEX files.
+
+    Examples:
+        >>> source = "/path/to/NCB1_09052024_NOV777.raw"
+        >>> rinex_files: List[str] = novatel_to_rinex(source, show_details=True)
+        >>> rinex_files
+        ["/path/to/NCB12450.24o", "/path/to/NCB12460.24o"]
+    """
+    source = Path(source)
+    if "NOV770" in source.name:
+        source_type = AssetType.NOVATEL770
+    else:
+        source_type = AssetType.NOVATEL
+    site = "SITE1"
+    rinex_files = _novatel_to_rinex(
+        source_list=[str(source.local_path)],
+        writedir=source.parent,
+        show_details=show_details,
+        site=site,
+        source_type=source_type
+    )
+    return rinex_files
+
 
 def rinex_to_kin(
     source: Union[AssetEntry,str,Path],

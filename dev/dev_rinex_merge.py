@@ -29,12 +29,11 @@ if __name__ == "__main__":
     novatel_entries: List[AssetEntry] = dh.catalog.get_assets(
         network=network, station=station, survey=survey, asset_type=AssetType.NOVATEL770
     )
-    # test asset entries
-    # rinex_dailies =novatel_to_rinex(novatel_entries,dh_dir_sv3,True)
+    
+    rinex_dailies = novatel_to_rinex(novatel_entries,dh_dir_sv3,True)
 
-    # for rinex in rinex_dailies:
-    #     print(rinex.model_dump())
+    for rinex in rinex_dailies:
+        print(rinex.model_dump())
+        dh.catalog.add_entry(rinex)
 
-    # test string entry
-    novatel_path = novatel_entries[0].local_path
-    rinex_path = novatel_to_rinex(str(novatel_path),True)
+    rinex_solo = novatel_to_rinex(novatel_entries[0],True)
