@@ -62,9 +62,9 @@ class ModelResults(Base):
     abic = Column(Float)
     delta_center_position = Column(JSON)
     
-    #delta_center_position = Column(JSON)
-    #rms = Column(Float)
-    #abic = Column(Float)
-    #data_start_time
-    #data_end_time
-    #created_time
+class MergeJobs(Base):
+    __tablename__ = "mergejobs"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    child_type = Column(String)
+    parent_ids = Column(String)
+    parent_type = Column(String)

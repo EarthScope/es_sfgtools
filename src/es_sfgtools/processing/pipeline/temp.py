@@ -875,31 +875,92 @@ class DataHandler:
                       query:str) -> pd.DataFrame:
         return self.catalog.query(query)
 
-    def process_rinex(self,override:bool=False):
-        """
-        Process the rinex data.
+    def process_novatel(self,override:bool=False,show_details:bool=False) -> List[AssetEntry]:
 
+        novatel_770_entries: List[AssetEntry] = self.catalog.get_assets(
+            network=self.network,station=self.station,survey=self.survey,type=AssetType.NOVATEL770
+        )
+        nov_770_ids = [x.id for x in novatel_770_entries]
+        if override or not self.catalog.is_merge_complete(parent_type=AssetType.NOVATEL770.value,child_type=AssetType.RINEX.value,parent_ids=nov_770_ids):
+            rinex_entries: List[AssetEntry] = gnss_ops.novatel_to_rinex_batch(
+                source=novatel_770_entries,writedir=self.inter_dir,show_details=show_details
+            )
+            uploadCount = 0
+            for rinex_entry in rinex_entries:
+                if self.catalog.add_entry(rinex_entry):
+                    uploadCount += 1
+            self.catalog.add_merge_job(parent_type=AssetType.NOVATEL770.value,child_type=AssetType.RINEX.value,parent_ids=nov_770_ids)
+            response = f"Added {uploadCount} out of {len(rinex_entries)} Rinex Entries to the catalog"
+            logger.info(response)
+            if show_details:
+                print(response)
+            return rinex_entries
+
+        
+    def process_rinex(self,override:bool=False,show_details:bool=False) -> List[AssetEntry]:
+      
+        """
+        Process Rinex Data.
         Args:
-            None
-
+            override (bool, optional): Flag to override existing data. Defaults to False.
+            show_details (bool, optional): Flag to show processing details. Defaults to False.
         Returns:
-            None
+            List[AssetEntry]: List of generated kin files.
+        Raises:
+            ValueError: If no Rinex files are found.
         """
-        rinex_entries = self.catalog.get_single_entries_to_process(
-            network=self.network,station=self.station,survey=self.survey,parent_type=AssetType.RINEX,child_type=AssetType.KIN,override=override
+        
+        response = f"Processing Rinex Data for {self.network} {self.station} {self.survey}"
+        logger.info(response)
+        if show_details:
+            print(response)
+
+        rinex_entries: List[AssetEntry] = self.catalog.get_single_entries_to_process(
+            network=self.network,
+            station=self.station,
+            survey=self.survey,
+            parent_type=AssetType.RINEX,
+            child_type=AssetType.KIN,
+            override=override
         )
         if not rinex_entries:
-            return
+            response = f"No Rinex Files Found to Process for {self.network} {self.station} {self.survey}"
+            logger.error(response)
+            if show_details:
+                print(response)
+            warnings.warn(response)
+            return []
+        
+        response = f"Found {len(rinex_entries)} Rinex Files to Process"
+        logger.info(response)
+        if show_details:
+            print(response)
 
-        parent,child = self._process_entries(parent_entries=rinex_entries,child_type=AssetType.KIN,show_details=True)
-        # for rinex_entry in tqdm(rinex_entries,desc="Processing RINEX Data"):
-        #     kin_file = gnss_ops.rinex_to_kin(rinex_entry, writedir=self.inter_dir, pridedir=self.pride_dir,site=self.station)
-        #     if kin_file is not None:
-        #         self.catalog.add_entry(kin_file)
-        for kin_entry in child:
-            if kin_entry is not None: self.catalog.add_entry(kin_entry)
+        process_rinex_partial = partial(
+            gnss_ops.rinex_to_kin,
+            writedir=self.inter_dir,
+            pridedir=self.pride_dir,
+            show_details=show_details
+            
+        )
+        kin_entries = []
+        count = 0
+        uploadCount = 0
+        with multiprocessing.Pool() as pool:
+            results = pool.imap(process_rinex_partial, rinex_entries)
+            for result in tqdm(results, total=len(rinex_entries), desc="Processing Rinex Files"):
+                if result is not None:
+                    count += 1
+                    if self.catalog.add_entry(result):
+                        uploadCount += 1
+                    kin_entries.append(result)
+        response = f"Generated {count} Kin Files From {len(rinex_entries)} Rinex Files, Added {uploadCount} to the Catalog"
+        logger.info(response)
+        if show_details:
+            print(response)
+        return kin_entries
 
-    def process_kin(self,override:bool=False):
+    def process_kin(self,override:bool=False,show_details:bool=False) -> List[AssetEntry]:
         """
         Process the kin data.
 
@@ -909,25 +970,37 @@ class DataHandler:
         Returns:
             None
         """
+        response = f"Processing Kin Data for {self.network} {self.station} {self.survey}"
+        logger.info(response)
+        if show_details:
+            print(response)
+        
         kin_entries = self.catalog.get_single_entries_to_process(
             network=self.network,station=self.station,survey=self.survey,parent_type=AssetType.KIN,child_type=AssetType.GNSS,override=override
         )
         if not kin_entries:
+            response = f"No Kin Files Found to Process for {self.network} {self.station} {self.survey}"
+            logger.error(response)
+            if show_details:
+                print(response)
             return
-
+        
+        gnss_entries = []
+        count = 0
+        uploadCount = 0
         for kin_entry in tqdm(kin_entries,desc="Processing Kin Files"):
             gnss_df:pd.DataFrame = gnss_ops.kin_to_gnssdf(kin_entry)
-
-            local_path = self.proc_dir / f"{kin_entry.id}_gnss.csv"
-            gnss_df.to_csv(local_path, index=False)
-
+            if gnss_df is None:
+                continue
+            count += 1
+   
             # handle the case when the child timestamp is None
-            if pd.isna(kin_entry.timestamp_data_end):
-                for col in gnss_df.columns:
-                    if pd.api.types.is_datetime64_any_dtype(gnss_df[col]):
-                        timestamp_data_start = gnss_df[col].min()
-                        timestamp_data_end = gnss_df[col].max()
-                        break
+       
+            for col in gnss_df.columns:
+                if pd.api.types.is_datetime64_any_dtype(gnss_df[col]):
+                    timestamp_data_start = gnss_df[col].min()
+                    timestamp_data_end = gnss_df[col].max()
+                    break
             else:
                 timestamp_data_start = parent.timestamp_data_start
                 timestamp_data_end = parent.timestamp_data_end
@@ -948,9 +1021,14 @@ class DataHandler:
                 station=kin_entry.station,
                 survey=kin_entry.survey,
             )
-            self.catalog.add_entry(gnss_entry)
-
-        
+            if self.catalog.add_entry(gnss_entry):
+                uploadCount += 1
+            gnss_entries.append(gnss_entry)
+        response = f"Generated {count} GNSS Files From {len(kin_entries)} Kin Files, Added {uploadCount} to the Catalog"
+        logger.info(response)
+        if show_details:
+            print(response)
+        return gnss_entries
     def interpolate_enu(self,tenu_l:np.ndarray,enu_l_sig:np.ndarray,tenu_r:np.ndarray,enu_r_sig:np.ndarray) -> np.ndarray:
         # interpolate the enu values between the left and right enu values
         # t is the time values in unix epoch

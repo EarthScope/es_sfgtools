@@ -16,23 +16,16 @@ if __name__ == "__main__":
     )
     network = "NCB"
     station = "NCB1"
-    survey = "TestSV3"
+    survey = "2023"
 
     dh = DataHandler(network=network, station=station, survey=survey, data_dir=dh_dir_sv3)
-    #dh.add_data_directory(dh_dir_sv3)
+    dh.add_data_directory(dh_dir_sv3)
     print(dh.get_dtype_counts())
-    # dh.query_catalog(
-    #     f"DELETE FROM assets WHERE network='NCB' AND station='NCB1' AND survey='TestSV3' AND type='{AssetType.NOVATELPIN.value}'")
-    #dh.pipeline_sv3(override=False,show_details=True)
-    #dh.dev_group_session_data("gnss")
-    #dh.dev_group_session_data("shotdata")
-    novatel_entries: List[AssetEntry] = dh.catalog.get_assets(
-        network=network, station=station, survey=survey, asset_type=AssetType.NOVATEL770
-    )
     
-    rinex_dailies = novatel_to_rinex(novatel_entries[:5],dh_dir_sv3,True)
+    rinex_entries = dh.process_novatel(show_details=True)
+    kin_entries = dh.process_rinex(show_details=True)
+    
+    gnss_entries = dh.process_kin(show_details=True)
 
-    test_kin = rinex_to_kin(rinex_dailies[0],dh_dir_sv3,dh_dir_sv3,station,True)
 
-    gnss_df = kin_to_gnssdf(test_kin)
-    print(gnss_df.head())
+    print(gnss_entries[0].model_dump())

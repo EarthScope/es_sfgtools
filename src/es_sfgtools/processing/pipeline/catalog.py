@@ -5,7 +5,7 @@ from datetime import datetime
 from pathlib import Path
 import pandas as pd
 from es_sfgtools.processing.assets.file_schemas import AssetEntry, AssetType,MultiAssetEntry,MultiAssetPre
-from .database import Base, Assets, MultiAssets, ModelResults
+from .database import Base, Assets, MultiAssets, ModelResults,MergeJobs
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +41,7 @@ class Catalog:
                    network:str,
                    station:str,
                    survey:str,
-                   asset_type:AssetType,
+                   type:AssetType,
                    multiasset:bool=False) -> List[AssetEntry | MultiAssetEntry]:
 
         if multiasset:
@@ -56,7 +56,7 @@ class Catalog:
                     table.network == network,
                     table.station == station,
                     table.survey == survey,
-                    table.type == asset_type.value
+                    table.type == type.value
                 )
             )
             result = conn.execute(query).fetchall()
@@ -158,3 +158,26 @@ class Catalog:
             return True
         except sa.exc.IntegrityError:
             return False
+
+    def add_merge_job(self,parent_type:str,child_type:str,parent_ids:List[int]):
+        # sort parent_ids to ensure that the order is consistent
+        parent_ids.sort()
+        parent_id_string = "-".join([str(x) for x in parent_ids])
+        with self.engine.begin() as conn:
+            conn.execute(sa.insert(MergeJobs).values({
+                MergeJobs.parent_type.name: parent_type,
+                MergeJobs.child_type.name: child_type,
+                MergeJobs.parent_ids.name: parent_id_string
+            }))
+    def is_merge_complete(self,parent_type:str,child_type:str,parent_ids:List[int]) -> bool:
+        parent_ids.sort()
+        parent_id_string = "-".join([str(x) for x in parent_ids])
+        with self.engine.begin() as conn:
+            results = conn.execute(sa.select(MergeJobs).where(
+                MergeJobs.parent_type == parent_type,
+                MergeJobs.child_type == child_type,
+                MergeJobs.parent_ids == parent_id_string
+            )).fetchone()
+            if results:
+                return True
+        return False

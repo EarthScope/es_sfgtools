@@ -262,8 +262,8 @@ def _novatel_to_rinex(
             rinex_files.append(new_rinex_path)
     return rinex_files
 
-@dispatch(list,Path,bool)
-def novatel_to_rinex(
+
+def novatel_to_rinex_batch(
     source: List[AssetEntry],
     writedir: Path|str = None,
     show_details: bool = False
@@ -349,7 +349,7 @@ def novatel_to_rinex(
         source_type = AssetType.NOVATEL770
     else:
         source_type = AssetType.NOVATEL
-    site = "SITE1"
+    site = "SIT1"
    
     writedir = source.parent
     rinex_files = _novatel_to_rinex(
@@ -362,13 +362,13 @@ def novatel_to_rinex(
     return rinex_files
 
 
-
+# TODO: handle logging with multiprocessing
 def rinex_to_kin(
 
     source: Union[AssetEntry,str,Path],
     writedir: Path,
     pridedir: Path,
-    site="SITE1",
+    site="SIT1",
     show_details: bool = True,
 ) -> AssetEntry:
 
@@ -415,6 +415,8 @@ def rinex_to_kin(
         raise FileNotFoundError(f"RINEX file {source.local_path} not found")
     # tag = uuid.uuid4().hex[:4]
     # FROM JOHN "pdp3 -m K -i 1 -l -c15 rinex"
+    if source.station is not None:
+        site = source.station
     cmd = [
         "pdp3", 
         "--loose-edit", 
@@ -523,9 +525,6 @@ def kin_to_gnssdf(source:AssetEntry) -> Union[DataFrame[GNSSDataFrame], None]:
             )
             data.append(ppp)
         except:
-            error_msg = f"Error parsing into PridePPP from line {idx} in FILE {source.local_path} \n"
-            error_msg += f"Line: {line}"
-            logger.error(error_msg)
             pass
 
     # Check if data is empty
