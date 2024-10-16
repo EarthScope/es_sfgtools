@@ -18,6 +18,7 @@ import platform
 from pathlib import Path
 import numpy as np
 import uuid
+from warnings import warn
 from multipledispatch import dispatch
 from ..assets.file_schemas import AssetEntry,AssetType,MultiAssetEntry,MultiAssetPre
 from ..assets.observables import GNSSDataFrame
@@ -363,15 +364,42 @@ def novatel_to_rinex(
 
 
 def rinex_to_kin(
+
     source: Union[AssetEntry,str,Path],
     writedir: Path,
     pridedir: Path,
-    site="IVB1",
+    site="SITE1",
     show_details: bool = True,
 ) -> AssetEntry:
+
     """
-    Convert a RINEX file to a position file
+    Converts a RINEX file to a kin file.
+    Args:
+        source (Union[AssetEntry,str,Path]): The source RINEX file to convert.
+        writedir (Path): The directory to write the converted kin file.
+        pridedir (Path): The directory where PRIDE-PPP metadata is stored.
+        site (str, optional): The site name. Defaults to "SITE1".
+        show_details (bool, optional): Whether to show conversion details. Defaults to True.
+    Returns:
+        AssetEntry: The converted kin file as an AssetEntry object.
+    Raises:
+        FileNotFoundError: If the PRIDE-PPP binary is not found.
+        FileNotFoundError: If the source RINEX file is not found.
+        UserWarning: If no kin file is generated from the RINEX file.
+
+    Examples:
+        >>> source = AssetEntry(local_path="/path/to/NCB12450.24o", type=AssetType.RINEX, network="NCB", station="NCB1", survey="JULY2024")
+        >>> writedir = Path("/writedir")
+        >>> pridedir = Path("/pridedir")
+        >>> kin_asset: AssetEntry = rinex_to_kin(source, writedir, pridedir, site="NCB1", show_details=True)
+        >>> kin_asset.model_dump()
+        {'local_path': '/writedir/NCB12450.24o.kin', 'type': 'kin', 'network': 'NCB', 'station': 'NCB1', 'survey': 'JULY2024', 'timestamp_created': datetime.datetime(2024, 7, 9, 12, 0, 0, 0)}
     """
+
+    # Check if the pride binary is in the path
+    if not shutil.which("pdp3"):
+        raise FileNotFoundError("PRIDE-PPP binary 'pdp3' not found in path")
+    
     if isinstance(source,str) or isinstance(source,Path):
         source = AssetEntry(local_path=source,type=AssetType.RINEX)
     assert source.type == AssetType.RINEX, "Invalid source file type"
@@ -420,7 +448,7 @@ def rinex_to_kin(
         
 
 
-    tag_files = Path(pridedir).rglob(f"*{site.lower()}*")
+    found_files = Path(pridedir).rglob(f"*{site.lower()}*")
     if isinstance(source,AssetEntry):
         schema = AssetEntry
         if source.id is not None: tag = str(source.id)
@@ -430,10 +458,10 @@ def rinex_to_kin(
         if source.parent_id is not None: tag = "-".join([str(x) for x in source.parent_id])
         else: tag = site
 
-    for tag_file in tag_files:
-        # print("tag file:", tag_file)
-        if "kin" in tag_file.name:
-            kin_file = tag_file
+    for found_file in found_files:
+     
+        if "kin" in found_file.name:
+            kin_file = found_file
             kin_file_new = writedir / (tag + "_" + kin_file.name + ".kin")
             shutil.move(src=kin_file,dst=kin_file_new)
             kin_file = schema(
@@ -451,14 +479,12 @@ def rinex_to_kin(
             logger.info(response)
             if show_details:
                 print(response)
-            break
-     
-
-    try:
-        return kin_file
-    except:
-        return None
-
+            return kin_file
+    
+    response = f"No kin file generated from RINEX {source.local_path}"
+    logger.error(response)
+    warn(response)
+    
 
 @pa.check_types(lazy=True)
 def kin_to_gnssdf(source:AssetEntry) -> Union[DataFrame[GNSSDataFrame], None]:
