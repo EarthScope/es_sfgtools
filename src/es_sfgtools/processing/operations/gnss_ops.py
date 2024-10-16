@@ -350,7 +350,7 @@ def novatel_to_rinex(
     else:
         source_type = AssetType.NOVATEL
     site = "SIT1"
-   
+
     writedir = source.parent
     rinex_files = _novatel_to_rinex(
         source_list=[str(source)],
@@ -362,7 +362,7 @@ def novatel_to_rinex(
     return rinex_files
 
 
-# TODO: handle logging with multiprocessing
+# TODO: handle logging with multiprocessing https://signoz.io/guides/how-should-i-log-while-using-multiprocessing-in-python/
 def rinex_to_kin(
 
     source: Union[AssetEntry,str,Path],
@@ -438,7 +438,12 @@ def rinex_to_kin(
     )
 
     if result.stderr:
-        logger.error(result.stderr)
+        stderr = result.stderr.decode("utf-8").split("\n")
+        for line in stderr:
+            if "warning" in line.lower():
+                logger.warning(line)
+            if "error" in line.lower():
+                logger.error(line)
     stdout = result.stdout.decode("utf-8")
     stdout = stdout.replace("\x1b[", "").split("\n")
     for line in stdout:
@@ -486,7 +491,7 @@ def rinex_to_kin(
     response = f"No kin file generated from RINEX {source.local_path}"
     logger.error(response)
     warn(response)
-    
+
 
 @pa.check_types(lazy=True)
 def kin_to_gnssdf(source:AssetEntry) -> Union[DataFrame[GNSSDataFrame], None]:
