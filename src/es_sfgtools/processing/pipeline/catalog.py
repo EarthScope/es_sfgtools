@@ -60,8 +60,15 @@ class Catalog:
                 )
             )
             result = conn.execute(query).fetchall()
-            return [schema(**row._mapping) for row in result]
-
+            out = []
+            for row in result:
+                try:
+    
+                    out.append(schema(**row._mapping))
+                except Exception as e:
+                    print(e)
+            return out
+        
     def get_single_entries_to_process(self,
                                network:str,
                                station:str,
@@ -122,7 +129,7 @@ class Catalog:
                 conn.execute(
                     sa.insert(table).values(entry.model_dump()))
             except Exception as e:
-                print(e)
+                #print(e)
                 try:
                     conn.execute(
                         sa.update(table=table)

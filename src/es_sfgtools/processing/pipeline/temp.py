@@ -875,6 +875,82 @@ class DataHandler:
                       query:str) -> pd.DataFrame:
         return self.catalog.query(query)
 
+    def process_rinex(self,override:bool=False):
+        """
+        Process the rinex data.
+
+        Args:
+            None
+
+        Returns:
+            None
+        """
+        rinex_entries = self.catalog.get_single_entries_to_process(
+            network=self.network,station=self.station,survey=self.survey,parent_type=AssetType.RINEX,child_type=AssetType.KIN,override=override
+        )
+        if not rinex_entries:
+            return
+
+        parent,child = self._process_entries(parent_entries=rinex_entries,child_type=AssetType.KIN,show_details=True)
+        # for rinex_entry in tqdm(rinex_entries,desc="Processing RINEX Data"):
+        #     kin_file = gnss_ops.rinex_to_kin(rinex_entry, writedir=self.inter_dir, pridedir=self.pride_dir,site=self.station)
+        #     if kin_file is not None:
+        #         self.catalog.add_entry(kin_file)
+        for kin_entry in child:
+            if kin_entry is not None: self.catalog.add_entry(kin_entry)
+
+    def process_kin(self,override:bool=False):
+        """
+        Process the kin data.
+
+        Args:
+            None
+
+        Returns:
+            None
+        """
+        kin_entries = self.catalog.get_single_entries_to_process(
+            network=self.network,station=self.station,survey=self.survey,parent_type=AssetType.KIN,child_type=AssetType.GNSS,override=override
+        )
+        if not kin_entries:
+            return
+
+        for kin_entry in tqdm(kin_entries,desc="Processing Kin Files"):
+            gnss_df:pd.DataFrame = gnss_ops.kin_to_gnssdf(kin_entry)
+
+            local_path = self.proc_dir / f"{kin_entry.id}_gnss.csv"
+            gnss_df.to_csv(local_path, index=False)
+
+            # handle the case when the child timestamp is None
+            if pd.isna(kin_entry.timestamp_data_end):
+                for col in gnss_df.columns:
+                    if pd.api.types.is_datetime64_any_dtype(gnss_df[col]):
+                        timestamp_data_start = gnss_df[col].min()
+                        timestamp_data_end = gnss_df[col].max()
+                        break
+            else:
+                timestamp_data_start = parent.timestamp_data_start
+                timestamp_data_end = parent.timestamp_data_end
+
+            local_path = (
+                self.proc_dir
+                / f"{kin_entry.id}_gnss_{timestamp_data_start.date().isoformat()}.csv"
+            )
+            gnss_df.to_csv(local_path, index=False)
+
+            gnss_entry = AssetEntry(
+                local_path=local_path,
+                type=AssetType.GNSS,
+                parent_id=kin_entry.id,
+                timestamp_data_start=timestamp_data_start,
+                timestamp_data_end=timestamp_data_end,
+                network=kin_entry.network,
+                station=kin_entry.station,
+                survey=kin_entry.survey,
+            )
+            self.catalog.add_entry(gnss_entry)
+
+        
     def interpolate_enu(self,tenu_l:np.ndarray,enu_l_sig:np.ndarray,tenu_r:np.ndarray,enu_r_sig:np.ndarray) -> np.ndarray:
         # interpolate the enu values between the left and right enu values
         # t is the time values in unix epoch
@@ -882,7 +958,7 @@ class DataHandler:
         # sig is the standard deviation of the east,north,up values
         # returns the interpolated enu values and the standard deviation of the interpolated enu values predicted at the time values from tenu_r
 
-        length_scale = 10.0 # seconds
+        length_scale = 5.0 # seconds
         kernel = RBF(length_scale=length_scale)
         X_train = np.hstack((tenu_l[:,0],tenu_r[:,0])).T.astype(float).reshape(-1,1)
         Y_train = np.vstack((tenu_l[:,1:],tenu_r[:,1:])).astype(float)
@@ -903,7 +979,7 @@ class DataHandler:
             dist = np.array(dist)
             if any(dist != 0):
                 for j in range(3):
-                    gp = GaussianProcessRegressor(kernel=kernel)#,alpha=var_train[ind,j]**2)
+                    gp = GaussianProcessRegressor(kernel=kernel)
                     gpr = gp.fit(X_train[ind],Y_train[ind,j])
                     y_mean,y_std = gpr.predict(tenu_r[idx,0].reshape(-1,1),return_std=True)
                     enu_r_sig[idx,j] = y_std
@@ -913,7 +989,7 @@ class DataHandler:
         return tenu_r.astype(float),enu_r_sig.astype(float)
 
     def update_shotdata(self,plot:bool=False):
-
+        print("Updating shotdata with interpolated gnss data")
         # TODO Need to only update positions for a single shot and not each transponder
         # For each shotdata multiasset entry, update the shotdata position with gnss data
         shotdata_ma_list: List[MultiAssetEntry] = self.catalog.get_assets(network=self.network,station=self.station,survey=self.survey,asset_type=AssetType.SHOTDATA,multiasset=True)#self.get_asset_data(AssetType.SHOTDATA,multiasset=True)
@@ -924,6 +1000,7 @@ class DataHandler:
         for date in shotdata_date_map.keys():
             merged_date_map.setdefault(date,[]).append(shotdata_date_map[date])
             if date in gnss_date_map.keys():
+                print(f"Found matching gnss data for shotdata on {date}")
                 shotdata_df = observables.ShotDataFrame(pd.read_csv(shotdata_date_map[date].local_path),lazy=True)
                 shotdata_df_distilled = shotdata_df.drop_duplicates("triggerTime")
                 gnss_df = observables.GNSSDataFrame.validate(pd.read_csv(gnss_date_map[date].local_path),lazy=True)
@@ -936,7 +1013,8 @@ class DataHandler:
                 tenu_r[:,0] = [x.timestamp() for x in tenu_r[:,0].tolist()]
                 enu_r_sig = shotdata_df_distilled[["east_std","north_std","up_std"]].to_numpy()
                 enu_r_sig[np.isnan(enu_r_sig)] = 1.0 # set the standard deviation to 1.0 meters if it is nan
-                pred_mu,pred_std = self.interpolate_enu(tenu_l,enu_l_sig,tenu_r,enu_r_sig)
+                print(f"Interpolating {tenu_r.shape[0]} points")
+                pred_mu,pred_std = self.interpolate_enu(tenu_l,enu_l_sig,tenu_r.copy(),enu_r_sig)
                 # create filter that matches the undistiled triggerTime with the first column of pred_mu
                 triggerTimePred = pred_mu[:,0]
                 triggerTimeDF = shotdata_df["triggerTime"].apply(lambda x: x.timestamp()).to_numpy()
@@ -955,6 +1033,7 @@ class DataHandler:
                             label=f"{key} gnss",
                         )
                         plt.plot(pred_mu[:,0],pred_mu[:,i+1],label=f"{key} interpolated")
+                        plt.scatter(tenu_r[:,0],tenu_r[:,i+1],marker="o",c="b",linewidths=0.15,label=f"{key} original")
                         plt.fill_between(pred_mu[:,0],pred_mu[:,i+1]-pred_std[:,i],pred_mu[:,i+1]+pred_std[:,i],alpha=0.5)
                 if plot:
                     plt.legend()
@@ -982,7 +1061,7 @@ class DataHandler:
 
     def pipeline_sv3(self,override:bool=False,show_details:bool=False):
         # self._process_data_graph(AssetType.POSITION,override=override,show_details=show_details)
-        #     self._process_data_graph(AssetType.RINEX,override=override,show_details=show_details)
+        self._process_data_graph(AssetType.RINEX,override=override,show_details=show_details)
         #     #self._process_data_graph_forward(AssetType.DFOP00,override=override,show_details=show_details)
         #     #shotdata_ma_list: List[MultiAssetEntry] = self.dev_group_session_data(source=AssetType.SHOTDATA,override=override)
         #     # add the merged shotdata to the catalog
@@ -995,4 +1074,4 @@ class DataHandler:
         #    # kin_ma_list = self.catalog.get_multi_entries_to_process(network=self.network,station=self.station,survey=self.survey,child_type=AssetType.KIN,parent_type=AssetType.RINEX,override=override)
         #     _,processed_gnss = self._process_data_link(target=AssetType.GNSS,source=AssetType.KIN,override=override,parent_entries=kin_ma_list,show_details=show_details)
         self._process_data_graph_forward(AssetType.DFOP00,override=override,show_details=show_details)
-        self.dev_group_session_data(source=AssetType.SHOTDATA,override=override)
+        #self.dev_group_session_data(source=AssetType.SHOTDATA,override=override)

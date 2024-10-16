@@ -4,7 +4,9 @@ import es_sfgtools
 import os
 from es_sfgtools.processing.pipeline import DataHandler
 from es_sfgtools.processing.assets.file_schemas import AssetType,AssetEntry
+from es_sfgtools.processing.operations.gnss_ops import novatel_to_rinex
 from pathlib import Path
+from typing import List
 if __name__ == "__main__":
     pride_dir = "/Users/franklyndunbar/.PRIDE_PPPAR_BIN"
     os.environ["PATH"] += os.pathsep + pride_dir
@@ -17,9 +19,22 @@ if __name__ == "__main__":
     survey = "TestSV3"
 
     dh = DataHandler(network=network, station=station, survey=survey, data_dir=dh_dir_sv3)
-    dh.add_data_directory(dh_dir_sv3)
+    #dh.add_data_directory(dh_dir_sv3)
     print(dh.get_dtype_counts())
     # dh.query_catalog(
     #     f"DELETE FROM assets WHERE network='NCB' AND station='NCB1' AND survey='TestSV3' AND type='{AssetType.NOVATELPIN.value}'")
     #dh.pipeline_sv3(override=False,show_details=True)
-    dh.update_shotdata(plot=True)
+    #dh.dev_group_session_data("gnss")
+    #dh.dev_group_session_data("shotdata")
+    novatel_entries: List[AssetEntry] = dh.catalog.get_assets(
+        network=network, station=station, survey=survey, asset_type=AssetType.NOVATEL770
+    )
+    # test asset entries
+    # rinex_dailies =novatel_to_rinex(novatel_entries,dh_dir_sv3,True)
+
+    # for rinex in rinex_dailies:
+    #     print(rinex.model_dump())
+
+    # test string entry
+    novatel_path = novatel_entries[0].local_path
+    rinex_path = novatel_to_rinex(str(novatel_path),True)

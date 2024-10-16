@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field, model_validator, ValidationError
 import pandera as pa
 from pandera.typing import DataFrame
 from datetime import datetime
-from typing import List, Optional, Union,Annotated
+from typing import List, Optional, Union,Annotated,Literal
 import logging
 import julian
 import os
@@ -18,7 +18,7 @@ import platform
 from pathlib import Path
 import numpy as np
 import uuid
-
+from multipledispatch import dispatch
 from ..assets.file_schemas import AssetEntry,AssetType,MultiAssetEntry,MultiAssetPre
 from ..assets.observables import GNSSDataFrame
 
@@ -178,39 +178,35 @@ def rinex_get_meta(source:AssetEntry | MultiAssetEntry) ->AssetEntry|MultiAssetE
                 start_time = _rinex_get_time(line)
                 file_date = start_time.strftime("%Y%m%d%H%M")
                 source.timestamp_data_start = start_time
-
-            if "TIME OF LAST OBS" in line:
-                end_time = _rinex_get_time(line)
-                source.timestamp_data_end = end_time
                 break
+
+
     return source
 
-
+@dispatch(object,Path,bool)
 def novatel_to_rinex(
-    source: Union[AssetEntry,str,Path],
-    site: str,
-    year: str = None,
-    writedir: Path = None,
-    source_type:AssetType = AssetType.NOVATEL,
-    show_details: bool = False,
-
-    **kwargs,
-) -> AssetEntry:
+    source: List[AssetEntry],
+    writedir: Path|str = None,
+    show_details: bool = False
+) -> List[AssetEntry]:
     """
     Batch convert Novatel files to RINEX
     """
-    if isinstance(source,str) or isinstance(source,Path):
-        try:
-            source_type = AssetType(source_type)
-        except:
-            raise ValueError("Argument source_type must be a valid AssetType ['novatel','novatel770','novatelpin']")
+    
+    assert len(set([x.type for x in source])) == 1, "All sources must be of the same type"
 
-        source = AssetEntry(local_path=source,source_type=source_type)
+    source_type = source[0].type
+    site = source[0].station
+    network = source[0].network
+    survey = source[0].survey
+    station = source[0].station
 
-    assert source.local_path.exists(), f"File not found: {source.local_path}"
+    if isinstance(writedir, str):
+        writedir = Path(writedir)
+    elif writedir is None:
+        writedir = source[0].local_path.parent
 
-    if writedir is None:
-        writedir = source.local_path.parent
+
 
     # get system platform and architecture
     system = platform.system().lower()
@@ -222,12 +218,11 @@ def novatel_to_rinex(
     if arch not in ["amd64", "arm64"]:
         raise ValueError(f"Unsupported architecture: {arch}")
 
-    if source.type in [AssetType.NOVATEL,AssetType.NOVATELPIN]:
+    if source_type in [AssetType.NOVATEL,AssetType.NOVATELPIN]:
         binary_path = RINEX_BIN_PATH[f"{system}_{arch}"]
     else:
         binary_path = RINEX_BIN_PATH_BINARY[f"{system}_{arch}"]
 
-    assert os.path.exists(binary_path), f"Binary not found: {binary_path}"
 
     metadata = get_metadata(site, serialNumber=uuid.uuid4().hex[:10])
 
@@ -237,61 +232,97 @@ def novatel_to_rinex(
             json_object = json.dumps(metadata, indent=4)
             f.write(json_object)
 
-        if source.timestamp_data_start is not None:
-            file_date = source.timestamp_data_start.strftime("%Y%m%d%H%M")
-        else:
-            file_date = datetime.now().strftime("%Y%m%d%H%M")
 
-        year_name = '23' if year is None else year
-
-        rinex_outfile = Path(writedir)/f"{site}_{file_date}_rinex.{year_name}O"
         cmd = [
             str(binary_path),
             "-meta",
-            str(metadata_path),
-            str(source.local_path),
-        ]
+            str(metadata_path)
+        ] + [str(x.local_path) for x in source]
 
         result = subprocess.run(cmd, check=True, capture_output=True,cwd=workdir)
-        rnx_files = Path(workdir).rglob(f"*{site}*")
-        for rnx_file in rnx_files:
-            if "o" in str(rnx_file.suffix):
-                shutil.move(rnx_file, rinex_outfile)
-                break
-        
-
-        if not rinex_outfile.exists():
+        if result.stderr:
             logger.error(result.stderr)
-            return None
-        rinex_asset = AssetEntry(
-            parent_id=source.id,
-            local_path=rinex_outfile,
-            type=AssetType.RINEX,
-            network=source.network,
-            station=source.station,
-            survey=source.survey,
-            timestamp_created=datetime.now(),
+            if show_details:
+                print(result.stderr)
+        rnx_files = list(Path(workdir).rglob(f"*{site}*"))
+        response = f"Converted {len(source)} files of type {source_type.value} to {len(rnx_files)} Daily RINEX files"
+        logger.info(response)
+        if show_details: print(response)
+        rinex_assets = []
+        for rinex_file_path in rnx_files:
+            new_rinex_path = writedir / rinex_file_path.name
+            shutil.move(src=rinex_file_path,dst=new_rinex_path)
+            rinex_asset = AssetEntry(
+                local_path=new_rinex_path,
+                type=AssetType.RINEX,
+                network=network,
+                station=station,
+                survey=survey,
+                timestamp_created=datetime.now(),
+            )
+            rinex_asset = rinex_get_meta(rinex_asset)
+            rinex_assets.append(rinex_asset)
+            if show_details:
+                print(f"Generated Daily RINEX file {str(rinex_asset.local_path)}")  
 
-        )
+    return rinex_assets
 
-        rinex_asset = rinex_get_meta(rinex_asset)
-        if year is None and rinex_asset.timestamp_data_start is not None:
-            year_name = str(rinex_asset.timestamp_data_start.year)[-2:]
-            file_date = rinex_asset.timestamp_data_start.strftime("%Y%m%d")
-            start_time = rinex_asset.timestamp_data_start.strftime("%H%M%S")
-            new_rinex_path = rinex_asset.local_path.parent / f"{site}_{file_date}_{start_time}rinex.{year_name}O"
-            rinex_asset.local_path = rinex_asset.local_path.rename(new_rinex_path)
+@dispatch(str,bool)
+def novatel_to_rinex(
+    source:str,
+    show_details: bool = False
+) -> List[str]:
 
+    source = Path(source)
+    if "NOV770" in source.name:
+        source_type = AssetType.NOVATEL770
+    else:
+        source_type = AssetType.NOVATEL
+    print(f"Converting Novatel file at {str(source)} of type {source_type.value} to RINEX")
+    site = "NON1"
+    # get system platform and architecture
+    system = platform.system().lower()
+    arch = platform.machine().lower()
+    if arch == "x86_64":
+        arch = "amd64"
+    if system not in ["darwin", "linux"]:
+        raise ValueError(f"Unsupported platform: {system}")
+    if arch not in ["amd64", "arm64"]:
+        raise ValueError(f"Unsupported architecture: {arch}")
+
+    if source_type in [AssetType.NOVATEL, AssetType.NOVATELPIN]:
+        binary_path = RINEX_BIN_PATH[f"{system}_{arch}"]
+    else:
+        binary_path = RINEX_BIN_PATH_BINARY[f"{system}_{arch}"]
+
+    metadata = get_metadata(site, serialNumber=uuid.uuid4().hex[:10])
+
+    with tempfile.TemporaryDirectory(dir="/tmp/") as workdir:
+        metadata_path = Path(workdir) / "metadata.json"
+        with open(metadata_path, "w") as f:
+            json_object = json.dumps(metadata, indent=4)
+            f.write(json_object)
+
+        cmd = [str(binary_path), "-meta", str(metadata_path), str(source)]
+        result = subprocess.run(cmd, check=True, capture_output=True, cwd=workdir)
+        if result.stderr:
+            logger.error(result.stderr)
+            if show_details:
+                print(result.stderr)
+        rnx_files = list(Path(workdir).rglob(f"*{site}*"))
+        response = f"Converted Novatel file {source} to {len(rnx_files)} Daily RINEX files"
+        logger.info(response)
         if show_details:
-            # logger.info("showing details")
-            if len(result.stdout.decode()):
-                print(
-                    f"{source.local_path.name}: {result.stdout.decode().rstrip()}"
-                )
-            # print(result.stderr.decode())
-
-    return rinex_asset
-
+            print(response)
+        rinex_files = []
+        for rinex_file_path in rnx_files:
+            new_rinex_path = Path(source.parent) / rinex_file_path.name
+            shutil.move(src=rinex_file_path, dst=new_rinex_path)
+            if show_details:
+                print(f"Generated Daily RINEX file {str(new_rinex_path)}")
+            rinex_files.append(str(new_rinex_path))
+    return rinex_files
+            
 
 def rinex_to_kin(
     source: Union[AssetEntry,str,Path],
@@ -330,71 +361,74 @@ def rinex_to_kin(
         "--site",
         site, 
         str(source.local_path)]
+    with tempfile.TemporaryDirectory() as tempdir:
 
-    result = subprocess.run(
-        " ".join(cmd),
-        shell=True,
-        capture_output=True,
-        cwd=str(pridedir),
-    )
+        result = subprocess.run(
+            " ".join(cmd),
+            shell=True,
+            capture_output=True,
+            cwd=tempdir,
+        )
 
-    if result.stderr:
-        logger.error(result.stderr)
-    if pd.isna(source.timestamp_data_start):
-        try:
-            ts = str(source.local_path.name).split("_")[1]
-            year = ts[:4]
-            ts = ts[4:]
-            month = ts[:2]
-            ts = ts[2:]
-            day = max(1, int(ts[:2]))
-            ts = ts[2:]
-            hour = ts[-4:-2]
-            minute = ts[-2:]
-            source.timestamp_data_start = datetime(
-                year=int(year), month=int(month), day=int(day), hour=int(hour)
-            )
-        except:
-            logger.error(f"Error parsing timestamp from RINEX file {source.local_path}")
-            pass
+        if result.stderr:
+            logger.error(result.stderr)
+        logger.info(result.stdout)
+
+        if pd.isna(source.timestamp_data_start):
+            try:
+                ts = str(source.local_path.name).split("_")[1]
+                year = ts[:4]
+                ts = ts[4:]
+                month = ts[:2]
+                ts = ts[2:]
+                day = max(1, int(ts[:2]))
+                ts = ts[2:]
+                hour = ts[-4:-2]
+                minute = ts[-2:]
+                source.timestamp_data_start = datetime(
+                    year=int(year), month=int(month), day=int(day), hour=int(hour)
+                )
+            except:
+                logger.error(f"Error parsing timestamp from RINEX file {source.local_path}")
+                pass
 
     #file_pattern = f"{source.timestamp_data_start.year}{source.timestamp_data_start.timetuple().tm_yday}"
-    tag_files = pridedir.rglob(f"*{site.lower()}*")
-    if isinstance(source,AssetEntry):
-        schema = AssetEntry
-        tag = str(source.id)
-    else:
-        schema = MultiAssetEntry
-        tag = "-".join([str(x) for x in source.parent_id])
+        tag_files = Path(tempdir).rglob(f"*{site.lower()}*")
+        if isinstance(source,AssetEntry):
+            schema = AssetEntry
+            tag = str(source.id)
+        else:
+            schema = MultiAssetEntry
+            tag = "-".join([str(x) for x in source.parent_id])
 
-    for tag_file in tag_files:
-        # print("tag file:", tag_file)
-        if "kin" in tag_file.name:
-            kin_file = tag_file
-            kin_file_new = writedir / (tag + "_" + kin_file.name + ".kin")
-            shutil.move(kin_file, kin_file_new)
-            kin_file = schema(
-                type=AssetType.KIN,
-                parent_id=source.id,
-                timestamp_data_start=source.timestamp_data_start,
-                timestamp_data_end=source.timestamp_data_end,
-                timestamp_created=datetime.now(),
-                local_path=kin_file_new,
-                network=source.network,
-                station=source.station,
-                survey=source.survey,
-            )
-            response = f"Converted RINEX file {source.local_path} to kin file {kin_file.local_path}"
-            logger.info(response)
-            if show_details:
-                print(response)
-            break
-        tag_file.unlink()
+        for tag_file in tag_files:
+            # print("tag file:", tag_file)
+            if "kin" in tag_file.name:
+                kin_file = tag_file
+                kin_file_new = writedir / (tag + "_" + kin_file.name + ".kin")
+                shutil.move(src=kin_file,dst=kin_file_new)
+                kin_file = schema(
+                    type=AssetType.KIN,
+                    parent_id=source.id,
+                    timestamp_data_start=source.timestamp_data_start,
+                    timestamp_data_end=source.timestamp_data_end,
+                    timestamp_created=datetime.now(),
+                    local_path=kin_file_new,
+                    network=source.network,
+                    station=source.station,
+                    survey=source.survey,
+                )
+                response = f"Converted RINEX file {source.local_path} to kin file {kin_file.local_path}"
+                logger.info(response)
+                if show_details:
+                    print(response)
+                break
+            tag_file.unlink()
 
-    try:
-        return kin_file
-    except:
-        return None
+        try:
+            return kin_file
+        except:
+            return None
 
 
 @pa.check_types(lazy=True)
