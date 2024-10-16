@@ -4,7 +4,7 @@ import es_sfgtools
 import os
 from es_sfgtools.processing.pipeline import DataHandler
 from es_sfgtools.processing.assets.file_schemas import AssetType,AssetEntry
-from es_sfgtools.processing.operations.gnss_ops import novatel_to_rinex
+from es_sfgtools.processing.operations.gnss_ops import novatel_to_rinex,rinex_to_kin,kin_to_gnssdf
 from pathlib import Path
 from typing import List
 if __name__ == "__main__":
@@ -30,10 +30,9 @@ if __name__ == "__main__":
         network=network, station=station, survey=survey, asset_type=AssetType.NOVATEL770
     )
     
-    rinex_dailies = novatel_to_rinex(novatel_entries,dh_dir_sv3,True)
+    rinex_dailies = novatel_to_rinex(novatel_entries[:5],dh_dir_sv3,True)
 
-    for rinex in rinex_dailies:
-        print(rinex.model_dump())
-        dh.catalog.add_entry(rinex)
+    test_kin = rinex_to_kin(rinex_dailies[0],dh_dir_sv3,dh_dir_sv3,station,True)
 
-    rinex_solo = novatel_to_rinex(novatel_entries[0],True)
+    gnss_df = kin_to_gnssdf(test_kin)
+    print(gnss_df.head())

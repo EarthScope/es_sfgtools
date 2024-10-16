@@ -261,8 +261,6 @@ def _novatel_to_rinex(
             rinex_files.append(new_rinex_path)
     return rinex_files
 
-
-@overload
 @dispatch(list,Path,bool)
 def novatel_to_rinex(
     source: List[AssetEntry],
@@ -324,7 +322,7 @@ def novatel_to_rinex(
 
     return rinex_assets
 
-@overload
+
 @dispatch(str,bool)
 def novatel_to_rinex(
     source:str,
@@ -351,14 +349,17 @@ def novatel_to_rinex(
     else:
         source_type = AssetType.NOVATEL
     site = "SITE1"
+   
+    writedir = source.parent
     rinex_files = _novatel_to_rinex(
-        source_list=[str(source.local_path)],
-        writedir=source.parent,
+        source_list=[str(source)],
+        writedir=writedir,
         show_details=show_details,
         site=site,
         source_type=source_type
     )
     return rinex_files
+
 
 
 def rinex_to_kin(
@@ -398,74 +399,65 @@ def rinex_to_kin(
         "--site",
         site, 
         str(source.local_path)]
-    with tempfile.TemporaryDirectory() as tempdir:
 
-        result = subprocess.run(
-            " ".join(cmd),
-            shell=True,
-            capture_output=True,
-            cwd=tempdir,
-        )
+    result = subprocess.run(
+        " ".join(cmd),
+        shell=True,
+        capture_output=True,
+        cwd=str(pridedir),
+    )
 
-        if result.stderr:
-            logger.error(result.stderr)
-        logger.info(result.stdout)
+    if result.stderr:
+        logger.error(result.stderr)
+    stdout = result.stdout.decode("utf-8")
+    stdout = stdout.replace("\x1b[", "").split("\n")
+    for line in stdout:
+        if "warning" in line.lower():
+            logger.warning(line)
+        if "error" in line.lower():
+            logger.error(line)
+    
+        
 
-        if pd.isna(source.timestamp_data_start):
-            try:
-                ts = str(source.local_path.name).split("_")[1]
-                year = ts[:4]
-                ts = ts[4:]
-                month = ts[:2]
-                ts = ts[2:]
-                day = max(1, int(ts[:2]))
-                ts = ts[2:]
-                hour = ts[-4:-2]
-                minute = ts[-2:]
-                source.timestamp_data_start = datetime(
-                    year=int(year), month=int(month), day=int(day), hour=int(hour)
-                )
-            except:
-                logger.error(f"Error parsing timestamp from RINEX file {source.local_path}")
-                pass
 
-    #file_pattern = f"{source.timestamp_data_start.year}{source.timestamp_data_start.timetuple().tm_yday}"
-        tag_files = Path(tempdir).rglob(f"*{site.lower()}*")
-        if isinstance(source,AssetEntry):
-            schema = AssetEntry
-            tag = str(source.id)
-        else:
-            schema = MultiAssetEntry
-            tag = "-".join([str(x) for x in source.parent_id])
+    tag_files = Path(pridedir).rglob(f"*{site.lower()}*")
+    if isinstance(source,AssetEntry):
+        schema = AssetEntry
+        if source.id is not None: tag = str(source.id)
+        else : tag = site
+    else:
+        schema = MultiAssetEntry
+        if source.parent_id is not None: tag = "-".join([str(x) for x in source.parent_id])
+        else: tag = site
 
-        for tag_file in tag_files:
-            # print("tag file:", tag_file)
-            if "kin" in tag_file.name:
-                kin_file = tag_file
-                kin_file_new = writedir / (tag + "_" + kin_file.name + ".kin")
-                shutil.move(src=kin_file,dst=kin_file_new)
-                kin_file = schema(
-                    type=AssetType.KIN,
-                    parent_id=source.id,
-                    timestamp_data_start=source.timestamp_data_start,
-                    timestamp_data_end=source.timestamp_data_end,
-                    timestamp_created=datetime.now(),
-                    local_path=kin_file_new,
-                    network=source.network,
-                    station=source.station,
-                    survey=source.survey,
-                )
-                response = f"Converted RINEX file {source.local_path} to kin file {kin_file.local_path}"
-                logger.info(response)
-                if show_details:
-                    print(response)
-                break
-            tag_file.unlink()
+    for tag_file in tag_files:
+        # print("tag file:", tag_file)
+        if "kin" in tag_file.name:
+            kin_file = tag_file
+            kin_file_new = writedir / (tag + "_" + kin_file.name + ".kin")
+            shutil.move(src=kin_file,dst=kin_file_new)
+            kin_file = schema(
+                type=AssetType.KIN,
+                parent_id=source.id,
+                timestamp_data_start=source.timestamp_data_start,
+                timestamp_data_end=source.timestamp_data_end,
+                timestamp_created=datetime.now(),
+                local_path=kin_file_new,
+                network=source.network,
+                station=source.station,
+                survey=source.survey,
+            )
+            response = f"Converted RINEX file {source.local_path} to kin file {kin_file.local_path}"
+            logger.info(response)
+            if show_details:
+                print(response)
+            break
+     
 
-        try:
-            return kin_file
-        except:
-            return None
+    try:
+        return kin_file
+    except:
+        return None
 
 
 @pa.check_types(lazy=True)
