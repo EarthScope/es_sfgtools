@@ -323,8 +323,6 @@ def novatel_to_rinex_batch(
 
     return rinex_assets
 
-
-@dispatch(str,bool)
 def novatel_to_rinex(
     source:str,
     show_details: bool = False
@@ -369,7 +367,7 @@ def rinex_to_kin(
     writedir: Path,
     pridedir: Path,
     site="SIT1",
-    show_details: bool = True,
+    show_details: bool = True
 ) -> AssetEntry:
 
     """
