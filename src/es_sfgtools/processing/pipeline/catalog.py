@@ -164,7 +164,7 @@ class Catalog:
         parent_ids.sort()
         parent_id_string = "-".join([str(x) for x in parent_ids])
         with self.engine.begin() as conn:
-            conn.execute(sa.insert(MergeJobs).values({
+             conn.execute(sa.insert(MergeJobs).values({
                 MergeJobs.parent_type.name: parent_type,
                 MergeJobs.child_type.name: child_type,
                 MergeJobs.parent_ids.name: parent_id_string

@@ -20,6 +20,7 @@ import numpy as np
 import uuid
 from warnings import warn
 from multipledispatch import dispatch
+import multiprocessing_logging
 from ..assets.file_schemas import AssetEntry,AssetType,MultiAssetEntry,MultiAssetPre
 from ..assets.observables import GNSSDataFrame
 

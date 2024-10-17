@@ -1,5 +1,7 @@
 import logging
-logging.basicConfig(level=logging.DEBUG,filename="dev_rinex_merge.log",filemode="w")
+import multiprocessing_logging
+logging.basicConfig(level=logging.WARNING,filename="dev_rinex_merge.log",filemode="a")
+multiprocessing_logging.install_mp_handler()
 import es_sfgtools
 import os
 from es_sfgtools.processing.pipeline import DataHandler
@@ -23,9 +25,9 @@ if __name__ == "__main__":
     print(dh.get_dtype_counts())
     
     rinex_entries = dh.process_novatel(show_details=True)
-    kin_entries = dh.process_rinex(show_details=True)
+    kin_entries = dh.process_rinex(show_details=True,override=True)
     
-    gnss_entries = dh.process_kin(show_details=True)
+    gnss_entries = dh.process_kin(show_details=True,override=True)
 
 
     print(gnss_entries[0].model_dump())
