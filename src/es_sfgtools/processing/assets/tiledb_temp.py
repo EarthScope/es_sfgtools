@@ -1,20 +1,27 @@
 import tiledb
+import numpy as np
 from pathlib import Path
+from datetime import datetime
 import pandas as pd
+from pandera import check_types
+from pandera.typing import DataFrame
+
 from typing import Optional,Dict
+
+from .observables import AcousticDataFrame,GNSSDataFrame,PositionDataFrame,ShotDataFrame
 
 filters = tiledb.FilterList([tiledb.ZstdFilter(5)])
 TimeDomain = tiledb.Dim(name="time", domain=(0,), tile=100, dtype="datetime64['ms']")
 attribute_dict: Dict[str,tiledb.Attr] = {
-    "east": tiledb.Attr(name="east", dtype="float64"),
-    "north": tiledb.Attr(name="north", dtype="float64"),
-    "up": tiledb.Attr(name="up", dtype="float64"),
-    "east_std": tiledb.Attr(name="east_std", dtype="float64",nullable=True),
-    "north_std": tiledb.Attr(name="north_std", dtype="float64",nullable=True),
-    "up_std": tiledb.Attr(name="up_std", dtype="float64",nullable=True),
-    "latitude": tiledb.Attr(name="latitude", dtype="float64"),
-    "longitude": tiledb.Attr(name="longitude", dtype="float64"),
-    "height": tiledb.Attr(name="height", dtype="float64")
+    "east": tiledb.Attr(name="east", dtype=np.float32),
+    "north": tiledb.Attr(name="north", dtype=np.float32),
+    "up": tiledb.Attr(name="up", dtype=np.float32),
+    "east_std": tiledb.Attr(name="east_std", dtype=np.float32,nullable=True),
+    "north_std": tiledb.Attr(name="north_std", dtype=np.float32,nullable=True),
+    "up_std": tiledb.Attr(name="up_std", dtype=np.float32,nullable=True),
+    "latitude": tiledb.Attr(name="latitude", dtype=np.float32),
+    "longitude": tiledb.Attr(name="longitude", dtype=np.float32),
+    "height": tiledb.Attr(name="height", dtype=np.float32)
 }
 
 GNSSAttributes = [
@@ -28,7 +35,7 @@ GNSSAttributes = [
     attribute_dict["north_std"],
     attribute_dict["up_std"],
     tiledb.Attr(name="number_of_satellites", dtype="uint8"),
-    tiledb.Attr(name="pdop", dtype="float64"),
+    tiledb.Attr(name="pdop", dtype=np.float32),
 ]
 GNSSArraySchema = tiledb.ArraySchema(
     sparse=True,
@@ -41,9 +48,9 @@ GNSSArraySchema = tiledb.ArraySchema(
 )
 
 PositionAttributes = [
-    tiledb.Attr(name="head", dtype="float64"),
-    tiledb.Attr(name="pitch", dtype="float64"),
-    tiledb.Attr(name="roll", dtype="float64"),
+    tiledb.Attr(name="head", dtype=np.float32),
+    tiledb.Attr(name="pitch", dtype=np.float32),
+    tiledb.Attr(name="roll", dtype=np.float32),
     attribute_dict["east"],
     attribute_dict["north"],
     attribute_dict["up"],
@@ -63,18 +70,18 @@ PositionArraySchema = tiledb.ArraySchema(
 )
 
 ShotDataAttributes = [
-    tiledb.Attr(name="head0", dtype="float64"),
-    tiledb.Attr(name="pitch0", dtype="float64"),
-    tiledb.Attr(name="roll0", dtype="float64"),
-    tiledb.Attr(name="head1", dtype="float64"),
-    tiledb.Attr(name="pitch1", dtype="float64"),
-    tiledb.Attr(name="roll1", dtype="float64"),
-    tiledb.Attr(name="east0", dtype="float64"),
-    tiledb.Attr(name="north0", dtype="float64"),
-    tiledb.Attr(name="up0", dtype="float64"),
-    tiledb.Attr(name="east1", dtype="float64"),
-    tiledb.Attr(name="north1", dtype="float64"),
-    tiledb.Attr(name="up1", dtype="float64"),
+    tiledb.Attr(name="head0", dtype=np.float32),
+    tiledb.Attr(name="pitch0", dtype=np.float32),
+    tiledb.Attr(name="roll0", dtype=np.float32),
+    tiledb.Attr(name="head1", dtype=np.float32),
+    tiledb.Attr(name="pitch1", dtype=np.float32),
+    tiledb.Attr(name="roll1", dtype=np.float32),
+    tiledb.Attr(name="east0", dtype=np.float32),
+    tiledb.Attr(name="north0", dtype=np.float32),
+    tiledb.Attr(name="up0", dtype=np.float32),
+    tiledb.Attr(name="east1", dtype=np.float32),
+    tiledb.Attr(name="north1", dtype=np.float32),
+    tiledb.Attr(name="up1", dtype=np.float32),
     attribute_dict["east_std"],
     attribute_dict["north_std"],
     attribute_dict["up_std"],
@@ -95,13 +102,13 @@ acousticIDDim = tiledb.Dim(name="transponderID", domain=(0,), tile=100, dtype="U
 
 AcousticDataAttributes = [
     tiledb.Attr(name="transponderID",dtype="U"),
-    tiledb.Attr(name="pingTime",dtype="float64"),
-    tiledb.Attr(name="returnTime",dtype="float64"),
-    tiledb.Attr(name="tt",dtype="float64"),
-    tiledb.Attr(name="dbv",dtype="np.uint8"),
-    tiledb.Attr(name="xc",dtype="np.uint8"),
-    tiledb.Attr(name="snr",dtype="float64"),
-    tiledb.Attr(name="tat",dtype="float64"),
+    tiledb.Attr(name="pingTime",dtype=np.float32),
+    tiledb.Attr(name="returnTime",dtype=np.float32),
+    tiledb.Attr(name="tt",dtype=np.float32),
+    tiledb.Attr(name="dbv",dtype=np.uint8),
+    tiledb.Attr(name="xc",dtype=np.uint8),
+    tiledb.Attr(name="snr",dtype=np.float32),
+    tiledb.Attr(name="tat",dtype=np.float32),
 ]
 AcousticArraySchema = tiledb.ArraySchema(
     sparse=True,
@@ -112,3 +119,70 @@ AcousticArraySchema = tiledb.ArraySchema(
     allows_duplicates=True,
     coords_filters=filters,
 )
+
+
+class TDBAcousticArray:
+    def __init__(self,uri:Path|str):
+        if isinstance(uri,str):
+            uri = Path(uri)
+        self.uri = uri
+        if not uri.exists():
+            tiledb.Array.create(str(uri),AcousticArraySchema)
+  
+    @check_types
+    def write_df(self,df:DataFrame[AcousticDataFrame]):
+       tiledb.from_pandas(str(self.uri),df,mode='append')
+
+    @check_types
+    def read_df(self,start:datetime,end:datetime)->DataFrame[AcousticDataFrame]:
+        return tiledb.read_pandas(str(self.uri),start=start,end=end)
+ 
+
+class TDBGNSSArray:
+    def __init__(self,uri:Path|str):
+        if isinstance(uri,str):
+            uri = Path(uri)
+        self.uri = uri
+        if not uri.exists():
+            tiledb.Array.create(str(uri),GNSSArraySchema)
+  
+    @check_types
+    def write_df(self,df:DataFrame[GNSSDataFrame]):
+       tiledb.from_pandas(str(self.uri),df,mode='append')
+
+    @check_types
+    def read_df(self,start:datetime,end:datetime)->DataFrame[GNSSDataFrame]:
+        return tiledb.read_pandas(str(self.uri),start=start,end=end)
+    
+class TDBPositionArray:
+    def __init__(self,uri:Path|str):
+        if isinstance(uri,str):
+            uri = Path(uri)
+        self.uri = uri
+        if not uri.exists():
+            tiledb.Array.create(str(uri),PositionArraySchema)
+  
+    @check_types
+    def write_df(self,df:DataFrame[PositionDataFrame]):
+       tiledb.from_pandas(str(self.uri),df,mode='append')
+
+    @check_types
+    def read_df(self,start:datetime,end:datetime)->DataFrame[PositionDataFrame]:
+        return tiledb.read_pandas(str(self.uri),start=start,end=end)
+
+class TDBShotDataArray:
+    def __init__(self,uri:Path|str):
+        if isinstance(uri,str):
+            uri = Path(uri)
+        self.uri = uri
+        if not uri.exists():
+            tiledb.Array.create(str(uri),ShotDataArraySchema)
+  
+    @check_types
+    def write_df(self,df:DataFrame[ShotDataFrame]):
+       tiledb.from_pandas(str(self.uri),df,mode='append')
+
+    @check_types
+    def read_df(self,start:datetime,end:datetime)->DataFrame[ShotDataFrame]:
+        return tiledb.read_pandas(str(self.uri),start=start,end=end)
+    
