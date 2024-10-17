@@ -85,7 +85,7 @@ class AssetType(Enum):
     _ = "default"
 
 class _AssetBase(BaseModel):
-    local_path: Union[str, Path] = Field(default=None)
+    local_path: Optional[Union[str, Path]] = Field(default=None)
     type: Optional[AssetType] = Field(default=None)
     id: Optional[int] = Field(default=None)
     network: Optional[str] = Field(default=None)
@@ -94,7 +94,16 @@ class _AssetBase(BaseModel):
 
     timestamp_data_start: Optional[datetime] = Field(default=None)
     timestamp_data_end: Optional[datetime] = Field(default=None)
-    timestamp_created: Optional[datetime] = Field(default=None)
+    # timestamp_created: Optional[datetime] = Field(default=None)
+
+    # @field_serializer("timestamp_data_start","timestamp_data_end","timestamp_created",when_used="always")
+    # def _serialize_timestamp_data_start(self, v: Optional[datetime]):
+    #     if v is not None:
+    #         return v.isoformat()
+    #     return v
+   
+    # @field_validator("timestamp_data_start","timestamp_data_end","timestamp_created",mode="before")
+    # def _validate_timestamp(cls,v:Optional[str]) 
 
     @field_validator("type", mode="before")
     def _check_type(cls, v: Union[str, AssetType]):
@@ -137,17 +146,83 @@ class MultiAssetEntry(_AssetBase):
 
     @field_validator('parent_id',mode='before')
     def _check_parent_id(cls,v:Union[str,List[int]]):
+        if isinstance(v,int):
+            v = [v]
         if isinstance(v,str):
             v = [int(x) for x in v.split(",")]
         return v
-    
+
     @field_serializer('parent_id',when_used='always')
     def _serialize_parent_id(self,v:Union[str,List[int]]):
         if isinstance(v,list):
             return ",".join([str(x) for x in v])
         return v
 
+class MultiAssetPre(BaseModel):
+    network: Optional[str] = Field(default=None)
+    station: Optional[str] = Field(default=None)
+    survey: Optional[str] = Field(default=None)
+    parent_type: Optional[AssetType] = Field(default=None)
+    child_type: Optional[AssetType] = Field(default=None)
+    timestamp_data_start: Optional[datetime] = Field(default=None)
+    timestamp_data_end: Optional[datetime] = Field(default=None)
+    source_paths: Optional[List[Path]] = Field(default=None)
+    parent_id: Optional[List[int]] = Field(default=None)
 
+    def to_multiasset(self) -> MultiAssetEntry:
+        return MultiAssetEntry(
+            type=self.child_type,
+            network=self.network,
+            station=self.station,
+            survey=self.survey,
+            timestamp_data_start=self.timestamp_data_start,
+            timestamp_data_end=self.timestamp_data_end,
+            parent_id=self.parent_id,
+        )
+    def to_asset_list(self) -> List[AssetEntry]:
+        return [
+            AssetEntry(
+                type=self.child_type,
+                network=self.network,
+                station=self.station,
+                survey=self.survey,
+                timestamp_data_start=self.timestamp_data_start,
+                timestamp_data_end=self.timestamp_data_end,
+                parent_id=id,
+                local_path=str(path),
+            )
+            for id,path in zip(self.parent_id,self.source_paths)
+        ]
+    
+    @classmethod
+    def from_asset_list(cls,assets:List[AssetEntry],child_type:AssetType)->Dict[datetime.date ,"MultiAssetPre"]:
+        doy_map = {}
+        for entry in sorted(assets, key=lambda x: x.timestamp_data_start):
+            start_date = entry.timestamp_data_start.date()
+            try:
+                stop_date = entry.timestamp_data_end.date()
+            except AttributeError:
+                stop_date = start_date
+            [
+                doy_map.setdefault(date, []).append(entry)
+                for date in list(set([start_date, stop_date]))
+            ]
+        out = {}
+        for date, entries in doy_map.items():
+            multiasset = MultiAssetPre(
+                source_paths=[Path(entry.local_path) for entry in entries],
+                parent_type=entries[0].type,
+                child_type=child_type,
+                network=entries[0].network,
+                station=entries[0].station,
+                survey=entries[0].survey,
+                timestamp_data_start=entries[0].timestamp_data_start,
+                timestamp_data_end=entries[-1].timestamp_data_end,
+                parent_id=[entry.id for entry in entries])
+            
+            out[date] = multiasset
+        return out
+    
 class NovatelFile(BaseObservable):
     """
     Represents a Novatel file from SV2.
@@ -226,7 +301,7 @@ class SonardyneFile(BaseObservable):
 #     def _serialize(self):
 #         template = f"{self.system}    {self.obstypes}                      SYS / # / OBS TYPES"
 #         return template
-    
+
 # class RinexHeader(BaseModel):
 #     data:Dict[str,str] = Field(...,description="RINEX header data")
 #     time_of_first_obs:datetime = Field(...,description="Time of first observation")
@@ -606,4 +681,3 @@ class RinexFileV3:
         self.path = Path(path)
         self.data = gr.load(self.path)
         self.header = RinexHeader(data=gr.rinexheader(self.path))
-    

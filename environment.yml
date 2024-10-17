@@ -33,3 +33,5 @@ dependencies:
     - garpos @ git+https://github.com/EarthScope/garpos.git
     - earthscope-sdk
     - earthscope-cli
+    - multipledispatch
+    - multirocessing_logging
