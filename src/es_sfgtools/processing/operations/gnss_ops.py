@@ -325,7 +325,7 @@ def novatel_to_rinex_batch(
     return rinex_assets
 
 def novatel_to_rinex(
-    source:str,
+    source:str | List[str],
     show_details: bool = False
 ) -> List[str]:
     """
@@ -350,9 +350,12 @@ def novatel_to_rinex(
         source_type = AssetType.NOVATEL
     site = "SIT1"
 
+    if isinstance(source, str):
+        source = [source]
+
     writedir = source.parent
     rinex_files = _novatel_to_rinex(
-        source_list=[str(source)],
+        source_list=source,
         writedir=writedir,
         show_details=show_details,
         site=site,
@@ -363,7 +366,6 @@ def novatel_to_rinex(
 
 # TODO: handle logging with multiprocessing https://signoz.io/guides/how-should-i-log-while-using-multiprocessing-in-python/
 def rinex_to_kin(
-
     source: Union[AssetEntry,str,Path],
     writedir: Path,
     pridedir: Path,
@@ -376,7 +378,7 @@ def rinex_to_kin(
     Args:
         source (Union[AssetEntry,str,Path]): The source RINEX file to convert.
         writedir (Path): The directory to write the converted kin file.
-        pridedir (Path): The directory where PRIDE-PPP metadata is stored.
+        pridedir (Path): The directory where PRIDE-PPP observables are stored.
         site (str, optional): The site name. Defaults to "SITE1".
         show_details (bool, optional): Whether to show conversion details. Defaults to True.
     Returns:
@@ -405,10 +407,6 @@ def rinex_to_kin(
 
     logger.info(f"Converting RINEX file {source.local_path} to kin file")
 
-    out = []
-
-    # simul link the rinex file to the same file with file_uuid attached at the front
-
     if not source.local_path.exists():
         logger.error(f"RINEX file {source.local_path} not found")
         raise FileNotFoundError(f"RINEX file {source.local_path} not found")
@@ -429,6 +427,7 @@ def rinex_to_kin(
         site, 
         str(source.local_path)]
 
+    # Run pdp3 in the pride directory
     result = subprocess.run(
         " ".join(cmd),
         shell=True,
@@ -468,7 +467,7 @@ def rinex_to_kin(
      
         if "kin" in found_file.name:
             kin_file = found_file
-            kin_file_new = writedir / (tag + "_" + kin_file.name + ".kin")
+            kin_file_new = writedir / (kin_file.name + ".kin")
             shutil.move(src=kin_file,dst=kin_file_new)
             kin_file = schema(
                 type=AssetType.KIN,
