@@ -11,7 +11,7 @@ pattern_map = {
     re.compile(f"novatel"): AssetType.NOVATEL,
     re.compile("kin"): AssetType.KIN,
     # re.compile("rinex"): AssetType.RINEX,
-    # re.compile(r"\.\d{2}O$"): AssetType.RINEX,
+    re.compile(r"\.\d{2}o$"): AssetType.RINEX,
     re.compile("NOV770"): AssetType.NOVATEL770,
     re.compile("DFOP00.raw"): AssetType.DFOP00,
     re.compile("lever_arms"): AssetType.LEVERARM,
@@ -62,7 +62,7 @@ def get_file_type_local(file_path: Path) -> AssetType:
     """
     file_type = None
     for pattern, ftype in pattern_map.items():
-        if pattern.search(str(file_path)):
+        if pattern.search(str(file_path.name)):
             file_type = ftype
             break
         

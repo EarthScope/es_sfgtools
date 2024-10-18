@@ -1,3 +1,4 @@
+from enum import Enum
 import pandas as pd
 from pydantic import BaseModel, Field, model_validator, ValidationError
 import pandera as pa
@@ -132,6 +133,134 @@ class PridePPP(BaseModel):
         except ValidationError as e:
             raise Exception(f"Error parsing into PridePPP {e}")
 
+# define system enum to use 
+class Constellations(str, Enum):
+    GPS = "G"
+    GLONASS = "R"
+    GLAILEO = "E"
+    BDS = "C"
+    BDS_TWO = "2"
+    BDS_THREE = "3"
+    QZSS = "J"
+
+    @classmethod
+    def print_options(cls):
+        print("System options are:")
+        for option in cls:
+            print(f"{option.value} for {option.name}")
+
+class Tides(str, Enum):
+    SOLID = "S"
+    OCEAN = "O"
+    POLAR = "P"
+
+    @classmethod
+    def print_options(cls):
+        print("Tide options are:")
+        for option in cls:
+            print(f"{option.value} for {option.name}")
+
+class PridePdpConfig:
+    def __init__(self, 
+                 system: str = "GREC23J", 
+                 frequency: list = ["G12", "R12", "E15", "C26", "J12"], 
+                 loose_edit: bool = True, 
+                 cutoff_elevation: int =7, 
+                 start: datetime = None, 
+                 end: datetime = None, 
+                 interval: float = None, 
+                 high_ion: bool = False, 
+                 tides: str = "SOP",
+                 local_pdp3_path: str = None):
+        """
+        Initialize the PridePdpConfig class with the following parameters:
+
+        Args:
+        system (str): The GNSS system(s) to use. Default is "GREC23J" which is “GPS/GLONASS/Galileo/BDS/BDS-2/BDS-3/QZSS”
+        frequency (str): The GNSS frequencies to use. Default is "G12 R12 E15 C26 J12, Refer to Table 5-4 in PRIDE-PPP-AR v.3.0 manual for more options"
+        loose_edit (bool): disable strict editing mode, which should be used when high dynamic data quality is poor. Default is True. 
+        cutoff_elevation (int): The elevation cutoff angle in degrees (0-60 degrees). Default is 7.
+        start (datetime): The start time used for processing. Default is None.
+        end (datetime): The end time used for processing. Default is None.
+        interval (float): Processing interval, values range from 0.02s to 30s. If this item is not specified and the configuration file is specified, the processing interval in the configuration file will be read, otherwise, the sampling rate of the observation file is used by default.
+        high_ion (bool): Use 2nd ionospheric delay model with CODE's GIM product. When this option is not entered, no higher-order ionospheric correction is performed. Default is False.
+        tides (str): Enter one or more of "S" "O" "P", e.g SO for solid, ocean, and polar tides. Default is "SOP", which uses all tides.
+        local_pdp3_path (str): The path to the local pdp3 binary. Default is None.
+        """
+
+        # Check if system is valid
+        system = system.upper() # Default to GREC23J which is “GPS/GLONASS/Galileo/BDS/BDS-2/BDS-3/QZSS”
+        for char in system:
+            if char not in Constellations._value2member_map_:
+                Constellations.print_options()
+                raise ValueError(f"Invalid constelation character: {char}")
+        self.system = system
+
+        self.frequency = frequency
+        self.loose_edit = loose_edit
+        self.cutoff_elevation = cutoff_elevation
+
+        self.start = start
+        self.end = end
+        self.interval = interval
+        self.high_ion = high_ion
+        
+        # If entered, check if tide characters are valid
+        tides = tides.upper()
+        for char in tides:
+            if char not in Tides._value2member_map_:
+                Tides.print_options()
+                raise ValueError(f"Invalid tide character: {char}")
+        self.tides = tides
+
+        self.local_pdp3_path = local_pdp3_path
+    
+    def generate_pdp_command(self, site: str, local_file_path: str) -> List[str]:
+        """
+        Generate the command to run pdp3 with the given parameters
+        """
+
+        if self.local_pdp3_path:
+            if 'pdp3' in self.local_pdp3_path:
+                command = [self.local_pdp3_path]
+            else:
+                command = [os.path.join(self.local_pdp3_path, 'pdp3')]
+        else:
+            command = ["pdp3"]
+
+        command.extend(["-m", "K"])
+
+        if self.system != "GREC23J":
+            command.extend(["--system", self.system])
+
+        if self.frequency != ["G12", "R12", "E15", "C26", "J12"]:
+            command.extend(["--frequency", " ".join(self.frequency)])
+
+        if self.loose_edit:
+            command.append("--loose-edit")
+
+        if self.cutoff_elevation != 7:
+            command.extend(["--cutoff-elev", str(self.cutoff_elevation)])
+
+        if self.start:
+            command.extend(["--start", self.start.strftime("%Y/%m/%d %H:%M:%S")])
+
+        if self.end:
+            command.extend(["--end", self.end.strftime("%Y/%m/%d %H:%M:%S")])
+        
+        if self.interval:
+            command.extend(["--interval", str(self.interval)])
+
+        if self.high_ion:
+            command.append("--high-ion")
+
+        if self.tides != "SOP":
+            command.extend(["--tide-off", self.tides])
+
+        command.extend(["--site", site])
+        command.append(str(local_file_path))
+
+        return command
 
 def get_metadata(site: str, serialNumber: str = "XXXXXXXXXX") -> dict:
     # TODO: these are placeholder values, need to use real metadata
@@ -370,7 +499,8 @@ def rinex_to_kin(
     writedir: Path,
     pridedir: Path,
     site="SIT1",
-    show_details: bool = True
+    show_details: bool = True,
+    PridePdpConfig: PridePdpConfig = None,
 ) -> AssetEntry:
 
     """
@@ -414,22 +544,16 @@ def rinex_to_kin(
     # FROM JOHN "pdp3 -m K -i 1 -l -c15 rinex"
     if source.station is not None:
         site = source.station
-    cmd = [
-        "pdp3", 
-        "--loose-edit", 
-        "-m", 
-        "K",
-        "-i",
-        "1", # 1hz decimation
-        "-c",
-        "15",
-        "--site",
-        site, 
-        str(source.local_path)]
+    
+    # If PridePdpConfig is not provided, use the default configuration
+    if PridePdpConfig is None:
+        PridePdpConfig = PridePdpConfig()
+    pdp_command = PridePdpConfig.generate_pdp_command(site=site, 
+                                                        local_file_path=source.local_path)
 
     # Run pdp3 in the pride directory
     result = subprocess.run(
-        " ".join(cmd),
+        " ".join(pdp_command),
         shell=True,
         capture_output=True,
         cwd=str(pridedir),
