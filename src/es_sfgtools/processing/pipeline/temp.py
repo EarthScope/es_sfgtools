@@ -1029,6 +1029,7 @@ class DataHandler:
         if show_details:
             print(response)
         return gnss_entries
+    
     def interpolate_enu(self,tenu_l:np.ndarray,enu_l_sig:np.ndarray,tenu_r:np.ndarray,enu_r_sig:np.ndarray) -> np.ndarray:
         # interpolate the enu values between the left and right enu values
         # t is the time values in unix epoch

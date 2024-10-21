@@ -371,7 +371,7 @@ def rinex_to_kin(
     pridedir: Path,
     site="SIT1",
     show_details: bool = True
-) -> AssetEntry:
+) -> List[AssetEntry]:
 
     """
     Converts a RINEX file to a kin file.
@@ -382,7 +382,7 @@ def rinex_to_kin(
         site (str, optional): The site name. Defaults to "SITE1".
         show_details (bool, optional): Whether to show conversion details. Defaults to True.
     Returns:
-        AssetEntry: The converted kin file as an AssetEntry object.
+        List[AssetEntry]: The generated kin and result files as AssetEntry objects.
     Raises:
         FileNotFoundError: If the PRIDE-PPP binary is not found.
         FileNotFoundError: If the source RINEX file is not found.
@@ -392,9 +392,13 @@ def rinex_to_kin(
         >>> source = AssetEntry(local_path="/path/to/NCB12450.24o", type=AssetType.RINEX, network="NCB", station="NCB1", survey="JULY2024")
         >>> writedir = Path("/writedir")
         >>> pridedir = Path("/pridedir")
-        >>> kin_asset: AssetEntry = rinex_to_kin(source, writedir, pridedir, site="NCB1", show_details=True)
+        >>> pride_ouput: List[AssetEntry] = rinex_to_kin(source, writedir, pridedir, site="NCB1", show_details=True)
+        >>> kin_asset = pride_ouput[0]
         >>> kin_asset.model_dump()
         {'local_path': '/writedir/NCB12450.24o.kin', 'type': 'kin', 'network': 'NCB', 'station': 'NCB1', 'survey': 'JULY2024', 'timestamp_created': datetime.datetime(2024, 7, 9, 12, 0, 0, 0)}
+        >>> res_asset = pride_ouput[1]
+        >>> res_asset.model_dump()
+        {'local_path': '/writedir/NCB12450.24o.res', 'type': 'kinresiduals', 'network': 'NCB', 'station': 'NCB1', 'survey': 'JULY2024', 'timestamp_created': datetime.datetime(2024, 7, 9, 12, 0, 0, 0)}
     """
 
     # Check if the pride binary is in the path
@@ -410,8 +414,7 @@ def rinex_to_kin(
     if not source.local_path.exists():
         logger.error(f"RINEX file {source.local_path} not found")
         raise FileNotFoundError(f"RINEX file {source.local_path} not found")
-    # tag = uuid.uuid4().hex[:4]
-    # FROM JOHN "pdp3 -m K -i 1 -l -c15 rinex"
+
     if source.station is not None:
         site = source.station
     cmd = [
@@ -450,18 +453,8 @@ def rinex_to_kin(
         if "error" in line.lower():
             logger.error(line)
     
-        
-
-
+    
     found_files = Path(pridedir).rglob(f"*{site.lower()}*")
-    if isinstance(source,AssetEntry):
-        schema = AssetEntry
-        if source.id is not None: tag = str(source.id)
-        else : tag = site
-    else:
-        schema = MultiAssetEntry
-        if source.parent_id is not None: tag = "-".join([str(x) for x in source.parent_id])
-        else: tag = site
 
     for found_file in found_files:
      
@@ -469,7 +462,7 @@ def rinex_to_kin(
             kin_file = found_file
             kin_file_new = writedir / (kin_file.name + ".kin")
             shutil.move(src=kin_file,dst=kin_file_new)
-            kin_file = schema(
+            kin_file = AssetEntry(
                 type=AssetType.KIN,
                 parent_id=source.id,
                 timestamp_data_start=source.timestamp_data_start,
@@ -484,11 +477,35 @@ def rinex_to_kin(
             logger.info(response)
             if show_details:
                 print(response)
-            return kin_file
+            
+        if "res" in found_file.name:
+            res_file = found_file
+            res_file_new = writedir / (res_file.name + ".res")
+            shutil.move(src=res_file,dst=res_file_new)
+            res_file = AssetEntry(
+                type=AssetType.KINRESIDUALS,
+                parent_id=source.id,
+                timestamp_data_start=source.timestamp_data_start,
+                timestamp_data_end=source.timestamp_data_end,
+                timestamp_created=datetime.now(),
+                local_path=res_file_new,
+                network=source.network,
+                station=source.station,
+                survey=source.survey,
+            )
+            response = f"Found PRIDE res file {res_file.local_path}"
+            logger.info(response)
+            if show_details:
+                print(response)
+            
     
-    response = f"No kin file generated from RINEX {source.local_path}"
-    logger.error(response)
-    warn(response)
+    
+    if not kin_file:
+        response = f"No kin file generated from RINEX {source.local_path}"
+        logger.error(response)
+        warn(response)
+        return []
+    return [kin_file,res_file]
 
 
 @pa.check_types(lazy=True)

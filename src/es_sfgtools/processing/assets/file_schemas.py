@@ -81,6 +81,7 @@ class AssetType(Enum):
     SVP = "svp"
     SHOTDATA = "shotdata"
     POSITION = "position"
+    KINRESIDUALS = "kinresiduals"
 
     _ = "default"
 
