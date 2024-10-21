@@ -11,7 +11,7 @@ from typing import Optional,Dict
 from .observables import AcousticDataFrame,GNSSDataFrame,PositionDataFrame,ShotDataFrame
 
 filters = tiledb.FilterList([tiledb.ZstdFilter(5)])
-TimeDomain = tiledb.Dim(name="time", domain=(0,), tile=100, dtype="datetime64['ms']")
+TimeDomain = tiledb.Dim(name="time", dtype="datetime64[ms]")
 attribute_dict: Dict[str,tiledb.Attr] = {
     "east": tiledb.Attr(name="east", dtype=np.float32),
     "north": tiledb.Attr(name="north", dtype=np.float32),
@@ -31,9 +31,9 @@ GNSSAttributes = [
     attribute_dict["east"],
     attribute_dict["north"],
     attribute_dict["up"],
-    attribute_dict["east_std"],
-    attribute_dict["north_std"],
-    attribute_dict["up_std"],
+    # attribute_dict["east_std"],
+    # attribute_dict["north_std"],
+    # attribute_dict["up_std"],
     tiledb.Attr(name="number_of_satellites", dtype="uint8"),
     tiledb.Attr(name="pdop", dtype=np.float32),
 ]
@@ -97,11 +97,11 @@ ShotDataArraySchema = tiledb.ArraySchema(
     coords_filters=filters,
 )
 
-accousticTimeDim = tiledb.Dim(name="triggerTime", domain=(0,), tile=100, dtype="datetime64[ms]")
-acousticIDDim = tiledb.Dim(name="transponderID", domain=(0,), tile=100, dtype="U")
+accousticTimeDim = tiledb.Dim(name="triggerTime", dtype="datetime64[ms]")
+acousticIDDim = tiledb.Dim(name="transponderID",dtype="ascii")
 
 AcousticDataAttributes = [
-    tiledb.Attr(name="transponderID",dtype="U"),
+    
     tiledb.Attr(name="pingTime",dtype=np.float32),
     tiledb.Attr(name="returnTime",dtype=np.float32),
     tiledb.Attr(name="tt",dtype=np.float32),
@@ -152,7 +152,13 @@ class TDBGNSSArray:
 
     @check_types
     def read_df(self,start:datetime,end:datetime)->DataFrame[GNSSDataFrame]:
-        return tiledb.read_pandas(str(self.uri),start=start,end=end)
+
+        with tiledb.open(str(self.uri),mode='r') as array:
+            df = array.df[slice(np.datetime64(start),np.datetime64(end))]
+        return df
+    
+        
+       
     
 class TDBPositionArray:
     def __init__(self,uri:Path|str):
