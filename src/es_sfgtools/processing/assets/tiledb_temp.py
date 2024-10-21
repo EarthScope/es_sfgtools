@@ -5,8 +5,8 @@ from datetime import datetime
 import pandas as pd
 from pandera import check_types
 from pandera.typing import DataFrame
-
-from typing import Optional,Dict
+from functools import wraps
+from typing import Optional,Dict,Literal
 
 from .observables import AcousticDataFrame,GNSSDataFrame,PositionDataFrame,ShotDataFrame
 
@@ -121,75 +121,44 @@ AcousticArraySchema = tiledb.ArraySchema(
 )
 
 
-class TDBAcousticArray:
+class TBDArray:
+    dataframe_schema = None
     def __init__(self,uri:Path|str):
         if isinstance(uri,str):
             uri = Path(uri)
         self.uri = uri
         if not uri.exists():
             tiledb.Array.create(str(uri),AcousticArraySchema)
-
-    @check_types
-    def write_df(self,df:DataFrame[AcousticDataFrame]):
+    
+    def write_df(self,df:pd.DataFrame):
+        df = self.dataframe_schema.validate(df,lazy=True)
         tiledb.from_pandas(str(self.uri),df,mode='append')
 
-    @check_types(lazy=True)
-    def read_df(self,start:datetime,end:datetime,**kwargs)->DataFrame[AcousticDataFrame]:
+    def read_df(self,start:datetime,end:datetime,**kwargs)->pd.DataFrame:
         with tiledb.open(str(self.uri), mode="r") as array:
             df = array.df[slice(np.datetime64(start), np.datetime64(end)), :]
+        df = self.dataframe_schema.validate(df,lazy=True)
         return df
+    
 
-class TDBGNSSArray:
+class TDBAcousticArray(TBDArray):
+    dataframe_schema = AcousticDataFrame
     def __init__(self,uri:Path|str):
-        if isinstance(uri,str):
-            uri = Path(uri)
-        self.uri = uri
-        if not uri.exists():
-            tiledb.Array.create(str(uri),GNSSArraySchema)
-  
-    @check_types
-    def write_df(self,df:DataFrame[GNSSDataFrame]):
-       tiledb.from_pandas(str(self.uri),df,mode='append')
+        super().__init__(uri)
 
-    @check_types(lazy=True)
-    def read_df(self,start:datetime,end:datetime,**kwargs)->DataFrame[GNSSDataFrame]:
-        with tiledb.open(str(self.uri),mode='r') as array:
-            df = array.df[slice(np.datetime64(start),np.datetime64(end))]
-        return df
-
-
-class TDBPositionArray:
+    
+class TDBGNSSArray(TBDArray):
+    dataframe_schema = GNSSDataFrame
     def __init__(self,uri:Path|str):
-        if isinstance(uri,str):
-            uri = Path(uri)
-        self.uri = uri
-        if not uri.exists():
-            tiledb.Array.create(str(uri),PositionArraySchema)
+        super().__init__(uri)
 
-    @check_types
-    def write_df(self,df:DataFrame[PositionDataFrame]):
-        tiledb.from_pandas(str(self.uri),df,mode='append')
 
-    @check_types(lazy=True)
-    def read_df(self,start:datetime,end:datetime,**kwargs)->DataFrame[PositionDataFrame]:
-        with tiledb.open(str(self.uri), mode="r") as array:
-            df = array.df[slice(np.datetime64(start), np.datetime64(end))]
-        return df
-
-class TDBShotDataArray:
+class TDBPositionArray(TBDArray):
+    dataframe_schema = PositionDataFrame
     def __init__(self,uri:Path|str):
-        if isinstance(uri,str):
-            uri = Path(uri)
-        self.uri = uri
-        if not uri.exists():
-            tiledb.Array.create(str(uri),ShotDataArraySchema)
+        super().__init__(uri)
 
-    @check_types
-    def write_df(self,df:DataFrame[ShotDataFrame]):
-        tiledb.from_pandas(str(self.uri),df,mode='append')
-
-    @check_types(lazy=True)
-    def read_df(self,start:datetime,end:datetime,**kwargs)->DataFrame[ShotDataFrame]:
-        with tiledb.open(str(self.uri), mode="r") as array:
-            df = array.df[slice(np.datetime64(start), np.datetime64(end))]
-        return df
+class TDBShotDataArray(TBDArray):
+    dataframe_schema = ShotDataFrame
+    def __init__(self,uri:Path|str):
+        super().__init__(uri)
