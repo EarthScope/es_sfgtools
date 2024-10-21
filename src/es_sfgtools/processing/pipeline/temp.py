@@ -44,7 +44,6 @@ import sqlalchemy as sa
 from .database import Base,Assets,MultiAssets,ModelResults
 from .constants import FILE_TYPE,DATA_TYPE,REMOTE_TYPE,ALIAS_MAP,FILE_TYPES
 from .datadiscovery import scrape_directory_local,get_file_type_local,get_file_type_remote
-from .data_ops import create_multi_asset_dataframe,create_multi_asset_rinex,dev_create_multi_asset_dataframe,dev_create_multiasset_rinex
 logger = logging.getLogger(__name__)
 
 TARGET_MAP = {
@@ -806,71 +805,71 @@ class DataHandler:
     def process_sv3_data(self, override:bool=False, show_details:bool=False):
         self._process_data_graph_forward(AssetType.DFOP00,override=override, show_details=show_details,)
 
-    def dev_group_session_data(self,
-                           source:Union[str,AssetType] = AssetType.SHOTDATA,
-                           override:bool=False
-                           ):
-        """
-        Group the session data by timestamp.
+    # def dev_group_session_data(self,
+    #                        source:Union[str,AssetType] = AssetType.SHOTDATA,
+    #                        override:bool=False
+    #                        ):
+    #     """
+    #     Group the session data by timestamp.
 
-        Args:
-            timespan (str): The timespan to group the data by.
-            show_details (bool): Log verbose output.
+    #     Args:
+    #         timespan (str): The timespan to group the data by.
+    #         show_details (bool): Log verbose output.
 
-        Returns:
-            dict: The grouped data.
-        """ 
-        if isinstance(source,str):
-            try:
-                source = AssetType(source)
-            except:
-                raise ValueError(f"Source {source} must be one of {AssetType.__members__.keys()}")
+    #     Returns:
+    #         dict: The grouped data.
+    #     """ 
+    #     if isinstance(source,str):
+    #         try:
+    #             source = AssetType(source)
+    #         except:
+    #             raise ValueError(f"Source {source} must be one of {AssetType.__members__.keys()}")
 
-        pre_multi_assets: List[MultiAssetPre] = self.catalog.get_multi_entries_to_process(
-            network=self.network,station=self.station,survey=self.survey,override=override,child_type=source,parent_type=source
-        )
-        if not pre_multi_assets:
-            if override:
-                raise ValueError(f"No assets of type {source.value} found in catalog for {self.network} {self.station} {self.survey}")
-            else:
-                return
+    #     pre_multi_assets: List[MultiAssetPre] = self.catalog.get_multi_entries_to_process(
+    #         network=self.network,station=self.station,survey=self.survey,override=override,child_type=source,parent_type=source
+    #     )
+    #     if not pre_multi_assets:
+    #         if override:
+    #             raise ValueError(f"No assets of type {source.value} found in catalog for {self.network} {self.station} {self.survey}")
+    #         else:
+    #             return
 
-        match source:
-            case (
-                AssetType.POSITION
-                | AssetType.SHOTDATA
-                | AssetType.ACOUSTIC
-                | AssetType.GNSS
-            ):
-                multi_asset_list: List[MultiAssetEntry] = [
-                    dev_create_multi_asset_dataframe(
-                        multi_asset_pre=pre_multi_asset, working_dir=self.inter_dir
-                    )
-                    for pre_multi_asset in pre_multi_assets
-                ]
+    #     match source:
+    #         case (
+    #             AssetType.POSITION
+    #             | AssetType.SHOTDATA
+    #             | AssetType.ACOUSTIC
+    #             | AssetType.GNSS
+    #         ):
+    #             multi_asset_list: List[MultiAssetEntry] = [
+    #                 dev_create_multi_asset_dataframe(
+    #                     multi_asset_pre=pre_multi_asset, working_dir=self.inter_dir
+    #                 )
+    #                 for pre_multi_asset in pre_multi_assets
+    #             ]
 
-            case AssetType.RINEX:
-                multi_asset_list = []
-                for pre_multi_asset in pre_multi_assets:
-                    try:
-                        rinex_ma:MultiAssetEntry = gnss_ops.dev_merge_rinex_multiasset(
-                            source=pre_multi_asset,working_dir=self.inter_dir
-                        )
-                        multi_asset_list.append(rinex_ma)
-                    except Exception as e:
-                        print(e)
-                        continue
+    #         case AssetType.RINEX:
+    #             multi_asset_list = []
+    #             for pre_multi_asset in pre_multi_assets:
+    #                 try:
+    #                     rinex_ma:MultiAssetEntry = gnss_ops.dev_merge_rinex_multiasset(
+    #                         source=pre_multi_asset,working_dir=self.inter_dir
+    #                     )
+    #                     multi_asset_list.append(rinex_ma)
+    #                 except Exception as e:
+    #                     print(e)
+    #                     continue
 
-        logger.info(f"Created {len(multi_asset_list)} MultiAssetEntries for {source.value}")
-        uploadCount = 0
-        for multi_asset in multi_asset_list:
-            if multi_asset is not None:
-                if self.catalog.add_entry(multi_asset):
-                    uploadCount += 1
-        response = f"Added {uploadCount} out of {len(multi_asset_list)} MultiAssetEntries to the catalog"
-        logger.info(response)
-        print(response)
-        return [x for x in multi_asset_list if x is not None]
+    #     logger.info(f"Created {len(multi_asset_list)} MultiAssetEntries for {source.value}")
+    #     uploadCount = 0
+    #     for multi_asset in multi_asset_list:
+    #         if multi_asset is not None:
+    #             if self.catalog.add_entry(multi_asset):
+    #                 uploadCount += 1
+    #     response = f"Added {uploadCount} out of {len(multi_asset_list)} MultiAssetEntries to the catalog"
+    #     logger.info(response)
+    #     print(response)
+    #     return [x for x in multi_asset_list if x is not None]
 
     def query_catalog(self,
                       query:str) -> pd.DataFrame:

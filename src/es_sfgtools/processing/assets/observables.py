@@ -167,6 +167,11 @@ class GNSSDataFrame(pa.DataFrameModel):
     @pa.parser("time")
     def parse_time(cls, series: pd.Series) -> pd.Series:
         return pd.to_datetime(series, unit="ms")
+    
+    class Config:
+        coerce = True
+        add_missing_columns = True
+
 
 class PositionDataFrame(pa.DataFrameModel):
     time: Series[pd.Timestamp] = pa.Field(
