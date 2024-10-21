@@ -34,4 +34,4 @@ dependencies:
     - earthscope-sdk
     - earthscope-cli
     - multipledispatch
-    - multirocessing_logging
+    - multiprocessing_logging
