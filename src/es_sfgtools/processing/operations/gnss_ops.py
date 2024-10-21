@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field, model_validator, ValidationError
 import pandera as pa
 from pandera.typing import DataFrame
 from datetime import datetime
-from typing import List, Optional, Union,Annotated,Literal,overload
+from typing import List, Optional, Union,Literal
 import logging
 import julian
 import os
@@ -11,7 +11,6 @@ import tempfile
 import subprocess
 from concurrent.futures import ProcessPoolExecutor as Pool
 from functools import partial
-import sys
 import shutil
 import json
 import platform
@@ -19,8 +18,7 @@ from pathlib import Path
 import numpy as np
 import uuid
 from warnings import warn
-from multipledispatch import dispatch
-import multiprocessing_logging
+import matplotlib.pyplot as plt
 from ..assets.file_schemas import AssetEntry,AssetType,MultiAssetEntry,MultiAssetPre
 from ..assets.observables import GNSSDataFrame
 
@@ -727,3 +725,144 @@ def dev_merge_rinex_multiasset(source:MultiAssetPre,working_dir:Path) -> MultiAs
         timestamp_created=datetime.now(),
     )
     return rinex_get_meta(merged_asset)
+
+
+def read_kin_data(kin_path):
+    with open(kin_path, "r") as kin_file:
+        for i, line in enumerate(kin_file):
+            if "END OF HEADER" in line:
+                end_of_header = i + 1
+                break
+    cols = [
+        "Mjd",
+        "Sod",
+        "*",
+        "X",
+        "Y",
+        "Z",
+        "Latitude",
+        "Longitude",
+        "Height",
+        "Nsat",
+        "G",
+        "R",
+        "E",
+        "C2",
+        "C3",
+        "J",
+        "PDOP",
+    ]
+    colspecs = [
+        (0, 6),
+        (6, 16),
+        (16, 18),
+        (18, 32),
+        (32, 46),
+        (46, 60),
+        (60, 77),
+        (77, 94),
+        (94, 108),
+        (108, 114),
+        (114, 117),
+        (117, 120),
+        (120, 123),
+        (123, 126),
+        (126, 129),
+        (129, 132),
+        (132, 140),
+    ]
+    kin_df = pd.read_fwf(
+        kin_path,
+        header=end_of_header,
+        colspecs=colspecs,
+        names=cols,
+        on_bad_lines="skip",
+    )
+    # kin_df = pd.read_csv(kin_path, sep="\s+", names=cols, header=end_of_header, on_bad_lines='skip')
+    kin_df.set_index(
+        pd.to_datetime(kin_df["Mjd"] + 2400000.5, unit="D", origin="julian")
+        + pd.to_timedelta(kin_df["Sod"], unit="sec"),
+        inplace=True,
+    )
+    return kin_df
+
+
+# read res and caculate wrms
+def get_wrms_from_res(res_path):
+    with open(res_path, "r") as res_file:
+        timestamps = []
+        data = []
+        wrms = 0
+        sumOfSquares = 0
+        sumOfWeights = 0
+        line = res_file.readline()  # first line is header and we can throw away
+        while True:
+            if line == "":  # break at EOF
+                break
+            line_data = line.split()
+            if line_data[0] == "TIM":  # for a given epoch
+                sumOfSquares = 0
+                sumOfWeights = 0
+                # parse date fields and make a timestamp
+                seconds = float(line_data[6])
+                SS = int(seconds)
+                f = str(seconds - SS).split(".")[-1]
+                isodate = f"{line_data[1]}-{line_data[2].zfill(2)}-{line_data[3].zfill(2)}T{line_data[4].zfill(2)}:{line_data[5].zfill(2)}:{str(SS).zfill(2)}.{str(f).zfill(6)}"
+                timestamp = datetime.fromisoformat(isodate)
+                timestamps.append(timestamp)
+                # loop through SV data for that epoch, stop at next timestamp
+                line = res_file.readline()
+                line_data = line.split()
+                while not line.startswith("TIM"):
+                    phase_residual = float(line_data[1])
+                    phase_weight = float(line_data[3].replace("D", "E"))
+                    sumOfSquares += phase_residual**2 * phase_weight
+                    sumOfWeights += phase_weight
+                    line = res_file.readline()
+                    if line == "":
+                        break
+                    line_data = line.split()
+                wrms = (sumOfSquares / sumOfWeights) ** 0.5 * 1000  # in mm
+                data.append(wrms)
+            else:
+                line = res_file.readline()
+    wrms_df = pd.DataFrame({"date": timestamps, "wrms": data}).set_index("date")
+    return wrms_df
+
+
+def plot_kin_results_wrms(kin_df, title=None, save_as=None):
+    size = 3
+    bad_nsat = kin_df[kin_df["Nsat"] <= 4]
+    bad_pdop = kin_df[kin_df["PDOP"] >= 5]
+    fig, axs = plt.subplots(
+        6,
+        1,
+        figsize=(10, 10),
+        sharex=True,
+    )
+    axs[0].scatter(kin_df.index, kin_df["Latitude"], s=size)
+    axs[0].set_ylabel("Latitude")
+    axs[1].scatter(kin_df.index, kin_df["Longitude"], s=size)
+    axs[1].set_ylabel("Longitude")
+    axs[2].scatter(kin_df.index, kin_df["Height"], s=size)
+    axs[2].set_ylabel("Height")
+    axs[3].scatter(kin_df.index, kin_df["Nsat"], s=size)
+    axs[3].scatter(bad_nsat.index, bad_nsat["Nsat"], s=size * 2, color="red")
+    axs[3].set_ylabel("Nsat")
+    axs[4].scatter(kin_df.index, kin_df["PDOP"], s=size)
+    axs[4].scatter(bad_pdop.index, bad_pdop["PDOP"], s=size * 2, color="red")
+    axs[4].set_ylabel("log PDOP")
+    axs[4].set_yscale("log")
+    axs[4].set_ylim(1, 100)
+    axs[5].scatter(kin_df.index, kin_df["wrms"], s=size)
+    axs[5].set_ylabel("wrms mm")
+    axs[0].ticklabel_format(axis="y", useOffset=False, style="plain")
+    axs[1].ticklabel_format(axis="y", useOffset=False, style="plain")
+    for ax in axs:
+        ax.grid(True, c="lightgrey", zorder=0, lw=1, ls=":")
+    plt.xticks(rotation=70)
+    fig.suptitle(f"PRIDE-PPPAR results for {os.path.basename(title)}")
+    fig.tight_layout()
+    if save_as is not None:
+        plt.savefig(save_as)
+    plt.close()
