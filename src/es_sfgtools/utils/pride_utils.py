@@ -1,16 +1,20 @@
 import datetime
 from pathlib import Path
+from ftplib import FTP
 from typing import IO,Dict
 import wget
 import zlib
 import tempfile
 
-WUHAN_GPS_DAILY = Path("ftp://igs.gnsswhu.cn/pub/gps/data/daily/")
-NASA_GPS_DAILY = Path("ftp://cddis.gsfc.nasa.gov/gnss/data/daily/")
-CDDIS_GNSS_DAILY = Path("https://cddis.gsfc.nasa.gov/archive/gnss/data/daily/")
-IGS_GNSS_DATA = Path("ftp://igs.ensg.ign.fr/pub/igs/data/")
-GSSC_GNSS_DATA = Path("ftp://gssc.esa.int/gnss/data/daily/")
-SIO_GNSS_DATA = Path("ftp://lox.ucsd.edu/rinex/")
+# TODO use ftplib to download files
+# https://docs.python.org/3/library/ftplib.html
+
+WUHAN_GPS_DAILY = "ftp://igs.gnsswhu.cn/pub/gps/data/daily/"
+NASA_GPS_DAILY = "ftp://cddis.gsfc.nasa.gov/gnss/data/daily/"
+CDDIS_GNSS_DAILY = "https://cddis.gsfc.nasa.gov/archive/gnss/data/daily/"
+IGS_GNSS_DATA = "ftp://igs.ensg.ign.fr/pub/igs/data/"
+GSSC_GNSS_DATA = "ftp://gssc.esa.int/gnss/data/daily/"
+SIO_GNSS_DATA = "ftp://lox.ucsd.edu/rinex/"
 
 def uncompressed_file(file:Path) ->Path:
     """
@@ -61,42 +65,39 @@ def get_daily_rinex_url(date:datetime.date) ->Dict[str,Dict[str,Path]]:
         doy = f"00{doy}"
     elif doy < 100:
         doy = f"0{doy}"
+    doy = str(doy)
     auto_rinex_2_gps = f"auto{doy}0.{year[2:]}n.Z"
     brcd_rinex_2_gps = f"brdc{doy}0.{year[2:]}n.Z"
     brcd_rinex_2_glonass = f"brdc{doy}0.{year[2:]}g.Z"
-    brcd_rinex_3 = f"BRDC00IGS_R_${year}${doy}0000_01D_MN.rnx.gz"
+    brcd_rinex_3 = f"BRDC00IGS_R_{year}{doy}0000_01D_MN.rnx.gz"
 
     urls = {
         "rinex_2": {
             "wuhan":{
-                "glonass":WUHAN_GPS_DAILY/year/doy/(year[2:] + "g")/brcd_rinex_2_glonass,
-                "gps":WUHAN_GPS_DAILY/year/doy/(year[2:] + "n")/brcd_rinex_2_gps/year/doy/(year[2:] + "n")/brcd_rinex_2_gps
+                "glonass":WUHAN_GPS_DAILY+f"{year}/{doy}/{(year[2:] + 'g')}/{brcd_rinex_2_glonass}",
+                "gps":WUHAN_GPS_DAILY+f"{year}/{doy}/{(year[2:] + 'n')}/{brcd_rinex_2_gps}"
                 },
             "cdds":{
-                "glonass":CDDIS_GNSS_DAILY/year/doy/ (year[2:] + "g")/brcd_rinex_2_glonass,
-                "gps":CDDIS_GNSS_DAILY/year/doy/(year[2:] + "n")/brcd_rinex_2_gps
+                "glonass":CDDIS_GNSS_DAILY+f"{year}/{doy}/{(year[2:] + 'g')}/{brcd_rinex_2_glonass}",
+                "gps":CDDIS_GNSS_DAILY+f"{year}/{doy}/{(year[2:] + 'n')}/{brcd_rinex_2_gps}"
             },
             "igs":{
-                "glonass":IGS_GNSS_DATA / brcd_rinex_2_glonass,
-                "gps":IGS_GNSS_DATA / brcd_rinex_2_gps
+                "glonass":IGS_GNSS_DATA+brcd_rinex_2_glonass,
+                "gps":IGS_GNSS_DATA+brcd_rinex_2_gps
             },
             "gssc":{
-                "glonass":GSSC_GNSS_DATA / brcd_rinex_2_glonass,
-                "gps":GSSC_GNSS_DATA / brcd_rinex_2_gps
+                "glonass":GSSC_GNSS_DATA+brcd_rinex_2_glonass,
+                "gps":GSSC_GNSS_DATA+brcd_rinex_2_gps
             }
         },
         "rinex_3": {
-            "wuhan_gps": WUHAN_GPS_DAILY / year / doy / (year[2:] + "p") / brcd_rinex_3,
-            "igs_gnss": IGS_GNSS_DATA / year / doy / brcd_rinex_3,
-            "igs_gnss": IGS_GNSS_DATA / brcd_rinex_3,
-            "nasa_gps": NASA_GPS_DAILY / year / doy / brcd_rinex_3,
-            "cddis_gnss": CDDIS_GNSS_DAILY
-            / year
-            / doy
-            / (year[2:] + "p")
-            / brcd_rinex_3,
-            "gssc_gnss": GSSC_GNSS_DATA / brcd_rinex_3,
-        },
+            
+            "wuhan_gps": WUHAN_GPS_DAILY +f"{year}/{doy}/{(year[2:] + 'p')}/{brcd_rinex_3}",
+            "igs_gnss": IGS_GNSS_DATA+f"{year}/{doy}/{brcd_rinex_3}",
+            "nasa_gps": NASA_GPS_DAILY+f"{year}/{doy}/{brcd_rinex_3}",
+            "cddis_gnss": CDDIS_GNSS_DAILY+f"{year}/{doy}/{(year[2:] + 'p')}/{brcd_rinex_3}",
+            "gssc_gnss": GSSC_GNSS_DATA+f"{brcd_rinex_3}"
+        }
     }
     return urls
 
@@ -237,8 +238,12 @@ def get_nav_file(rinex_path:Path) -> None:
     urls = get_daily_rinex_url(start_date)
     for source,url in urls["rinex_3"].items():
         print(f"Attemping to download {source} - {str(url)}")
-        local_path = rinex_path.parent / (url.name+".gz")
-        wget.download(str(url),str(local_path))
+        local_path = rinex_path.parent / (url.split("/")[-1]+".gz")
+        try:
+            wget.download(str(url),str(local_path))
+        except Exception as e:
+            print(f"Failed to download {str(url)}")
+            continue
         if local_path.exists():
             print(f"Succesfully downloaded {str(url)} to {str(local_path)}")
             local_path = uncompressed_file(local_path)
