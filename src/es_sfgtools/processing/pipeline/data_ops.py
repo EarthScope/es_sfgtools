@@ -1,16 +1,34 @@
-from es_sfgtools.processing.assets.file_schemas import AssetEntry, AssetType, MultiAssetEntry,MultiAssetPre
-from es_sfgtools.processing.assets.observables import ShotDataFrame, PositionDataFrame, AcousticDataFrame, GNSSDataFrame
+from es_sfgtools.processing.assets.file_schemas import (
+    AssetEntry,
+    AssetType,
+    MultiAssetEntry,
+    MultiAssetPre,
+)
+from es_sfgtools.processing.assets.observables import (
+    ShotDataFrame,
+    PositionDataFrame,
+    AcousticDataFrame,
+    GNSSDataFrame,
+)
 import sqlalchemy as sa
 from typing import List, Union, Callable, Dict
 from pathlib import Path
 import pandas as pd
 from datetime import datetime
 from collections import defaultdict
+from sklearn.gaussian_process import GaussianProcessRegressor
+from sklearn.gaussian_process.kernels import RBF, WhiteKernel
+from sklearn.neighbors import KDTree
 from .database import Assets, MultiAssets
-from ..operations.gnss_ops import dev_merge_rinex, rinex_get_meta,dev_merge_rinex_multiasset
+from ..operations.gnss_ops import (
+    dev_merge_rinex,
+    rinex_get_meta,
+    dev_merge_rinex_multiasset,
+)
 import logging
 
 logger = logging.getLogger(__name__)
+
 
 class PridePdpConfig:
     def __init__(self, config: Dict):
@@ -23,6 +41,7 @@ ASSET_DF_MAP = {
     AssetType.SHOTDATA: ShotDataFrame,
     AssetType.GNSS: GNSSDataFrame,
 }
+
 
 def create_multi_asset_dataframe(
     assets: List[AssetEntry], writedir: Path
@@ -51,12 +70,19 @@ def create_multi_asset_dataframe(
     date_asset_map = {}
     for date in dates:
         date_assets_id = ",".join(
-            [str(x.id) for x in assets if ((x.timestamp_data_start.date() == date) or (x.timestamp_data_end.date() == date))]
+            [
+                str(x.id)
+                for x in assets
+                if (
+                    (x.timestamp_data_start.date() == date)
+                    or (x.timestamp_data_end.date() == date)
+                )
+            ]
         )
         date_asset_map[date] = date_assets_id
 
     merged_df = pd.concat([pd.read_csv(x.local_path) for x in assets])
-    merged_df = ASSET_DF_MAP[assets[0].type].validate(merged_df,lazy=True)
+    merged_df = ASSET_DF_MAP[assets[0].type].validate(merged_df, lazy=True)
     time_col = None
     for col in merged_df.columns:
         # get the date of the datetime column
@@ -94,10 +120,11 @@ def create_multi_asset_dataframe(
     logger.info(f"\n *** Created {len(new_multi_asset_list)} MultiAssets \n")
     return new_multi_asset_list
 
+
 def dev_create_multi_asset_dataframe(
-        multi_asset_pre:MultiAssetPre,
-        working_dir:Path) -> MultiAssetEntry:
-    
+    multi_asset_pre: MultiAssetPre, working_dir: Path
+) -> MultiAssetEntry:
+
     assert multi_asset_pre.child_type in [
         AssetType.POSITION,
         AssetType.ACOUSTIC,
@@ -106,9 +133,11 @@ def dev_create_multi_asset_dataframe(
     ], f"AssetType {multi_asset_pre.child_type} not supported for MultiAsset creation"
 
     merged_df = pd.concat([pd.read_csv(x) for x in multi_asset_pre.source_paths])
-    merged_df = ASSET_DF_MAP[multi_asset_pre.child_type].validate(merged_df,lazy=True)
+    merged_df = ASSET_DF_MAP[multi_asset_pre.child_type].validate(merged_df, lazy=True)
     if merged_df.empty:
-        raise ValueError(f"Empty DataFrame for {multi_asset_pre.network} {multi_asset_pre.station} {multi_asset_pre.survey} {multi_asset_pre.child_type}")
+        raise ValueError(
+            f"Empty DataFrame for {multi_asset_pre.network} {multi_asset_pre.station} {multi_asset_pre.survey} {multi_asset_pre.child_type}"
+        )
     time_col = None
     for col in merged_df.columns:
         # get the date of the datetime column
@@ -122,7 +151,10 @@ def dev_create_multi_asset_dataframe(
     timestamp_data_start = merged_df[time_col].min()
     timestamp_data_end = merged_df[time_col].max()
     ids_str = ",".join([str(x) for x in multi_asset_pre.parent_id])
-    local_path = working_dir / f"{multi_asset_pre.network}_{multi_asset_pre.station}_{multi_asset_pre.survey}_{multi_asset_pre.child_type.value}_{ids_str}_{str(timestamp_data_start.date())}.csv"
+    local_path = (
+        working_dir
+        / f"{multi_asset_pre.network}_{multi_asset_pre.station}_{multi_asset_pre.survey}_{multi_asset_pre.child_type.value}_{ids_str}_{str(timestamp_data_start.date())}.csv"
+    )
 
     merged_df.to_csv(local_path, index=False)
     new_multi_asset = MultiAssetEntry(
@@ -137,9 +169,6 @@ def dev_create_multi_asset_dataframe(
         timestamp_created=datetime.now(),
     )
     return new_multi_asset
-
-
-
 
 
 # def merge_multi_assets(

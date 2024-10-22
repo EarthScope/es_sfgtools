@@ -23,9 +23,7 @@ import itertools
 import logging
 import multiprocessing
 import threading
-from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import RBF, WhiteKernel
-from sklearn.neighbors import KDTree
+
 import time
 import itertools
 import multiprocessing_logging
@@ -38,6 +36,7 @@ from es_sfgtools.processing.assets import observables,siteconfig,constants,file_
 from es_sfgtools.modeling.garpos_tools import schemas as modeling_schemas
 from es_sfgtools.modeling.garpos_tools import functions as modeling_funcs
 from es_sfgtools.modeling.garpos_tools import hyper_params
+from es_sfgtools.processing.assets.tiledb_temp import TDBAcousticArray,TDBGNSSArray,TDBPositionArray,TDBShotDataArray
 from .catalog import Catalog
 
 import sqlalchemy as sa
@@ -93,6 +92,12 @@ class DataHandler:
             - catalog.sqlite
             - <network>/
                 - <station>/
+                    - <tileDB>/
+                        - acoustic_db.tdb
+                        - gnss_db.tdb
+                        - position_db.tdb
+                        - shotdata_db.tdb
+
                     - <survey>/
                         - raw/
                         - intermediate/
@@ -123,6 +128,7 @@ class DataHandler:
         self.proc_dir = self.working_dir / "processed/"
         self.pride_dir = self.data_dir / "Pride"
         self.garpos_dir = self.working_dir / "Garpos"
+        self.tileb_dir = self.working_dir / "tileDB"
         self.working_dir.mkdir(parents=True,exist_ok=True)
         self.pride_dir.mkdir(parents=True,exist_ok=True)
         self.inter_dir.mkdir(exist_ok=True)
@@ -130,10 +136,17 @@ class DataHandler:
         self.raw_dir.mkdir(exist_ok=True)
         self.garpos_dir.mkdir(exist_ok=True)
 
+        self.tileb_dir.mkdir(exist_ok=True)
+
         self.db_path = self.data_dir/"catalog.sqlite"
         if not self.db_path.exists():
             self.db_path.touch()
 
+        self.acoustic_tdb = TDBAcousticArray(self.tileb_dir/"acoustic_db.tdb")
+        self.gnss_tdb = TDBGNSSArray(self.tileb_dir/"gnss_db.tdb")
+        self.position_tdb = TDBPositionArray(self.tileb_dir/"position_db.tdb")
+        self.shotdata_tdb = TDBShotDataArray(self.tileb_dir/"shotdata_db.tdb")
+        
         self.catalog = Catalog(self.db_path)
 
         logging.basicConfig(level=logging.INFO,
@@ -418,76 +431,6 @@ class DataHandler:
             if show_details:
                 print(response)
             return None
-
-    # def clear_raw_processed_data(self, network: str, station: str, survey: str):
-    # """
-    # Clear all raw data in type FILE_TYPE from the working directory.
-
-    # Args:
-    #     network (str): The network name.
-    #     station (str): The station name.
-    #     survey (str): The survey name.
-
-    # Returns:
-    #     None
-    # """
-
-    # # Get raw data into stack
-    # parent_entries = self.catalog_data[
-    #     (self.catalog_data.network == network)
-    #     & (self.catalog_data.station == station)
-    #     & (self.catalog_data.survey == survey)
-    #     & (self.catalog_data.type.isin(FILE_TYPES))
-    #     & (~self.catalog_data.local_path.isna())
-    # ].to_dict(orient="records")
-
-    # pbar = tqdm.tqdm(total=len(parent_entries), desc="Removing Raw Files")
-    # while parent_entries:
-    #     entry = parent_entries.pop()
-
-    #     entry_type = FILE_TYPE(entry["type"])
-
-    #     is_parent_processed = True
-    #     child_types = [x.value for x in list(TARGET_MAP.get(entry_type).keys())]
-
-    #     child_entries = self.catalog_data[
-    #         (self.catalog_data.source_uuid == entry["uuid"])
-    #         & (self.catalog_data.type.isin(child_types))
-    #     ]
-
-    #     # Check if we can find all child types, if not then skip
-    #     if not entry["processed"]:
-    #         pbar.update(1)
-    #         continue
-
-    #     # Now we check if the children files exist
-    #     for _, child in child_entries.iterrows():
-    #         if child["type"] in DATA_TYPES:
-    #             self.catalog_data.loc[self.catalog_data.uuid == child["uuid"], "processed"] = True
-    #             child["processed"] = True
-    #         is_parent_processed &= child["processed"]
-    #         try:
-    #             # If the child is a FILE_TYPE, then we will add it to the stack (only applies to the rinex and kin files)
-    #             # We check this in the try/except block by attempting to instantiate a FILE_TYPE
-    #             _ = FILE_TYPE(child["type"])
-    #             parent_entries.append(dict(child))
-    #             pbar.update(1)
-    #         except ValueError:
-    #             # The child is a DATA_TYPE, so we can pass
-    #             pass
-
-    #     # If all children files exist, is_parent_processed == True, and we can delete the parent file
-    #     if is_parent_processed and not pd.isna(entry["local_path"]):
-    #         Path(entry["local_path"]).unlink()
-    #         self.catalog_data.loc[(self.catalog_data.uuid == entry["uuid"]), "processed"] = True
-    #         self.catalog_data.loc[self.catalog_data.uuid == entry["uuid"], "local_path"] = None
-
-    #         response = f"Removed Raw File {entry['uuid']} of Type {entry['type']} From {entry['local_path']} "
-    #         logger.info(response)
-
-    #     self.catalog_data.to_csv(self.catalog, index=False)
-
-    # pbar.close()
 
     def get_parent_stack(
         self, child_type: AssetType
@@ -818,7 +761,7 @@ class DataHandler:
 
     #     Returns:
     #         dict: The grouped data.
-    #     """ 
+    #     """
     #     if isinstance(source,str):
     #         try:
     #             source = AssetType(source)
@@ -880,8 +823,13 @@ class DataHandler:
         novatel_770_entries: List[AssetEntry] = self.catalog.get_assets(
             network=self.network,station=self.station,survey=self.survey,type=AssetType.NOVATEL770
         )
-        nov_770_ids = [x.id for x in novatel_770_entries]
-        if override or not self.catalog.is_merge_complete(parent_type=AssetType.NOVATEL770.value,child_type=AssetType.RINEX.value,parent_ids=nov_770_ids):
+       
+        merge_signature = {
+            "parent_type": AssetType.NOVATEL770.value,
+            "child_type": AssetType.RINEX.value,
+            "parent_ids": [x.id for x in novatel_770_entries],
+        }
+        if override or not self.catalog.is_merge_complete(**merge_signature):
             rinex_entries: List[AssetEntry] = gnss_ops.novatel_to_rinex_batch(
                 source=novatel_770_entries,writedir=self.inter_dir,show_details=show_details
             )
@@ -889,16 +837,15 @@ class DataHandler:
             for rinex_entry in rinex_entries:
                 if self.catalog.add_entry(rinex_entry):
                     uploadCount += 1
-            self.catalog.add_merge_job(parent_type=AssetType.NOVATEL770.value,child_type=AssetType.RINEX.value,parent_ids=nov_770_ids)
+            self.catalog.add_merge_job(**merge_signature)
             response = f"Added {uploadCount} out of {len(rinex_entries)} Rinex Entries to the catalog"
             logger.info(response)
             if show_details:
                 print(response)
             return rinex_entries
 
-        
-    def process_rinex(self,override:bool=False,show_details:bool=False) -> List[AssetEntry]:
-      
+    def process_rinex(self,override:bool=False,show_details:bool=False) -> List[List[AssetEntry]]:
+
         """
         Process Rinex Data.
         Args:
@@ -909,7 +856,7 @@ class DataHandler:
         Raises:
             ValueError: If no Rinex files are found.
         """
-      
+
         response = f"Processing Rinex Data for {self.network} {self.station} {self.survey}"
         logger.info(response)
         if show_details:
@@ -930,7 +877,7 @@ class DataHandler:
                 print(response)
             warnings.warn(response)
             return []
-        
+
         response = f"Found {len(rinex_entries)} Rinex Files to Process"
         logger.info(response)
         if show_details:
@@ -944,21 +891,28 @@ class DataHandler:
             
         )
         kin_entries = []
+        resfile_entries = []
         count = 0
         uploadCount = 0
         with multiprocessing.Pool() as pool:
             results = pool.imap(process_rinex_partial, rinex_entries)
-            for result in tqdm(results, total=len(rinex_entries), desc="Processing Rinex Files"):
-                if result is not None:
+            for kinfile,resfile in tqdm(results, total=len(rinex_entries), desc="Processing Rinex Files"):
+                if kinfile is not None:
                     count += 1
-                    if self.catalog.add_entry(result):
+                    if self.catalog.add_entry(kinfile):
                         uploadCount += 1
-                    kin_entries.append(result)
+                    kin_entries.append(kinfile)
+                if resfile is not None:
+                    count += 1
+                    if self.catalog.add_entry(resfile):
+                        uploadCount += 1
+                    resfile_entries.append(resfile)
+
         response = f"Generated {count} Kin Files From {len(rinex_entries)} Rinex Files, Added {uploadCount} to the Catalog"
         logger.info(response)
         if show_details:
             print(response)
-        return kin_entries
+        return list(zip(kin_entries,resfile_entries))
 
     def process_kin(self,override:bool=False,show_details:bool=False) -> List[AssetEntry]:
         """
@@ -974,7 +928,7 @@ class DataHandler:
         logger.info(response)
         if show_details:
             print(response)
-        
+
         kin_entries = self.catalog.get_single_entries_to_process(
             network=self.network,station=self.station,survey=self.survey,parent_type=AssetType.KIN,child_type=AssetType.GNSS,override=override
         )
@@ -984,7 +938,7 @@ class DataHandler:
             if show_details:
                 print(response)
             return
-        
+
         gnss_entries = []
         count = 0
         uploadCount = 0
@@ -993,9 +947,9 @@ class DataHandler:
             if gnss_df is None:
                 continue
             count += 1
-   
+
             # handle the case when the child timestamp is None
-       
+
             for col in gnss_df.columns:
                 if pd.api.types.is_datetime64_any_dtype(gnss_df[col]):
                     timestamp_data_start = gnss_df[col].min()
@@ -1029,43 +983,6 @@ class DataHandler:
         if show_details:
             print(response)
         return gnss_entries
-    
-    def interpolate_enu(self,tenu_l:np.ndarray,enu_l_sig:np.ndarray,tenu_r:np.ndarray,enu_r_sig:np.ndarray) -> np.ndarray:
-        # interpolate the enu values between the left and right enu values
-        # t is the time values in unix epoch
-        # enu is the east,north,up values in ECEF coordinates
-        # sig is the standard deviation of the east,north,up values
-        # returns the interpolated enu values and the standard deviation of the interpolated enu values predicted at the time values from tenu_r
-
-        length_scale = 5.0 # seconds
-        kernel = RBF(length_scale=length_scale)
-        X_train = np.hstack((tenu_l[:,0],tenu_r[:,0])).T.astype(float).reshape(-1,1)
-        Y_train = np.vstack((tenu_l[:,1:],tenu_r[:,1:])).astype(float)
-        var_train = np.vstack((enu_l_sig,enu_r_sig)).astype(float)
-        # take the inverse of the variance to get the precision
-
-        TS_TREE = KDTree(X_train)
-
-        block_size = 200
-        # neighbors = 5
-        start = time.time()
-        for i in range(0,tenu_r.shape[0],block_size):
-            idx = np.s_[i:i+block_size]
-            ind,dist = TS_TREE.query_radius(tenu_r[idx,0].astype(float).reshape(-1,1),r=length_scale,return_distance=True)
-            # dist,ind = TS_TREE.query(tenu_r[idx,0].astype(float).reshape(-1,1),k=neighbors,return_distance=True)
-            dist,ind = list(itertools.chain.from_iterable(dist)),list(itertools.chain.from_iterable(ind))
-            ind = np.unique(ind).astype(int)
-            dist = np.array(dist)
-            if any(dist != 0):
-                for j in range(3):
-                    gp = GaussianProcessRegressor(kernel=kernel)
-                    gpr = gp.fit(X_train[ind],Y_train[ind,j])
-                    y_mean,y_std = gpr.predict(tenu_r[idx,0].reshape(-1,1),return_std=True)
-                    enu_r_sig[idx,j] = y_std
-                    tenu_r[idx,j+1] = y_mean
-
-        print(f"Interpolation took {time.time()-start:.3f} seconds for {tenu_r.shape[0]} x {tenu_r.shape[1]} points")
-        return tenu_r.astype(float),enu_r_sig.astype(float)
 
     def update_shotdata(self,plot:bool=False):
         print("Updating shotdata with interpolated gnss data")
@@ -1153,4 +1070,4 @@ class DataHandler:
         #    # kin_ma_list = self.catalog.get_multi_entries_to_process(network=self.network,station=self.station,survey=self.survey,child_type=AssetType.KIN,parent_type=AssetType.RINEX,override=override)
         #     _,processed_gnss = self._process_data_link(target=AssetType.GNSS,source=AssetType.KIN,override=override,parent_entries=kin_ma_list,show_details=show_details)
         self._process_data_graph_forward(AssetType.DFOP00,override=override,show_details=show_details)
-        #self.dev_group_session_data(source=AssetType.SHOTDATA,override=override)
+        # self.dev_group_session_data(source=AssetType.SHOTDATA,override=override)

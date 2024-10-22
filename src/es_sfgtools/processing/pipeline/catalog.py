@@ -159,7 +159,7 @@ class Catalog:
         except sa.exc.IntegrityError:
             return False
 
-    def add_merge_job(self,parent_type:str,child_type:str,parent_ids:List[int]):
+    def add_merge_job(self,parent_type:str,child_type:str,parent_ids:List[int],**kwargs):
         # sort parent_ids to ensure that the order is consistent
         parent_ids.sort()
         parent_id_string = "-".join([str(x) for x in parent_ids])
@@ -169,7 +169,7 @@ class Catalog:
                 MergeJobs.child_type.name: child_type,
                 MergeJobs.parent_ids.name: parent_id_string
             }))
-    def is_merge_complete(self,parent_type:str,child_type:str,parent_ids:List[int]) -> bool:
+    def is_merge_complete(self,parent_type:str,child_type:str,parent_ids:List[int],**kwargs) -> bool:
         parent_ids.sort()
         parent_id_string = "-".join([str(x) for x in parent_ids])
         with self.engine.begin() as conn:

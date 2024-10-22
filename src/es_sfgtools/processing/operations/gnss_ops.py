@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field, model_validator, ValidationError
 import pandera as pa
 from pandera.typing import DataFrame
 from datetime import datetime
-from typing import List, Optional, Union,Literal
+from typing import List, Optional, Union,Literal,Tuple
 import logging
 import julian
 import os
@@ -369,7 +369,7 @@ def rinex_to_kin(
     pridedir: Path,
     site="SIT1",
     show_details: bool = True
-) -> List[AssetEntry]:
+) -> Tuple[AssetEntry]:
 
     """
     Converts a RINEX file to a kin file.
@@ -380,7 +380,7 @@ def rinex_to_kin(
         site (str, optional): The site name. Defaults to "SITE1".
         show_details (bool, optional): Whether to show conversion details. Defaults to True.
     Returns:
-        List[AssetEntry]: The generated kin and result files as AssetEntry objects.
+        Tuple[AssetEntry]: The generated kin and result files as AssetEntry objects.
     Raises:
         FileNotFoundError: If the PRIDE-PPP binary is not found.
         FileNotFoundError: If the source RINEX file is not found.
@@ -503,7 +503,7 @@ def rinex_to_kin(
         logger.error(response)
         warn(response)
         return []
-    return [kin_file,res_file]
+    return kin_file,res_file
 
 
 @pa.check_types(lazy=True)
