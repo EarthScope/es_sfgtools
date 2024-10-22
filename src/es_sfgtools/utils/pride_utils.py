@@ -23,6 +23,8 @@ def get_daily_rinex_url(date:datetime.date) ->Dict[str,Dict[str,Path]]:
         >>> urls = get_daily_rinex_url(date)
         >>> urls["rinex_2"]["wuhan_gps"]
         Path("ftp://igs.gnsswhu.cn/pub/gps/data/daily/21/001/21n/brdc0010.21n.Z")
+        >>> urls["rinex_2"]["wuhan_glonass"]
+        Path("ftp://igs.gnsswhu.cn/pub/gps/data/daily/21/001/21g/brdc0010.21g.Z")
     """
 
     year = str(date.year)
@@ -66,7 +68,7 @@ def get_daily_rinex_url(date:datetime.date) ->Dict[str,Dict[str,Path]]:
         },
         "rinex_3": {
             "wuhan_gps": WUHAN_GPS_DAILY / year / doy / (year[2:] + "p") / brcd_rinex_3,
-            "igs_gnss": IGS_GNSS_DATA /year/doy/ brcd_rinex_3,
+            "igs_gnss": IGS_GNSS_DATA / year / doy / brcd_rinex_3,
             "igs_gnss": IGS_GNSS_DATA / brcd_rinex_3,
             "nasa_gps": NASA_GPS_DAILY / year / doy / brcd_rinex_3,
             "cddis_gnss": CDDIS_GNSS_DAILY
@@ -93,6 +95,13 @@ def merge_broadcast_files(brdn:Path, brdg:Path, output_folder:Path) ->Path:
     Raises:
         FileNotFoundError: If either brdn or brdg file does not exist.
         Exception: If an unexpected error occurs while reading or writing the files.
+    Examples:
+        >>> brdn = Path("data/brdc1500.21n")
+        >>> brdg = Path("data/brdc1500.21g")
+        >>> output_folder = Path("data")
+        >>> merged_brdm = merge_broadcast_files(brdn, brdg, output_folder)
+        >>> merged_brdm
+        Path("data/brdm1500.21p")
     """
 
     def write_data(file:Path, prefix:str, fm:IO):
