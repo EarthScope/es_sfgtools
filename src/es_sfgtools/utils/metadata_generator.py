@@ -267,17 +267,14 @@ class Site:
                         campaign_survey_ID = self.site["campaigns"][i]["surveys"][j]["id"]
                         if campaign_survey_ID == survey_id:
                             print("Updating survey " + campaign_survey_ID)
-                            # full_survey = self.site["campaigns"][i]["surveyVessels"][j]
-
                             for key in survey:
                                 if survey[key]:
-                                    self.site["campaigns"][i]["surveyVessels"][j][key] = survey[key]
+                                    self.site["campaigns"][i]["surveys"][j][key] = survey[key]
 
                             print("Updated survey " + survey_id)
                             print(json.dumps(self.site["campaigns"], indent=2))
                             break
-            else:
-                print("Survey not found, ensure you have the correct campaign & survey name")
+
 
     def existing_benchmark(self, benchmark: dict, output, event=None):
         with output:
