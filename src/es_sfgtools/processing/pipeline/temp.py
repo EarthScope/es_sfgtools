@@ -44,6 +44,7 @@ from .database import Base,Assets,MultiAssets,ModelResults
 from .constants import FILE_TYPE,DATA_TYPE,REMOTE_TYPE,ALIAS_MAP,FILE_TYPES
 from .datadiscovery import scrape_directory_local,get_file_type_local,get_file_type_remote
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.WARNING)
 
 TARGET_MAP = {
     AssetType.QCPIN:{AssetType.SHOTDATA:sv3_ops.dev_qcpin_to_shotdata},
@@ -844,15 +845,13 @@ class DataHandler:
                 print(response)
             return rinex_entries
 
-    def process_rinex(self,override:bool=False,show_details:bool=False) -> List[List[AssetEntry]]:
+    def process_rinex(self,rinex_entries:List[AssetEntry]=None,override:bool=False,show_details:bool=False) ->None:
 
         """
         Process Rinex Data.
         Args:
             override (bool, optional): Flag to override existing data. Defaults to False.
             show_details (bool, optional): Flag to show processing details. Defaults to False.
-        Returns:
-            List[AssetEntry]: List of generated kin files.
         Raises:
             ValueError: If no Rinex files are found.
         """
@@ -861,15 +860,15 @@ class DataHandler:
         logger.info(response)
         if show_details:
             print(response)
-
-        rinex_entries: List[AssetEntry] = self.catalog.get_single_entries_to_process(
-            network=self.network,
-            station=self.station,
-            survey=self.survey,
-            parent_type=AssetType.RINEX,
-            child_type=AssetType.KIN,
-            override=override
-        )
+        if rinex_entries is None:
+            rinex_entries: List[AssetEntry] = self.catalog.get_single_entries_to_process(
+                network=self.network,
+                station=self.station,
+                survey=self.survey,
+                parent_type=AssetType.RINEX,
+                child_type=AssetType.KIN,
+                override=override
+            )
         if not rinex_entries:
             response = f"No Rinex Files Found to Process for {self.network} {self.station} {self.survey}"
             logger.error(response)
@@ -896,93 +895,33 @@ class DataHandler:
         uploadCount = 0
         with multiprocessing.Pool() as pool:
             results = pool.imap(process_rinex_partial, rinex_entries)
-            for kinfile,resfile in tqdm(results, total=len(rinex_entries), desc="Processing Rinex Files"):
+            for (kinfile,resfile) in tqdm(results, total=len(rinex_entries), desc="Processing Rinex Files"):
                 if kinfile is not None:
                     count += 1
                     if self.catalog.add_entry(kinfile):
                         uploadCount += 1
                     kin_entries.append(kinfile)
-                if resfile is not None:
-                    count += 1
-                    if self.catalog.add_entry(resfile):
-                        uploadCount += 1
-                    resfile_entries.append(resfile)
+                    if resfile is not None:
+                        count += 1
+                        if self.catalog.add_entry(resfile):
+                            uploadCount += 1
+                        resfile_entries.append(resfile)
+                if (gnss_df := gnss_ops.kin_to_gnssdf(kinfile)) is not None and resfile is not None:
+                    wrms = gnss_ops.get_wrms_from_res(str(resfile.local_path))
+                    gnss_df = pd.merge(gnss_df,wrms,left_on="time",right_on="time")
+
+                    response = f'Adding GNSS Data of shape {gnss_df.shape} and daterange {gnss_df["time"].min().isoformat()} to {gnss_df["time"].max().isoformat()} to GNSS TDB'
+                    logger.info(response)
+                    if show_details:
+                        print(response)
+                    self.gnss_tdb.write_df(gnss_df)
+                
 
         response = f"Generated {count} Kin Files From {len(rinex_entries)} Rinex Files, Added {uploadCount} to the Catalog"
         logger.info(response)
         if show_details:
             print(response)
-        return list(zip(kin_entries,resfile_entries))
-
-    def process_kin(self,override:bool=False,show_details:bool=False) -> List[AssetEntry]:
-        """
-        Process the kin data.
-
-        Args:
-            None
-
-        Returns:
-            None
-        """
-        response = f"Processing Kin Data for {self.network} {self.station} {self.survey}"
-        logger.info(response)
-        if show_details:
-            print(response)
-
-        kin_entries = self.catalog.get_single_entries_to_process(
-            network=self.network,station=self.station,survey=self.survey,parent_type=AssetType.KIN,child_type=AssetType.GNSS,override=override
-        )
-        if not kin_entries:
-            response = f"No Kin Files Found to Process for {self.network} {self.station} {self.survey}"
-            logger.error(response)
-            if show_details:
-                print(response)
-            return
-
-        gnss_entries = []
-        count = 0
-        uploadCount = 0
-        for kin_entry in tqdm(kin_entries,desc="Processing Kin Files"):
-            gnss_df:pd.DataFrame = gnss_ops.kin_to_gnssdf(kin_entry)
-            if gnss_df is None:
-                continue
-            count += 1
-
-            # handle the case when the child timestamp is None
-
-            for col in gnss_df.columns:
-                if pd.api.types.is_datetime64_any_dtype(gnss_df[col]):
-                    timestamp_data_start = gnss_df[col].min()
-                    timestamp_data_end = gnss_df[col].max()
-                    break
-            else:
-                timestamp_data_start = parent.timestamp_data_start
-                timestamp_data_end = parent.timestamp_data_end
-
-            local_path = (
-                self.proc_dir
-                / f"{kin_entry.id}_gnss_{timestamp_data_start.date().isoformat()}.csv"
-            )
-            gnss_df.to_csv(local_path, index=False)
-
-            gnss_entry = AssetEntry(
-                local_path=local_path,
-                type=AssetType.GNSS,
-                parent_id=kin_entry.id,
-                timestamp_data_start=timestamp_data_start,
-                timestamp_data_end=timestamp_data_end,
-                network=kin_entry.network,
-                station=kin_entry.station,
-                survey=kin_entry.survey,
-            )
-            if self.catalog.add_entry(gnss_entry):
-                uploadCount += 1
-            gnss_entries.append(gnss_entry)
-        response = f"Generated {count} GNSS Files From {len(kin_entries)} Kin Files, Added {uploadCount} to the Catalog"
-        logger.info(response)
-        if show_details:
-            print(response)
-        return gnss_entries
+        
 
     def update_shotdata(self,plot:bool=False):
         print("Updating shotdata with interpolated gnss data")

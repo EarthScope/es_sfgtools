@@ -15,6 +15,7 @@ import shutil
 import json
 import platform
 from pathlib import Path
+import re
 import numpy as np
 import uuid
 from warnings import warn
@@ -402,7 +403,7 @@ def rinex_to_kin(
     # Check if the pride binary is in the path
     if not shutil.which("pdp3"):
         raise FileNotFoundError("PRIDE-PPP binary 'pdp3' not found in path")
-    
+
     if isinstance(source,str) or isinstance(source,Path):
         source = AssetEntry(local_path=source,type=AssetType.RINEX)
     assert source.type == AssetType.RINEX, "Invalid source file type"
@@ -435,7 +436,8 @@ def rinex_to_kin(
         capture_output=True,
         cwd=str(pridedir),
     )
-
+    pattern_error = r":\d+,\d+, merror:0m"
+    pattern_warning = r":\d+,\d+, mwarning:0m"
     if result.stderr:
         stderr = result.stderr.decode("utf-8").split("\n")
         for line in stderr:
@@ -444,18 +446,24 @@ def rinex_to_kin(
             if "error" in line.lower():
                 logger.error(line)
     stdout = result.stdout.decode("utf-8")
-    stdout = stdout.replace("\x1b[", "").split("\n")
+    stdout = re.sub(pattern_error, "ERROR ", stdout)
+    stdout = re.sub(pattern_warning, "WARNING ", stdout)
+    stdout = stdout.replace("\x1b[", "")
+    stdout = stdout.split("\n")
     for line in stdout:
+        if "failed" in line.lower():
+            logger.error(line)
+        if "please" in line.lower():
+            logger.error(line)
         if "warning" in line.lower():
             logger.warning(line)
         if "error" in line.lower():
             logger.error(line)
-    
-    
+
     found_files = Path(pridedir).rglob(f"*{site.lower()}*")
 
     for found_file in found_files:
-     
+
         if "kin" in found_file.name:
             kin_file = found_file
             kin_file_new = writedir / (kin_file.name + ".kin")
@@ -475,7 +483,7 @@ def rinex_to_kin(
             logger.info(response)
             if show_details:
                 print(response)
-            
+
         if "res" in found_file.name:
             res_file = found_file
             res_file_new = writedir / (res_file.name + ".res")
@@ -495,14 +503,12 @@ def rinex_to_kin(
             logger.info(response)
             if show_details:
                 print(response)
-            
-    
-    
+
     if not kin_file:
         response = f"No kin file generated from RINEX {source.local_path}"
         logger.error(response)
         warn(response)
-        return []
+        return None,None
     return kin_file,res_file
 
 
