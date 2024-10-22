@@ -266,3 +266,12 @@ def get_nav_file(rinex_path:Path) -> None:
                     return
             else:
                 print(f"Failed to download {str(gps_url)} or {str(glonass_url)}")
+
+if __name__ == '__main__':
+    test_rinex = (
+        Path(
+            "/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/Cascadia2023/NCL1/NCB/NCB1/2023/intermediate"
+        )
+        / "NCB11750.23o"
+    )
+    get_nav_file(test_rinex)
