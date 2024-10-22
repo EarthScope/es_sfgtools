@@ -1,6 +1,9 @@
 import datetime
 from pathlib import Path
 from typing import IO,Dict
+import wget
+import zlib
+import tempfile
 
 WUHAN_GPS_DAILY = Path("ftp://igs.gnsswhu.cn/pub/gps/data/daily/")
 NASA_GPS_DAILY = Path("ftp://cddis.gsfc.nasa.gov/gnss/data/daily/")
@@ -8,6 +11,31 @@ CDDIS_GNSS_DAILY = Path("https://cddis.gsfc.nasa.gov/archive/gnss/data/daily/")
 IGS_GNSS_DATA = Path("ftp://igs.ensg.ign.fr/pub/igs/data/")
 GSSC_GNSS_DATA = Path("ftp://gssc.esa.int/gnss/data/daily/")
 SIO_GNSS_DATA = Path("ftp://lox.ucsd.edu/rinex/")
+
+def uncompressed_file(file:Path) ->Path:
+    """
+    Decompresses a file using zlib and returns the path of the decompressed file.
+    Args:
+        file (Path): The path of the compressed file.
+    Returns:
+        Path: The path of the decompressed file.
+    Raises:
+        FileNotFoundError: If the file does not exist.
+    Examples:
+        >>> file = Path("data/brdc1500.21n.Z")
+        >>> uncompressed_file(file)
+        Path("data/brdc1500.21n")
+    """
+    if not file.exists():
+        raise FileNotFoundError(f"File {file} does not exist.")
+    out_file = file.with_suffix("")
+    with open(file, "rb") as f:
+        compressed_data = f.read()
+    decompressed_data = zlib.decompress(compressed_data).decode("utf-8")
+    with open(out_file, "w") as f:
+        f.write(decompressed_data)
+    file.unlink()
+    return out_file
 
 def get_daily_rinex_url(date:datetime.date) ->Dict[str,Dict[str,Path]]:
     """
@@ -40,31 +68,22 @@ def get_daily_rinex_url(date:datetime.date) ->Dict[str,Dict[str,Path]]:
 
     urls = {
         "rinex_2": {
-            "wuhan_glonass": WUHAN_GPS_DAILY
-            / year
-            / doy
-            / (year[2:] + "g")
-            / brcd_rinex_2_glonass,
-            "wuhan_gps": WUHAN_GPS_DAILY
-            / year
-            / doy
-            / (year[2:] + "n")
-            / brcd_rinex_2_gps,
-            "cdds_glonass": CDDIS_GNSS_DAILY
-            / year
-            / doy
-            / (year[2:] + "g")
-            / brcd_rinex_2_glonass,
-            "cdds_gps": CDDIS_GNSS_DAILY
-            / year
-            / doy
-            / (year[2:] + "n")
-            / brcd_rinex_2_gps,
-            "igs_glonass": IGS_GNSS_DATA / brcd_rinex_2_glonass,
-            "igs_gps": IGS_GNSS_DATA / brcd_rinex_2_gps,
-            "gssc_glonass": GSSC_GNSS_DATA / brcd_rinex_2_glonass,
-            "gssc_gps": GSSC_GNSS_DATA / brcd_rinex_2_gps,
-            "sio_gps": SIO_GNSS_DATA / year / doy / auto_rinex_2_gps,
+            "wuhan":{
+                "glonass":WUHAN_GPS_DAILY/year/doy/(year[2:] + "g")/brcd_rinex_2_glonass,
+                "gps":WUHAN_GPS_DAILY/year/doy/(year[2:] + "n")/brcd_rinex_2_gps/year/doy/(year[2:] + "n")/brcd_rinex_2_gps
+                },
+            "cdds":{
+                "glonass":CDDIS_GNSS_DAILY/year/doy/ (year[2:] + "g")/brcd_rinex_2_glonass,
+                "gps":CDDIS_GNSS_DAILY/year/doy/(year[2:] + "n")/brcd_rinex_2_gps
+            },
+            "igs":{
+                "glonass":IGS_GNSS_DATA / brcd_rinex_2_glonass,
+                "gps":IGS_GNSS_DATA / brcd_rinex_2_gps
+            },
+            "gssc":{
+                "glonass":GSSC_GNSS_DATA / brcd_rinex_2_glonass,
+                "gps":GSSC_GNSS_DATA / brcd_rinex_2_gps
+            }
         },
         "rinex_3": {
             "wuhan_gps": WUHAN_GPS_DAILY / year / doy / (year[2:] + "p") / brcd_rinex_3,
@@ -191,5 +210,59 @@ def merge_broadcast_files(brdn:Path, brdg:Path, output_folder:Path) ->Path:
     write_data(brdn, "G", fm)
     write_data(brdg, "R", fm)
     fm.close()
-    print(f"Files merged into {brdm}")
-    return brdm
+
+    if brdm.exists():
+        print(f"Files merged into {brdm}")
+        return True
+    return False
+
+
+def get_nav_file(rinex_path:Path) -> None:
+    with open(rinex_path) as f:
+        files = f.readlines()
+        for line in files:
+            if "TIME OF FIRST OBS" in line:
+                time_values = line.split("GPS")[0].strip().split()
+                start_date = datetime.date(
+                    year=int(time_values[0]),
+                    month=int(time_values[1]),
+                    day=int(time_values[2]))
+                break
+    if start_date is None:
+        print("No TIME OF FIRST OBS found in RINEX file.")
+        return
+    year = str(start_date.year)
+    doy = str(start_date.timetuple().tm_yday)
+    brdm_path = f"brdm{doy}0.{year:2}p"
+    urls = get_daily_rinex_url(start_date)
+    for source,url in urls["rinex_3"].items():
+        print(f"Attemping to download {source} - {str(url)}")
+        local_path = rinex_path.parent / (url.name+".gz")
+        wget.download(str(url),str(local_path))
+        if local_path.exists():
+            print(f"Succesfully downloaded {str(url)} to {str(local_path)}")
+            local_path = uncompressed_file(local_path)
+            local_path.rename(local_path.parent/brdm_path)
+            print(f"Successfully built {brdm_path}")
+            return
+    # If rinex 3 nav file pathway is not found, try rinex 2
+    for source,constellations in urls["rinex_2"].items():
+        
+        gps_url:Path = constellations["gps"]
+        glonass_url:Path = constellations["glonass"]
+        gps_local_name = gps_url.name+".Z"
+        glonass_local_name = glonass_url.name+".Z"
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            gps_dl_path = Path(tempdir)/gps_local_name
+            glonass_dl_path = Path(tempdir)/glonass_local_name
+            wget.download(str(gps_url),str(gps_dl_path))
+            wget.download(str(glonass_url),str(glonass_dl_path))
+            if gps_dl_path.exists() and glonass_dl_path.exists():
+                gps_dl_path = uncompressed_file(gps_dl_path)
+                glonass_dl_path = uncompressed_file(glonass_dl_path)
+                if merge_broadcast_files(gps_dl_path,glonass_dl_path,rinex_path.parent):
+                    print(f"Successfully built {brdm_path}")
+                    return
+            else:
+                print(f"Failed to download {str(gps_url)} or {str(glonass_url)}")
