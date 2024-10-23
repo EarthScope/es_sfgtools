@@ -8,6 +8,11 @@ from ipywidgets import Layout
 style = {'description_width': 'initial'}
 layout=Layout(width='30%', height='40px')
 
+top_level_groups = ["referenceFrames", "benchmarks", "campaigns", "surveyVessels"]
+survey_vessels_types = ["insPayloads", "gnssReceivers", "gnssAntennas", "acousticTransducer", 
+                        "acousticTransceiver", "atdOffsets", "imuSensors"]
+
+
 button_descriptions = {
     "new_ref": "Add new reference frame",
     "new_campaign": "Add new campaign",
@@ -15,7 +20,7 @@ button_descriptions = {
     "new_transponder": "Add new transponder",
     "new_survey": "Add new survey",
     "new_survey_vessel": "Add new survey vessel",
-    "new_payload": "Add new INS payload",
+    "new_imu_sensor": "Add new imu sensor",
     "new_receiver": "Add new GNSS Receiver",
     "new_antenna": "Add new GNSS Antenna",
     "new_transducer": "Add new acoustic transducer",
@@ -27,7 +32,7 @@ button_descriptions = {
     "existing_transponder": "Update existing transponder",
     "existing_survey": "Update existing survey",
     "existing_survey_vessel": "Update existing survey vessel",
-    "existing_payload": "Update existing INS payload",
+    "existing_imu_sensor": "Update existing imu sensor",
     "existing_receiver": "Update existing GNSS Receiver",
     "existing_antenna": "Update existing GNSS Antenna",
     "existing_transducer": "Update existing acoustic transducer",
@@ -55,10 +60,11 @@ def start_and_end_dates(start_date: datetime, end_date: datetime, dict_to_update
 
     return dict_to_update
 
+def import_site(filepath: str):
+    """Import site data from a JSON file."""
+    with open(filepath, 'r') as file:
+        return Site(existing_site=json.load(file))
 
-top_level_groups = ["referenceFrames", "benchmarks", "campaigns", "surveyVessels"]
-survey_vessels_types = ["insPayloads", "gnssReceivers", "gnssAntennas", "acousticTransducer", 
-                        "acousticTransceiver", "atdOffsets"]
 
 
 class Site:
@@ -88,10 +94,15 @@ class Site:
                 "surveyVessels": [],
             }
 
+        # todo add array center to the site class in the future
+
     def export_site(self, filepath: str):
         """Export site data to a JSON file."""
+
+        print("Exporting site data to: " + filepath)
         with open(filepath, 'w') as file:
             json.dump(self.site, file, indent=4)
+        print("Exported site data to: " + filepath)
 
     def new_top_level_group(self, group_name: str, group_data: dict, output, event=None):
         """
@@ -101,7 +112,11 @@ class Site:
             top_level_groups = ["referenceFrames", "benchmarks", "campaigns", "surveyVessels"]
 
             if group_name not in top_level_groups:
-                print("Group name not found, ensure you have the correct group name")
+                print("Metadata Group name not found, ensure you have the correct group name")
+                return
+            
+            if not group_data["name"]:
+                print("Name not provided, name is required for adding..")
                 return
             
             # check if group already exists
@@ -117,61 +132,68 @@ class Site:
             print(json.dumps(self.site[group_name], indent=2))
 
 
-    def existing_ref_frame(self, reference_frame: dict, output, event=None):
+    def existing_ref_frame(self, reference_frame_input: dict, output, event=None):
         """ Update existing reference frame using the reference frame name """
         with output:
-            for i in range(len(self.site["referenceFrames"])):
-                site_reference_frame_name =  self.site["referenceFrames"][i]["name"]
+            if not reference_frame_input["name"]:
+                print("Reference name not provided, name is required for updating..")
+                return
 
-                if site_reference_frame_name == reference_frame["name"]:
-                    print("Updating " + site_reference_frame_name)
-                    # full_reference_frame = self.site["referenceFrames"][i]
-
-                    for key in reference_frame:
-                        if reference_frame[key]:
-                            self.site["referenceFrames"][i][key] = reference_frame[key]
-
-                    print("Updated reference frame " + site_reference_frame_name)
-                    print(json.dumps(self.site["referenceFrames"], indent=2))
-                    break
-            else:
+            site_reference_frame = next((ref for ref in self.site["referenceFrames"] if ref["name"] == reference_frame_input["name"]), None)
+            
+            if site_reference_frame is None:
                 print("Reference frame not found, ensure you have the correct reference frame name")
+                return
 
-    def existing_campaign(self, campaign: dict, output, event=None):
+            print("Updating " + site_reference_frame["name"])
+            for key, value in reference_frame_input.items():
+                if value:
+                    site_reference_frame[key] = value
+
+            print("Updated reference frame " + site_reference_frame["name"])
+            print(json.dumps(self.site["referenceFrames"], indent=2))
+
+
+    def existing_campaign(self, campaign_input: dict, output, event=None):
         """ Update existing campaign using the campaign name """
         with output:
-            for i in range(len(self.site["campaigns"])):
-                site_campaign_name =  self.site["campaigns"][i]["name"]
+            if not campaign_input["name"]:
+                print("Campaign name not provided, name is required for updating..")
+                return
+            
+            campaign = next((camp for camp in self.site["campaigns"] if camp["name"] == campaign_input["name"]), None)
 
-                if site_campaign_name == campaign["name"]:
-                    print("Updating " + site_campaign_name)
-                    # full_campaign = self.site["campaigns"][i]
-
-                    for key in campaign:
-                        if campaign[key]:
-                            self.site["campaigns"][i][key] = campaign[key]
-
-                    print("Updated campaign " + site_campaign_name)
-                    print(json.dumps(self.site["campaigns"], indent=2))
-                    break
-            else:
+            if campaign is None:
                 print("Campaign not found, ensure you have the correct campaign name")
+                return
+            
+            print("Updating " + campaign["name"])
+            for key, value in campaign_input.items():
+                if value:
+                    campaign[key] = value
 
+            print("Updated campaign " + campaign["name"])
+            print(json.dumps(self.site["campaigns"], indent=2))
 
-    def add_primary_survey_vessel(self, vessel_data: dict, output, event=None):
+    def add_primary_survey_vessel(self, vessel_data_input: dict, output, event=None):
         with output:
+            print("Adding primary survey vessel..")
+            if vessel_data_input["name"] == "":
+                print("Name not provided, name is required for adding..")
+                return
+            
             for vessel in self.site["surveyVessels"]:
-                if vessel["name"] == vessel_data["name"]:
+                if vessel["name"] == vessel_data_input["name"]:
                     print("Survey vessel already exists..")
                     print(json.dumps(self.site["surveyVessels"], indent=2))
                     return
             else:
-                self.site["surveyVessels"].append(vessel_data)
+                self.site["surveyVessels"].append(vessel_data_input)
                 print("Added survey vessel")
                 print(json.dumps(self.site['surveyVessels'], indent=2))
 
     
-    def existing_survey_vessel(self, survey_vessel_name: str, survey_vessel: dict, output, event=None):
+    def existing_survey_vessel(self, survey_vessel_name: str, survey_vessel_input: dict, output, event=None):
         with output:
             for i in range(len(self.site["surveyVessels"])):
                 site_survey_vessel_name =  self.site["surveyVessels"][i]["name"]
@@ -179,168 +201,226 @@ class Site:
                 if site_survey_vessel_name == survey_vessel_name:
                     print("Updating " + site_survey_vessel_name)
 
-                    for key in survey_vessel:
-                        if survey_vessel[key]:
-                            self.site["surveyVessels"][i][key] = survey_vessel[key]
+                    for key, value in survey_vessel_input.items():
+                        if value:
+                            self.site["surveyVessels"][i][key] = value
 
                     print("Updated survey vessel " + site_survey_vessel_name)
                     print(json.dumps(self.site["surveyVessels"], indent=2))
                     break
             else:
                 print("Survey vessel not found, ensure you have the correct survey vessel name")
-
-    def add_survey_vessel_equipment(self, vessel_name: str, equipment_name: str, equipment_data: dict, output, event=None):
+                    
+    def add_survey_vessel_equipment(self, primary_vessel_name: str, equipment_name: str, equipment_data_input: dict, output, event=None):
         with output:
+            print(f"Adding {equipment_name} to {primary_vessel_name}..")
             if equipment_name not in survey_vessels_types:
-                print("Survey vessel type not found, ensure you have the correct vessel type")
+                print("Survey vessel equipment type not found, ensure you have the correct vessel type")
                 return
             
-            for vessel in range(len(self.site["surveyVessels"])):
-                # IF correct vessel in survey vessel list
-                if self.site["surveyVessels"][vessel]["name"] == vessel_name:
-                    # IF no equipment by that name exists yet under the vessel, add it and return
-                    if equipment_name not in self.site["surveyVessels"][vessel]:
-                        self.site["surveyVessels"][vessel][equipment_name] = [equipment_data]
-                        print("Added " + equipment_name + " to " + vessel_name)
-                        print(json.dumps(self.site["surveyVessels"], indent=2))
-                        return
-                    
-                    else:
-                        # IF equipment by that name exists, check if equipment with serial number exists
-                        for equipment in self.site["surveyVessels"][vessel][equipment_name]:
-                            # IF equipment with serial number exists, update survey ID only
-                            if equipment["serialNumber"] == equipment_data["serialNumber"]:
-                                print("Equipment with serial number already exists..")
-                                print(json.dumps(self.site['surveyVessels'], indent=2))
-                                return
+            if equipment_data_input["serialNumber"] == "":
+                print("Serial number not provided, please provide a serial number..")
+                return
 
-                        # IF equipment with serial number does not exist, add it
-                        self.site["surveyVessels"][vessel][equipment_name].append(equipment_data)
-                        print("Added " + equipment_name + " to " + vessel_name)
-                        print(json.dumps(self.site["surveyVessels"], indent=2))
-                        return
-                    
+            vessel = next((primary_vessel for primary_vessel in self.site["surveyVessels"] if primary_vessel["name"] == primary_vessel_name), None)
+            if vessel is None:
+                print("Primary survey vessel {} not found, ensure you have the correct vessel name".format(primary_vessel_name))
+                return
+
+            if equipment_name not in vessel:
+                vessel[equipment_name] = [equipment_data_input]
+                print(f"Added {equipment_name} to {primary_vessel_name}")
+                print(json.dumps(self.site["surveyVessels"], indent=2))
+                return
+
+            existing_equipment = next((e for e in vessel[equipment_name] if e["serialNumber"] == equipment_data_input["serialNumber"]), None)
+            if existing_equipment:
+                print("Equipment {} with serial number {} already exists..".format(equipment_name, equipment_data_input["serialNumber"]))
+                return
+
+            vessel[equipment_name].append(equipment_data_input)
+            print(f"Added {equipment_name} to {primary_vessel_name}")
+
+            print(json.dumps(self.site["surveyVessels"], indent=2))
+
+    def add_atd_offsets(self, primary_vessel_name: str, atd_data_input: dict, output, event=None):
+        with output:
+            print("Adding acoustic to transducer offsets to survey vessel..")
+            if not atd_data_input['x'] or not atd_data_input['y'] or not atd_data_input['z']:
+                print("Offsets not provided, please provide all offsets..")
+                return
+            
+            vessel = next((primary_vessel for primary_vessel in self.site["surveyVessels"] if primary_vessel["name"] == primary_vessel_name), None)
+            if vessel is None:
+                print("Primary survey vessel {} not found, ensure you have the correct vessel name".format(primary_vessel_name))
+                return
+            
+            if "atdOffsets" not in vessel:
+                vessel["atdOffsets"] = [atd_data_input]
+                print("Added acoustic to transducer offsets to survey vessel")
+                print(json.dumps(self.site["surveyVessels"], indent=2))
+                return
+
     def existing_vessel_equipment(self, primary_vessel_name: str, equipment_name: str, equipment: dict, output, event=None):
         """ Update existing equipment on a survey vessel using the serial number """
         with output:
             if equipment_name not in survey_vessels_types:
                 print("Survey vessel equipment type not found, ensure you have the correct vessel type")
                 return
-        
-            
-            for i in range(len(self.site["surveyVessels"])):
-                if self.site["surveyVessels"][i]["name"] == primary_vessel_name:
-                    for j in range(len(self.site["surveyVessels"][i][equipment_name])):
-                        if self.site["surveyVessels"][i][equipment_name][j]["serialNumber"] == equipment["serialNumber"]:
-                            for key in equipment:
-                                if equipment[key]:
-                                    self.site["surveyVessels"][i][equipment_name][j][key] = equipment[key]
 
-                            print("Updated " + equipment_name + " with serial number " + equipment["serialNumber"])
-                            print(json.dumps(self.site["surveyVessels"], indent=2))
-                            return
+            if not equipment.get("serialNumber"):
+                print("Serial number not provided, serial number is required for updating..")
+                return
+
+            vessel = next((primary_vessel for primary_vessel in self.site["surveyVessels"] if primary_vessel["name"] == primary_vessel_name), None)
+            if vessel is None:
+                print(f"Survey vessel {primary_vessel_name} not found")
+                return
+
+            equipment_list = vessel.get(equipment_name, [])
+            existing_equipment = next((equip for equip in equipment_list if equip["serialNumber"] == equipment["serialNumber"]), None)
+            if existing_equipment is None:
+                print(f"Equipment {equipment_name} with serial number {equipment['serialNumber']} not found on vessel {primary_vessel_name}")
+                return
+
+            for key, value in equipment.items():
+                if value:
+                    existing_equipment[key] = value
+
+            print(f"Updated {equipment_name} with serial number {equipment['serialNumber']}")
+            print(json.dumps(self.site["surveyVessels"], indent=2))
                 
-    def new_survey(self, survey: dict, campaign_name, output, event=None):
+
+    def new_survey(self, survey_input: dict, campaign_name, output, event=None):
         with output:
-            for i in range(len(self.site["campaigns"])):
-                if self.site["campaigns"][i]["name"] == campaign_name:
-                    for survey in self.site["campaigns"][i]["surveys"]:
-                        if survey["id"] == survey["id"]:
-                            print("Survey already exists in campaign.. please update instead of adding")
-                            return
-                    if not survey["id"]:
-                        survey['id'] = campaign_name + "_" + str(len(self.site["campaigns"][i]["surveys"]) + 1)
-                    self.site["campaigns"][i]["surveys"].append(survey)
-                    print("Added survey")
-                    print(json.dumps(self.site["campaigns"], indent=2))
-                    break
-            else:
+            print("Adding survey to campaign {}".format(campaign_name))
+            campaign = next((camp for camp in self.site["campaigns"] if camp["name"] == campaign_name), None)
+            
+            if campaign is None:
                 print("Campaign not found, ensure you have the correct campaign name")
+                return
+
+            if any(survey["id"] == survey_input["id"] for survey in campaign["surveys"]):
+                print("Survey already exists in campaign.. please update instead of adding")
+                return
+
+            if not survey_input["id"]:
+                print("No survey ID provided, generating one..")
+                survey_input['id'] = campaign_name + "_" + str(len(campaign["surveys"]) + 1)
+                print("Generated survey ID: " + survey_input['id'])
+
+            campaign["surveys"].append(survey_input)
+            print("Added survey to site class..")
+            print(json.dumps(self.site["campaigns"], indent=2))
 
 
-    def existing_survey(self, survey: dict, campaign_name, survey_id, output, event=None):
-
+    def existing_survey(self, survey_input: dict, campaign_name, survey_id, output, event=None):
         with output:
-            for i in range(len(self.site["campaigns"])):
-                if self.site["campaigns"][i]["name"] == campaign_name:
-                    for j in range(len(self.site["campaigns"][i]["surveys"])):
-                        campaign_survey_ID = self.site["campaigns"][i]["surveys"][j]["id"]
-                        if campaign_survey_ID == survey_id:
-                            print("Updating survey " + campaign_survey_ID)
-                            for key in survey:
-                                if survey[key]:
-                                    self.site["campaigns"][i]["surveys"][j][key] = survey[key]
+            print("Updating survey {} in campaign {}".format(survey_id, campaign_name))
+            campaign = next((c for c in self.site["campaigns"] if c["name"] == campaign_name), None)
+            if campaign is None:
+                print("Campaign not found, ensure you have the correct campaign name")
+                return
 
-                            print("Updated survey " + survey_id)
-                            print(json.dumps(self.site["campaigns"], indent=2))
-                            break
+            campaign_survey = next((survey for survey in campaign["surveys"] if survey["id"] == survey_id), None)
+            if campaign_survey is None:
+                print(f"Survey with ID {survey_id} not found in campaign {campaign_name}")
+                return
+
+            print("Updating survey " + survey_id)
+            for key, value in survey_input.items():
+                if value:
+                    campaign_survey[key] = value
+
+            print("Updated survey " + survey_id)
+            print(json.dumps(self.site["campaigns"], indent=2))
 
 
-    def existing_benchmark(self, benchmark: dict, output, event=None):
+    def existing_benchmark(self, benchmark_input: dict, output, event=None):
         with output:
-            for i in range(len(self.site["benchmarks"])):
-                site_benchmark_name =  self.site["benchmarks"][i]["name"]
+            site_benchmark = next((benchmark for benchmark in self.site["benchmarks"] if benchmark["name"] == benchmark_input["name"]), None)
+            
+            if site_benchmark is None:
+                print("Benchmark {} not found, ensure you have the correct benchmark name".format(benchmark_input["name"]))
+                return
 
-                if site_benchmark_name == benchmark["name"]:
-                    print("Updating " + site_benchmark_name)
-                    # full_benchmark = self.site["benchmarks"][i]
+            print("Updating " + site_benchmark["name"])
+            for key, value in benchmark_input.items():
+                if value:
+                    site_benchmark[key] = value
 
-                    for key in benchmark:
-                        if benchmark[key]:
-                            self.site["benchmarks"][i][key] = benchmark[key]
+            print("Updated benchmark " + site_benchmark["name"])
+            print(json.dumps(self.site["benchmarks"], indent=2))
 
-                    print("Updated benchmark " + site_benchmark_name)
-                    print(json.dumps(self.site["benchmarks"], indent=2))
-                    break
-            else:
-                print("Benchmark not found, ensure you have the correct benchmark name")
-
-    def add_transponder_to_benchmark(self, benchmark_name, transponder: dict, output, event=None):
+    def add_transponder_to_benchmark(self, benchmark_name, transponder_input: dict, output, event=None):
         with output:
-            for i in range(len(self.site["benchmarks"])):
-                if self.site["benchmarks"][i]["name"] == benchmark_name:
-                    for transponder in self.site["benchmarks"][i]["transponders"]:
-                        if transponder["uid"] == transponder["uid"]:
-                            print("Transponder already exists in benchmark.. please update instead of adding")
-                            return
-                    self.site["benchmarks"][i]["transponders"].append(transponder)
-                    print("Added transponder")
-                    print(json.dumps(self.site["benchmarks"], indent=2))
-                    break
-            else:
-                print("Benchmark not found, ensure you have the correct benchmark name")
+            benchmark = next((b for b in self.site["benchmarks"] if b["name"] == benchmark_name), None)
+            
+            if benchmark is None:
+                print(f"Benchmark {benchmark_name} not found, ensure you have the correct benchmark name")
+                return
+            
+            if not transponder_input["address"]:
+                print("Transponder address not provided, address is required for adding..")
+                return
+
+            existing_transponder = next((trans for trans in benchmark.get("transponders", []) if trans["address"] == transponder_input["address"]), None)
+            
+            if existing_transponder:
+                print("Transponder {} already exists in benchmark.. please update instead of adding".format(transponder_input["address"]))
+                return
+
+            benchmark.setdefault("transponders", []).append(transponder_input)
+            print("Added transponder")
+            print(json.dumps(self.site["benchmarks"], indent=2))
 
 
-    def existing_transponder(self, benchmark_name: str, transponder: dict, output, event=None):
+    def existing_transponder(self, benchmark_name: str, transponder_input: dict, output, event=None):
         with output:
-            for i in range(len(self.site["benchmarks"])):
-                if self.site["benchmarks"][i]["name"] == benchmark_name:
-                    for j in range(len(self.site["benchmarks"][i]["transponders"])):
-                        benchmark_transponder_ID = self.site["benchmarks"][i]["transponders"][j]["uid"]
-                        if benchmark_transponder_ID == transponder["uid"]:
-                            # site_transponder = self.site["benchmarks"][i]["transponders"][j]
-                            
-                            for key in transponder:
-                                if transponder[key]:
-                                    self.site["benchmarks"][i]["transponders"][j][key] = transponder[key]
-                        
-                        print("Updated transponder " + benchmark_transponder_ID)
-                        print(json.dumps(self.site["benchmarks"], indent=2))
-                        break
+            benchmark = next((b for b in self.site["benchmarks"] if b["name"] == benchmark_name), None)
+            
+            if benchmark is None:
+                print(f"Benchmark {benchmark_name} not found, ensure you have the correct benchmark name")
+                return
+            
+            if not transponder_input["address"]:
+                print("Transponder address not provided, address is required for updating..")
+                return
 
-            else:
-                print("Transponder not found, ensure you have the correct benchmark & transponder name")
+            existing_transponder = next((trans for trans in benchmark.get("transponders", []) if trans["address"] == transponder_input["address"]), None)
+            
+            if existing_transponder is None:
+                print(f"Transponder with address {transponder_input['address']} not found in benchmark {benchmark_name}")
+                return
+
+            for key, value in transponder_input.items():
+                if value:
+                    existing_transponder[key] = value
+
+            print(f"Updated transponder {transponder_input['uid']}")
+            print(json.dumps(self.site["benchmarks"], indent=2))
 
 
-
-
-def import_site(filepath: str):
-    """Import site data from a JSON file."""
-    with open(filepath, 'r') as file:
-        return Site(existing_site=json.load(file))
 
 
 # todo: add this functionality to the site class in the future
+# def existing_atd_offsets(self, primary_vessel_name: str, atd_data_input: dict, output, event=None):
+#     with output:
+#         print("Updating acoustic to transducer offsets on survey vessel..")
+#         if not atd_data_input['x'] or not atd_data_input['y'] or not atd_data_input['z']:
+#             print("Offsets not provided, please provide all offsets..")
+#             return
+        
+#         vessel = next((primary_vessel for primary_vessel in self.site["surveyVessels"] if primary_vessel["name"] == primary_vessel_name), None)
+#         if vessel is None:
+#             print("Primary survey vessel {} not found, ensure you have the correct vessel name".format(primary_vessel_name))
+#             return
+
+#         if "atdOffsets" not in vessel:
+#             print("No acoustic to transducer offsets found on survey vessel..")
+#             return
+
+
 # SUBDUCTION_ZONE_PATH_INDEX = 1
 # STATION_NAME_PATH_INDEX = 2
 # YYYY_A_CAMPAIGN_PATH_INDEX = 3
