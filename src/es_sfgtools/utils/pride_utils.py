@@ -1,22 +1,58 @@
 import datetime
 from pathlib import Path
 from ftplib import FTP
-from typing import IO,Dict
+from typing import IO,Dict,Optional,List
 import wget
-import zlib
+import gzip
 import tempfile
+import logging
+from pydantic import BaseModel,field_validator
+import shutil
 
+logger = logging.getLogger(__name__)    
 # TODO use ftplib to download files
 # https://docs.python.org/3/library/ftplib.html
 
-WUHAN_GPS_DAILY = "ftp://igs.gnsswhu.cn/pub/gps/data/daily/"
-NASA_GPS_DAILY = "ftp://cddis.gsfc.nasa.gov/gnss/data/daily/"
-CDDIS_GNSS_DAILY = "https://cddis.gsfc.nasa.gov/archive/gnss/data/daily/"
-IGS_GNSS_DATA = "ftp://igs.ensg.ign.fr/pub/igs/data/"
-GSSC_GNSS_DATA = "ftp://gssc.esa.int/gnss/data/daily/"
-SIO_GNSS_DATA = "ftp://lox.ucsd.edu/rinex/"
 
-def uncompressed_file(file:Path) ->Path:
+class RemoteResource(BaseModel):
+    ftpserver:str
+    directory:List[str]
+    file:Optional[str]=None
+    
+    @field_validator("directory",mode="before")
+    def _proc_dir(cls,v):
+        if isinstance(v,str):
+            return [v]
+        return v
+    
+    def set(self,directory:List[str]|str="",file:str=None):
+        if isinstance(directory,str):
+            directory = [directory]
+        directory = self.directory + directory
+        return self.model_copy(update={"directory":directory,"file":file},deep=True)
+    
+    def __str__(self):
+        pathlist = [self.ftpserver]+self.directory + [self.file]
+        return "/".join(pathlist)
+
+
+WUHAN_GPS_DAILY = RemoteResource(ftpserver="ftp://igs.gnsswhu.cn",directory=["pub","gps","data","daily"])
+NASA_GPS_DAILY = RemoteResource(ftpserver="ftp://cddis.gsfc.nasa.gov",directory=["gnss","data","daily"])
+CDDIS_GNSS_DAILY = RemoteResource(ftpserver="https://cddis.gsfc.nasa.gov",directory=["archive","gnss","data","daily"])
+IGS_GNSS_DATA = RemoteResource(ftpserver="ftp://igs.ensg.ign.fr",directory=["pub","igs","data"])
+GSSC_GNSS_DATA = RemoteResource(ftpserver="ftp://gssc.esa.int",directory=["gnss","data","daily"])
+SIO_GNSS_DATA = RemoteResource(ftpserver="ftp://lox.ucsd.edu",directory=["rinex"])
+
+def download(source:RemoteResource,dest:Path) ->Path:
+    
+    with FTP(source.ftpserver.replace("ftp://","")) as ftp:
+        ftp.login()
+        ftp.cwd("/".join(source.directory))
+        with open(dest,"wb") as f:
+            ftp.retrbinary(f"RETR {source.file}",f.write)
+    return dest
+
+def uncompressed_file(file_path:Path) ->Path:
     """
     Decompresses a file using zlib and returns the path of the decompressed file.
     Args:
@@ -30,16 +66,20 @@ def uncompressed_file(file:Path) ->Path:
         >>> uncompressed_file(file)
         Path("data/brdc1500.21n")
     """
-    if not file.exists():
-        raise FileNotFoundError(f"File {file} does not exist.")
-    out_file = file.with_suffix("")
-    with open(file, "rb") as f:
-        compressed_data = f.read()
-    decompressed_data = zlib.decompress(compressed_data).decode("utf-8")
-    with open(out_file, "w") as f:
-        f.write(decompressed_data)
-    file.unlink()
-    return out_file
+    # Ensure the file exists
+    if not file_path.exists():
+        raise FileNotFoundError(f"File {file_path} does not exist.")
+
+    # Define the output file path by removing the .gz extension
+    out_file_path = file_path.with_suffix("")
+
+    # Open the .gz file and read the decompressed data
+    with gzip.open(file_path, "rb") as f_in:
+        with open(out_file_path, "wb") as f_out:
+            f_out.write(f_in.read())
+    file_path.unlink()
+    return out_file_path
+
 
 def get_daily_rinex_url(date:datetime.date) ->Dict[str,Dict[str,Path]]:
     """
@@ -74,29 +114,27 @@ def get_daily_rinex_url(date:datetime.date) ->Dict[str,Dict[str,Path]]:
     urls = {
         "rinex_2": {
             "wuhan":{
-                "glonass":WUHAN_GPS_DAILY+f"{year}/{doy}/{(year[2:] + 'g')}/{brcd_rinex_2_glonass}",
-                "gps":WUHAN_GPS_DAILY+f"{year}/{doy}/{(year[2:] + 'n')}/{brcd_rinex_2_gps}"
+                "glonass": WUHAN_GPS_DAILY.set(directory=[year,doy,(year[2:] + 'g')],file=brcd_rinex_2_glonass),
+                "gps":WUHAN_GPS_DAILY.set(directory=[year,doy,(year[2:] + 'n')],file=brcd_rinex_2_gps),
                 },
             "cdds":{
-                "glonass":CDDIS_GNSS_DAILY+f"{year}/{doy}/{(year[2:] + 'g')}/{brcd_rinex_2_glonass}",
-                "gps":CDDIS_GNSS_DAILY+f"{year}/{doy}/{(year[2:] + 'n')}/{brcd_rinex_2_gps}"
+                "glonass": CDDIS_GNSS_DAILY.set(directory=[year,doy,(year[2:] + 'g')],file=brcd_rinex_2_glonass),
+                "gps":CDDIS_GNSS_DAILY.set(directory=[year,doy,(year[2:] + 'n')],file=brcd_rinex_2_gps),
             },
             "igs":{
-                "glonass":IGS_GNSS_DATA+brcd_rinex_2_glonass,
-                "gps":IGS_GNSS_DATA+brcd_rinex_2_gps
+                "glonass":IGS_GNSS_DATA.set(file=brcd_rinex_2_glonass),
+                "gps":IGS_GNSS_DATA.set(file=brcd_rinex_2_gps)
             },
             "gssc":{
-                "glonass":GSSC_GNSS_DATA+brcd_rinex_2_glonass,
-                "gps":GSSC_GNSS_DATA+brcd_rinex_2_gps
+                "glonass":GSSC_GNSS_DATA.set(file=brcd_rinex_2_glonass),
+                "gps":GSSC_GNSS_DATA.set(file=brcd_rinex_2_gps)
             }
         },
         "rinex_3": {
-            
-            "wuhan_gps": WUHAN_GPS_DAILY +f"{year}/{doy}/{(year[2:] + 'p')}/{brcd_rinex_3}",
-            "igs_gnss": IGS_GNSS_DATA+f"{year}/{doy}/{brcd_rinex_3}",
-            "nasa_gps": NASA_GPS_DAILY+f"{year}/{doy}/{brcd_rinex_3}",
-            "cddis_gnss": CDDIS_GNSS_DAILY+f"{year}/{doy}/{(year[2:] + 'p')}/{brcd_rinex_3}",
-            "gssc_gnss": GSSC_GNSS_DATA+f"{brcd_rinex_3}"
+            "wuhan_gps": WUHAN_GPS_DAILY.set(directory=[year,doy,(year[2:] + 'p')],file=brcd_rinex_3),
+            "igs_gnss": IGS_GNSS_DATA.set(directory=[year,doy],file=brcd_rinex_3),
+            "cddis_gnss": CDDIS_GNSS_DAILY.set(directory=[year,doy,(year[2:] + 'p')],file=brcd_rinex_3),
+            "gssc_gnss": GSSC_GNSS_DATA.set(file=brcd_rinex_3)
         }
     }
     return urls
@@ -219,6 +257,7 @@ def merge_broadcast_files(brdn:Path, brdg:Path, output_folder:Path) ->Path:
 
 
 def get_nav_file(rinex_path:Path) -> None:
+    print(f"\nAttempting to build nav file for {str(rinex_path)}")
     with open(rinex_path) as f:
         files = f.readlines()
         for line in files:
@@ -234,15 +273,19 @@ def get_nav_file(rinex_path:Path) -> None:
         return
     year = str(start_date.year)
     doy = str(start_date.timetuple().tm_yday)
-    brdm_path = f"brdm{doy}0.{year:2}p"
+    brdm_path = rinex_path.parent/f"brdm{doy}0.{year:2}p"
+    if brdm_path.exists():
+        print(f"{brdm_path} already exists.\n")
+        return
     urls = get_daily_rinex_url(start_date)
     for source,url in urls["rinex_3"].items():
         print(f"Attemping to download {source} - {str(url)}")
-        local_path = rinex_path.parent / (url.split("/")[-1]+".gz")
+        local_path = rinex_path.parent /url.file
         try:
-            wget.download(str(url),str(local_path))
+           
+            download(url,local_path)
         except Exception as e:
-            print(f"Failed to download {str(url)}")
+            print(f"Failed to download {str(url)} | {e}")
             continue
         if local_path.exists():
             print(f"Succesfully downloaded {str(url)} to {str(local_path)}")
@@ -250,19 +293,29 @@ def get_nav_file(rinex_path:Path) -> None:
             local_path.rename(local_path.parent/brdm_path)
             print(f"Successfully built {brdm_path}")
             return
-    # If rinex 3 nav file pathway is not found, try rinex 2
-    for source,constellations in urls["rinex_2"].items():
-        
-        gps_url:Path = constellations["gps"]
-        glonass_url:Path = constellations["glonass"]
-        gps_local_name = gps_url.name+".Z"
-        glonass_local_name = glonass_url.name+".Z"
 
-        with tempfile.TemporaryDirectory() as tempdir:
+    with tempfile.TemporaryDirectory() as tempdir:
+        # If rinex 3 nav file pathway is not found, try rinex 2
+        for source,constellations in urls["rinex_2"].items():
+
+            gps_url:RemoteResource = constellations["gps"]
+            glonass_url:RemoteResource = constellations["glonass"]
+            gps_local_name = gps_url.file+".Z"
+            glonass_local_name = glonass_url.file+".Z"
+
             gps_dl_path = Path(tempdir)/gps_local_name
             glonass_dl_path = Path(tempdir)/glonass_local_name
-            wget.download(str(gps_url),str(gps_dl_path))
-            wget.download(str(glonass_url),str(glonass_dl_path))
+            print(f"Attemping to download {source} - {str(gps_url)}")
+            try:
+                if not gps_dl_path.exists():
+                    download(gps_url,gps_dl_path)
+                    
+                if not glonass_dl_path.exists():
+                    download(glonass_url,glonass_dl_path)
+                    
+            except Exception as e:
+                print(f"Failed to download {str(gps_url)} or {str(glonass_url)}")
+                continue
             if gps_dl_path.exists() and glonass_dl_path.exists():
                 gps_dl_path = uncompressed_file(gps_dl_path)
                 glonass_dl_path = uncompressed_file(glonass_dl_path)
