@@ -37,12 +37,18 @@ class RemoteResource(BaseModel):
 
 
 WUHAN_GPS_DAILY = RemoteResource(ftpserver="ftp://igs.gnsswhu.cn",directory=["pub","gps","data","daily"])
-NASA_GPS_DAILY = RemoteResource(ftpserver="ftp://cddis.gsfc.nasa.gov",directory=["gnss","data","daily"])
-CDDIS_GNSS_DAILY = RemoteResource(ftpserver="https://cddis.gsfc.nasa.gov",directory=["archive","gnss","data","daily"])
+CDDIS_GNSS_DAILY = RemoteResource(ftpserver="ftp://cddis.gsfc.nasa.gov",directory=["gnss","data","daily"])
 IGS_GNSS_DATA = RemoteResource(ftpserver="ftp://igs.ensg.ign.fr",directory=["pub","igs","data"])
 GSSC_GNSS_DATA = RemoteResource(ftpserver="ftp://gssc.esa.int",directory=["gnss","data","daily"])
 SIO_GNSS_DATA = RemoteResource(ftpserver="ftp://lox.ucsd.edu",directory=["rinex"])
 
+WUHAN_SP3 = RemoteResource(ftpserver="ftp://igs.gnsswhu.cn",directory=["pub","whu","phasebias"])
+CDDIS_SP3 = RemoteResource(ftpserver="ftp://cddis.gsfc.nasa.gov",directory=["gnss","products"])
+IGS_SP3 = RemoteResource(ftpserver="ftp://igs.ign.fr",directory=["pub","igs","products","mgex"])
+POTSDAM_SP3 = RemoteResource(
+    ftpserver="ftp://isdcftp.gfz-potsdam.de",
+    directory=["gnss","products","final"],
+)
 def download(source:RemoteResource,dest:Path) ->Path:
     
     with FTP(source.ftpserver.replace("ftp://","")) as ftp:
@@ -62,7 +68,7 @@ def uncompressed_file(file_path:Path) ->Path:
     Raises:
         FileNotFoundError: If the file does not exist.
     Examples:
-        >>> file = Path("data/brdc1500.21n.Z")
+        >>> file = Path("data/brdc1500.21n.gz")
         >>> uncompressed_file(file)
         Path("data/brdc1500.21n")
     """
@@ -282,7 +288,6 @@ def get_nav_file(rinex_path:Path) -> None:
         print(f"Attemping to download {source} - {str(url)}")
         local_path = rinex_path.parent /url.file
         try:
-           
             download(url,local_path)
         except Exception as e:
             print(f"Failed to download {str(url)} | {e}")
