@@ -37,6 +37,7 @@ def _date_to_gps_week(date:datetime.date | datetime.datetime)-> int:
 class WuhanIGS:
     ftpserver = "ftp://igs.gnsswhu.cn"
     daily_gps_dir = "pub/gps/data/daily"
+    daily_product_dir = "/pub/whu/phasebias"
 
     constellation_tag = {
         "gps":'n',
@@ -59,6 +60,46 @@ class WuhanIGS:
         dir_extension = f"{year}/{doy}/{year[2:]}p"
         file_name = f"BRDC00IGS_R_{year}{doy}0000_01D_MN.rnx.gz"
         directory = "/".join([cls.daily_gps_dir, dir_extension])
+        return RemoteResource(ftpserver=cls.ftpserver, directory=directory, file=file_name)
+
+    @classmethod
+    def get_product_sp3(cls,date:datetime.date)->RemoteResource:
+        year,doy = _parse_date(date)
+        dir_extension = f"{year}/orbit"
+        file_name = f"WMC0DEMFIN_{year}{doy}0000_01D_05M_ORB.SP3.gz"
+        directory = "/".join([cls.daily_product_dir, dir_extension])
+        return RemoteResource(ftpserver=cls.ftpserver, directory=directory, file=file_name)
+
+    @classmethod
+    def get_product_obx(cls,date:datetime.date)->RemoteResource:
+        year,doy = _parse_date(date)
+        dir_extension = f"{year}/orbit"
+        file_name = f"WMC0DEMFIN_{year}{doy}0000_01D_30S_ATT.OBX.gz"
+        directory = "/".join([cls.daily_product_dir, dir_extension])
+        return RemoteResource(ftpserver=cls.ftpserver, directory=directory, file=file_name)
+
+    @classmethod
+    def get_product_clk(cls,date:datetime.date)->RemoteResource:
+        year,doy = _parse_date(date)
+        dir_extension = f"{year}/clock"
+        file_name = f"WMC0DEMFIN_{year}{doy}0000_01D_30S_CLK.CLK.gz"
+        directory = "/".join([cls.daily_product_dir, dir_extension])
+        return RemoteResource(ftpserver=cls.ftpserver, directory=directory, file=file_name)
+
+    @classmethod
+    def get_product_sum(cls,date:datetime.date)->RemoteResource:
+        year,doy = _parse_date(date)
+        dir_extension = f"{year}/clock"
+        file_name = f"WMC0DEMFIN_{year}{doy}0000_01D_01D_CLS.SUM.gz"
+        directory = "/".join([cls.daily_product_dir, dir_extension])
+        return RemoteResource(ftpserver=cls.ftpserver, directory=directory, file=file_name)
+
+    @classmethod
+    def get_product_bias(cls,date:datetime.date)->RemoteResource:
+        year,doy = _parse_date(date)
+        dir_extension = f"{year}/bias"
+        file_name = f"WMC0DEMFIN_{year}{doy}0000_01D_01D_OSB.BIA.gz"
+        directory = "/".join([cls.daily_product_dir, dir_extension])
         return RemoteResource(ftpserver=cls.ftpserver, directory=directory, file=file_name)
 
 class CDDIS:
