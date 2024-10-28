@@ -262,7 +262,9 @@ def get_nav_file(rinex_path:Path) -> Path:
         Path("data/brdm1750.23p")
     """
 
-    print(f"\nAttempting to build nav file for {str(rinex_path)}")
+    response = f"\nAttempting to build nav file for {str(rinex_path)}"
+    logger.info(response)
+    print(response)
     with open(rinex_path) as f:
         files = f.readlines()
         for line in files:
@@ -274,28 +276,40 @@ def get_nav_file(rinex_path:Path) -> Path:
                     day=int(time_values[2]))
                 break
     if start_date is None:
-        print("No TIME OF FIRST OBS found in RINEX file.")
+        response = "No TIME OF FIRST OBS found in RINEX file."
+        logger.error(response)
+        print(response)
         return
     year = str(start_date.year)
     doy = str(start_date.timetuple().tm_yday)
     brdm_path = rinex_path.parent/f"brdm{doy}0.{year:2}p"
     if brdm_path.exists():
-        print(f"{brdm_path} already exists.\n")
+        response = f"{brdm_path} already exists.\n"
+        logger.info(response)
+        print(response)
         return brdm_path
     remote_resource_dict: Dict[str,RemoteResource] = get_daily_rinex_url(start_date)
     for source,remote_resource in remote_resource_dict["rinex_3"].items():
-        print(f"Attemping to download {source} - {str(remote_resource)}")
+        response = f"Attemping to download {source} - {str(remote_resource)}"
+        logger.info(response)
+        print(response)
         local_path = rinex_path.parent /remote_resource.file
         try:
             download(remote_resource,local_path)
         except Exception as e:
-            print(f"Failed to download {str(remote_resource)} | {e}")
+            response = f"Failed to download {str(remote_resource)} | {e}"
+            logger.error(response)
+            print(response)
             continue
         if local_path.exists():
-            print(f"Succesfully downloaded {str(remote_resource)} to {str(local_path)}")
+            response = f"Succesfully downloaded {str(remote_resource)} to {str(local_path)}"
+            logger.info(response)
+            print(response)
             local_path = uncompressed_file(local_path)
             local_path.rename(local_path.parent/brdm_path)
-            print(f"Successfully built {brdm_path}")
+            response = f"Successfully built {brdm_path}"
+            logger.info(response)
+            print(response)
             return brdm_path
 
     with tempfile.TemporaryDirectory() as tempdir:
@@ -309,7 +323,9 @@ def get_nav_file(rinex_path:Path) -> Path:
 
             gps_dl_path = Path(tempdir)/gps_local_name
             glonass_dl_path = Path(tempdir)/glonass_local_name
-            print(f"Attemping to download {source} - {str(gps_url)}")
+            response = f"Attemping to download {source} - {str(gps_url)}"
+            logger.info(response)
+            print(response)
             try:
                 if not gps_dl_path.exists():
                     download(gps_url,gps_dl_path)
@@ -318,18 +334,25 @@ def get_nav_file(rinex_path:Path) -> Path:
                     download(glonass_url,glonass_dl_path)
 
             except Exception as e:
-                print(f"Failed to download {str(gps_url)} or {str(glonass_url)}")
+                response = f"Failed to download {str(gps_url)} or {str(glonass_url)}"
+                logger.error(response)
+                print(response)
                 continue
             if gps_dl_path.exists() and glonass_dl_path.exists():
                 gps_dl_path = uncompressed_file(gps_dl_path)
                 glonass_dl_path = uncompressed_file(glonass_dl_path)
                 if merge_broadcast_files(gps_dl_path,glonass_dl_path,rinex_path.parent):
-                    print(f"Successfully built {brdm_path}")
+                    response = f"Successfully built {brdm_path}"
+                    logger.info(response)
+                    print(response)
                     return brdm_path
             else:
-                print(f"Failed to download {str(gps_url)} or {str(glonass_url)}")
-
-    warnings.warn(f"Failed to build or locate {brdm_path}")
+                response = f"Failed to download {str(gps_url)} or {str(glonass_url)}"
+                logger.error(response)
+                print(response)
+    response = f"Failed to build or locate {brdm_path}"
+    logger.error(response)
+    warnings.warn(response)
 
 def get_gnss_products(rinex_path:Path,pride_dir:Path) ->None:
     """
@@ -372,24 +395,34 @@ def get_gnss_products(rinex_path:Path,pride_dir:Path) ->None:
     common_product_dir.mkdir(exist_ok=True,parents=True)
     remote_resource_dict: Dict[str,RemoteResource] = get_gnss_common_products(start_date)
     for product_type,sources in remote_resource_dict.items():
-        print(f"Attempting to download {product_type} products")
+        response = f"Attempting to download {product_type} products"
+        logger.info(response)
+        print(response)
         for _,remote_resource in sources.items():
             local_path = common_product_dir/remote_resource.file
             if local_path.exists() and local_path.stat().st_size > 0:
-                print(f"Found {local_path}")
+                response = f"Found {local_path}"
+                logger.info(response)
+                print(response)
                 break
             try:
                 download(remote_resource,local_path)
             except Exception as e:
-                print(f"Failed to download {str(remote_resource)} | {e}")
+                response = f"Failed to download {str(remote_resource)} | {e}"
+                logger.error(response)
+                print(response)
                 local_path.unlink()
                 continue
             if local_path.exists():
-                print(f"Succesfully downloaded {str(remote_resource)} to {str(local_path)}")
+                response = f"Succesfully downloaded {str(remote_resource)} to {str(local_path)}"
+                logger.info(response)
+                print(response)
                 break
         if not local_path.exists():
-            warnings.warn(f"Failed to download {product_type} products")
-
+            response = f"Failed to download {product_type} products"
+            logger.error(response)
+            warnings.warn(response)
+    
 
 if __name__ == '__main__':
     test_rinex = (
