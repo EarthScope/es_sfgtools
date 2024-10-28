@@ -190,7 +190,7 @@ class CLSIGS:
         year, doy = _parse_date(date)
         dir_extension = f"{year}/{doy}"
         directory = "/".join([cls.daily_products_dir, dir_extension])
-        file_name = f"BRDC00IGN_R_${year}${doy}0000_01D_MN.rnx"
+        file_name = f"BRDC00IGN_R_{year}{doy}0000_01D_MN.rnx"
         return RemoteResource(
             ftpserver=cls.ftpserver, directory=directory, file=file_name
         )
@@ -199,7 +199,7 @@ class CLSIGS:
         year,doy = _parse_date(date)
         gps_week = _date_to_gps_week(date)
         dir_extension = f"{gps_week}"
-        file_name = f"WUM0MGXRAP_${year}${doy}0000_01D_05M_ORB.SP3.gz"
+        file_name = f"WUM0MGXRAP_{year}{doy}0000_01D_05M_ORB.SP3.gz"
         directory = "/".join([cls.daily_products_dir, dir_extension])
         return RemoteResource(ftpserver=cls.ftpserver, directory=directory, file=file_name)
     @classmethod
@@ -207,7 +207,7 @@ class CLSIGS:
         year,doy = _parse_date(date)
         gps_week = _date_to_gps_week(date)
         dir_extension = f"{gps_week}"
-        file_name = f"WUM0MGXRAP_${year}${doy}0000_01D_30S_CLK.CLK.gz"
+        file_name = f"WUM0MGXRAP_{year}{doy}0000_01D_30S_CLK.CLK.gz"
         directory = "/".join([cls.daily_products_dir, dir_extension])
         return RemoteResource(ftpserver=cls.ftpserver, directory=directory, file=file_name)
 
@@ -216,7 +216,7 @@ class CLSIGS:
         year,doy = _parse_date(date)
         gps_week = _date_to_gps_week(date)
         dir_extension = f"{gps_week}"
-        file_name = f"WUM0MGXRAP_${year}${doy}0000_01D_01D_ERP.ERP.gz"
+        file_name = f"WUM0MGXRAP_{year}{doy}0000_01D_01D_ERP.ERP.gz"
         directory = "/".join([cls.daily_products_dir, dir_extension])
         return RemoteResource(ftpserver=cls.ftpserver, directory=directory, file=file_name)
 
@@ -225,7 +225,7 @@ class CLSIGS:
         year,doy = _parse_date(date)
         gps_week = _date_to_gps_week(date)
         dir_extension = f"{gps_week}"
-        file_name = f"WUM0MGXRAP_${year}${doy}0000_01D_30S_ATT.OBX.gz"
+        file_name = f"WUM0MGXRAP_{year}{doy}0000_01D_30S_ATT.OBX.gz"
         directory = "/".join([cls.daily_products_dir, dir_extension])
         return RemoteResource(ftpserver=cls.ftpserver, directory=directory, file=file_name)
     
@@ -234,7 +234,7 @@ class CLSIGS:
         year,doy = _parse_date(date)
         gps_week = _date_to_gps_week(date)
         dir_extension = f"{gps_week}"
-        file_name = f"WUM0MGXRAP_${year}${doy}0000_01D_01D_OSB.BIA.gz"
+        file_name = f"WUM0MGXRAP_{year}{doy}0000_01D_01D_OSB.BIA.gz"
         directory = "/".join([cls.daily_products_dir, dir_extension])
         return RemoteResource(ftpserver=cls.ftpserver, directory=directory, file=file_name)
     
