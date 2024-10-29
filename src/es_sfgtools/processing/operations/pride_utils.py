@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 # )
 def download(source:RemoteResource,dest:Path) ->Path:
     
-    with FTP(source.ftpserver.replace("ftp://","")) as ftp:
+    with FTP(source.ftpserver.replace("ftp://",""),timeout=300) as ftp:
         ftp.login()
         ftp.cwd("/" + source.directory)
         with open(dest,"wb") as f:
@@ -76,30 +76,27 @@ def get_daily_rinex_url(date:datetime.date) ->Dict[str,Dict[str,RemoteResource]]
         "ftp://igs.gnsswhu.cn/pub/gps/data/daily/21/001/21g/brdc0010.21g.Z"
     """
 
-    
-
     urls = {
         "rinex_2": {
-            "wuhan":{
-                "glonass": WuhanIGS.get_rinex_2_nav(date,constellation="glonass"),
-                "gps":WuhanIGS.get_rinex_2_nav(date,constellation="gps")
-                },
-            "cdds":{
-                "glonass": CDDIS.get_rinex_2_nav(date,constellation="glonass"),
-                "gps":CDDIS.get_rinex_2_nav(date,constellation="gps")
+            "wuhan": {
+                "glonass": WuhanIGS.get_rinex_2_nav(date, constellation="glonass"),
+                "gps": WuhanIGS.get_rinex_2_nav(date, constellation="gps"),
             },
-        
-            "gssc":{
-                "glonass":GSSC.get_rinex_2_nav(date,constellation="glonass"),
-                "gps":GSSC.get_rinex_2_nav(date,constellation="gps")
-            }
+            "cdds": {
+                "glonass": CDDIS.get_rinex_2_nav(date, constellation="glonass"),
+                "gps": CDDIS.get_rinex_2_nav(date, constellation="gps"),
+            },
+            "gssc": {
+                "glonass": GSSC.get_rinex_2_nav(date, constellation="glonass"),
+                "gps": GSSC.get_rinex_2_nav(date, constellation="gps"),
+            },
         },
         "rinex_3": {
-            "wuhan_gps": WuhanIGS.get_rinex_3_nav(date),
             "igs_gnss": CLSIGS.get_rinex_3_nav(date),
+            "wuhan_gps": WuhanIGS.get_rinex_3_nav(date),
             "cddis_gnss": CDDIS.get_rinex_3_nav(date),
             "gssc_gnss": GSSC.get_rinex_3_nav(date),
-        }
+        },
     }
     return urls
 
@@ -243,12 +240,13 @@ def merge_broadcast_files(brdn:Path, brdg:Path, output_folder:Path) ->Path:
     return False
 
 
-def get_nav_file(rinex_path:Path) -> Path:
+def get_nav_file(rinex_path:Path,override:bool=False) -> Path:
     """
     Attempts to build a navigation file for a given RINEX file by downloading the necessary files from the IGS FTP server.
 
     Args:
         rinex_path (Path): The path to the RINEX file.
+        override (bool): If True, the function will attempt to download the navigation file even if it already exists.
     Returns:
         brdm_path (Path): The path to the navigation file.
     Raises:
@@ -283,7 +281,7 @@ def get_nav_file(rinex_path:Path) -> Path:
     year = str(start_date.year)
     doy = str(start_date.timetuple().tm_yday)
     brdm_path = rinex_path.parent/f"brdm{doy}0.{year:2}p"
-    if brdm_path.exists():
+    if brdm_path.exists() or not override:
         response = f"{brdm_path} already exists.\n"
         logger.info(response)
         print(response)
@@ -327,10 +325,10 @@ def get_nav_file(rinex_path:Path) -> Path:
             logger.info(response)
             print(response)
             try:
-                if not gps_dl_path.exists():
+                if not gps_dl_path.exists() or not override:
                     download(gps_url,gps_dl_path)
 
-                if not glonass_dl_path.exists():
+                if not glonass_dl_path.exists() or not override:
                     download(glonass_url,glonass_dl_path)
 
             except Exception as e:
@@ -354,7 +352,7 @@ def get_nav_file(rinex_path:Path) -> Path:
     logger.error(response)
     warnings.warn(response)
 
-def get_gnss_products(rinex_path:Path,pride_dir:Path) ->None:
+def get_gnss_products(rinex_path:Path,pride_dir:Path,override:bool=False) ->None:
     """
     Retrieves GNSS products associated with the given RINEX file.
 
@@ -401,7 +399,7 @@ def get_gnss_products(rinex_path:Path,pride_dir:Path) ->None:
         for _,remote_resource in sources.items():
             # For a given product type, try to download from each source
             local_path = common_product_dir/remote_resource.file
-            if local_path.exists() and local_path.stat().st_size > 0:
+            if (local_path.exists() and local_path.stat().st_size > 0) or not override:
                 response = f"Found {local_path}"
                 logger.info(response)
                 print(response)
@@ -419,12 +417,13 @@ def get_gnss_products(rinex_path:Path,pride_dir:Path) ->None:
                 response = f"Succesfully downloaded {str(remote_resource)} to {str(local_path)}"
                 logger.info(response)
                 print(response)
-                break
+                if not override:
+                    break
         if not local_path.exists():
             response = f"Failed to download {product_type} products"
             logger.error(response)
             warnings.warn(response)
-    
+
 
 if __name__ == '__main__':
     test_rinex = (

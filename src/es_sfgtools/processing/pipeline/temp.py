@@ -37,6 +37,7 @@ from es_sfgtools.modeling.garpos_tools import schemas as modeling_schemas
 from es_sfgtools.modeling.garpos_tools import functions as modeling_funcs
 from es_sfgtools.modeling.garpos_tools import hyper_params
 from es_sfgtools.processing.assets.tiledb_temp import TDBAcousticArray,TDBGNSSArray,TDBPositionArray,TDBShotDataArray
+from es_sfgtools.processing.operations.utils import get_merge_signature,merge_shotdata_gnss
 from .catalog import Catalog
 
 import sqlalchemy as sa
@@ -735,90 +736,7 @@ class DataHandler:
                 if child_targets:
                     processing_queue.append({child:child_targets})
 
-    def process_gnss_data(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
-        self._process_data_graph(AssetType.GNSS,override=override, show_details=show_details,update_timestamp=update_timestamp)
-
-    def process_metadata(self, override:bool=False, show_details:bool=False,update_timestamp:bool=False):
-        self._process_data_graph(AssetType.SITECONFIG,override=override, show_details=show_details,update_timestamp=update_timestamp)
-        self._process_data_graph(AssetType.ATDOFFSET,override=override, show_details=show_details,update_timestamp=update_timestamp)
-        self._process_data_graph(AssetType.SVP,override=override, show_details=show_details,update_timestamp=update_timestamp)
-
-    def process_qc_data(self, override:bool=False, show_details:bool=False):
-        self._process_data_graph_forward(AssetType.QCPIN,override=override, show_details=show_details)
-
-    def process_sv3_data(self, override:bool=False, show_details:bool=False):
-        self._process_data_graph_forward(AssetType.DFOP00,override=override, show_details=show_details,)
-
-    # def dev_group_session_data(self,
-    #                        source:Union[str,AssetType] = AssetType.SHOTDATA,
-    #                        override:bool=False
-    #                        ):
-    #     """
-    #     Group the session data by timestamp.
-
-    #     Args:
-    #         timespan (str): The timespan to group the data by.
-    #         show_details (bool): Log verbose output.
-
-    #     Returns:
-    #         dict: The grouped data.
-    #     """
-    #     if isinstance(source,str):
-    #         try:
-    #             source = AssetType(source)
-    #         except:
-    #             raise ValueError(f"Source {source} must be one of {AssetType.__members__.keys()}")
-
-    #     pre_multi_assets: List[MultiAssetPre] = self.catalog.get_multi_entries_to_process(
-    #         network=self.network,station=self.station,survey=self.survey,override=override,child_type=source,parent_type=source
-    #     )
-    #     if not pre_multi_assets:
-    #         if override:
-    #             raise ValueError(f"No assets of type {source.value} found in catalog for {self.network} {self.station} {self.survey}")
-    #         else:
-    #             return
-
-    #     match source:
-    #         case (
-    #             AssetType.POSITION
-    #             | AssetType.SHOTDATA
-    #             | AssetType.ACOUSTIC
-    #             | AssetType.GNSS
-    #         ):
-    #             multi_asset_list: List[MultiAssetEntry] = [
-    #                 dev_create_multi_asset_dataframe(
-    #                     multi_asset_pre=pre_multi_asset, working_dir=self.inter_dir
-    #                 )
-    #                 for pre_multi_asset in pre_multi_assets
-    #             ]
-
-    #         case AssetType.RINEX:
-    #             multi_asset_list = []
-    #             for pre_multi_asset in pre_multi_assets:
-    #                 try:
-    #                     rinex_ma:MultiAssetEntry = gnss_ops.dev_merge_rinex_multiasset(
-    #                         source=pre_multi_asset,working_dir=self.inter_dir
-    #                     )
-    #                     multi_asset_list.append(rinex_ma)
-    #                 except Exception as e:
-    #                     print(e)
-    #                     continue
-
-    #     logger.info(f"Created {len(multi_asset_list)} MultiAssetEntries for {source.value}")
-    #     uploadCount = 0
-    #     for multi_asset in multi_asset_list:
-    #         if multi_asset is not None:
-    #             if self.catalog.add_entry(multi_asset):
-    #                 uploadCount += 1
-    #     response = f"Added {uploadCount} out of {len(multi_asset_list)} MultiAssetEntries to the catalog"
-    #     logger.info(response)
-    #     print(response)
-    #     return [x for x in multi_asset_list if x is not None]
-
-    def query_catalog(self,
-                      query:str) -> pd.DataFrame:
-        return self.catalog.query(query)
-
+    
     def process_novatel(self,override:bool=False,show_details:bool=False) -> List[AssetEntry]:
 
         novatel_770_entries: List[AssetEntry] = self.catalog.get_assets(
@@ -921,64 +839,63 @@ class DataHandler:
         logger.info(response)
         if show_details:
             print(response)
+    
+    def process_dfop00(self,override:bool=False,show_details:bool=False) -> None:
+        dfop00_entries: List[AssetEntry] = self.catalog.get_single_entries_to_process(
+            network=self.network,station=self.station,survey=self.survey,parent_type=AssetType.DFOP00,override=override
+        )
+        if not dfop00_entries:
+            response = f"No DFOP00 Files Found to Process for {self.network} {self.station} {self.survey}"
+            logger.error(response)
+            if show_details:
+                print(response)
+            warnings.warn(response)
+            return
+
+        response = f"Found {len(dfop00_entries)} DFOP00 Files to Process"
+        logger.info(response)
+        if show_details:
+            print(response)
+
+       
+        count = 0
+
+        with multiprocessing.Pool() as pool:
+            results = pool.imap(sv3_ops.dev_dfop00_to_shotdata, dfop00_entries)
+            for shotdata_df in tqdm(results, total=len(dfop00_entries), desc="Processing DFOP00 Files"):
+                if shotdata_df is not None:
+                    self.shotdata_tdb.write_df(shotdata_df)
+                    count += 1
+                    
+        response = f"Generated {count} ShotData dataframes From {len(dfop00_entries)} DFOP00 Files"
+        logger.info(response)
+        if show_details:
+            print(response)
         
 
     def update_shotdata(self,plot:bool=False):
         print("Updating shotdata with interpolated gnss data")
         # TODO Need to only update positions for a single shot and not each transponder
         # For each shotdata multiasset entry, update the shotdata position with gnss data
-        shotdata_ma_list: List[MultiAssetEntry] = self.catalog.get_assets(network=self.network,station=self.station,survey=self.survey,asset_type=AssetType.SHOTDATA,multiasset=True)#self.get_asset_data(AssetType.SHOTDATA,multiasset=True)
-        gnss_ma_list: List[MultiAssetEntry] = self.catalog.get_assets(network=self.network,station=self.station,survey=self.survey,asset_type=AssetType.GNSS,multiasset=True)
-        shotdata_date_map = {x.timestamp_data_start.date():x for x in shotdata_ma_list}
-        gnss_date_map = {x.timestamp_data_start.date():x for x in gnss_ma_list}
-        merged_date_map = {}
-        for date in shotdata_date_map.keys():
-            merged_date_map.setdefault(date,[]).append(shotdata_date_map[date])
-            if date in gnss_date_map.keys():
-                print(f"Found matching gnss data for shotdata on {date}")
-                shotdata_df = observables.ShotDataFrame(pd.read_csv(shotdata_date_map[date].local_path),lazy=True)
-                shotdata_df_distilled = shotdata_df.drop_duplicates("triggerTime")
-                gnss_df = observables.GNSSDataFrame.validate(pd.read_csv(gnss_date_map[date].local_path),lazy=True)
-                # perform the interpolation of east,north,up positions between the shotdata and gnss data
-                delta_tenur = shotdata_df_distilled[['east1','north1','up1']].to_numpy() - shotdata_df_distilled[['east0','north0','up0']].to_numpy()
-                tenu_l = gnss_df[['time','east','north','up']].to_numpy()
-                tenu_l[:,0] = [x.timestamp() for x in tenu_l[:,0].tolist()]
-                enu_l_sig = 0.05*np.ones_like(tenu_l[:,1:])
-                tenu_r = shotdata_df_distilled[['triggerTime','east0','north0','up0']].to_numpy()
-                tenu_r[:,0] = [x.timestamp() for x in tenu_r[:,0].tolist()]
-                enu_r_sig = shotdata_df_distilled[["east_std","north_std","up_std"]].to_numpy()
-                enu_r_sig[np.isnan(enu_r_sig)] = 1.0 # set the standard deviation to 1.0 meters if it is nan
-                print(f"Interpolating {tenu_r.shape[0]} points")
-                pred_mu,pred_std = self.interpolate_enu(tenu_l,enu_l_sig,tenu_r.copy(),enu_r_sig)
-                # create filter that matches the undistiled triggerTime with the first column of pred_mu
-                triggerTimePred = pred_mu[:,0]
-                triggerTimeDF = shotdata_df["triggerTime"].apply(lambda x: x.timestamp()).to_numpy()
-                shot_df_inds = np.searchsorted(triggerTimePred,triggerTimeDF,side="left")
+        try:
+            merge_signature,dates = get_merge_signature(self.shotdata_tdb,self.gnss_tdb)
+        except Exception as e:
+            print(e)
+            return
+        merge_job = {
+            "parent_type": AssetType.GNSS.value,
+            "child_type": AssetType.SHOTDATA.value,
+            "parent_ids": merge_signature
+        }
+        if not self.catalog.is_merge_complete(**merge_job):
+            merge_shotdata_gnss(
+                shotdata=self.shotdata_tdb,
+                gnss=self.gnss_tdb,
+                dates=dates,
+                plot=plot
+            )
+        self.catalog.add_merge_job(**merge_job)
 
-                for i,key in enumerate(["east0","north0","up0"]):
-                    shotdata_df.iloc[shot_df_inds][key] = pred_mu[shot_df_inds,i+1]
-                    shotdata_df.iloc[shot_df_inds][f"{key}_std"] = pred_std[shot_df_inds,i]
-                    if plot and i == 0:
-                        plt.scatter(
-                            tenu_l[:, 0],
-                            tenu_l[:, i + 1],
-                            marker="o",
-                            c="r",
-                            linewidths=0.15,
-                            label=f"{key} gnss",
-                        )
-                        plt.plot(pred_mu[:,0],pred_mu[:,i+1],label=f"{key} interpolated")
-                        plt.scatter(tenu_r[:,0],tenu_r[:,i+1],marker="o",c="b",linewidths=0.15,label=f"{key} original")
-                        plt.fill_between(pred_mu[:,0],pred_mu[:,i+1]-pred_std[:,i],pred_mu[:,i+1]+pred_std[:,i],alpha=0.5)
-                if plot:
-                    plt.legend()
-                    plt.show()
-
-                shotdata_df.iloc[shot_df_inds][['east1','north1','up1']] = shotdata_df.iloc[shot_df_inds][['east0','north0','up0']].to_numpy() - delta_tenur[shot_df_inds]
-
-                response = f"Found matching gnss data for shotdata on {date}"
-                logger.info(response)
-                shotdata_df.to_csv(shotdata_date_map[date].local_path,index=False)
 
     def pipeline_sv2(self,override:bool=False,show_details:bool=False):
         self._process_data_graph(AssetType.POSITION,override=override,show_details=show_details)
@@ -994,19 +911,8 @@ class DataHandler:
         processed_kin_gnss: Tuple[List[AssetEntry | MultiAssetEntry],List[AssetEntry | MultiAssetEntry]] = self._process_data_link(
             target=AssetType.GNSS,source=AssetType.KIN,override=override,parent_entries=processed_rinex_kin[1],show_details=show_details)
 
-    def pipeline_sv3(self,override:bool=False,show_details:bool=False):
-        # self._process_data_graph(AssetType.POSITION,override=override,show_details=show_details)
-        self._process_data_graph(AssetType.RINEX,override=override,show_details=show_details)
-        #     #self._process_data_graph_forward(AssetType.DFOP00,override=override,show_details=show_details)
-        #     #shotdata_ma_list: List[MultiAssetEntry] = self.dev_group_session_data(source=AssetType.SHOTDATA,override=override)
-        #     # add the merged shotdata to the catalog
-
-        #     rinex_ma_list: List[MultiAssetEntry] = self.dev_group_session_data(source=AssetType.RINEX,override=override)
-
-        #     _,kin_ma_list= self._process_data_link(
-        #         target=AssetType.KIN,source=AssetType.RINEX,override=override,parent_entries=rinex_ma_list,show_details=show_details)
-
-        #    # kin_ma_list = self.catalog.get_multi_entries_to_process(network=self.network,station=self.station,survey=self.survey,child_type=AssetType.KIN,parent_type=AssetType.RINEX,override=override)
-        #     _,processed_gnss = self._process_data_link(target=AssetType.GNSS,source=AssetType.KIN,override=override,parent_entries=kin_ma_list,show_details=show_details)
-        self._process_data_graph_forward(AssetType.DFOP00,override=override,show_details=show_details)
-        # self.dev_group_session_data(source=AssetType.SHOTDATA,override=override)
+    def pipeline_sv3(self,override:bool=False,show_details:bool=False,plot:bool=False):
+        self.process_novatel(override=override,show_details=show_details)
+        self.process_rinex(override=override,show_details=show_details)
+        self.process_dfop00(override=override,show_details=show_details)
+        self.update_shotdata(plot=plot)

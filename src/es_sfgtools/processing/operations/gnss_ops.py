@@ -414,7 +414,7 @@ def rinex_to_kin(
         logger.error(f"RINEX file {source.local_path} not found")
         raise FileNotFoundError(f"RINEX file {source.local_path} not found")
 
-    get_nav_file(rinex_path=source.local_path,pridedir=pridedir)
+    get_nav_file(rinex_path=source.local_path)
     get_gnss_products(rinex_path=source.local_path,pridedir=pridedir)
     if source.station is not None:
         site = source.station

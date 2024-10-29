@@ -10,7 +10,7 @@ from typing import Optional,Dict,Literal
 
 from .observables import AcousticDataFrame,GNSSDataFrame,PositionDataFrame,ShotDataFrame
 
-filters = tiledb.FilterList([tiledb.ZstdFilter(5)])
+filters = tiledb.FilterList([tiledb.ZstdFilter(7)])
 TimeDomain = tiledb.Dim(name="time", dtype="datetime64[ms]")
 attribute_dict: Dict[str,tiledb.Attr] = {
     "east": tiledb.Attr(name="east", dtype=np.float32),
@@ -116,49 +116,74 @@ AcousticArraySchema = tiledb.ArraySchema(
     attrs=AcousticDataAttributes,
     cell_order='col-major', 
     tile_order='row-major',
-    allows_duplicates=True,
+    allows_duplicates=False,
     coords_filters=filters,
 )
 
 
 class TBDArray:
     dataframe_schema = None
+    array_schema = None 
     def __init__(self,uri:Path|str):
         if isinstance(uri,str):
             uri = Path(uri)
         self.uri = uri
         if not uri.exists():
-            tiledb.Array.create(str(uri),AcousticArraySchema)
+            tiledb.Array.create(str(uri),self.array_schema)
     
     def write_df(self,df:pd.DataFrame):
         df = self.dataframe_schema.validate(df,lazy=True)
         tiledb.from_pandas(str(self.uri),df,mode='append')
 
-    def read_df(self,start:datetime,end:datetime,**kwargs)->pd.DataFrame:
+    def read_df(self,start:datetime,end:datetime=None,**kwargs)->pd.DataFrame:
+        if end is None:
+            end = start
         with tiledb.open(str(self.uri), mode="r") as array:
             df = array.df[slice(np.datetime64(start), np.datetime64(end)), :]
         df = self.dataframe_schema.validate(df,lazy=True)
         return df
     
-
+    def get_unique_dates(self,field:str)->np.ndarray:
+        with tiledb.open(str(self.uri), mode="r") as array:
+            values = array[:,field][:]
+            try:
+                values = values.astype("datetime64[ms]").astype("datetime64[D]")
+                return np.unique(values)
+            except Exception as e:
+                print(e)
+                return None
+        
 class TDBAcousticArray(TBDArray):
     dataframe_schema = AcousticDataFrame
+    array_schema = AcousticArraySchema
     def __init__(self,uri:Path|str):
         super().__init__(uri)
+    def get_unique_dates(self,field="triggerTime")->np.ndarray:
+        return super().get_unique_dates(field)
 
     
 class TDBGNSSArray(TBDArray):
     dataframe_schema = GNSSDataFrame
+    array_schema = GNSSArraySchema
     def __init__(self,uri:Path|str):
         super().__init__(uri)
 
+    def get_unique_dates(self,field="time")->np.ndarray:
+        return super().get_unique_dates(field)
 
 class TDBPositionArray(TBDArray):
     dataframe_schema = PositionDataFrame
+    array_schema = PositionArraySchema
     def __init__(self,uri:Path|str):
         super().__init__(uri)
+    def get_unique_dates(self,field="time")->np.ndarray:
+        return super().get_unique_dates(field)
 
 class TDBShotDataArray(TBDArray):
     dataframe_schema = ShotDataFrame
+    array_schema = ShotDataArraySchema
     def __init__(self,uri:Path|str):
         super().__init__(uri)
+    def get_unique_dates(self,field="time")->np.ndarray:
+        return super().get_unique_dates(field)
+    

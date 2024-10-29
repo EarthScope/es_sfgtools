@@ -11,7 +11,7 @@ class RemoteResource(BaseModel):
     file:str
 
     def __str__(self):
-        return "/".join([self.ftpserver, self.directory, self.file])
+        return str({"ftpserver":self.ftpserver,"directory":self.directory,"file":self.file})
 
 
 def _parse_date(date:datetime.date | datetime.datetime)-> Tuple[str,str]:
@@ -188,7 +188,8 @@ class CLSIGS:
     @classmethod
     def get_rinex_3_nav(cls, date: datetime) -> RemoteResource:
         year, doy = _parse_date(date)
-        dir_extension = f"{year}/{doy}"
+        gps_week = _date_to_gps_week(date)
+        dir_extension = f"{gps_week}"
         directory = "/".join([cls.daily_products_dir, dir_extension])
         file_name = f"BRDC00IGN_R_{year}{doy}0000_01D_MN.rnx"
         return RemoteResource(
