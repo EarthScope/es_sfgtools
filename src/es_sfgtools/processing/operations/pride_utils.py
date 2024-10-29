@@ -1,7 +1,7 @@
 import datetime
 from pathlib import Path
 from ftplib import FTP
-from typing import IO,Dict,Optional,List
+from typing import IO,Dict,Optional,List,Literal
 import wget
 import gzip
 import tempfile
@@ -240,13 +240,14 @@ def merge_broadcast_files(brdn:Path, brdg:Path, output_folder:Path) ->Path:
     return False
 
 
-def get_nav_file(rinex_path:Path,override:bool=False) -> Path:
+def get_nav_file(rinex_path:Path,override:bool=False,mode:Literal['process','test'] = 'process') -> Path:
     """
     Attempts to build a navigation file for a given RINEX file by downloading the necessary files from the IGS FTP server.
 
     Args:
         rinex_path (Path): The path to the RINEX file.
         override (bool): If True, the function will attempt to download the navigation file even if it already exists.
+        mode (Literal['process','test']): The mode in which the function is running. Test mode attempt downloads from all resources
     Returns:
         brdm_path (Path): The path to the navigation file.
     Raises:
@@ -259,7 +260,9 @@ def get_nav_file(rinex_path:Path,override:bool=False) -> Path:
         >>> brdm_path
         Path("data/brdm1750.23p")
     """
-
+    assert mode in ['process','test'], f"Mode {mode} not recognized"
+    if mode == 'test':
+        override = True
     response = f"\nAttempting to build nav file for {str(rinex_path)}"
     logger.info(response)
     print(response)
@@ -281,7 +284,7 @@ def get_nav_file(rinex_path:Path,override:bool=False) -> Path:
     year = str(start_date.year)
     doy = str(start_date.timetuple().tm_yday)
     brdm_path = rinex_path.parent/f"brdm{doy}0.{year:2}p"
-    if brdm_path.exists() or not override:
+    if brdm_path.exists() and not override:
         response = f"{brdm_path} already exists.\n"
         logger.info(response)
         print(response)
@@ -305,10 +308,14 @@ def get_nav_file(rinex_path:Path,override:bool=False) -> Path:
             print(response)
             local_path = uncompressed_file(local_path)
             local_path.rename(local_path.parent/brdm_path)
-            response = f"Successfully built {brdm_path}"
+            response = f"Successfully built {brdm_path} From {str(remote_resource)}"
             logger.info(response)
             print(response)
-            return brdm_path
+            match mode:
+                case "process":
+                    return brdm_path
+                case 'test':
+                    brdm_path.unlink()
 
     with tempfile.TemporaryDirectory() as tempdir:
         # If rinex 3 nav file pathway is not found, try rinex 2
@@ -321,18 +328,18 @@ def get_nav_file(rinex_path:Path,override:bool=False) -> Path:
 
             gps_dl_path = Path(tempdir)/gps_local_name
             glonass_dl_path = Path(tempdir)/glonass_local_name
-            response = f"Attemping to download {source} - {str(gps_url)}"
+            response = f"Attemping to download {source} From {str(gps_url)}"
             logger.info(response)
             print(response)
             try:
-                if not gps_dl_path.exists() or not override:
+                if not gps_dl_path.exists() or override:
                     download(gps_url,gps_dl_path)
 
-                if not glonass_dl_path.exists() or not override:
+                if not glonass_dl_path.exists() or override:
                     download(glonass_url,glonass_dl_path)
 
             except Exception as e:
-                response = f"Failed to download {str(gps_url)} or {str(glonass_url)}"
+                response = f"Failed to download {str(gps_url)} To {str(gps_dl_path)} or {str(glonass_url)} To {str(glonass_dl_path)} | {e}"
                 logger.error(response)
                 print(response)
                 continue
@@ -343,7 +350,12 @@ def get_nav_file(rinex_path:Path,override:bool=False) -> Path:
                     response = f"Successfully built {brdm_path}"
                     logger.info(response)
                     print(response)
-                    return brdm_path
+
+                    match mode:
+                        case "process":
+                            return brdm_path
+                        case 'test':
+                            brdm_path.unlink()
             else:
                 response = f"Failed to download {str(gps_url)} or {str(glonass_url)}"
                 logger.error(response)
@@ -352,27 +364,38 @@ def get_nav_file(rinex_path:Path,override:bool=False) -> Path:
     logger.error(response)
     warnings.warn(response)
 
-def get_gnss_products(rinex_path:Path,pride_dir:Path,override:bool=False) ->None:
+
+def get_gnss_products(
+    rinex_path: Path,
+    pride_dir: Path,
+    override: bool = False,
+    mode: Literal["process", "test"] = "process",
+) -> None:
     """
     Retrieves GNSS products associated with the given RINEX file.
 
-    # SP3, CLK, BIAS,SUM,OBX,ERP
-    # SP3 - Satellite Position
-    # CLK - Satellite Clock
-    # BIAS - Phase Bias
-    # SUM - Satellite Summary
-    # OBX - Quaternions
-    # ERP - Earth Rotation
+    ### The following GNSS products are retrieved:
+    #### SP3 - Satellite Position
+    #### CLK - Satellite Clock
+    #### BIAS - Phase Bias
+    #### SUM - Satellite Summary
+    #### OBX - Quaternions
+    #### ERP - Earth Rotation
 
     Args:
         rinex_path (Path): The path to the RINEX file.
         pride_dir (Path): The directory where the GNSS products will be stored.
+        override (bool): If True, the function will attempt to download the GNSS products even if they already exist.
+        mode (Literal["process", "test"]): The mode in which the function is running. Test mode attempt downloads from all resources
     Returns:
         None
     Raises:
         Exception: If there is an error while downloading the GNSS products.
         Warning: If the GNSS products cannot be downloaded.
     """
+    assert mode in ["process", "test"], f"Mode {mode} not recognized"
+    if mode == "test":
+        override = True
 
     with open(rinex_path) as f:
         files = f.readlines()
@@ -399,7 +422,7 @@ def get_gnss_products(rinex_path:Path,pride_dir:Path,override:bool=False) ->None
         for _,remote_resource in sources.items():
             # For a given product type, try to download from each source
             local_path = common_product_dir/remote_resource.file
-            if (local_path.exists() and local_path.stat().st_size > 0) or not override:
+            if (local_path.exists() and local_path.stat().st_size > 0) and not override:
                 response = f"Found {local_path}"
                 logger.info(response)
                 print(response)
@@ -417,8 +440,12 @@ def get_gnss_products(rinex_path:Path,pride_dir:Path,override:bool=False) ->None
                 response = f"Succesfully downloaded {str(remote_resource)} to {str(local_path)}"
                 logger.info(response)
                 print(response)
-                if not override:
-                    break
+                match mode:
+                    case "process":
+                        break
+                    case 'test':
+                        local_path.unlink()
+
         if not local_path.exists():
             response = f"Failed to download {product_type} products"
             logger.error(response)
