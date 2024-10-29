@@ -22,7 +22,7 @@ from warnings import warn
 import matplotlib.pyplot as plt
 from ..assets.file_schemas import AssetEntry,AssetType,MultiAssetEntry,MultiAssetPre
 from ..assets.observables import GNSSDataFrame
-
+from .pride_utils import get_nav_file,get_gnss_products
 logger = logging.getLogger(__name__)
 
 RINEX_BINARIES = Path(__file__).resolve().parent / "binaries/"
@@ -414,6 +414,8 @@ def rinex_to_kin(
         logger.error(f"RINEX file {source.local_path} not found")
         raise FileNotFoundError(f"RINEX file {source.local_path} not found")
 
+    get_nav_file(rinex_path=source.local_path,pridedir=pridedir)
+    get_gnss_products(rinex_path=source.local_path,pridedir=pridedir)
     if source.station is not None:
         site = source.station
     cmd = [

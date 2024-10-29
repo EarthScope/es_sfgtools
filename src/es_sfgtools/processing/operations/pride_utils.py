@@ -10,7 +10,7 @@ from pydantic import BaseModel,field_validator
 import shutil
 import warnings
 
-from es_sfgtools.utils.gnss_resources import RemoteResource,WuhanIGS,CLSIGS,CDDIS,GSSC
+from es_sfgtools.processing.operations.gnss_resources import RemoteResource,WuhanIGS,CLSIGS,CDDIS,GSSC
 logger = logging.getLogger(__name__)    
 # TODO use ftplib to download files
 # https://docs.python.org/3/library/ftplib.html
@@ -412,7 +412,7 @@ def get_gnss_products(rinex_path:Path,pride_dir:Path) ->None:
                 response = f"Failed to download {str(remote_resource)} | {e}"
                 logger.error(response)
                 print(response)
-                if local_path.exists():
+                if local_path.exists() and local_path.stat().st_size == 0:
                     local_path.unlink()
                 continue
             if local_path.exists():
