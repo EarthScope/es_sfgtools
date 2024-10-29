@@ -399,6 +399,7 @@ def get_gnss_products(rinex_path:Path,pride_dir:Path) ->None:
         logger.info(response)
         print(response)
         for _,remote_resource in sources.items():
+            # For a given product type, try to download from each source
             local_path = common_product_dir/remote_resource.file
             if local_path.exists() and local_path.stat().st_size > 0:
                 response = f"Found {local_path}"
@@ -411,7 +412,8 @@ def get_gnss_products(rinex_path:Path,pride_dir:Path) ->None:
                 response = f"Failed to download {str(remote_resource)} | {e}"
                 logger.error(response)
                 print(response)
-                local_path.unlink()
+                if local_path.exists():
+                    local_path.unlink()
                 continue
             if local_path.exists():
                 response = f"Succesfully downloaded {str(remote_resource)} to {str(local_path)}"
