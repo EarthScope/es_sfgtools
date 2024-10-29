@@ -265,7 +265,7 @@ def get_nav_file(rinex_path:Path,override:bool=False,mode:Literal['process','tes
         override = True
     response = f"\nAttempting to build nav file for {str(rinex_path)}"
     logger.info(response)
-    print(response)
+
     with open(rinex_path) as f:
         files = f.readlines()
         for line in files:
@@ -279,7 +279,7 @@ def get_nav_file(rinex_path:Path,override:bool=False,mode:Literal['process','tes
     if start_date is None:
         response = "No TIME OF FIRST OBS found in RINEX file."
         logger.error(response)
-        print(response)
+  
         return
     year = str(start_date.year)
     doy = str(start_date.timetuple().tm_yday)
@@ -287,30 +287,30 @@ def get_nav_file(rinex_path:Path,override:bool=False,mode:Literal['process','tes
     if brdm_path.exists() and not override:
         response = f"{brdm_path} already exists.\n"
         logger.info(response)
-        print(response)
+
         return brdm_path
     remote_resource_dict: Dict[str,RemoteResource] = get_daily_rinex_url(start_date)
     for source,remote_resource in remote_resource_dict["rinex_3"].items():
         response = f"Attemping to download {source} - {str(remote_resource)}"
         logger.info(response)
-        print(response)
+  
         local_path = rinex_path.parent /remote_resource.file
         try:
             download(remote_resource,local_path)
         except Exception as e:
-            response = f"Failed to download {str(remote_resource)} | {e}"
-            logger.error(response)
-            print(response)
+            logger.error(f"Failed to download {str(remote_resource)} | {e}")
+       
             continue
         if local_path.exists():
-            response = f"Succesfully downloaded {str(remote_resource)} to {str(local_path)}"
-            logger.info(response)
-            print(response)
+
+            logger.info(
+                f"Succesfully downloaded {str(remote_resource)} to {str(local_path)}"
+            )
+
             local_path = uncompressed_file(local_path)
             local_path.rename(local_path.parent/brdm_path)
-            response = f"Successfully built {brdm_path} From {str(remote_resource)}"
-            logger.info(response)
-            print(response)
+            logger.info(f"Successfully built {brdm_path} From {str(remote_resource)}")
+
             match mode:
                 case "process":
                     return brdm_path
@@ -328,9 +328,9 @@ def get_nav_file(rinex_path:Path,override:bool=False,mode:Literal['process','tes
 
             gps_dl_path = Path(tempdir)/gps_local_name
             glonass_dl_path = Path(tempdir)/glonass_local_name
-            response = f"Attemping to download {source} From {str(gps_url)}"
-            logger.info(response)
-            print(response)
+
+            logger.info(f"Attemping to download {source} From {str(gps_url)}")
+
             try:
                 if not gps_dl_path.exists() or override:
                     download(gps_url,gps_dl_path)
@@ -339,17 +339,18 @@ def get_nav_file(rinex_path:Path,override:bool=False,mode:Literal['process','tes
                     download(glonass_url,glonass_dl_path)
 
             except Exception as e:
-                response = f"Failed to download {str(gps_url)} To {str(gps_dl_path)} or {str(glonass_url)} To {str(glonass_dl_path)} | {e}"
-                logger.error(response)
-                print(response)
+
+                logger.error(
+                    f"Failed to download {str(gps_url)} To {str(gps_dl_path)} or {str(glonass_url)} To {str(glonass_dl_path)} | {e}"
+                )
+
                 continue
             if gps_dl_path.exists() and glonass_dl_path.exists():
                 gps_dl_path = uncompressed_file(gps_dl_path)
                 glonass_dl_path = uncompressed_file(glonass_dl_path)
                 if merge_broadcast_files(gps_dl_path,glonass_dl_path,rinex_path.parent):
-                    response = f"Successfully built {brdm_path}"
-                    logger.info(response)
-                    print(response)
+
+                    logger.info(f"Successfully built {brdm_path}")
 
                     match mode:
                         case "process":
@@ -409,37 +410,38 @@ def get_gnss_products(
                 )
                 break
     if start_date is None:
-        print("No TIME OF FIRST OBS found in RINEX file.")
+        logger.error("No TIME OF FIRST OBS found in RINEX file.")
         return
     year = str(start_date.year)
     common_product_dir = pride_dir/year/"product"/"common"
     common_product_dir.mkdir(exist_ok=True,parents=True)
     remote_resource_dict: Dict[str,RemoteResource] = get_gnss_common_products(start_date)
     for product_type,sources in remote_resource_dict.items():
-        response = f"Attempting to download {product_type} products"
-        logger.info(response)
-        print(response)
+        logger.info(f"Attempting to download {product_type} products")
+
         for _,remote_resource in sources.items():
             # For a given product type, try to download from each source
             local_path = common_product_dir/remote_resource.file
             if (local_path.exists() and local_path.stat().st_size > 0) and not override:
-                response = f"Found {local_path}"
-                logger.info(response)
-                print(response)
+
+                logger.info(f"Found {local_path}")
+
                 break
             try:
                 download(remote_resource,local_path)
             except Exception as e:
-                response = f"Failed to download {str(remote_resource)} | {e}"
-                logger.error(response)
-                print(response)
+
+                logger.error(f"Failed to download {str(remote_resource)} | {e}")
+
                 if local_path.exists() and local_path.stat().st_size == 0:
                     local_path.unlink()
                 continue
             if local_path.exists():
-                response = f"Succesfully downloaded {str(remote_resource)} to {str(local_path)}"
-                logger.info(response)
-                print(response)
+
+                logger.info(
+                    f"Succesfully downloaded {str(remote_resource)} to {str(local_path)}"
+                )
+          
                 match mode:
                     case "process":
                         break
