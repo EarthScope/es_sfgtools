@@ -71,9 +71,9 @@ def get_daily_rinex_url(date:datetime.date) ->Dict[str,Dict[str,RemoteResource]]
         >>> date = datetime.date(2021,1,1)
         >>> urls = get_daily_rinex_url(date)
         >>> str(urls["rinex_2"]["wuhan_gps"])
-        "ftp://igs.gnsswhu.cn/pub/gps/data/daily/21/001/21n/brdc0010.21n.Z"
+        "ftp://igs.gnsswhu.cn/pub/gps/data/daily/21/001/21n/brdc0010.21n.gz"
         >>> str(urls["rinex_2"]["wuhan_glonass"])
-        "ftp://igs.gnsswhu.cn/pub/gps/data/daily/21/001/21g/brdc0010.21g.Z"
+        "ftp://igs.gnsswhu.cn/pub/gps/data/daily/21/001/21g/brdc0010.21g.gz"
     """
 
     urls = {
@@ -323,8 +323,8 @@ def get_nav_file(rinex_path:Path,override:bool=False,mode:Literal['process','tes
 
             gps_url:RemoteResource = constellations["gps"]
             glonass_url:RemoteResource = constellations["glonass"]
-            gps_local_name = gps_url.file+".Z"
-            glonass_local_name = glonass_url.file+".Z"
+            gps_local_name = gps_url.file
+            glonass_local_name = glonass_url.file
 
             gps_dl_path = Path(tempdir)/gps_local_name
             glonass_dl_path = Path(tempdir)/glonass_local_name
@@ -334,14 +334,14 @@ def get_nav_file(rinex_path:Path,override:bool=False,mode:Literal['process','tes
             try:
                 if not gps_dl_path.exists() or override:
                     download(gps_url,gps_dl_path)
-
+    
                 if not glonass_dl_path.exists() or override:
                     download(glonass_url,glonass_dl_path)
 
             except Exception as e:
 
                 logger.error(
-                    f"Failed to download {str(gps_url)} To {str(gps_dl_path)} or {str(glonass_url)} To {str(glonass_dl_path)} | {e}"
+                    f"Failed to download {str(gps_url)} To {str(gps_dl_path.name)} or {str(glonass_url)} To {str(glonass_dl_path.name)} | {e}"
                 )
 
                 continue
@@ -423,25 +423,19 @@ def get_gnss_products(
             # For a given product type, try to download from each source
             local_path = common_product_dir/remote_resource.file
             if (local_path.exists() and local_path.stat().st_size > 0) and not override:
-
                 logger.info(f"Found {local_path}")
-
                 break
             try:
                 download(remote_resource,local_path)
             except Exception as e:
-
                 logger.error(f"Failed to download {str(remote_resource)} | {e}")
-
                 if local_path.exists() and local_path.stat().st_size == 0:
                     local_path.unlink()
                 continue
             if local_path.exists():
-
                 logger.info(
                     f"Succesfully downloaded {str(remote_resource)} to {str(local_path)}"
                 )
-          
                 match mode:
                     case "process":
                         break
