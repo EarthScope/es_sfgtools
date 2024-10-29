@@ -146,9 +146,9 @@ def merge_broadcast_files(brdn:Path, brdg:Path, output_folder:Path) ->Path:
         Path("data/brdm1500.21p")
     """
 
-    def write_data(file:Path, prefix:str, fm:IO):
+    def write_brdn(file:Path, prefix:str, fm:IO):
         """
-        Writes data from a file to a given output stream.
+        Writes data from a brdn file to a given output stream.
 
         Args:
             file (Path): The path to the file to be read.
@@ -184,7 +184,7 @@ def merge_broadcast_files(brdn:Path, brdg:Path, output_folder:Path) ->Path:
                     num2 = eval(line[22:41])
                     num3 = eval(line[41:60])
                     num4 = eval(line[60:79])
-                    fm.write(
+                    fn.write(
                         f"{prefix}{prn:02d} {yyyy:04d} {mm:02d} {dd:02d} {hh:02d} {mi:02d} {ss:02d} {num2:.12e} {num3:.12e} {num4:.12e}\n"
                     )
 
@@ -194,21 +194,26 @@ def merge_broadcast_files(brdn:Path, brdg:Path, output_folder:Path) ->Path:
                         num2 = eval(line[22:41])
                         num3 = eval(line[41:60])
                         num4 = eval(line[60:79])
-                        fm.write(
+                        fn.write(
                             f"    {num1:.12e} {num2:.12e} {num3:.12e} {num4:.12e}\n"
                         )
                     line = lines[i + 7].replace("D", "e")
                     num1 = eval(line[3:22])
                     num2 = eval(line[22:41])
-                    fm.write(f"    {num1:.12e} {num2:.12e}\n")
+                    fn.write(f"    {num1:.12e} {num2:.12e}\n")
                     i += 8
                     if i >= len(lines):
                         break
                 else:
-                    if "END OF HEADER" in lines[i][60:73]:
-                        in_header = False
-                    fm.write(lines[i])
-                    i += 1
+                    if ("PGM / RUN BY / DATE" == lines[i][60:79]):
+                        fn.write(lines[i])
+                    if ("LEAP SECONDS"        == lines[i][60:72]):
+                        leap_n = int(lines[i][1:6])
+                        fn.write(lines[i])
+                    if ("END OF HEADER"       == lines[i][60:73]):
+                        inHeader = False
+                        fn.write(lines[i])
+                    i = i + 1
             except Exception as e:
                 print(
                     f"***ERROR: unexpected ERROR occurred at line {i} of file {file}: {e}"
@@ -217,6 +222,67 @@ def merge_broadcast_files(brdn:Path, brdg:Path, output_folder:Path) ->Path:
                 break
 
         fn.close()
+
+    def write_brdg(file:Path, prefix:str, fm:IO):
+        """
+        Writes data from a brdg file to a given output stream.
+
+        Args:
+            file (Path): The path to the file to be read.
+            prefix (str): The prefix to be added to each line of data.
+            fm (IO): The output stream to write the data to.
+
+        Returns:
+            None
+
+        Raises:
+            Exception: If an unexpected error occurs while reading or writing the files.
+        """
+        try:
+            fg = open(brdg)
+            lines = fg.readlines()
+            inHeader = True
+        except Exception as e:
+            print(f"***ERROR: unable to open or read file {file}: {e}")
+            return
+        i = 1
+        while (i <= len(lines)):
+            try:
+                if (not inHeader):
+                    line = lines[i].replace("D","e")
+                    prn  = int(line[ 0: 2])
+                    yyyy = int(line[ 3: 5]) + 2000
+                    mm   = int(line[ 6: 8])
+                    dd   = int(line[ 9:11])
+                    hh   = int(line[12:14])
+                    mi   = int(line[15:17])
+                    ss   = round(float(line[18:22]))
+                    num2 = eval(line[22:41])
+                    num3 = eval(line[41:60])
+                    num4 = eval(line[60:79])
+                    fm.write("R{:02d} {:04d} {:02d} {:02d} {:02d} {:02d} {:02d}{: .12e}{: .12e}{: .12e}\n".format(
+                        prn, yyyy, mm, dd, hh, mi, int(ss), num2, num3, num4))
+                    for t in range(1,4):
+                        line = lines[i+t].replace("D","e")
+                        num1 = eval(line[ 3:22])
+                        num2 = eval(line[22:41])
+                        num3 = eval(line[41:60])
+                        num4 = eval(line[60:79])
+                        fm.write("    {: .12e}{: .12e}{: .12e}{: .12e}\n".format(num1, num2, num3, num4))
+                    i = i + 4
+                    if (i >= len(lines)):
+                        break
+                else:
+                    if ("LEAP SECONDS"  == lines[i][60:72]):
+                        leap_g = int(lines[i][1:6])
+                    if ("END OF HEADER" == lines[i][60:73]):
+                        inHeader = False
+                    i = i + 1
+            except Exception as e:
+                print(f"***ERROR: unexpected ERROR occurred at line {i} of file {file}: {e}")
+                print(lines[i])
+                break
+        fg.close()
 
     DDD = brdn.name[4:7]
     YY = brdn.name[9:11]
@@ -230,8 +296,8 @@ def merge_broadcast_files(brdn:Path, brdg:Path, output_folder:Path) ->Path:
     fm.write(
         "     3.04           NAVIGATION DATA     M (Mixed)           RINEX VERSION / TYPE\n"
     )
-    write_data(brdn, "G", fm)
-    write_data(brdg, "R", fm)
+    write_brdn(brdn, "G", fm)
+    write_brdg(brdg, "R", fm)
     fm.close()
 
     if brdm.exists():
