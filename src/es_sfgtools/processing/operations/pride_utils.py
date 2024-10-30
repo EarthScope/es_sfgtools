@@ -239,7 +239,7 @@ def merge_broadcast_files(brdn:Path, brdg:Path, output_folder:Path) ->Path:
             Exception: If an unexpected error occurs while reading or writing the files.
         """
         try:
-            fg = open(brdg)
+            fg = open(file)
             lines = fg.readlines()
             inHeader = True
         except Exception as e:
