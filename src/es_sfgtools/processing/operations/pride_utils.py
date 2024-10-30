@@ -81,20 +81,15 @@ def get_daily_rinex_url(date:datetime.date) ->Dict[str,Dict[str,RemoteResource]]
             #     "glonass": WuhanIGS.get_rinex_2_nav(date, constellation="glonass"),
             #     "gps": WuhanIGS.get_rinex_2_nav(date, constellation="gps"),
             # },
-            # "cdds": {
-            #     "glonass": CDDIS.get_rinex_2_nav(date, constellation="glonass"),
-            #     "gps": CDDIS.get_rinex_2_nav(date, constellation="gps"),
-            # },
             "gssc": {
                 "glonass": GSSC.get_rinex_2_nav(date, constellation="glonass"),
                 "gps": GSSC.get_rinex_2_nav(date, constellation="gps"),
             },
         },
         "rinex_3": {
-            "igs_gnss": CLSIGS.get_rinex_3_nav(date),
-            "wuhan_gps": WuhanIGS.get_rinex_3_nav(date),
-            #"cddis_gnss": CDDIS.get_rinex_3_nav(date),
-            "gssc_gnss": GSSC.get_rinex_3_nav(date),
+            #"igs_gnss": CLSIGS.get_rinex_3_nav(date),
+            #"wuhan_gps": WuhanIGS.get_rinex_3_nav(date),
+            #"gssc_gnss": GSSC.get_rinex_3_nav(date),
         },
     }
     return urls
@@ -184,7 +179,6 @@ def merge_broadcast_files(brdn:Path, brdg:Path, output_folder:Path) ->Path:
                     num2 = eval(line[22:41])
                     num3 = eval(line[41:60])
                     num4 = eval(line[60:79])
-                    fn.write(
                     print(f"{prefix}{prn:02d} {yyyy:04d} {mm:02d} {dd:02d} {hh:02d} {mi:02d} {ss:02d} {num2:.12e} {num3:.12e} {num4:.12e}\n")
                     fm.write(
                         f"{prefix}{prn:02d} {yyyy:04d} {mm:02d} {dd:02d} {hh:02d} {mi:02d} {ss:02d} {num2:.12e} {num3:.12e} {num4:.12e}\n"
@@ -198,14 +192,14 @@ def merge_broadcast_files(brdn:Path, brdg:Path, output_folder:Path) ->Path:
                         num4 = eval(line[60:79])
                         print(f"{t}    {num1} {num2} {num3} {num4}\n")
                         print(f"    {num1:.12e} {num2:.12e} {num3:.12e} {num4:.12e}\n")
-                        fn.write(
+                        fm.write(
                             f"    {num1:.12e} {num2:.12e} {num3:.12e} {num4:.12e}\n"
                         )
                     print('here')
                     line = lines[i + 7].replace("D", "e")
                     num1 = eval(line[3:22])
                     num2 = eval(line[22:41])
-                    fn.write(f"    {num1:.12e} {num2:.12e}\n")
+                    fm.write(f"    {num1:.12e} {num2:.12e}\n")
                     i += 8
                     if i >= len(lines):
                         break
@@ -244,7 +238,7 @@ def merge_broadcast_files(brdn:Path, brdg:Path, output_folder:Path) ->Path:
             Exception: If an unexpected error occurs while reading or writing the files.
         """
         try:
-            fg = open(brdg)
+            fg = open(file)
             lines = fg.readlines()
             inHeader = True
         except Exception as e:

@@ -17,5 +17,5 @@ rinex_path = Path(
         )/ "NCC11250.22o"
 
 
-get_nav_file(rinex_path,override=True,mode='test')
+get_nav_file(rinex_path,override=True,mode='process')
 #get_gnss_products(rinex_path,pride_dir,override=True,mode='test')
