@@ -68,7 +68,7 @@ def import_site(filepath: str):
 
 
 class Site:
-    def __init__(self, names: list = None, networks: list = None, time_of_origin: datetime = None, local_geoid_height: float = None, existing_site: dict = None) -> None:
+    def __init__(self, names: list = None, networks: list = None, time_of_origin: datetime = None, local_geoid_height: float = None, array_center: dict = None,existing_site: dict = None) -> None:
         """
         Create a new site object.
         
@@ -86,7 +86,7 @@ class Site:
                 "names": names if names else [],
                 "networks": networks if networks else [],
                 "timeOrigin": time_of_origin.strftime('%Y-%m-%dT%H:%M:%S') if time_of_origin else None,
-                "arrayCenter": {},
+                "arrayCenter": array_center if array_center else {},
                 "localGeoidHeight": local_geoid_height,
                 "referenceFrames": [],
                 "benchmarks": [],
