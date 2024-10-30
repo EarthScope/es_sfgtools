@@ -164,9 +164,9 @@ def merge_broadcast_files(brdn:Path, brdg:Path, output_folder:Path) ->Path:
             return
 
         i = 1
-        while i <= len(lines):
+        while i < len(lines):
             try:
-                print(i, lines[i])
+                #print(i, lines[i])
                 if not in_header:
                     line = lines[i].replace("D", "e")
                     prn = int(line[0:2])
@@ -245,7 +245,7 @@ def merge_broadcast_files(brdn:Path, brdg:Path, output_folder:Path) ->Path:
             print(f"***ERROR: unable to open or read file {file}: {e}")
             return
         i = 1
-        while (i <= len(lines)):
+        while (i < len(lines)):
             try:
                 if (not inHeader):
                     line = lines[i].replace("D","e")
