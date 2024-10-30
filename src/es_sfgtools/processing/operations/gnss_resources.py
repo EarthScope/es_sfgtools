@@ -174,7 +174,7 @@ class GSSC:
     @classmethod
     def get_rinex_3_nav(cls, date: datetime) -> RemoteResource:
         year, doy = _parse_date(date)
-        dir_extension = f"{year}/{doy}/{year[2:]}p"
+        dir_extension = f"{year}/{doy}"
         file_name = f"BRDC00IGS_R_{year}{doy}0000_01D_MN.rnx.gz"
         directory = "/".join([cls.daily_gps_dir, dir_extension])
         return RemoteResource(
@@ -183,15 +183,16 @@ class GSSC:
 
 class CLSIGS:
     ftpserver = "ftp://igs.ign.fr"
+    brdc_dir = "pub/igs/data"
     daily_products_dir = "pub/igs/products/mgex"
-
+    
     @classmethod
     def get_rinex_3_nav(cls, date: datetime) -> RemoteResource:
+    #ftp://igs.ign.fr/pub/igs/data/2023/162/BRDC00IGN_R_20231620000_01D_MN.rnx.gz
         year, doy = _parse_date(date)
-        gps_week = _date_to_gps_week(date)
-        dir_extension = f"{gps_week}"
-        directory = "/".join([cls.daily_products_dir, dir_extension])
-        file_name = f"BRDC00IGN_R_{year}{doy}0000_01D_MN.rnx"
+        dir_extension = f"{year}/{doy}"
+        directory = "/".join([cls.brdc_dir, dir_extension])
+        file_name = f"BRDC00IGN_R_{year}{doy}0000_01D_MN.rnx.gz"
         return RemoteResource(
             ftpserver=cls.ftpserver, directory=directory, file=file_name
         )

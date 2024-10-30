@@ -2,7 +2,6 @@ import datetime
 from pathlib import Path
 from ftplib import FTP
 from typing import IO,Dict,Optional,List,Literal
-import wget
 import gzip
 import tempfile
 import logging
@@ -78,14 +77,14 @@ def get_daily_rinex_url(date:datetime.date) ->Dict[str,Dict[str,RemoteResource]]
 
     urls = {
         "rinex_2": {
-            "wuhan": {
-                "glonass": WuhanIGS.get_rinex_2_nav(date, constellation="glonass"),
-                "gps": WuhanIGS.get_rinex_2_nav(date, constellation="gps"),
-            },
-            "cdds": {
-                "glonass": CDDIS.get_rinex_2_nav(date, constellation="glonass"),
-                "gps": CDDIS.get_rinex_2_nav(date, constellation="gps"),
-            },
+            # "wuhan": {
+            #     "glonass": WuhanIGS.get_rinex_2_nav(date, constellation="glonass"),
+            #     "gps": WuhanIGS.get_rinex_2_nav(date, constellation="gps"),
+            # },
+            # "cdds": {
+            #     "glonass": CDDIS.get_rinex_2_nav(date, constellation="glonass"),
+            #     "gps": CDDIS.get_rinex_2_nav(date, constellation="gps"),
+            # },
             "gssc": {
                 "glonass": GSSC.get_rinex_2_nav(date, constellation="glonass"),
                 "gps": GSSC.get_rinex_2_nav(date, constellation="gps"),
@@ -94,7 +93,7 @@ def get_daily_rinex_url(date:datetime.date) ->Dict[str,Dict[str,RemoteResource]]
         "rinex_3": {
             "igs_gnss": CLSIGS.get_rinex_3_nav(date),
             "wuhan_gps": WuhanIGS.get_rinex_3_nav(date),
-            "cddis_gnss": CDDIS.get_rinex_3_nav(date),
+            #"cddis_gnss": CDDIS.get_rinex_3_nav(date),
             "gssc_gnss": GSSC.get_rinex_3_nav(date),
         },
     }
@@ -172,6 +171,7 @@ def merge_broadcast_files(brdn:Path, brdg:Path, output_folder:Path) ->Path:
         i = 1
         while i <= len(lines):
             try:
+                print(i, lines[i])
                 if not in_header:
                     line = lines[i].replace("D", "e")
                     prn = int(line[0:2])
@@ -184,19 +184,23 @@ def merge_broadcast_files(brdn:Path, brdg:Path, output_folder:Path) ->Path:
                     num2 = eval(line[22:41])
                     num3 = eval(line[41:60])
                     num4 = eval(line[60:79])
+                    print(f"{prefix}{prn:02d} {yyyy:04d} {mm:02d} {dd:02d} {hh:02d} {mi:02d} {ss:02d} {num2:.12e} {num3:.12e} {num4:.12e}\n")
                     fm.write(
                         f"{prefix}{prn:02d} {yyyy:04d} {mm:02d} {dd:02d} {hh:02d} {mi:02d} {ss:02d} {num2:.12e} {num3:.12e} {num4:.12e}\n"
                     )
 
-                    for t in range(1, 7):
+                    for t in range(1, 4):
                         line = lines[i + t].replace("D", "e")
                         num1 = eval(line[3:22])
                         num2 = eval(line[22:41])
                         num3 = eval(line[41:60])
                         num4 = eval(line[60:79])
+                        print(f"{t}    {num1} {num2} {num3} {num4}\n")
+                        print(f"    {num1:.12e} {num2:.12e} {num3:.12e} {num4:.12e}\n")
                         fm.write(
                             f"    {num1:.12e} {num2:.12e} {num3:.12e} {num4:.12e}\n"
                         )
+                    print('here')
                     line = lines[i + 7].replace("D", "e")
                     num1 = eval(line[3:22])
                     num2 = eval(line[22:41])
@@ -230,7 +234,7 @@ def merge_broadcast_files(brdn:Path, brdg:Path, output_folder:Path) ->Path:
     fm.write(
         "     3.04           NAVIGATION DATA     M (Mixed)           RINEX VERSION / TYPE\n"
     )
-    write_data(brdn, "G", fm)
+    #write_data(brdn, "G", fm)
     write_data(brdg, "R", fm)
     fm.close()
 
@@ -266,6 +270,7 @@ def get_nav_file(rinex_path:Path,override:bool=False,mode:Literal['process','tes
     response = f"\nAttempting to build nav file for {str(rinex_path)}"
     logger.info(response)
 
+    start_date = None
     with open(rinex_path) as f:
         files = f.readlines()
         for line in files:
@@ -283,7 +288,7 @@ def get_nav_file(rinex_path:Path,override:bool=False,mode:Literal['process','tes
         return
     year = str(start_date.year)
     doy = str(start_date.timetuple().tm_yday)
-    brdm_path = rinex_path.parent/f"brdm{doy}0.{year:2}p"
+    brdm_path = rinex_path.parent/f"brdm{doy}0.{year[-2:]}p"
     if brdm_path.exists() and not override:
         response = f"{brdm_path} already exists.\n"
         logger.info(response)
@@ -398,6 +403,7 @@ def get_gnss_products(
     if mode == "test":
         override = True
 
+    start_date = None
     with open(rinex_path) as f:
         files = f.readlines()
         for line in files:
