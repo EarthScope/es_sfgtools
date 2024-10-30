@@ -205,19 +205,19 @@ def merge_broadcast_files(brdn:Path, brdg:Path, output_folder:Path) ->Path:
                         break
                 else:
                     if ("PGM / RUN BY / DATE" == lines[i][60:79]):
-                        fn.write(lines[i])
+                        fm.write(lines[i])
                     if ("LEAP SECONDS"        == lines[i][60:72]):
                         leap_n = int(lines[i][1:6])
-                        fn.write(lines[i])
+                        fm.write(lines[i])
                     if ("END OF HEADER"       == lines[i][60:73]):
                         inHeader = False
-                        fn.write(lines[i])
+                        fm.write(lines[i])
                     i = i + 1
             except Exception as e:
                 print(
                     f"***ERROR: unexpected ERROR occurred at line {i} of file {file}: {e}"
                 )
-                print(lines[i])
+                #print(lines[i])
                 break
 
         fn.close()
@@ -279,7 +279,7 @@ def merge_broadcast_files(brdn:Path, brdg:Path, output_folder:Path) ->Path:
                     i = i + 1
             except Exception as e:
                 print(f"***ERROR: unexpected ERROR occurred at line {i} of file {file}: {e}")
-                print(lines[i])
+                #print(lines[i])
                 break
         fg.close()
 
