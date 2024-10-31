@@ -100,28 +100,28 @@ class WuhanIGS:
                 RemoteResource(ftpserver=cls.ftpserver, directory=directory, file=file_name_realtime)]
 
     @classmethod
-    def get_product_sum(cls,date:datetime.date)->RemoteResource:
+    def get_product_sum(cls,date:datetime.date)->List[RemoteResource]:
         year,doy = _parse_date(date)
         dir_extension = f"{year}/clock"
         file_name = f"WMC0DEMFIN_{year}{doy}0000_01D_01D_CLS.SUM.gz"
         directory = "/".join([cls.daily_product_dir, dir_extension])
-        return RemoteResource(ftpserver=cls.ftpserver, directory=directory, file=file_name)
+        return [RemoteResource(ftpserver=cls.ftpserver, directory=directory, file=file_name)]
 
     @classmethod
-    def get_product_bias(cls,date:datetime.date)->RemoteResource:
+    def get_product_bias(cls,date:datetime.date)->List[RemoteResource]:
         year,doy = _parse_date(date)
         dir_extension = f"{year}/bias"
         file_name = f"WMC0DEMFIN_{year}{doy}0000_01D_01D_OSB.BIA.gz"
         directory = "/".join([cls.daily_product_dir, dir_extension])
-        return RemoteResource(ftpserver=cls.ftpserver, directory=directory, file=file_name)
+        return [RemoteResource(ftpserver=cls.ftpserver, directory=directory, file=file_name)]
 
     @classmethod
-    def get_product_erp(cls,date:datetime.date)->RemoteResource:
+    def get_product_erp(cls,date:datetime.date)->List[RemoteResource]:
         year,doy = _parse_date(date)
         dir_extension = f"{doy}/orbit"
         file_name = f"COD0R03FIN_{year}{doy}0000_01D_01D_ERP.ERP.gz"
         directory = "/".join([cls.daily_product_dir, dir_extension])
-        return RemoteResource(ftpserver=cls.ftpserver, directory=directory, file=file_name)
+        return [RemoteResource(ftpserver=cls.ftpserver, directory=directory, file=file_name)]
 
 # class CDDIS:
 #     ftpserver = "ftp://cddis.gsfc.nasa.gov"
@@ -170,7 +170,7 @@ class GSSC:
     @classmethod
     def get_rinex_2_nav(
         cls, date: datetime.date, constellation: Literal["gps", "glonass"] = "gps"
-    ) -> RemoteResource:
+    ) -> List[RemoteResource]:
         assert (
             constellation in cls.constellation_tag.keys()
         ), f"Constellation {constellation} not recognized"
@@ -179,19 +179,19 @@ class GSSC:
         dir_extension = f"{year}/{doy}"
         file_name = f"brdc{doy}0.{year[2:]}{const_tag}.gz"
         directory = "/".join([cls.daily_gps_dir, dir_extension])
-        return RemoteResource(
+        return [RemoteResource(
             ftpserver=cls.ftpserver, directory=directory, file=file_name
-        )
+        )]
 
     @classmethod
-    def get_rinex_3_nav(cls, date: datetime) -> RemoteResource:
+    def get_rinex_3_nav(cls, date: datetime) -> List[RemoteResource]:
         year, doy = _parse_date(date)
         dir_extension = f"{year}/{doy}"
         file_name = f"BRDC00IGS_R_{year}{doy}0000_01D_MN.rnx.gz"
         directory = "/".join([cls.daily_gps_dir, dir_extension])
-        return RemoteResource(
+        return [RemoteResource(
             ftpserver=cls.ftpserver, directory=directory, file=file_name
-        )
+        )]
 
 class CLSIGS:
     ftpserver = "ftp://igs.ign.fr"
@@ -199,58 +199,60 @@ class CLSIGS:
     daily_products_dir = "pub/igs/products/mgex"
     
     @classmethod
-    def get_rinex_3_nav(cls, date: datetime) -> RemoteResource:
+    def get_rinex_3_nav(cls, date: datetime) -> List[RemoteResource]:
     #ftp://igs.ign.fr/pub/igs/data/2023/162/BRDC00IGN_R_20231620000_01D_MN.rnx.gz
         year, doy = _parse_date(date)
         dir_extension = f"{year}/{doy}"
         directory = "/".join([cls.brdc_dir, dir_extension])
         file_name = f"BRDC00IGN_R_{year}{doy}0000_01D_MN.rnx.gz"
-        return RemoteResource(
+        return [RemoteResource(
             ftpserver=cls.ftpserver, directory=directory, file=file_name
-        )
+        )]
+    
     @classmethod
-    def get_product_sp3(cls,date:datetime.date)->RemoteResource:
+    def get_product_sp3(cls,date:datetime.date)->List[RemoteResource]:
         year,doy = _parse_date(date)
         gps_week = _date_to_gps_week(date)
         dir_extension = f"{gps_week}"
         file_name = f"WUM0MGXRAP_{year}{doy}0000_01D_05M_ORB.SP3.gz"
         directory = "/".join([cls.daily_products_dir, dir_extension])
-        return RemoteResource(ftpserver=cls.ftpserver, directory=directory, file=file_name)
+        return [RemoteResource(ftpserver=cls.ftpserver, directory=directory, file=file_name)]
+    
     @classmethod
-    def get_product_clk(cls,date:datetime.date)->RemoteResource:
+    def get_product_clk(cls,date:datetime.date)->List[RemoteResource]:
         year,doy = _parse_date(date)
         gps_week = _date_to_gps_week(date)
         dir_extension = f"{gps_week}"
         file_name = f"WUM0MGXRAP_{year}{doy}0000_01D_30S_CLK.CLK.gz"
         directory = "/".join([cls.daily_products_dir, dir_extension])
-        return RemoteResource(ftpserver=cls.ftpserver, directory=directory, file=file_name)
+        return [RemoteResource(ftpserver=cls.ftpserver, directory=directory, file=file_name)]
 
     @classmethod
-    def get_product_erp(cls,date:datetime.date)->RemoteResource:
+    def get_product_erp(cls,date:datetime.date)->List[RemoteResource]:
         year,doy = _parse_date(date)
         gps_week = _date_to_gps_week(date)
         dir_extension = f"{gps_week}"
         file_name = f"WUM0MGXRAP_{year}{doy}0000_01D_01D_ERP.ERP.gz"
         directory = "/".join([cls.daily_products_dir, dir_extension])
-        return RemoteResource(ftpserver=cls.ftpserver, directory=directory, file=file_name)
+        return [RemoteResource(ftpserver=cls.ftpserver, directory=directory, file=file_name)]
 
     @classmethod
-    def get_product_orbit(cls,date:datetime.date)->RemoteResource:
+    def get_product_orbit(cls,date:datetime.date)->List[RemoteResource]:
         year,doy = _parse_date(date)
         gps_week = _date_to_gps_week(date)
         dir_extension = f"{gps_week}"
         file_name = f"WUM0MGXRAP_{year}{doy}0000_01D_30S_ATT.OBX.gz"
         directory = "/".join([cls.daily_products_dir, dir_extension])
-        return RemoteResource(ftpserver=cls.ftpserver, directory=directory, file=file_name)
+        return [RemoteResource(ftpserver=cls.ftpserver, directory=directory, file=file_name)]
     
     @classmethod
-    def get_product_bias(cls,date:datetime.date)->RemoteResource:
+    def get_product_bias(cls,date:datetime.date)->List[RemoteResource]:
         year,doy = _parse_date(date)
         gps_week = _date_to_gps_week(date)
         dir_extension = f"{gps_week}"
         file_name = f"WUM0MGXRAP_{year}{doy}0000_01D_01D_OSB.BIA.gz"
         directory = "/".join([cls.daily_products_dir, dir_extension])
-        return RemoteResource(ftpserver=cls.ftpserver, directory=directory, file=file_name)
+        return [RemoteResource(ftpserver=cls.ftpserver, directory=directory, file=file_name)]
 
 class Potsdam:
     ftpserver = "ftp://isdcftp.gfz-potsdam.de"
