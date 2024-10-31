@@ -66,7 +66,7 @@ def interpolate_enu(
     )
     return tenu_r.astype(float), enu_r_sig.astype(float)
 
-def get_merge_signature(shotdata: TDBShotDataArray, gnss: TDBGNSSArray) -> Tuple[List[str], List[np.datetime64]]:
+def get_merge_signature_shotdata(shotdata: TDBShotDataArray, gnss: TDBGNSSArray) -> Tuple[List[str], List[np.datetime64]]:
     merge_signature = []
     shotdata_dates: np.ndarray = shotdata.get_unique_dates(
         "triggerTime"
@@ -85,12 +85,7 @@ def get_merge_signature(shotdata: TDBShotDataArray, gnss: TDBGNSSArray) -> Tuple
 
 def merge_shotdata_gnss(shotdata: TDBShotDataArray, gnss: TDBGNSSArray,dates:List[datetime64],plot:bool=False) -> TDBShotDataArray:
     # merge the shotdata and gnss data
-    try:
-        merge_signature, dates = get_merge_signature(shotdata, gnss)
-    except ValueError as e:
-        logger.error(e)
-        print(e)
-        return
+    
     for date in dates:
         response = f"Interpolating shotdata for date {date}"
         logger.info(response)
