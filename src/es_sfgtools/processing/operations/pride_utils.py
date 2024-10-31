@@ -486,28 +486,34 @@ def get_gnss_products(
     for product_type,sources in remote_resource_dict.items():
         logger.info(f"Attempting to download {product_type} products")
 
-        for _,remote_resource in sources.items():
-            # For a given product type, try to download from each source
-            local_path = common_product_dir/remote_resource.file
-            if (local_path.exists() and local_path.stat().st_size > 0) and not override:
-                logger.info(f"Found {local_path}")
-                break
-            try:
-                download(remote_resource,local_path)
-            except Exception as e:
-                logger.error(f"Failed to download {str(remote_resource)} | {e}")
-                if local_path.exists() and local_path.stat().st_size == 0:
-                    local_path.unlink()
-                continue
-            if local_path.exists():
-                logger.info(
-                    f"Succesfully downloaded {str(remote_resource)} to {str(local_path)}"
-                )
-                match mode:
-                    case "process":
+        is_file_downloaded = False
+        while not is_file_downloaded:
+            for _,remote_resources in sources.items():
+                if not isinstance(remote_resources,list):
+                    remote_resources = [remote_resources]
+                for remote_resource in remote_resources:
+                # For a given product type, try to download from each source
+                    local_path = common_product_dir/remote_resource.file
+                    if (local_path.exists() and local_path.stat().st_size > 0) and not override:
+                        logger.info(f"Found {local_path}")
                         break
-                    case 'test':
-                        local_path.unlink()
+                    try:
+                        download(remote_resource,local_path)
+                    except Exception as e:
+                        logger.error(f"Failed to download {str(remote_resource)} | {e}")
+                        if local_path.exists() and local_path.stat().st_size == 0:
+                            local_path.unlink()
+                        continue
+                    if local_path.exists():
+                        logger.info(
+                            f"Succesfully downloaded {str(remote_resource)} to {str(local_path)}"
+                        )
+                        match mode:
+                            case "process":
+                                is_file_downloaded = True
+                                break
+                            case 'test':
+                                local_path.unlink()
 
         if not local_path.exists():
             response = f"Failed to download {product_type} products"
