@@ -17,13 +17,9 @@ from es_sfgtools.processing.assets.tiledb_temp import (
     TDBPositionArray,
     TDBShotDataArray,
 )
-from es_sfgtools.processing.operations.utils import (
-    get_merge_signature,
-    merge_shotdata_gnss,
-)
 from es_sfgtools.processing.assets.tiledb_temp import TDBAcousticArray,TDBGNSSArray,TDBPositionArray,TDBShotDataArray
 from es_sfgtools.processing.operations.utils import (
-    get_merge_signature,
+    get_merge_signature_shotdata,
     merge_shotdata_gnss,
 )
 
@@ -34,7 +30,7 @@ class SV3Pipeline:
         self.catalog = catalog
 
     def process_novatel(
-        self, network:str,station:str,survey:str,override: bool = False, show_details: bool = False
+        self, network:str,station:str,survey:str,writedir:Path,override: bool = False, show_details: bool = False
     ) -> List[AssetEntry]:
 
         print(f"Processing Novatel 770 data for {network} {station} {survey}")
@@ -53,7 +49,7 @@ class SV3Pipeline:
         if override or not self.catalog.is_merge_complete(**merge_signature):
             rinex_entries: List[AssetEntry] = gnss_ops.novatel_to_rinex_batch(
                 source=novatel_770_entries,
-                writedir=self.inter_dir,
+                writedir =writedir,
                 show_details=show_details,
             )
             uploadCount = 0
@@ -86,7 +82,7 @@ class SV3Pipeline:
         """
 
         response = (
-            f"Processing Rinex Data for {self.network} {self.station} {self.survey}"
+            f"Processing Rinex Data for {network} {station} {survey}"
         )
         logger.info(response)
         if show_details:
@@ -103,7 +99,7 @@ class SV3Pipeline:
             )
         )
         if not rinex_entries:
-            response = f"No Rinex Files Found to Process for {self.network} {self.station} {self.survey}"
+            response = f"No Rinex Files Found to Process for {network} {station} {survey}"
             logger.error(response)
             if show_details:
                 print(response)
@@ -140,17 +136,18 @@ class SV3Pipeline:
                         if self.catalog.add_entry(resfile):
                             uploadCount += 1
                         resfile_entries.append(resfile)
-                if (
-                    gnss_df := gnss_ops.kin_to_gnssdf(kinfile)
-                ) is not None and resfile is not None:
-                    wrms = gnss_ops.get_wrms_from_res(str(resfile.local_path))
-                    gnss_df = pd.merge(gnss_df, wrms, left_on="time", right_on="time")
+                    if (
+                        gnss_df := gnss_ops.kin_to_gnssdf(kinfile)
+                    ) is not None:
+                        if resfile is not None:
+                            wrms = gnss_ops.get_wrms_from_res(str(resfile.local_path))
+                            gnss_df = pd.merge(gnss_df, wrms, left_on="time", right_on="time")
 
-                    response = f'Adding GNSS Data of shape {gnss_df.shape} and daterange {gnss_df["time"].min().isoformat()} to {gnss_df["time"].max().isoformat()} to GNSS TDB'
-                    logger.info(response)
-                    if show_details:
-                        print(response)
-                    self.gnss_tdb.write_df(gnss_df)
+                        response = f'Adding GNSS Data of shape {gnss_df.shape} and daterange {gnss_df["time"].min().isoformat()} to {gnss_df["time"].max().isoformat()} to GNSS TDB'
+                        logger.info(response)
+                        if show_details:
+                            print(response)
+                        self.gnss_tdb.write_df(gnss_df)
 
         response = f"Generated {count} Kin Files From {len(rinex_entries)} Rinex Files, Added {uploadCount} to the Catalog"
         logger.info(response)
@@ -160,11 +157,15 @@ class SV3Pipeline:
     def process_dfop00(
         self, network:str,station:str,survey:str,shotdatadest:TDBShotDataArray, override: bool = False, show_details: bool = False
     ) -> None:
+        
+
+        #TODO need a way to mark the dfopoo files as processed
         dfop00_entries: List[AssetEntry] = self.catalog.get_single_entries_to_process(
             network=network,
             station=station,
             survey=survey,
             parent_type=AssetType.DFOP00,
+            child_type=AssetType.SHOTDATA,
             override=override,
         )
         if not dfop00_entries:
@@ -202,7 +203,7 @@ class SV3Pipeline:
         # For each shotdata multiasset entry, update the shotdata position with gnss data
         try:
             merge_signature, dates = get_merge_signature_shotdata(
-                self.shotdata_tdb, self.gnss_tdb
+                shotdatasource, gnssdatasource
             )
         except Exception as e:
             print(e)

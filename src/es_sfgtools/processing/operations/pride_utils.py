@@ -9,7 +9,7 @@ from pydantic import BaseModel,field_validator
 import shutil
 import warnings
 
-from es_sfgtools.processing.operations.gnss_resources import RemoteResource,WuhanIGS,CLSIGS,CDDIS,GSSC
+from es_sfgtools.processing.operations.gnss_resources import RemoteResource,WuhanIGS,CLSIGS,GSSC #,CDDIS
 logger = logging.getLogger(__name__)    
 # TODO use ftplib to download files
 # https://docs.python.org/3/library/ftplib.html
@@ -25,7 +25,7 @@ def download(source:RemoteResource,dest:Path) ->Path:
         ftp.login()
         ftp.cwd("/" + source.directory)
         with open(dest,"wb") as f:
-            ftp.retrbinary(f"RETR {source.file}",f.write)
+            ftp.retrbinary(f"RETR {source.file_name}",f.write)
     return dest
 
 def uncompressed_file(file_path:Path) ->Path:
@@ -356,77 +356,79 @@ def get_nav_file(rinex_path:Path,override:bool=False,mode:Literal['process','tes
 
         return brdm_path
     remote_resource_dict: Dict[str,RemoteResource] = get_daily_rinex_url(start_date)
-    for source,remote_resource in remote_resource_dict["rinex_3"].items():
-        response = f"Attemping to download {source} - {str(remote_resource)}"
-        logger.info(response)
-  
-        local_path = rinex_path.parent /remote_resource.file
-        try:
-            download(remote_resource,local_path)
-        except Exception as e:
-            logger.error(f"Failed to download {str(remote_resource)} | {e}")
-       
-            continue
-        if local_path.exists():
+    for source,remote_resources in remote_resource_dict["rinex_3"].items():
+        if not isinstance(remote_resources,list):
+            remote_resources = [remote_resources]
+        for remote_resource in remote_resources:
+            response = f"Attemping to download {source} - {str(remote_resource)}"
+            logger.info(response)
+    
+            local_path = rinex_path.parent /remote_resource.file_name
+            try:
+                download(remote_resource,local_path)
+            except Exception as e:
+                logger.error(f"Failed to download {str(remote_resource)} | {e}")
+        
+                continue
+            if local_path.exists():
 
-            logger.info(
-                f"Succesfully downloaded {str(remote_resource)} to {str(local_path)}"
-            )
+                logger.info(
+                    f"Succesfully downloaded {str(remote_resource)} to {str(local_path)}"
+                )
 
-            local_path = uncompressed_file(local_path)
-            local_path.rename(local_path.parent/brdm_path)
-            logger.info(f"Successfully built {brdm_path} From {str(remote_resource)}")
+                local_path = uncompressed_file(local_path)
+                local_path.rename(local_path.parent/brdm_path)
+                logger.info(f"Successfully built {brdm_path} From {str(remote_resource)}")
 
-            match mode:
-                case "process":
-                    return brdm_path
-                case 'test':
-                    brdm_path.unlink()
+                match mode:
+                    case "process":
+                        return brdm_path
+                    case 'test':
+                        brdm_path.unlink()
 
     with tempfile.TemporaryDirectory() as tempdir:
         # If rinex 3 nav file pathway is not found, try rinex 2
         for source,constellations in remote_resource_dict["rinex_2"].items():
+            for gps_url,glonass_url in zip(constellations["gps"],constellations["glonass"]):
+               
+                gps_local_name = gps_url.file_name
+                glonass_local_name = glonass_url.file_name
 
-            gps_url:RemoteResource = constellations["gps"]
-            glonass_url:RemoteResource = constellations["glonass"]
-            gps_local_name = gps_url.file
-            glonass_local_name = glonass_url.file
+                gps_dl_path = Path(tempdir)/gps_local_name
+                glonass_dl_path = Path(tempdir)/glonass_local_name
 
-            gps_dl_path = Path(tempdir)/gps_local_name
-            glonass_dl_path = Path(tempdir)/glonass_local_name
+                logger.info(f"Attemping to download {source} From {str(gps_url)}")
 
-            logger.info(f"Attemping to download {source} From {str(gps_url)}")
+                try:
+                    if not gps_dl_path.exists() or override:
+                        download(gps_url,gps_dl_path)
+        
+                    if not glonass_dl_path.exists() or override:
+                        download(glonass_url,glonass_dl_path)
 
-            try:
-                if not gps_dl_path.exists() or override:
-                    download(gps_url,gps_dl_path)
-    
-                if not glonass_dl_path.exists() or override:
-                    download(glonass_url,glonass_dl_path)
+                except Exception as e:
 
-            except Exception as e:
+                    logger.error(
+                        f"Failed to download {str(gps_url)} To {str(gps_dl_path.name)} or {str(glonass_url)} To {str(glonass_dl_path.name)} | {e}"
+                    )
 
-                logger.error(
-                    f"Failed to download {str(gps_url)} To {str(gps_dl_path.name)} or {str(glonass_url)} To {str(glonass_dl_path.name)} | {e}"
-                )
+                    continue
+                if gps_dl_path.exists() and glonass_dl_path.exists():
+                    gps_dl_path = uncompressed_file(gps_dl_path)
+                    glonass_dl_path = uncompressed_file(glonass_dl_path)
+                    if merge_broadcast_files(gps_dl_path,glonass_dl_path,rinex_path.parent):
 
-                continue
-            if gps_dl_path.exists() and glonass_dl_path.exists():
-                gps_dl_path = uncompressed_file(gps_dl_path)
-                glonass_dl_path = uncompressed_file(glonass_dl_path)
-                if merge_broadcast_files(gps_dl_path,glonass_dl_path,rinex_path.parent):
+                        logger.info(f"Successfully built {brdm_path}")
 
-                    logger.info(f"Successfully built {brdm_path}")
-
-                    match mode:
-                        case "process":
-                            return brdm_path
-                        case 'test':
-                            brdm_path.unlink()
-            else:
-                response = f"Failed to download {str(gps_url)} or {str(glonass_url)}"
-                logger.error(response)
-                print(response)
+                        match mode:
+                            case "process":
+                                return brdm_path
+                            case 'test':
+                                brdm_path.unlink()
+                else:
+                    response = f"Failed to download {str(gps_url)} or {str(glonass_url)}"
+                    logger.error(response)
+                    print(response)
     response = f"Failed to build or locate {brdm_path}"
     logger.error(response)
     warnings.warn(response)
@@ -487,33 +489,35 @@ def get_gnss_products(
         logger.info(f"Attempting to download {product_type} products")
 
         is_file_downloaded = False
-        while not is_file_downloaded:
-            for _,remote_resources in sources.items():
-                if not isinstance(remote_resources,list):
-                    remote_resources = [remote_resources]
-                for remote_resource in remote_resources:
-                # For a given product type, try to download from each source
-                    local_path = common_product_dir/remote_resource.file
-                    if (local_path.exists() and local_path.stat().st_size > 0) and not override:
-                        logger.info(f"Found {local_path}")
-                        break
-                    try:
-                        download(remote_resource,local_path)
-                    except Exception as e:
-                        logger.error(f"Failed to download {str(remote_resource)} | {e}")
-                        if local_path.exists() and local_path.stat().st_size == 0:
+  
+        for _,remote_resources in sources.items():
+            if not isinstance(remote_resources,list):
+                remote_resources = [remote_resources]
+            for remote_resource in remote_resources:
+            # For a given product type, try to download from each source
+                local_path = common_product_dir/remote_resource.file_name
+                if (local_path.exists() and local_path.stat().st_size > 0) and not override:
+                    logger.info(f"Found {local_path}")
+                    break
+                try:
+                    download(remote_resource,local_path)
+                except Exception as e:
+                    logger.error(f"Failed to download {str(remote_resource)} | {e}")
+                    if local_path.exists() and local_path.stat().st_size == 0:
+                        local_path.unlink()
+                    continue
+                if local_path.exists():
+                    logger.info(
+                        f"\n Succesfully downloaded {product_type} FROM {str(remote_resource)} TO {str(local_path)}\n"
+                    )
+                    match mode:
+                        case "process":
+                            is_file_downloaded = True
+                            break
+                        case 'test':
                             local_path.unlink()
-                        continue
-                    if local_path.exists():
-                        logger.info(
-                            f"Succesfully downloaded {str(remote_resource)} to {str(local_path)}"
-                        )
-                        match mode:
-                            case "process":
-                                is_file_downloaded = True
-                                break
-                            case 'test':
-                                local_path.unlink()
+            if is_file_downloaded and mode == "process":
+                break
 
         if not local_path.exists():
             response = f"Failed to download {product_type} products"

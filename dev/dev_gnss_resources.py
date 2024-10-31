@@ -9,7 +9,7 @@ handler.setLevel(logging.DEBUG)
 root.addHandler(handler)
 root.addHandler(filemode)
 from es_sfgtools.processing.operations.pride_utils import get_nav_file,get_gnss_products,download
-from es_sfgtools.processing.operations.gnss_resources import WuhanIGS,CDDIS,CLSIGS,GSSC
+from es_sfgtools.processing.operations.gnss_resources import WuhanIGS,CLSIGS,GSSC
 
 pride_dir = Path(
     "/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/Cascadia2023/NFL1/Pride"
@@ -23,4 +23,4 @@ rinex_path = (
 
 
 # get_nav_file(rinex_path,override=True,mode='process')
-get_gnss_products(rinex_path,pride_dir,override=True,mode='test')
+get_gnss_products(rinex_path,pride_dir,override=True)

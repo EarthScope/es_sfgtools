@@ -415,7 +415,7 @@ def rinex_to_kin(
         raise FileNotFoundError(f"RINEX file {source.local_path} not found")
 
     get_nav_file(rinex_path=source.local_path)
-    get_gnss_products(rinex_path=source.local_path,pridedir=pridedir)
+    get_gnss_products(rinex_path=source.local_path,pride_dir=pridedir)
     if source.station is not None:
         site = source.station
     cmd = [
@@ -463,7 +463,8 @@ def rinex_to_kin(
             logger.error(line)
 
     found_files = Path(pridedir).rglob(f"*{site.lower()}*")
-
+    kin_file = None
+    res_file = None
     for found_file in found_files:
 
         if "kin" in found_file.name:
@@ -511,6 +512,7 @@ def rinex_to_kin(
         logger.error(response)
         warn(response)
         return None,None
+    
     return kin_file,res_file
 
 

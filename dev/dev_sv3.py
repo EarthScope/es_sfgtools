@@ -17,12 +17,40 @@ if __name__ == "__main__":
     network = "Cascadia"
     station = "NFL1"
     survey = "2023"
-    dh = DataHandler(data_dir=data_dir,
-                     network=network,
-                     station=station,
-                     survey=survey,)
+    main_dir = Path("/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/Cascadia2023/SFGTools")
+    
+    dh = DataHandler(main_dir)
 
-    dh.add_data_directory(data_dir,show_details=True)
-    print(dh.get_dtype_counts())
-    dh.pipeline_sv3(show_details=True,plot=True)
-  
+    NCL1 = main_dir.parent/"NCL1"
+    NDP1 = main_dir.parent/"NDP1"
+    NFL1 = main_dir.parent/"NFL1"
+
+    dh.discover_data_directory(
+        network=network,
+        station="NCL1",
+        survey="2023",
+        dir_path=NCL1,
+    )
+    dh.change_working_station(network=network,station="NCL1")
+    dh.change_working_survey("2023")
+    dh.pipeline_sv3()
+    
+    dh.discover_data_directory(
+        network=network,
+        station="NDP1",
+        survey="2023",
+        dir_path=NDP1,
+    )
+    dh.change_working_station(network=network,station="NDP1")
+    dh.change_working_survey("2023")
+    dh.pipeline_sv3()
+
+    dh.discover_data_directory(
+        network=network,
+        station="NFL1",
+        survey="2023",
+        dir_path=NFL1,
+    )
+    dh.change_working_station(network=network,station="NFL1")
+    dh.change_working_survey("2023")
+    dh.pipeline_sv3()

@@ -12,6 +12,7 @@ from .observables import AcousticDataFrame,GNSSDataFrame,PositionDataFrame,ShotD
 
 filters = tiledb.FilterList([tiledb.ZstdFilter(7)])
 TimeDomain = tiledb.Dim(name="time", dtype="datetime64[ms]")
+TransponderDomain = tiledb.Dim(name="transponderID",dtype="ascii")
 attribute_dict: Dict[str,tiledb.Attr] = {
     "east": tiledb.Attr(name="east", dtype=np.float32),
     "north": tiledb.Attr(name="north", dtype=np.float32),
@@ -21,7 +22,14 @@ attribute_dict: Dict[str,tiledb.Attr] = {
     "up_std": tiledb.Attr(name="up_std", dtype=np.float32,nullable=True),
     "latitude": tiledb.Attr(name="latitude", dtype=np.float32),
     "longitude": tiledb.Attr(name="longitude", dtype=np.float32),
-    "height": tiledb.Attr(name="height", dtype=np.float32)
+    "height": tiledb.Attr(name="height", dtype=np.float32),
+    "pingTime":tiledb.Attr(name="pingTime", dtype=np.float32),
+    "returnTime":tiledb.Attr(name="returnTime",dtype=np.float32),
+    "tt":tiledb.Attr(name="tt",dtype=np.float32),
+    "dbv":tiledb.Attr(name="dbv",dtype=np.uint8),
+    "xc":tiledb.Attr(name="xc",dtype=np.uint8),
+    "snr":tiledb.Attr(name="snr",dtype=np.float32),
+    "tat":tiledb.Attr(name="tat",dtype=np.float32),
 }
 
 GNSSAttributes = [
@@ -85,34 +93,40 @@ ShotDataAttributes = [
     attribute_dict["east_std"],
     attribute_dict["north_std"],
     attribute_dict["up_std"],
+    attribute_dict["pingTime"],
+    attribute_dict["returnTime"],
+    attribute_dict["tt"],
+    attribute_dict["dbv"],
+    attribute_dict["xc"],
+    attribute_dict["snr"],
+    attribute_dict["tat"]
 ]
 
 ShotDataArraySchema = tiledb.ArraySchema(
     sparse=True,
-    domain=tiledb.Domain(TimeDomain),
+    domain=tiledb.Domain(
+        tiledb.Dim(name="triggerTime", dtype="datetime64[ms]"), TransponderDomain
+    ),
     attrs=ShotDataAttributes,
-    cell_order='col-major', 
-    tile_order='row-major',
+    cell_order="col-major",
+    tile_order="row-major",
     allows_duplicates=False,
     coords_filters=filters,
 )
 
-accousticTimeDim = tiledb.Dim(name="triggerTime", dtype="datetime64[ms]")
-acousticIDDim = tiledb.Dim(name="transponderID",dtype="ascii")
-
 AcousticDataAttributes = [
-    
-    tiledb.Attr(name="pingTime",dtype=np.float32),
-    tiledb.Attr(name="returnTime",dtype=np.float32),
-    tiledb.Attr(name="tt",dtype=np.float32),
-    tiledb.Attr(name="dbv",dtype=np.uint8),
-    tiledb.Attr(name="xc",dtype=np.uint8),
-    tiledb.Attr(name="snr",dtype=np.float32),
-    tiledb.Attr(name="tat",dtype=np.float32),
+    attribute_dict["pingTime"],
+    attribute_dict["returnTime"],
+    attribute_dict["tt"],
+    attribute_dict["dbv"],
+    attribute_dict["xc"],
+    attribute_dict["snr"],
+    attribute_dict["tat"],
 ]
+
 AcousticArraySchema = tiledb.ArraySchema(
     sparse=True,
-    domain=tiledb.Domain(accousticTimeDim,acousticIDDim),
+    domain=tiledb.Domain(TimeDomain,TransponderDomain),
     attrs=AcousticDataAttributes,
     cell_order='col-major', 
     tile_order='row-major',
@@ -152,7 +166,7 @@ class TBDArray:
             except Exception as e:
                 print(e)
                 return None
-        
+
 class TDBAcousticArray(TBDArray):
     dataframe_schema = AcousticDataFrame
     array_schema = AcousticArraySchema
@@ -161,7 +175,21 @@ class TDBAcousticArray(TBDArray):
     def get_unique_dates(self,field="triggerTime")->np.ndarray:
         return super().get_unique_dates(field)
 
-    
+    def write_df(self, df: pd.DataFrame):
+        df = self.dataframe_schema.validate(df, lazy=True)
+        df.rename(columns={"triggerTime": "time"}, inplace=True)
+        tiledb.from_pandas(str(self.uri), df, mode="append")
+
+    def read_df(self, start: datetime, end: datetime = None, **kwargs) -> pd.DataFrame:
+        if end is None:
+            end = start
+        with tiledb.open(str(self.uri), mode="r") as array:
+            df = array.df[slice(np.datetime64(start), np.datetime64(end)), :]
+        df.rename(columns={"time": "triggerTime"}, inplace=True)
+        df = self.dataframe_schema.validate(df, lazy=True)
+        return df
+
+
 class TDBGNSSArray(TBDArray):
     dataframe_schema = GNSSDataFrame
     array_schema = GNSSArraySchema
@@ -184,6 +212,7 @@ class TDBShotDataArray(TBDArray):
     array_schema = ShotDataArraySchema
     def __init__(self,uri:Path|str):
         super().__init__(uri)
+
     def get_unique_dates(self,field="time")->np.ndarray:
         return super().get_unique_dates(field)
-    
+

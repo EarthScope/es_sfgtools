@@ -38,7 +38,7 @@ from es_sfgtools.modeling.garpos_tools import schemas as modeling_schemas
 from es_sfgtools.modeling.garpos_tools import functions as modeling_funcs
 from es_sfgtools.modeling.garpos_tools import hyper_params
 from es_sfgtools.processing.assets.tiledb_temp import TDBAcousticArray,TDBGNSSArray,TDBPositionArray,TDBShotDataArray
-from es_sfgtools.processing.operations.utils import get_merge_signature,merge_shotdata_gnss
+from es_sfgtools.processing.operations.utils import merge_shotdata_gnss
 from .catalog import Catalog
 
 
@@ -142,6 +142,9 @@ class DataHandler:
         self.position_tdb = TDBPositionArray(self.tileb_dir/"position_db.tdb")
         self.shotdata_tdb = TDBShotDataArray(self.tileb_dir/"shotdata_db.tdb")
         self.build_station_dir_structure(self.network,self.station)
+        self.raw_dir = self.working_dir / "Data" / "raw"
+        self.inter_dir = self.working_dir / "Data" / "intermediate"
+        self.proc_dir = self.working_dir / "Data" / "processed"
         response = f"Changed working station to {network} {station}"
         logger.info(response)
         print(response)
@@ -177,8 +180,11 @@ class DataHandler:
         file_paths = [AssetEntry(**x) for x in file_data_list]
         uploadCount = 0
         for asset in file_paths:
-            if self.catalog.add_entry(asset):
-                uploadCount += 1
+            try:
+                if self.catalog.add_entry(asset):
+                    uploadCount += 1
+            except Exception as e:
+                pass
         response = f"Added {uploadCount} out of {count} files to the catalog"
         logger.info(response)
         if show_details:
@@ -439,7 +445,7 @@ class DataHandler:
     @check_network_station_survey
     def pipeline_sv3(self,override:bool=False,show_details:bool=False,plot:bool=False):
         pipeline = SV3Pipeline(catalog=self.catalog)
-        pipeline.process_novatel(network=self.network,station=self.station,survey=self.survey,override=override,show_details=show_details)
+        pipeline.process_novatel(network=self.network,station=self.station,survey=self.survey,writedir=self.inter_dir,override=override,show_details=show_details)
         pipeline.process_rinex(
             network=self.network,
             station=self.station,
@@ -456,9 +462,9 @@ class DataHandler:
             survey=self.survey,
             shotdatadest=self.shotdata_tdb,
         )
-        pipeline.update_shotdata(
-            shotdatasource=self.shotdata_tdb,
-            gnssdatasource=self.gnss_tdb,
-            plot=plot
-        )
+        # pipeline.update_shotdata(
+        #     shotdatasource=self.shotdata_tdb,
+        #     gnssdatasource=self.gnss_tdb,
+        #     plot=plot
+        # )
 
