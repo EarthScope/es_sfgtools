@@ -2,7 +2,6 @@ import datetime
 from pathlib import Path
 from ftplib import FTP
 from typing import IO,Dict,Optional,List,Literal
-import wget
 import gzip
 import tempfile
 import logging
@@ -78,24 +77,19 @@ def get_daily_rinex_url(date:datetime.date) ->Dict[str,Dict[str,RemoteResource]]
 
     urls = {
         "rinex_2": {
-            "wuhan": {
-                "glonass": WuhanIGS.get_rinex_2_nav(date, constellation="glonass"),
-                "gps": WuhanIGS.get_rinex_2_nav(date, constellation="gps"),
-            },
-            "cdds": {
-                "glonass": CDDIS.get_rinex_2_nav(date, constellation="glonass"),
-                "gps": CDDIS.get_rinex_2_nav(date, constellation="gps"),
-            },
+            # "wuhan": {
+            #     "glonass": WuhanIGS.get_rinex_2_nav(date, constellation="glonass"),
+            #     "gps": WuhanIGS.get_rinex_2_nav(date, constellation="gps"),
+            # },
             "gssc": {
                 "glonass": GSSC.get_rinex_2_nav(date, constellation="glonass"),
                 "gps": GSSC.get_rinex_2_nav(date, constellation="gps"),
             },
         },
         "rinex_3": {
-            "igs_gnss": CLSIGS.get_rinex_3_nav(date),
-            "wuhan_gps": WuhanIGS.get_rinex_3_nav(date),
-            "cddis_gnss": CDDIS.get_rinex_3_nav(date),
-            "gssc_gnss": GSSC.get_rinex_3_nav(date),
+            #"igs_gnss": CLSIGS.get_rinex_3_nav(date),
+            #"wuhan_gps": WuhanIGS.get_rinex_3_nav(date),
+            #"gssc_gnss": GSSC.get_rinex_3_nav(date),
         },
     }
     return urls
@@ -170,8 +164,9 @@ def merge_broadcast_files(brdn:Path, brdg:Path, output_folder:Path) ->Path:
             return
 
         i = 1
-        while i <= len(lines):
+        while i < len(lines):
             try:
+                #print(i, lines[i])
                 if not in_header:
                     line = lines[i].replace("D", "e")
                     prn = int(line[0:2])
@@ -184,41 +179,45 @@ def merge_broadcast_files(brdn:Path, brdg:Path, output_folder:Path) ->Path:
                     num2 = eval(line[22:41])
                     num3 = eval(line[41:60])
                     num4 = eval(line[60:79])
-                    fn.write(
+                    print(f"{prefix}{prn:02d} {yyyy:04d} {mm:02d} {dd:02d} {hh:02d} {mi:02d} {ss:02d} {num2:.12e} {num3:.12e} {num4:.12e}\n")
+                    fm.write(
                         f"{prefix}{prn:02d} {yyyy:04d} {mm:02d} {dd:02d} {hh:02d} {mi:02d} {ss:02d} {num2:.12e} {num3:.12e} {num4:.12e}\n"
                     )
 
-                    for t in range(1, 7):
+                    for t in range(1, 4):
                         line = lines[i + t].replace("D", "e")
                         num1 = eval(line[3:22])
                         num2 = eval(line[22:41])
                         num3 = eval(line[41:60])
                         num4 = eval(line[60:79])
-                        fn.write(
+                        print(f"{t}    {num1} {num2} {num3} {num4}\n")
+                        print(f"    {num1:.12e} {num2:.12e} {num3:.12e} {num4:.12e}\n")
+                        fm.write(
                             f"    {num1:.12e} {num2:.12e} {num3:.12e} {num4:.12e}\n"
                         )
+                    print('here')
                     line = lines[i + 7].replace("D", "e")
                     num1 = eval(line[3:22])
                     num2 = eval(line[22:41])
-                    fn.write(f"    {num1:.12e} {num2:.12e}\n")
+                    fm.write(f"    {num1:.12e} {num2:.12e}\n")
                     i += 8
                     if i >= len(lines):
                         break
                 else:
                     if ("PGM / RUN BY / DATE" == lines[i][60:79]):
-                        fn.write(lines[i])
+                        fm.write(lines[i])
                     if ("LEAP SECONDS"        == lines[i][60:72]):
                         leap_n = int(lines[i][1:6])
-                        fn.write(lines[i])
+                        fm.write(lines[i])
                     if ("END OF HEADER"       == lines[i][60:73]):
                         inHeader = False
-                        fn.write(lines[i])
+                        fm.write(lines[i])
                     i = i + 1
             except Exception as e:
                 print(
                     f"***ERROR: unexpected ERROR occurred at line {i} of file {file}: {e}"
                 )
-                print(lines[i])
+                #print(lines[i])
                 break
 
         fn.close()
@@ -246,7 +245,7 @@ def merge_broadcast_files(brdn:Path, brdg:Path, output_folder:Path) ->Path:
             print(f"***ERROR: unable to open or read file {file}: {e}")
             return
         i = 1
-        while (i <= len(lines)):
+        while (i < len(lines)):
             try:
                 if (not inHeader):
                     line = lines[i].replace("D","e")
@@ -280,7 +279,7 @@ def merge_broadcast_files(brdn:Path, brdg:Path, output_folder:Path) ->Path:
                     i = i + 1
             except Exception as e:
                 print(f"***ERROR: unexpected ERROR occurred at line {i} of file {file}: {e}")
-                print(lines[i])
+                #print(lines[i])
                 break
         fg.close()
 
@@ -332,6 +331,7 @@ def get_nav_file(rinex_path:Path,override:bool=False,mode:Literal['process','tes
     response = f"\nAttempting to build nav file for {str(rinex_path)}"
     logger.info(response)
 
+    start_date = None
     with open(rinex_path) as f:
         files = f.readlines()
         for line in files:
@@ -349,7 +349,7 @@ def get_nav_file(rinex_path:Path,override:bool=False,mode:Literal['process','tes
         return
     year = str(start_date.year)
     doy = str(start_date.timetuple().tm_yday)
-    brdm_path = rinex_path.parent/f"brdm{doy}0.{year:2}p"
+    brdm_path = rinex_path.parent/f"brdm{doy}0.{year[-2:]}p"
     if brdm_path.exists() and not override:
         response = f"{brdm_path} already exists.\n"
         logger.info(response)
@@ -464,6 +464,7 @@ def get_gnss_products(
     if mode == "test":
         override = True
 
+    start_date = None
     with open(rinex_path) as f:
         files = f.readlines()
         for line in files:
@@ -485,28 +486,34 @@ def get_gnss_products(
     for product_type,sources in remote_resource_dict.items():
         logger.info(f"Attempting to download {product_type} products")
 
-        for _,remote_resource in sources.items():
-            # For a given product type, try to download from each source
-            local_path = common_product_dir/remote_resource.file
-            if (local_path.exists() and local_path.stat().st_size > 0) and not override:
-                logger.info(f"Found {local_path}")
-                break
-            try:
-                download(remote_resource,local_path)
-            except Exception as e:
-                logger.error(f"Failed to download {str(remote_resource)} | {e}")
-                if local_path.exists() and local_path.stat().st_size == 0:
-                    local_path.unlink()
-                continue
-            if local_path.exists():
-                logger.info(
-                    f"Succesfully downloaded {str(remote_resource)} to {str(local_path)}"
-                )
-                match mode:
-                    case "process":
+        is_file_downloaded = False
+        while not is_file_downloaded:
+            for _,remote_resources in sources.items():
+                if not isinstance(remote_resources,list):
+                    remote_resources = [remote_resources]
+                for remote_resource in remote_resources:
+                # For a given product type, try to download from each source
+                    local_path = common_product_dir/remote_resource.file
+                    if (local_path.exists() and local_path.stat().st_size > 0) and not override:
+                        logger.info(f"Found {local_path}")
                         break
-                    case 'test':
-                        local_path.unlink()
+                    try:
+                        download(remote_resource,local_path)
+                    except Exception as e:
+                        logger.error(f"Failed to download {str(remote_resource)} | {e}")
+                        if local_path.exists() and local_path.stat().st_size == 0:
+                            local_path.unlink()
+                        continue
+                    if local_path.exists():
+                        logger.info(
+                            f"Succesfully downloaded {str(remote_resource)} to {str(local_path)}"
+                        )
+                        match mode:
+                            case "process":
+                                is_file_downloaded = True
+                                break
+                            case 'test':
+                                local_path.unlink()
 
         if not local_path.exists():
             response = f"Failed to download {product_type} products"
