@@ -80,17 +80,19 @@ def get_merge_signature_shotdata(shotdata: TDBShotDataArray, gnss: TDBGNSSArray)
     if len(dates) == 0:
         raise ValueError("No common dates found between shotdata and gnss")
     for date in dates:
-        merge_signature.append(np.datetime_as_string(date))
+        merge_signature.append(str(date))
     return merge_signature, dates
 
 def merge_shotdata_gnss(shotdata: TDBShotDataArray, gnss: TDBGNSSArray,dates:List[datetime64],plot:bool=False) -> TDBShotDataArray:
     # merge the shotdata and gnss data
-    
-    for date in dates:
-        response = f"Interpolating shotdata for date {date}"
+
+    for start,end in zip(dates,dates[1:]):
+        response = f"Interpolating shotdata for date {str(start)}"
         logger.info(response)
-        shotdata_df = shotdata.read_df(start=date,end=date)
-        gnss_df = gnss.read_df(start=date,end=date)
+        shotdata_df = shotdata.read_df(start=start,end=end)
+        gnss_df = gnss.read_df(start=start, end=end)
+        if shotdata_df is None or gnss_df is None:
+            continue
         shotdata_df_distilled = shotdata_df.drop_duplicates("triggerTime")
         delta_tenur = shotdata_df_distilled[['east1','north1','up1']].to_numpy() - shotdata_df_distilled[['east0','north0','up0']].to_numpy()
         tenu_l = gnss_df[['time','east','north','up']].to_numpy()

@@ -452,15 +452,15 @@ class DataHandler:
             writedir=self.inter_dir,
             override=override,
             show_details=show_details)
-        pipeline.process_rinex(
-            network=self.network,
-            station=self.station,
-            survey=self.survey,
-            inter_dir=self.inter_dir,
-            pride_dir=self.pride_dir,
-            override=True,
-            show_details=show_details,
-        )
+        # pipeline.process_rinex(
+        #     network=self.network,
+        #     station=self.station,
+        #     survey=self.survey,
+        #     inter_dir=self.inter_dir,
+        #     pride_dir=self.pride_dir,
+        #     override=override,
+        #     show_details=show_details,
+        # )
 
         pipeline.process_dfop00(
             network=self.network,
@@ -468,14 +468,14 @@ class DataHandler:
             survey=self.survey,
             shotdatadest=self.shotdata_tdb,
         )
-        pipeline.process_kin(
-            network=self.network,
-            station=self.station,
-            survey=self.survey,
-            gnss_tdb=self.gnss_tdb,
-            override=True,
-            show_details=show_details,
-        )
+        # pipeline.process_kin(
+        #     network=self.network,
+        #     station=self.station,
+        #     survey=self.survey,
+        #     gnss_tdb=self.gnss_tdb,
+        #     override=override,
+        #     show_details=show_details,
+        # )
         pipeline.update_shotdata(
             shotdatasource=self.shotdata_tdb,
             gnssdatasource=self.gnss_tdb,

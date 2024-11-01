@@ -252,7 +252,7 @@ class SV3Pipeline:
         if show_details:
             print(response)
 
-    def update_shotdata(self,shotdatasource:TDBShotDataArray,gnssdatasource:TDBGNSSArray, plot: bool = False):
+    def update_shotdata(self,shotdatasource:TDBShotDataArray,gnssdatasource:TDBGNSSArray, plot: bool = False,override:bool=False):
         print("Updating shotdata with interpolated gnss data")
         # TODO Need to only update positions for a single shot and not each transponder
         # For each shotdata multiasset entry, update the shotdata position with gnss data
@@ -268,8 +268,8 @@ class SV3Pipeline:
             "child_type": AssetType.SHOTDATA.value,
             "parent_ids": merge_signature,
         }
-        if not self.catalog.is_merge_complete(**merge_job):
+        if not self.catalog.is_merge_complete(**merge_job) or override:
             merge_shotdata_gnss(
                 shotdata=shotdatasource, gnss=gnssdatasource, dates=dates, plot=plot
             )
-        self.catalog.add_merge_job(**merge_job)
+            self.catalog.add_merge_job(**merge_job)

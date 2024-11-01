@@ -150,10 +150,16 @@ class TBDArray:
         tiledb.from_pandas(str(self.uri),df,mode='append')
 
     def read_df(self,start:datetime,end:datetime=None,**kwargs)->pd.DataFrame:
+
+        # TODO slice array by start and end and return the dataframe
         if end is None:
             end = start
         with tiledb.open(str(self.uri), mode="r") as array:
-            df = array.df[slice(np.datetime64(start), np.datetime64(end)), :]
+            try:
+                df = array.df[slice(np.datetime64(start), np.datetime64(end)), :]
+            except IndexError as e:
+                print(e)
+                return None
         df = self.dataframe_schema.validate(df,lazy=True)
         return df
     
