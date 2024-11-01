@@ -136,20 +136,74 @@ class SV3Pipeline:
                         if self.catalog.add_entry(resfile):
                             uploadCount += 1
                         resfile_entries.append(resfile)
-                    if (
-                        gnss_df := gnss_ops.kin_to_gnssdf(kinfile)
-                    ) is not None:
-                        if resfile is not None:
-                            wrms = gnss_ops.get_wrms_from_res(str(resfile.local_path))
-                            gnss_df = pd.merge(gnss_df, wrms, left_on="time", right_on="time")
+                    # if (
+                    #     gnss_df := gnss_ops.kin_to_gnssdf(kinfile)
+                    # ) is not None:
+                    #     if resfile is not None:
+                    #         wrms = gnss_ops.get_wrms_from_res(str(resfile.local_path))
+                    #         gnss_df = pd.merge(gnss_df, wrms, left_on="time", right_on="time")
 
-                        response = f'Adding GNSS Data of shape {gnss_df.shape} and daterange {gnss_df["time"].min().isoformat()} to {gnss_df["time"].max().isoformat()} to GNSS TDB'
-                        logger.info(response)
-                        if show_details:
-                            print(response)
-                        self.gnss_tdb.write_df(gnss_df)
+                    #     response = f'Adding GNSS Data of shape {gnss_df.shape} and daterange {gnss_df["time"].min().isoformat()} to {gnss_df["time"].max().isoformat()} to GNSS TDB'
+                    #     logger.info(response)
+                    #     if show_details:
+                    #         print(response)
+                    #     self.gnss_tdb.write_df(gnss_df)
 
         response = f"Generated {count} Kin Files From {len(rinex_entries)} Rinex Files, Added {uploadCount} to the Catalog"
+        logger.info(response)
+        if show_details:
+            print(response)
+
+    def process_kin(self, network:str,station:str,survey:str,gnss_tdb: TDBGNSSArray,override: bool = False, show_details: bool = False):
+        kin_entries: List[AssetEntry] = self.catalog.get_single_entries_to_process(
+            network=network,
+            station=station,
+            survey=survey,
+            parent_type=AssetType.KIN,
+            override=override,
+        )
+        res_entries: List[AssetEntry] = self.catalog.get_single_entries_to_process(
+            network=network,
+            station=station,
+            survey=survey,
+            parent_type=AssetType.KINRESIDUALS,
+            override=override,
+        )
+        if not kin_entries:
+            response = f"No Kin Files Found to Process for {network} {station} {survey}"
+            logger.error(response)
+            if show_details:
+                print(response)
+            warnings.warn(response)
+            return
+
+        
+        response = f"Found {len(kin_entries)} Kin Files to Process"
+        logger.info(response)
+        if show_details:
+            print(response)
+
+        count = 0
+        uploadCount = 0
+        for kin_entry in kin_entries:
+            gnss_df = gnss_ops.kin_to_gnssdf(kin_entry)
+            if gnss_df is not None:
+                count += 1
+                kin_entry.is_processed = True
+                self.catalog.add_or_update(kin_entry)
+            # wrms = gnss_ops.get_wrms_from_res(str(res_entry.local_path))
+            # if wrms is not None:
+            #     gnss_df = pd.merge(gnss_df, wrms, left_on="time", right_on="time")
+            #     res_entry.is_processed = True
+            #     self.catalog.add_or_update(res_entry)
+                gnss_tdb.write_df(gnss_df)           
+
+                # response = f'Adding GNSS Data of shape {gnss_df.shape} and daterange {gnss_df["time"].min().isoformat()} to {gnss_df["time"].max().isoformat()} to GNSS TDB'
+                # logger.info(response)
+                # if show_details:
+                #     print(response)
+
+        response = f"Generated {count} GNSS Dataframes From {len(kin_entries)} Kin Files, Added {uploadCount} to the Catalog"
         logger.info(response)
         if show_details:
             print(response)
@@ -165,11 +219,10 @@ class SV3Pipeline:
             station=station,
             survey=survey,
             parent_type=AssetType.DFOP00,
-            child_type=AssetType.SHOTDATA,
             override=override,
         )
         if not dfop00_entries:
-            response = f"No DFOP00 Files Found to Process for {self.network} {self.station} {self.survey}"
+            response = f"No DFOP00 Files Found to Process for {network} {station} {survey}"
             logger.error(response)
             if show_details:
                 print(response)
@@ -185,12 +238,14 @@ class SV3Pipeline:
 
         with multiprocessing.Pool() as pool:
             results = pool.imap(sv3_ops.dev_dfop00_to_shotdata, dfop00_entries)
-            for shotdata_df in tqdm(
-                results, total=len(dfop00_entries), desc="Processing DFOP00 Files"
+            for shotdata_df,dfo_entry in tqdm(
+                zip(results,dfop00_entries), total=len(dfop00_entries), desc="Processing DFOP00 Files"
             ):
                 if shotdata_df is not None:
                     shotdatadest.write_df(shotdata_df)
                     count += 1
+                    dfo_entry.is_processed = True
+                    self.catalog.add_or_update(dfo_entry)
 
         response = f"Generated {count} ShotData dataframes From {len(dfop00_entries)} DFOP00 Files"
         logger.info(response)

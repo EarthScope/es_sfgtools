@@ -35,22 +35,22 @@ if __name__ == "__main__":
     dh.change_working_survey("2023")
     dh.pipeline_sv3()
     
-    dh.discover_data_directory(
-        network=network,
-        station="NDP1",
-        survey="2023",
-        dir_path=NDP1,
-    )
-    dh.change_working_station(network=network,station="NDP1")
-    dh.change_working_survey("2023")
-    dh.pipeline_sv3()
+    # dh.discover_data_directory(
+    #     network=network,
+    #     station="NDP1",
+    #     survey="2023",
+    #     dir_path=NDP1,
+    # )
+    # dh.change_working_station(network=network,station="NDP1")
+    # dh.change_working_survey("2023")
+    # dh.pipeline_sv3()
 
-    dh.discover_data_directory(
-        network=network,
-        station="NFL1",
-        survey="2023",
-        dir_path=NFL1,
-    )
-    dh.change_working_station(network=network,station="NFL1")
-    dh.change_working_survey("2023")
-    dh.pipeline_sv3()
+    # dh.discover_data_directory(
+    #     network=network,
+    #     station="NFL1",
+    #     survey="2023",
+    #     dir_path=NFL1,
+    # )
+    # dh.change_working_station(network=network,station="NFL1")
+    # dh.change_working_survey("2023")
+    # dh.pipeline_sv3()

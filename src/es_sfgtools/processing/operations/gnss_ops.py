@@ -414,7 +414,7 @@ def rinex_to_kin(
         logger.error(f"RINEX file {source.local_path} not found")
         raise FileNotFoundError(f"RINEX file {source.local_path} not found")
 
-    get_nav_file(rinex_path=source.local_path)
+    #get_nav_file(rinex_path=source.local_path)
     get_gnss_products(rinex_path=source.local_path,pride_dir=pridedir)
     if source.station is not None:
         site = source.station
@@ -570,7 +570,7 @@ def kin_to_gnssdf(source:AssetEntry) -> Union[DataFrame[GNSSDataFrame], None]:
     )
     logger.info(log_response)
     dataframe["time"] = dataframe["time"].dt.tz_localize("UTC")
-    return dataframe
+    return dataframe.drop(columns=["modified_julian_date", "second_of_day"])
 
 
 def qcpin_to_novatelpin(source: AssetEntry, writedir: Path) -> AssetEntry:

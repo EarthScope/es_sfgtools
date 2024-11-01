@@ -159,9 +159,9 @@ class TBDArray:
     
     def get_unique_dates(self,field:str)->np.ndarray:
         with tiledb.open(str(self.uri), mode="r") as array:
-            values = array[:,field][:]
+            values = array[:][field]
             try:
-                values = values.astype("datetime64[ms]").astype("datetime64[D]")
+                values = values.astype("datetime64[D]")
                 return np.unique(values)
             except Exception as e:
                 print(e)
@@ -177,7 +177,6 @@ class TDBAcousticArray(TBDArray):
 
     def write_df(self, df: pd.DataFrame):
         df = self.dataframe_schema.validate(df, lazy=True)
-        df.rename(columns={"triggerTime": "time"}, inplace=True)
         tiledb.from_pandas(str(self.uri), df, mode="append")
 
     def read_df(self, start: datetime, end: datetime = None, **kwargs) -> pd.DataFrame:
@@ -185,7 +184,6 @@ class TDBAcousticArray(TBDArray):
             end = start
         with tiledb.open(str(self.uri), mode="r") as array:
             df = array.df[slice(np.datetime64(start), np.datetime64(end)), :]
-        df.rename(columns={"time": "triggerTime"}, inplace=True)
         df = self.dataframe_schema.validate(df, lazy=True)
         return df
 
@@ -213,6 +211,6 @@ class TDBShotDataArray(TBDArray):
     def __init__(self,uri:Path|str):
         super().__init__(uri)
 
-    def get_unique_dates(self,field="time")->np.ndarray:
+    def get_unique_dates(self,field="triggerTime")->np.ndarray:
         return super().get_unique_dates(field)
 

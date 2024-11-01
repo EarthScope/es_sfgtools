@@ -445,14 +445,20 @@ class DataHandler:
     @check_network_station_survey
     def pipeline_sv3(self,override:bool=False,show_details:bool=False,plot:bool=False):
         pipeline = SV3Pipeline(catalog=self.catalog)
-        pipeline.process_novatel(network=self.network,station=self.station,survey=self.survey,writedir=self.inter_dir,override=override,show_details=show_details)
+        pipeline.process_novatel(
+            network=self.network,
+            station=self.station,
+            survey=self.survey,
+            writedir=self.inter_dir,
+            override=override,
+            show_details=show_details)
         pipeline.process_rinex(
             network=self.network,
             station=self.station,
             survey=self.survey,
             inter_dir=self.inter_dir,
             pride_dir=self.pride_dir,
-            override=override,
+            override=True,
             show_details=show_details,
         )
 
@@ -462,9 +468,17 @@ class DataHandler:
             survey=self.survey,
             shotdatadest=self.shotdata_tdb,
         )
-        # pipeline.update_shotdata(
-        #     shotdatasource=self.shotdata_tdb,
-        #     gnssdatasource=self.gnss_tdb,
-        #     plot=plot
-        # )
+        pipeline.process_kin(
+            network=self.network,
+            station=self.station,
+            survey=self.survey,
+            gnss_tdb=self.gnss_tdb,
+            override=True,
+            show_details=show_details,
+        )
+        pipeline.update_shotdata(
+            shotdatasource=self.shotdata_tdb,
+            gnssdatasource=self.gnss_tdb,
+            plot=plot
+        )
 

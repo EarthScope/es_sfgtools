@@ -74,10 +74,15 @@ class Catalog:
                                station:str,
                                survey:str,
                                parent_type:AssetType,
-                               child_type:AssetType,
+                               child_type:AssetType = None,
                                override:bool=False) -> List[AssetEntry]:
 
         parent_entries = self.get_assets(network,station,survey,parent_type)
+        if child_type is None:
+            if override:
+                return parent_entries
+            return [entry for entry in parent_entries if not entry.is_processed]
+        
         child_entries = self.get_assets(network,station,survey,child_type)
         parent_id_map = {entry.id:entry for entry in parent_entries}
         if not override:
