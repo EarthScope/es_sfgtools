@@ -20,8 +20,9 @@ logger = logging.getLogger(__name__)
 #     directory=["gnss","products","final"],
 # )
 def download(source:RemoteResource,dest:Path) ->Path:
-    
-    with FTP(source.ftpserver.replace("ftp://",""),timeout=300) as ftp:
+    print(f"\nDownloading {str(source)} to {str(dest)}\n")
+    with FTP(source.ftpserver.replace("ftp://",""),timeout=60) as ftp:
+        ftp.set_pasv(False)
         ftp.login()
         ftp.cwd("/" + source.directory)
         with open(dest,"wb") as f:
@@ -77,19 +78,19 @@ def get_daily_rinex_url(date:datetime.date) ->Dict[str,Dict[str,RemoteResource]]
 
     urls = {
         "rinex_2": {
-            # "wuhan": {
-            #     "glonass": WuhanIGS.get_rinex_2_nav(date, constellation="glonass"),
-            #     "gps": WuhanIGS.get_rinex_2_nav(date, constellation="gps"),
-            # },
+            "wuhan": {
+                "glonass": WuhanIGS.get_rinex_2_nav(date, constellation="glonass"),
+                "gps": WuhanIGS.get_rinex_2_nav(date, constellation="gps"),
+            },
             "gssc": {
                 "glonass": GSSC.get_rinex_2_nav(date, constellation="glonass"),
                 "gps": GSSC.get_rinex_2_nav(date, constellation="gps"),
             },
         },
         "rinex_3": {
-            #"igs_gnss": CLSIGS.get_rinex_3_nav(date),
-            #"wuhan_gps": WuhanIGS.get_rinex_3_nav(date),
-            #"gssc_gnss": GSSC.get_rinex_3_nav(date),
+            "igs_gnss": CLSIGS.get_rinex_3_nav(date),
+            "wuhan_gps": WuhanIGS.get_rinex_3_nav(date),
+            "gssc_gnss": GSSC.get_rinex_3_nav(date),
         },
     }
     return urls
@@ -381,7 +382,7 @@ def get_nav_file(rinex_path:Path,override:bool=False,mode:Literal['process','tes
                 logger.info(f"Successfully built {brdm_path} From {str(remote_resource)}")
 
                 match mode:
-                    case "process":
+                    case 'process':
                         return brdm_path
                     case 'test':
                         brdm_path.unlink()
@@ -421,7 +422,7 @@ def get_nav_file(rinex_path:Path,override:bool=False,mode:Literal['process','tes
                         logger.info(f"Successfully built {brdm_path}")
 
                         match mode:
-                            case "process":
+                            case 'process':
                                 return brdm_path
                             case 'test':
                                 brdm_path.unlink()
@@ -491,16 +492,30 @@ def get_gnss_products(
         is_file_downloaded = False
   
         for _,remote_resources in sources.items():
+            if is_file_downloaded:
+                break
             if not isinstance(remote_resources,list):
                 remote_resources = [remote_resources]
+            to_check = []
+
             for remote_resource in remote_resources:
             # For a given product type, try to download from each source
                 local_path = common_product_dir/remote_resource.file_name
                 if (local_path.exists() and local_path.stat().st_size > 0) and not override:
                     logger.info(f"Found {local_path}")
+                    is_file_downloaded = True
                     break
+                else:
+                    to_check.append(remote_resource)
+            if is_file_downloaded:
+                break
+
+            for remote_resource in to_check:
+                local_path = common_product_dir/remote_resource.file_name
+                logger.info(f"Attempting to download {product_type} FROM {str(remote_resource)} TO {str(local_path)}")    
                 try:
                     download(remote_resource,local_path)
+                    logger.info(f"\n Succesfully downloaded {product_type} FROM {str(remote_resource)} TO {str(local_path)}\n")
                 except Exception as e:
                     logger.error(f"Failed to download {str(remote_resource)} | {e}")
                     if local_path.exists() and local_path.stat().st_size == 0:
@@ -511,7 +526,7 @@ def get_gnss_products(
                         f"\n Succesfully downloaded {product_type} FROM {str(remote_resource)} TO {str(local_path)}\n"
                     )
                     match mode:
-                        case "process":
+                        case 'process':
                             is_file_downloaded = True
                             break
                         case 'test':

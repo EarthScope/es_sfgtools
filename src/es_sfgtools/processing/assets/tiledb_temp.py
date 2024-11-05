@@ -7,6 +7,7 @@ from pandera import check_types
 from pandera.typing import DataFrame
 from functools import wraps
 from typing import Optional,Dict,Literal
+import matplotlib.pyplot as plt
 
 from .observables import AcousticDataFrame,GNSSDataFrame,PositionDataFrame,ShotDataFrame
 
@@ -144,25 +145,27 @@ class TBDArray:
         self.uri = uri
         if not uri.exists():
             tiledb.Array.create(str(uri),self.array_schema)
-    
-    def write_df(self,df:pd.DataFrame):
-        df = self.dataframe_schema.validate(df,lazy=True)
+
+    def write_df(self,df:pd.DataFrame,validate:bool=True):
+        if validate:
+            df = self.dataframe_schema.validate(df,lazy=True)
         tiledb.from_pandas(str(self.uri),df,mode='append')
 
-    def read_df(self,start:datetime,end:datetime=None,**kwargs)->pd.DataFrame:
+    def read_df(self,start:datetime,end:datetime=None,validate:bool=True,**kwargs)->pd.DataFrame:
 
         # TODO slice array by start and end and return the dataframe
         if end is None:
             end = start
         with tiledb.open(str(self.uri), mode="r") as array:
             try:
-                df = array.df[slice(np.datetime64(start), np.datetime64(end)), :]
+                df = array.df[slice(np.datetime64(start), np.datetime64(end))]
             except IndexError as e:
                 print(e)
                 return None
-        df = self.dataframe_schema.validate(df,lazy=True)
+        if validate:
+            df = self.dataframe_schema.validate(df,lazy=True)
         return df
-    
+
     def get_unique_dates(self,field:str)->np.ndarray:
         with tiledb.open(str(self.uri), mode="r") as array:
             values = array[:][field]
@@ -172,6 +175,28 @@ class TBDArray:
             except Exception as e:
                 print(e)
                 return None
+
+    def view(self, network: str = "", station: str = ""):
+        dates = self.get_unique_dates()
+        if dates.shape[0] == 0:
+            raise ValueError("No dates found in the array")
+        # Plot the values, with a marker seperating the dates
+        fig, ax = plt.subplots()
+        date_tick_map = {i: date for i, date in enumerate(dates)}
+
+        for i, date in enumerate(dates):
+            ax.axvline(x=i + 1, color="black", linestyle="-")
+
+        ax.xaxis.set_ticks(
+            [i + 1 for i in date_tick_map.keys()],
+            [str(date) for date in date_tick_map.values()],
+        )
+        ax.yaxis.set_ticks([])
+        ax.set_xlabel("Date")
+        ax.set_ylabel("Found Data")
+        fig.suptitle(f"Found {self.name} Dates For {network} {station}")
+        plt.show()
+
 
 class TDBAcousticArray(TBDArray):
     dataframe_schema = AcousticDataFrame
@@ -197,11 +222,13 @@ class TDBAcousticArray(TBDArray):
 class TDBGNSSArray(TBDArray):
     dataframe_schema = GNSSDataFrame
     array_schema = GNSSArraySchema
+    name = "GNSS Data"
     def __init__(self,uri:Path|str):
         super().__init__(uri)
 
     def get_unique_dates(self,field="time")->np.ndarray:
         return super().get_unique_dates(field)
+
 
 class TDBPositionArray(TBDArray):
     dataframe_schema = PositionDataFrame
@@ -214,9 +241,29 @@ class TDBPositionArray(TBDArray):
 class TDBShotDataArray(TBDArray):
     dataframe_schema = ShotDataFrame
     array_schema = ShotDataArraySchema
+    name = "Shot Data"
     def __init__(self,uri:Path|str):
         super().__init__(uri)
 
     def get_unique_dates(self,field="triggerTime")->np.ndarray:
         return super().get_unique_dates(field)
 
+    def read_df(self, start: datetime, end: datetime = None, **kwargs) -> pd.DataFrame:
+
+        # TODO slice array by start and end and return the dataframe
+        if end is None:
+            end = start + datetime.timedelta(days=1)
+        with tiledb.open(str(self.uri), mode="r") as array:
+            try:
+                df = array.df[slice(np.datetime64(start), np.datetime64(end)),:]
+            except IndexError as e:
+                print(e)
+                return None
+        # self.dataframe_schema.validate(df, lazy=True)
+        return df
+
+    def write_df(self, df: pd.DataFrame, validate: bool = True):
+        if validate:
+            df = self.dataframe_schema.validate(df, lazy=True)
+        df.triggerTime = df.triggerTime.astype("datetime64[ns]")
+        tiledb.from_pandas(str(self.uri), df, mode="append")

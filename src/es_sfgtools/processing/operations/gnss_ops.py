@@ -414,8 +414,9 @@ def rinex_to_kin(
         logger.error(f"RINEX file {source.local_path} not found")
         raise FileNotFoundError(f"RINEX file {source.local_path} not found")
 
-    #get_nav_file(rinex_path=source.local_path)
-    get_gnss_products(rinex_path=source.local_path,pride_dir=pridedir)
+    source = rinex_get_meta(source)
+    # get_nav_file(rinex_path=source.local_path)
+    # get_gnss_products(rinex_path=source.local_path,pride_dir=pridedir)
     if source.station is not None:
         site = source.station
     cmd = [
@@ -462,57 +463,62 @@ def rinex_to_kin(
         if "error" in line.lower():
             logger.error(line)
 
-    found_files = Path(pridedir).rglob(f"*{site.lower()}*")
+    
+    year, doy = (
+        source.timestamp_data_start.year,
+        source.timestamp_data_start.timetuple().tm_yday,
+    )
+    file_dir = Path(pridedir) / str(year) / str(doy)
+
+    kin_file_path = file_dir / f"kin_{str(year)}{str(doy)}_{site.lower()}"
+    res_file_path = file_dir / f"res_{str(year)}{str(doy)}_{site.lower()}"
     kin_file = None
     res_file = None
-    for found_file in found_files:
+   
+    if kin_file_path.exists():
+        kin_file_new = writedir / (kin_file_path.name + ".kin")
+        shutil.copy(src=kin_file_path,dst=kin_file_new)
+        kin_file = AssetEntry(
+            type=AssetType.KIN,
+            parent_id=source.id,
+            timestamp_data_start=source.timestamp_data_start,
+            timestamp_data_end=source.timestamp_data_end,
+            timestamp_created=datetime.now(),
+            local_path=kin_file_new,
+            network=source.network,
+            station=source.station,
+            survey=source.survey,
+        )
+        response = f"Converted RINEX file {source.local_path} to kin file {kin_file.local_path}"
+        logger.info(response)
+        if show_details:
+            print(response)
 
-        if "kin" in found_file.name:
-            kin_file = found_file
-            kin_file_new = writedir / (kin_file.name + ".kin")
-            shutil.move(src=kin_file,dst=kin_file_new)
-            kin_file = AssetEntry(
-                type=AssetType.KIN,
-                parent_id=source.id,
-                timestamp_data_start=source.timestamp_data_start,
-                timestamp_data_end=source.timestamp_data_end,
-                timestamp_created=datetime.now(),
-                local_path=kin_file_new,
-                network=source.network,
-                station=source.station,
-                survey=source.survey,
-            )
-            response = f"Converted RINEX file {source.local_path} to kin file {kin_file.local_path}"
-            logger.info(response)
-            if show_details:
-                print(response)
-
-        if "res" in found_file.name:
-            res_file = found_file
-            res_file_new = writedir / (res_file.name + ".res")
-            shutil.move(src=res_file,dst=res_file_new)
-            res_file = AssetEntry(
-                type=AssetType.KINRESIDUALS,
-                parent_id=source.id,
-                timestamp_data_start=source.timestamp_data_start,
-                timestamp_data_end=source.timestamp_data_end,
-                timestamp_created=datetime.now(),
-                local_path=res_file_new,
-                network=source.network,
-                station=source.station,
-                survey=source.survey,
-            )
-            response = f"Found PRIDE res file {res_file.local_path}"
-            logger.info(response)
-            if show_details:
-                print(response)
+    if res_file_path.exists():
+        res_file_new = writedir / (res_file_path.name + ".res")
+        shutil.move(src=res_file_path,dst=res_file_new)
+        res_file = AssetEntry(
+            type=AssetType.KINRESIDUALS,
+            parent_id=source.id,
+            timestamp_data_start=source.timestamp_data_start,
+            timestamp_data_end=source.timestamp_data_end,
+            timestamp_created=datetime.now(),
+            local_path=res_file_new,
+            network=source.network,
+            station=source.station,
+            survey=source.survey,
+        )
+        response = f"Found PRIDE res file {res_file.local_path}"
+        logger.info(response)
+        if show_details:
+            print(response)
 
     if not kin_file:
         response = f"No kin file generated from RINEX {source.local_path}"
         logger.error(response)
         warn(response)
         return None,None
-    
+
     return kin_file,res_file
 
 

@@ -7,10 +7,12 @@ import pandas as pd
 from typing import List
 from pathlib import Path
 import multiprocessing
+import datetime
 
 from es_sfgtools.processing.pipeline.catalog import Catalog
 from es_sfgtools.processing.assets.file_schemas import AssetEntry,AssetType
 from es_sfgtools.processing.operations import sv2_ops, sv3_ops, gnss_ops, site_ops
+from es_sfgtools.processing.operations.pride_utils import get_nav_file,get_gnss_products
 from es_sfgtools.processing.assets.tiledb_temp import (
     TDBAcousticArray,
     TDBGNSSArray,
@@ -110,6 +112,11 @@ class SV3Pipeline:
         logger.info(response)
         if show_details:
             print(response)
+        
+        for rinex_entry in tqdm(rinex_entries,total=len(rinex_entries),desc="Getting nav/obs files for Processing Rinex Files"):
+            get_nav_file(rinex_path=rinex_entry.local_path, override=override)
+            get_gnss_products(rinex_path=rinex_entry.local_path, pride_dir=pride_dir, override=override)
+
 
         process_rinex_partial = partial(
             gnss_ops.rinex_to_kin,
@@ -123,9 +130,9 @@ class SV3Pipeline:
         uploadCount = 0
         with multiprocessing.Pool() as pool:
             results = pool.imap(process_rinex_partial, rinex_entries)
-            for kinfile, resfile in tqdm(
+            for idx,(kinfile, resfile) in enumerate(tqdm(
                 results, total=len(rinex_entries), desc="Processing Rinex Files"
-            ):
+            )):
                 if kinfile is not None:
                     count += 1
                     if self.catalog.add_entry(kinfile):
@@ -136,6 +143,8 @@ class SV3Pipeline:
                         if self.catalog.add_entry(resfile):
                             uploadCount += 1
                         resfile_entries.append(resfile)
+                    rinex_entries[idx].is_processed = True
+                    self.catalog.add_or_update(rinex_entries[idx])
                     # if (
                     #     gnss_df := gnss_ops.kin_to_gnssdf(kinfile)
                     # ) is not None:
@@ -185,7 +194,7 @@ class SV3Pipeline:
 
         count = 0
         uploadCount = 0
-        for kin_entry in kin_entries:
+        for kin_entry in tqdm(kin_entries, total=len(kin_entries), desc="Processing Kin Files"):
             gnss_df = gnss_ops.kin_to_gnssdf(kin_entry)
             if gnss_df is not None:
                 count += 1
@@ -269,6 +278,7 @@ class SV3Pipeline:
             "parent_ids": merge_signature,
         }
         if not self.catalog.is_merge_complete(**merge_job) or override:
+            dates.append(dates[-1]+datetime.timedelta(days=1))
             merge_shotdata_gnss(
                 shotdata=shotdatasource, gnss=gnssdatasource, dates=dates, plot=plot
             )

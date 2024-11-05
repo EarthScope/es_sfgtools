@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import List,Callable,Union,Generator,Tuple,LiteralString,Optional,Dict
+from typing import List,Callable,Union,Generator,Tuple,LiteralString,Optional,Dict,Literal
 import pandas as pd
 import datetime
 import logging
@@ -439,19 +439,27 @@ class DataHandler:
                 print(response)
             return None
 
- 
+    def view_data(self,array:Literal['shotdata','gnss','acoustic','position']='shotdata'):
+        assert array in ['shotdata','gnss','acoustic','position'], f"Array must be one of ['shotdata','gnss','acoustic','position']"
+        match array:
+            case 'shotdata':
+                self.shotdata_tdb.view(network=self.network,station=self.station)
+            case 'gnss':
+                self.gnss_tdb.view(network=self.network,station=self.station)
+
 
 
     @check_network_station_survey
     def pipeline_sv3(self,override:bool=False,show_details:bool=False,plot:bool=False):
         pipeline = SV3Pipeline(catalog=self.catalog)
-        pipeline.process_novatel(
-            network=self.network,
-            station=self.station,
-            survey=self.survey,
-            writedir=self.inter_dir,
-            override=override,
-            show_details=show_details)
+        # pipeline.process_novatel(
+        #     network=self.network,
+        #     station=self.station,
+        #     survey=self.survey,
+        #     writedir=self.inter_dir,
+        #     override=override,
+        #     show_details=show_details)
+        
         # pipeline.process_rinex(
         #     network=self.network,
         #     station=self.station,
@@ -462,23 +470,25 @@ class DataHandler:
         #     show_details=show_details,
         # )
 
-        pipeline.process_dfop00(
-            network=self.network,
-            station=self.station,
-            survey=self.survey,
-            shotdatadest=self.shotdata_tdb,
-        )
-        # pipeline.process_kin(
+        # pipeline.process_dfop00(
         #     network=self.network,
         #     station=self.station,
         #     survey=self.survey,
-        #     gnss_tdb=self.gnss_tdb,
         #     override=override,
-        #     show_details=show_details,
+        #     shotdatadest=self.shotdata_tdb,
         # )
-        pipeline.update_shotdata(
-            shotdatasource=self.shotdata_tdb,
-            gnssdatasource=self.gnss_tdb,
-            plot=plot
+        pipeline.process_kin(
+            network=self.network,
+            station=self.station,
+            survey=self.survey,
+            gnss_tdb=self.gnss_tdb,
+            override=override,
+            show_details=show_details,
         )
+        # pipeline.update_shotdata(
+        #     shotdatasource=self.shotdata_tdb,
+        #     gnssdatasource=self.gnss_tdb,
+        #     override=override,
+        #     plot=plot
+        # )
 

@@ -91,7 +91,7 @@ def merge_shotdata_gnss(shotdata: TDBShotDataArray, gnss: TDBGNSSArray,dates:Lis
         logger.info(response)
         shotdata_df = shotdata.read_df(start=start,end=end)
         gnss_df = gnss.read_df(start=start, end=end)
-        if shotdata_df is None or gnss_df is None:
+        if shotdata_df.empty or gnss_df.empty:
             continue
         shotdata_df_distilled = shotdata_df.drop_duplicates("triggerTime")
         delta_tenur = shotdata_df_distilled[['east1','north1','up1']].to_numpy() - shotdata_df_distilled[['east0','north0','up0']].to_numpy()
@@ -107,7 +107,7 @@ def merge_shotdata_gnss(shotdata: TDBShotDataArray, gnss: TDBGNSSArray,dates:Lis
         # create filter that matches the undistiled triggerTime with the first column of pred_mu
         triggerTimePred = pred_mu[:,0]
         triggerTimeDF = shotdata_df["triggerTime"].apply(lambda x: x.timestamp()).to_numpy()
-        shot_df_inds = np.searchsorted(triggerTimePred,triggerTimeDF,side="left")
+        shot_df_inds = np.searchsorted(triggerTimePred,triggerTimeDF,side="right") - 1
         for i,key in enumerate(["east0","north0","up0"]):
             shotdata_df.iloc[shot_df_inds][key] = pred_mu[shot_df_inds,i+1]
             shotdata_df.iloc[shot_df_inds][f"{key}_std"] = pred_std[shot_df_inds,i]
@@ -129,4 +129,4 @@ def merge_shotdata_gnss(shotdata: TDBShotDataArray, gnss: TDBGNSSArray,dates:Lis
 
         shotdata_df.iloc[shot_df_inds][['east1','north1','up1']] = shotdata_df.iloc[shot_df_inds][['east0','north0','up0']].to_numpy() - delta_tenur[shot_df_inds]
 
-        shotdata.write_df(shotdata_df)
+        shotdata.write_df(shotdata_df,validate=False)

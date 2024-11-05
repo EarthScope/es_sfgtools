@@ -91,7 +91,7 @@ class AcousticDataFrame(pa.DataFrameModel):
     class Config:
         coerce = True
         add_missing_columns = True
-        drop_invalid_rows = True
+        #drop_invalid_rows = True
         # check_travel_time = {
         #     "TT": "tt",
         #     "ST": "pingTime",
@@ -289,8 +289,9 @@ class ShotDataFrame(AcousticDataFrame):
 
     class Config:
         add_missing_columns = True
-        coerce = True
         drop_invalid_rows = True
+        coerce = True
+        
 
 class SoundVelocityDataFrame(pa.DataFrameModel):
 
