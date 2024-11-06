@@ -37,7 +37,19 @@ button_descriptions = {
     "existing_antenna": "Update existing GNSS Antenna",
     "existing_transducer": "Update existing acoustic transducer",
     "existing_transceiver": "Update existing acoustic transceiver",
-    "existing_atd": "Update existing acoustic to transducer offsets"
+    "existing_atd": "Update existing acoustic to transducer offsets",
+    "delete_ref": "Delete reference frame",
+    "delete_campaign": "Delete campaign",
+    "delete_benchmark": "Delete benchmark",
+    "delete_transponder": "Delete transponder",
+    "delete_survey": "Delete survey",
+    "delete_survey_vessel": "Delete survey vessel",
+    "delete_imu_sensor": "Delete imu sensor",
+    "delete_receiver": "Delete GNSS Receiver",
+    "delete_antenna": "Delete GNSS Antenna",
+    "delete_transducer": "Delete acoustic transducer",
+    "delete_transceiver": "Delete acoustic transceiver",
+    "delete_atd": "Delete acoustic to transducer offsets",
 }
 
 buttons = {key: widgets.Button(description=value, button_style='danger', layout=layout) for key, value in button_descriptions.items()}
