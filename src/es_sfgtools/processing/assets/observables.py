@@ -91,7 +91,7 @@ class AcousticDataFrame(pa.DataFrameModel):
     class Config:
         coerce = True
         add_missing_columns = True
-        drop_invalid_rows = True
+        #drop_invalid_rows = True
         # check_travel_time = {
         #     "TT": "tt",
         #     "ST": "pingTime",
@@ -167,6 +167,11 @@ class GNSSDataFrame(pa.DataFrameModel):
     @pa.parser("time")
     def parse_time(cls, series: pd.Series) -> pd.Series:
         return pd.to_datetime(series, unit="ms")
+    
+    class Config:
+        coerce = True
+        add_missing_columns = True
+
 
 class PositionDataFrame(pa.DataFrameModel):
     time: Series[pd.Timestamp] = pa.Field(
@@ -284,8 +289,9 @@ class ShotDataFrame(AcousticDataFrame):
 
     class Config:
         add_missing_columns = True
-        coerce = True
         drop_invalid_rows = True
+        coerce = True
+        
 
 class SoundVelocityDataFrame(pa.DataFrameModel):
 

@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field, model_validator, ValidationError
 import pandera as pa
 from pandera.typing import DataFrame
 from datetime import datetime
-from typing import List, Optional, Union,Annotated,Literal,overload
+from typing import List, Optional, Union,Literal,Tuple
 import logging
 import julian
 import os
@@ -12,19 +12,18 @@ import tempfile
 import subprocess
 from concurrent.futures import ProcessPoolExecutor as Pool
 from functools import partial
-import sys
 import shutil
 import json
 import platform
 from pathlib import Path
+import re
 import numpy as np
 import uuid
 from warnings import warn
-from multipledispatch import dispatch
-import multiprocessing_logging
+import matplotlib.pyplot as plt
 from ..assets.file_schemas import AssetEntry,AssetType,MultiAssetEntry,MultiAssetPre
 from ..assets.observables import GNSSDataFrame
-
+from .pride_utils import get_nav_file,get_gnss_products
 logger = logging.getLogger(__name__)
 
 RINEX_BINARIES = Path(__file__).resolve().parent / "binaries/"
@@ -499,9 +498,9 @@ def rinex_to_kin(
     writedir: Path,
     pridedir: Path,
     site="SIT1",
-    show_details: bool = True,
-    PridePdpConfig: PridePdpConfig = None,
-) -> AssetEntry:
+    show_details: bool = True
+) -> Tuple[AssetEntry]:
+
 
     """
     Converts a RINEX file to a kin file.
@@ -512,7 +511,7 @@ def rinex_to_kin(
         site (str, optional): The site name. Defaults to "SITE1".
         show_details (bool, optional): Whether to show conversion details. Defaults to True.
     Returns:
-        AssetEntry: The converted kin file as an AssetEntry object.
+        Tuple[AssetEntry]: The generated kin and result files as AssetEntry objects.
     Raises:
         FileNotFoundError: If the PRIDE-PPP binary is not found.
         FileNotFoundError: If the source RINEX file is not found.
@@ -522,15 +521,19 @@ def rinex_to_kin(
         >>> source = AssetEntry(local_path="/path/to/NCB12450.24o", type=AssetType.RINEX, network="NCB", station="NCB1", survey="JULY2024")
         >>> writedir = Path("/writedir")
         >>> pridedir = Path("/pridedir")
-        >>> kin_asset: AssetEntry = rinex_to_kin(source, writedir, pridedir, site="NCB1", show_details=True)
+        >>> pride_ouput: List[AssetEntry] = rinex_to_kin(source, writedir, pridedir, site="NCB1", show_details=True)
+        >>> kin_asset = pride_ouput[0]
         >>> kin_asset.model_dump()
         {'local_path': '/writedir/NCB12450.24o.kin', 'type': 'kin', 'network': 'NCB', 'station': 'NCB1', 'survey': 'JULY2024', 'timestamp_created': datetime.datetime(2024, 7, 9, 12, 0, 0, 0)}
+        >>> res_asset = pride_ouput[1]
+        >>> res_asset.model_dump()
+        {'local_path': '/writedir/NCB12450.24o.res', 'type': 'kinresiduals', 'network': 'NCB', 'station': 'NCB1', 'survey': 'JULY2024', 'timestamp_created': datetime.datetime(2024, 7, 9, 12, 0, 0, 0)}
     """
 
     # Check if the pride binary is in the path
     if not shutil.which("pdp3"):
         raise FileNotFoundError("PRIDE-PPP binary 'pdp3' not found in path")
-    
+
     if isinstance(source,str) or isinstance(source,Path):
         source = AssetEntry(local_path=source,type=AssetType.RINEX)
     assert source.type == AssetType.RINEX, "Invalid source file type"
@@ -540,8 +543,10 @@ def rinex_to_kin(
     if not source.local_path.exists():
         logger.error(f"RINEX file {source.local_path} not found")
         raise FileNotFoundError(f"RINEX file {source.local_path} not found")
-    # tag = uuid.uuid4().hex[:4]
-    # FROM JOHN "pdp3 -m K -i 1 -l -c15 rinex"
+
+    source = rinex_get_meta(source)
+    # get_nav_file(rinex_path=source.local_path)
+    # get_gnss_products(rinex_path=source.local_path,pride_dir=pridedir)
     if source.station is not None:
         site = source.station
     
@@ -558,7 +563,8 @@ def rinex_to_kin(
         capture_output=True,
         cwd=str(pridedir),
     )
-
+    pattern_error = r":\d+,\d+, merror:0m"
+    pattern_warning = r":\d+,\d+, mwarning:0m"
     if result.stderr:
         stderr = result.stderr.decode("utf-8").split("\n")
         for line in stderr:
@@ -567,52 +573,77 @@ def rinex_to_kin(
             if "error" in line.lower():
                 logger.error(line)
     stdout = result.stdout.decode("utf-8")
-    stdout = stdout.replace("\x1b[", "").split("\n")
+    stdout = re.sub(pattern_error, "ERROR ", stdout)
+    stdout = re.sub(pattern_warning, "WARNING ", stdout)
+    stdout = stdout.replace("\x1b[", "")
+    stdout = stdout.split("\n")
     for line in stdout:
+        if "failed" in line.lower():
+            logger.error(line)
+        if "please" in line.lower():
+            logger.error(line)
         if "warning" in line.lower():
             logger.warning(line)
         if "error" in line.lower():
             logger.error(line)
+
     
-        
+    year, doy = (
+        source.timestamp_data_start.year,
+        source.timestamp_data_start.timetuple().tm_yday,
+    )
+    file_dir = Path(pridedir) / str(year) / str(doy)
 
+    kin_file_path = file_dir / f"kin_{str(year)}{str(doy)}_{site.lower()}"
+    res_file_path = file_dir / f"res_{str(year)}{str(doy)}_{site.lower()}"
+    kin_file = None
+    res_file = None
+   
+    if kin_file_path.exists():
+        kin_file_new = writedir / (kin_file_path.name + ".kin")
+        shutil.copy(src=kin_file_path,dst=kin_file_new)
+        kin_file = AssetEntry(
+            type=AssetType.KIN,
+            parent_id=source.id,
+            timestamp_data_start=source.timestamp_data_start,
+            timestamp_data_end=source.timestamp_data_end,
+            timestamp_created=datetime.now(),
+            local_path=kin_file_new,
+            network=source.network,
+            station=source.station,
+            survey=source.survey,
+        )
+        response = f"Converted RINEX file {source.local_path} to kin file {kin_file.local_path}"
+        logger.info(response)
+        if show_details:
+            print(response)
 
-    found_files = Path(pridedir).rglob(f"*{site.lower()}*")
-    if isinstance(source,AssetEntry):
-        schema = AssetEntry
-        if source.id is not None: tag = str(source.id)
-        else : tag = site
-    else:
-        schema = MultiAssetEntry
-        if source.parent_id is not None: tag = "-".join([str(x) for x in source.parent_id])
-        else: tag = site
+    if res_file_path.exists():
+        res_file_new = writedir / (res_file_path.name + ".res")
+        shutil.move(src=res_file_path,dst=res_file_new)
+        res_file = AssetEntry(
+            type=AssetType.KINRESIDUALS,
+            parent_id=source.id,
+            timestamp_data_start=source.timestamp_data_start,
+            timestamp_data_end=source.timestamp_data_end,
+            timestamp_created=datetime.now(),
+            local_path=res_file_new,
+            network=source.network,
+            station=source.station,
+            survey=source.survey,
+        )
+        response = f"Found PRIDE res file {res_file.local_path}"
+        logger.info(response)
+        if show_details:
+            print(response)
 
-    for found_file in found_files:
-     
-        if "kin" in found_file.name:
-            kin_file = found_file
-            kin_file_new = writedir / (kin_file.name + ".kin")
-            shutil.move(src=kin_file,dst=kin_file_new)
-            kin_file = schema(
-                type=AssetType.KIN,
-                parent_id=source.id,
-                timestamp_data_start=source.timestamp_data_start,
-                timestamp_data_end=source.timestamp_data_end,
-                timestamp_created=datetime.now(),
-                local_path=kin_file_new,
-                network=source.network,
-                station=source.station,
-                survey=source.survey,
-            )
-            response = f"Converted RINEX file {source.local_path} to kin file {kin_file.local_path}"
-            logger.info(response)
-            if show_details:
-                print(response)
-            return kin_file
-    
-    response = f"No kin file generated from RINEX {source.local_path}"
-    logger.error(response)
-    warn(response)
+    if not kin_file:
+        response = f"No kin file generated from RINEX {source.local_path}"
+        logger.error(response)
+        warn(response)
+        return None,None
+
+    return kin_file,res_file
 
 
 @pa.check_types(lazy=True)
@@ -669,7 +700,7 @@ def kin_to_gnssdf(source:AssetEntry) -> Union[DataFrame[GNSSDataFrame], None]:
     )
     logger.info(log_response)
     dataframe["time"] = dataframe["time"].dt.tz_localize("UTC")
-    return dataframe
+    return dataframe.drop(columns=["modified_julian_date", "second_of_day"])
 
 
 def qcpin_to_novatelpin(source: AssetEntry, writedir: Path) -> AssetEntry:
@@ -834,3 +865,144 @@ def dev_merge_rinex_multiasset(source:MultiAssetPre,working_dir:Path) -> MultiAs
         timestamp_created=datetime.now(),
     )
     return rinex_get_meta(merged_asset)
+
+
+def read_kin_data(kin_path):
+    with open(kin_path, "r") as kin_file:
+        for i, line in enumerate(kin_file):
+            if "END OF HEADER" in line:
+                end_of_header = i + 1
+                break
+    cols = [
+        "Mjd",
+        "Sod",
+        "*",
+        "X",
+        "Y",
+        "Z",
+        "Latitude",
+        "Longitude",
+        "Height",
+        "Nsat",
+        "G",
+        "R",
+        "E",
+        "C2",
+        "C3",
+        "J",
+        "PDOP",
+    ]
+    colspecs = [
+        (0, 6),
+        (6, 16),
+        (16, 18),
+        (18, 32),
+        (32, 46),
+        (46, 60),
+        (60, 77),
+        (77, 94),
+        (94, 108),
+        (108, 114),
+        (114, 117),
+        (117, 120),
+        (120, 123),
+        (123, 126),
+        (126, 129),
+        (129, 132),
+        (132, 140),
+    ]
+    kin_df = pd.read_fwf(
+        kin_path,
+        header=end_of_header,
+        colspecs=colspecs,
+        names=cols,
+        on_bad_lines="skip",
+    )
+    # kin_df = pd.read_csv(kin_path, sep="\s+", names=cols, header=end_of_header, on_bad_lines='skip')
+    kin_df.set_index(
+        pd.to_datetime(kin_df["Mjd"] + 2400000.5, unit="D", origin="julian")
+        + pd.to_timedelta(kin_df["Sod"], unit="sec"),
+        inplace=True,
+    )
+    return kin_df
+
+
+# read res and caculate wrms
+def get_wrms_from_res(res_path):
+    with open(res_path, "r") as res_file:
+        timestamps = []
+        data = []
+        wrms = 0
+        sumOfSquares = 0
+        sumOfWeights = 0
+        line = res_file.readline()  # first line is header and we can throw away
+        while True:
+            if line == "":  # break at EOF
+                break
+            line_data = line.split()
+            if line_data[0] == "TIM":  # for a given epoch
+                sumOfSquares = 0
+                sumOfWeights = 0
+                # parse date fields and make a timestamp
+                seconds = float(line_data[6])
+                SS = int(seconds)
+                f = str(seconds - SS).split(".")[-1]
+                isodate = f"{line_data[1]}-{line_data[2].zfill(2)}-{line_data[3].zfill(2)}T{line_data[4].zfill(2)}:{line_data[5].zfill(2)}:{str(SS).zfill(2)}.{str(f).zfill(6)}"
+                timestamp = datetime.fromisoformat(isodate)
+                timestamps.append(timestamp)
+                # loop through SV data for that epoch, stop at next timestamp
+                line = res_file.readline()
+                line_data = line.split()
+                while not line.startswith("TIM"):
+                    phase_residual = float(line_data[1])
+                    phase_weight = float(line_data[3].replace("D", "E"))
+                    sumOfSquares += phase_residual**2 * phase_weight
+                    sumOfWeights += phase_weight
+                    line = res_file.readline()
+                    if line == "":
+                        break
+                    line_data = line.split()
+                wrms = (sumOfSquares / sumOfWeights) ** 0.5 * 1000  # in mm
+                data.append(wrms)
+            else:
+                line = res_file.readline()
+    wrms_df = pd.DataFrame({"date": timestamps, "wrms": data}).set_index("date")
+    return wrms_df
+
+
+def plot_kin_results_wrms(kin_df, title=None, save_as=None):
+    size = 3
+    bad_nsat = kin_df[kin_df["Nsat"] <= 4]
+    bad_pdop = kin_df[kin_df["PDOP"] >= 5]
+    fig, axs = plt.subplots(
+        6,
+        1,
+        figsize=(10, 10),
+        sharex=True,
+    )
+    axs[0].scatter(kin_df.index, kin_df["Latitude"], s=size)
+    axs[0].set_ylabel("Latitude")
+    axs[1].scatter(kin_df.index, kin_df["Longitude"], s=size)
+    axs[1].set_ylabel("Longitude")
+    axs[2].scatter(kin_df.index, kin_df["Height"], s=size)
+    axs[2].set_ylabel("Height")
+    axs[3].scatter(kin_df.index, kin_df["Nsat"], s=size)
+    axs[3].scatter(bad_nsat.index, bad_nsat["Nsat"], s=size * 2, color="red")
+    axs[3].set_ylabel("Nsat")
+    axs[4].scatter(kin_df.index, kin_df["PDOP"], s=size)
+    axs[4].scatter(bad_pdop.index, bad_pdop["PDOP"], s=size * 2, color="red")
+    axs[4].set_ylabel("log PDOP")
+    axs[4].set_yscale("log")
+    axs[4].set_ylim(1, 100)
+    axs[5].scatter(kin_df.index, kin_df["wrms"], s=size)
+    axs[5].set_ylabel("wrms mm")
+    axs[0].ticklabel_format(axis="y", useOffset=False, style="plain")
+    axs[1].ticklabel_format(axis="y", useOffset=False, style="plain")
+    for ax in axs:
+        ax.grid(True, c="lightgrey", zorder=0, lw=1, ls=":")
+    plt.xticks(rotation=70)
+    fig.suptitle(f"PRIDE-PPPAR results for {os.path.basename(title)}")
+    fig.tight_layout()
+    if save_as is not None:
+        plt.savefig(save_as)
+    plt.close()

@@ -19,6 +19,7 @@ import logging
 import json
 import pymap3d as pm
 import numpy as np
+import warnings
 
 from .constants import GNSS_START_TIME,TRIGGER_DELAY_SV2,TRIGGER_DELAY_SV3,ADJ_LEAP,STATION_OFFSETS,MASTER_STATION_ID
 
@@ -231,7 +232,6 @@ class PositionData(BaseModel):
 
     @classmethod
     def from_sv3_novins_gnss(cls, novins: dict, gnss: dict) -> "PositionData":
-        
         positiondata = PositionData.from_sv3_novins(novins)
         positiondata.update(gnss)
         return positiondata
@@ -267,10 +267,15 @@ class SV3InterrogationData(BaseModel):
 
     @classmethod
     def from_DFOP00_line(cls, line) -> "SV3InterrogationData":
-        position_data = PositionData.from_sv3_novins_gnss(
-            novins=line.get("observations").get("NOV_INS"),
-            gnss=line.get("observations").get("GNSS"),
-        )
+        nov_ins = line.get("observations").get("NOV_INS")
+        gnss = line.get("observations").get("GNSS")
+        if nov_ins is None:
+            position_data = PositionData.from_sv3_novins(gnss)
+        else:
+            position_data = PositionData.from_sv3_novins_gnss(
+                novins=nov_ins,
+                gnss=gnss,
+            )
         pingTime_dt = datetime.fromtimestamp(line.get("time").get("common"))
         triggerTime_dt = get_triggertime(pingTime_dt)
         return cls.from_schemas(position_data, triggerTime_dt)
