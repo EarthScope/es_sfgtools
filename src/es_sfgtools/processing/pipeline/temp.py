@@ -439,44 +439,63 @@ class DataHandler:
                 print(response)
             return None
 
-    def view_data(self,array:Literal['shotdata','gnss','acoustic','position']='shotdata'):
-        assert array in ['shotdata','gnss','acoustic','position'], f"Array must be one of ['shotdata','gnss','acoustic','position']"
-        match array:
-            case 'shotdata':
-                self.shotdata_tdb.view(network=self.network,station=self.station)
-            case 'gnss':
-                self.gnss_tdb.view(network=self.network,station=self.station)
+    def view_data(self):
 
-
+        shotdata_dates = self.shotdata_tdb.get_unique_dates().tolist()
+        gnss_dates = self.gnss_tdb.get_unique_dates().tolist()
+        date_set = shotdata_dates + gnss_dates
+        date_set = sorted(list(set(date_set)))
+       
+        date_tick_map = {date:i for i, date in enumerate(date_set)}
+        fig, ax = plt.subplots()
+        # plot the gnss dates with red vertical line
+        gnss_x = [date_tick_map[date] for date in gnss_dates]
+        gnss_y = [1 for _ in gnss_dates]
+   
+        ax.scatter(x=gnss_x,y=gnss_y,c='r', marker='o',label='Pride GNSS Positions')
+        # plot the shotdata dates with blue vertical line
+        shotdata_x = [date_tick_map[date] for date in shotdata_dates]
+        shotdata_y = [2 for _ in shotdata_dates]
+        ax.scatter(x=shotdata_x,y=shotdata_y,c='b', marker='o',label='ShotData')
+        ax.xaxis.set_ticks(
+            [i for i in date_tick_map.values()],
+            [str(date) for date in date_tick_map.keys()],
+        )
+        ax.yaxis.set_ticks([])
+        ax.set_xlabel("Date")
+        fig.legend()
+        fig.suptitle(f"Found Dates For {self.network} {self.station}")
+        plt.show()
+  
 
     @check_network_station_survey
     def pipeline_sv3(self,override:bool=False,show_details:bool=False,plot:bool=False):
         pipeline = SV3Pipeline(catalog=self.catalog)
-        # pipeline.process_novatel(
-        #     network=self.network,
-        #     station=self.station,
-        #     survey=self.survey,
-        #     writedir=self.inter_dir,
-        #     override=override,
-        #     show_details=show_details)
+        pipeline.process_novatel(
+            network=self.network,
+            station=self.station,
+            survey=self.survey,
+            writedir=self.inter_dir,
+            override=False,
+            show_details=show_details)
         
-        # pipeline.process_rinex(
-        #     network=self.network,
-        #     station=self.station,
-        #     survey=self.survey,
-        #     inter_dir=self.inter_dir,
-        #     pride_dir=self.pride_dir,
-        #     override=override,
-        #     show_details=show_details,
-        # )
+        pipeline.process_rinex(
+            network=self.network,
+            station=self.station,
+            survey=self.survey,
+            inter_dir=self.inter_dir,
+            pride_dir=self.pride_dir,
+            override=override,
+            show_details=show_details,
+        )
 
-        # pipeline.process_dfop00(
-        #     network=self.network,
-        #     station=self.station,
-        #     survey=self.survey,
-        #     override=override,
-        #     shotdatadest=self.shotdata_tdb,
-        # )
+        pipeline.process_dfop00(
+            network=self.network,
+            station=self.station,
+            survey=self.survey,
+            override=override,
+            shotdatadest=self.shotdata_tdb,
+        )
         pipeline.process_kin(
             network=self.network,
             station=self.station,
@@ -485,10 +504,10 @@ class DataHandler:
             override=override,
             show_details=show_details,
         )
-        # pipeline.update_shotdata(
-        #     shotdatasource=self.shotdata_tdb,
-        #     gnssdatasource=self.gnss_tdb,
-        #     override=override,
-        #     plot=plot
-        # )
+        pipeline.update_shotdata(
+            shotdatasource=self.shotdata_tdb,
+            gnssdatasource=self.gnss_tdb,
+            override=override,
+            plot=plot
+        )
 

@@ -31,12 +31,14 @@ if __name__ == "__main__":
     #     survey="2023",
     #     dir_path=NCL1,
     # )
+    
     dh.change_working_station(network=network,station="NCL1")
     dh.change_working_survey("2023")
-    # dh.view_data('shotdata')
-    # dh.view_data('gnss')
-    dh.pipeline_sv3()
-    dh.view_data('gnss')
+    #dh.pipeline_sv3(override=True)
+    dh.view_data()
+  
+    # dh.pipeline_sv3()
+
     # dh.discover_data_directory(
     #     network=network,
     #     station="NDP1",
@@ -45,7 +47,9 @@ if __name__ == "__main__":
     # )
     # dh.change_working_station(network=network,station="NDP1")
     # dh.change_working_survey("2023")
-    # dh.pipeline_sv3()
+    # dh.view_data()
+ 
+    #dh.pipeline_sv3()
 
     # dh.discover_data_directory(
     #     network=network,
@@ -55,4 +59,6 @@ if __name__ == "__main__":
     # )
     # dh.change_working_station(network=network,station="NFL1")
     # dh.change_working_survey("2023")
-    # dh.pipeline_sv3()
+    # dh.view_data()
+
+    #dh.pipeline_sv3()

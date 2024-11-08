@@ -390,46 +390,46 @@ def get_nav_file(rinex_path:Path,override:bool=False,mode:Literal['process','tes
     with tempfile.TemporaryDirectory() as tempdir:
         # If rinex 3 nav file pathway is not found, try rinex 2
         for source,constellations in remote_resource_dict["rinex_2"].items():
-            for gps_url,glonass_url in zip(constellations["gps"],constellations["glonass"]):
-               
-                gps_local_name = gps_url.file_name
-                glonass_local_name = glonass_url.file_name
+            gps_url = constellations["gps"]
+            glonass_url = constellations["glonass"]
+            gps_local_name = gps_url.file_name
+            glonass_local_name = glonass_url.file_name
 
-                gps_dl_path = Path(tempdir)/gps_local_name
-                glonass_dl_path = Path(tempdir)/glonass_local_name
+            gps_dl_path = Path(tempdir)/gps_local_name
+            glonass_dl_path = Path(tempdir)/glonass_local_name
 
-                logger.info(f"Attemping to download {source} From {str(gps_url)}")
+            logger.info(f"Attemping to download {source} From {str(gps_url)}")
 
-                try:
-                    if not gps_dl_path.exists() or override:
-                        download(gps_url,gps_dl_path)
-        
-                    if not glonass_dl_path.exists() or override:
-                        download(glonass_url,glonass_dl_path)
+            try:
+                if not gps_dl_path.exists() or override:
+                    download(gps_url,gps_dl_path)
+    
+                if not glonass_dl_path.exists() or override:
+                    download(glonass_url,glonass_dl_path)
 
-                except Exception as e:
+            except Exception as e:
 
-                    logger.error(
-                        f"Failed to download {str(gps_url)} To {str(gps_dl_path.name)} or {str(glonass_url)} To {str(glonass_dl_path.name)} | {e}"
-                    )
+                logger.error(
+                    f"Failed to download {str(gps_url)} To {str(gps_dl_path.name)} or {str(glonass_url)} To {str(glonass_dl_path.name)} | {e}"
+                )
 
-                    continue
-                if gps_dl_path.exists() and glonass_dl_path.exists():
-                    gps_dl_path = uncompressed_file(gps_dl_path)
-                    glonass_dl_path = uncompressed_file(glonass_dl_path)
-                    if merge_broadcast_files(gps_dl_path,glonass_dl_path,rinex_path.parent):
+                continue
+            if gps_dl_path.exists() and glonass_dl_path.exists():
+                gps_dl_path = uncompressed_file(gps_dl_path)
+                glonass_dl_path = uncompressed_file(glonass_dl_path)
+                if merge_broadcast_files(gps_dl_path,glonass_dl_path,rinex_path.parent):
 
-                        logger.info(f"Successfully built {brdm_path}")
+                    logger.info(f"Successfully built {brdm_path}")
 
-                        match mode:
-                            case 'process':
-                                return brdm_path
-                            case 'test':
-                                brdm_path.unlink()
-                else:
-                    response = f"Failed to download {str(gps_url)} or {str(glonass_url)}"
-                    logger.error(response)
-                    print(response)
+                    match mode:
+                        case 'process':
+                            return brdm_path
+                        case 'test':
+                            brdm_path.unlink()
+            else:
+                response = f"Failed to download {str(gps_url)} or {str(glonass_url)}"
+                logger.error(response)
+                print(response)
     response = f"Failed to build or locate {brdm_path}"
     logger.error(response)
     warnings.warn(response)

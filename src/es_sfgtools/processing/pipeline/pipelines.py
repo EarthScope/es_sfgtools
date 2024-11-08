@@ -114,7 +114,7 @@ class SV3Pipeline:
             print(response)
         
         for rinex_entry in tqdm(rinex_entries,total=len(rinex_entries),desc="Getting nav/obs files for Processing Rinex Files"):
-            get_nav_file(rinex_path=rinex_entry.local_path, override=override)
+            #get_nav_file(rinex_path=rinex_entry.local_path, override=override)
             get_gnss_products(rinex_path=rinex_entry.local_path, pride_dir=pride_dir, override=override)
 
 
