@@ -59,10 +59,12 @@ for i,ym in enumerate(unique_months):
     date_max = df_dates.max()
 
     current = date_min.copy()
-    markers = [current.astype('datetime64[h]')]
+    markers_hourly = [current.astype('datetime64[h]')]
     while current < date_max:
         current += np.timedelta64(6, "h")
-        markers.append(current.astype('datetime64[h]'))
+        markers_hourly.append(current.astype('datetime64[h]'))
+
+    markers_daily = sorted(set([x.astype('datetime64[D]') for x in markers_hourly]))
 
     df_timestamps = []
     timestamp_ticks = []
@@ -85,11 +87,15 @@ for i,ym in enumerate(unique_months):
     # hour_tick_dates = list(hour_tick_map.keys())
     # hour_tick_indices = list(hour_tick_map.values())
     # hour_tick_points = [to_timestamp(x) - ref for x in hour_tick_indices]
-    hour_tick_dates = markers
+    hour_tick_dates = markers_hourly
     hour_tick_points = [to_timestamp(x) - ref for x in hour_tick_dates]
+
+    day_tick_points = [to_timestamp(x) - ref for x in markers_daily]
+
     y = np.ones_like(df_dates)
 
     current_ax.scatter(df_timestamps,y,marker='|')
+    [current_ax.axvline(d, color='r', linestyle='-') for d in day_tick_points]
     current_ax.yaxis.set_ticks([])
     current_ax.xaxis.set_ticks(hour_tick_points,hour_tick_dates)
     # rotate x ticks
