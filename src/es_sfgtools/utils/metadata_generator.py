@@ -66,9 +66,9 @@ def start_and_end_dates(start_date: datetime, end_date: datetime, dict_to_update
     if end_date != datetime(year=1900, month=1, day=1):
         dict_to_update['end'] = end_date.strftime('%Y-%m-%dT%H:%M:%S')
     else:
-        print("End Date: not entering")
+        print("End Date: not entering\n\n")
 
-    print("Adding or updating site with: \n" + json.dumps(dict_to_update, indent=2))
+    print("Check your site output to confirm.. \n" + json.dumps(dict_to_update, indent=2))
 
     return dict_to_update
 
@@ -80,7 +80,8 @@ def import_site(filepath: str):
 
 
 class Site:
-    def __init__(self, names: list = None, networks: list = None, time_of_origin: datetime = None, local_geoid_height: float = None, array_center: dict = None,existing_site: dict = None) -> None:
+    def __init__(self, names: list = None, networks: list = None, time_of_origin: datetime = None, 
+    local_geoid_height: float = None, array_center: dict = None, existing_site: dict = None) -> None:
         """
         Create a new site object.
         
@@ -144,11 +145,16 @@ class Site:
             print(json.dumps(self.site[group_name], indent=2))
 
 
-    def existing_ref_frame(self, reference_frame_input: dict, output, event=None):
+    def existing_ref_frame(self, reference_frame_input: dict, output, delete=False, event=None):
         """ Update existing reference frame using the reference frame name """
+
+
         with output:
+            print(f"Current reference frames: {json.dumps(self.site['referenceFrames'], indent=2)}")
+            print(f"Reference frame input: {reference_frame_input}")
+            print(f"Delete flag: {delete}")
             if not reference_frame_input["name"]:
-                print("Reference name not provided, name is required for updating..")
+                print("Reference name not provided, name is required..")
                 return
 
             site_reference_frame = next((ref for ref in self.site["referenceFrames"] if ref["name"] == reference_frame_input["name"]), None)
@@ -157,7 +163,14 @@ class Site:
                 print("Reference frame not found, ensure you have the correct reference frame name")
                 return
 
-            print("Updating " + site_reference_frame["name"])
+            if delete:
+                print("Deleting " + site_reference_frame["name"])
+                self.site["referenceFrames"].remove(site_reference_frame)
+                print("Deleted reference frame " + site_reference_frame["name"])
+                print(f"Updated reference frames: {json.dumps(self.site['referenceFrames'], indent=2)}")
+                return
+
+            print(f"Updating reference frame: {site_reference_frame['name']}")
             for key, value in reference_frame_input.items():
                 if value:
                     site_reference_frame[key] = value

@@ -234,7 +234,7 @@ class PridePdpConfig:
             command.append("--loose-edit")
 
         if self.cutoff_elevation != 7:
-            command.extend(["--cutoff-elev", self.cutoff_elevation])
+            command.extend(["--cutoff-elev", str(self.cutoff_elevation)])
 
         if self.start:
             command.extend(["--start", self.start.strftime("%Y/%m/%d %H:%M:%S")])
@@ -243,7 +243,7 @@ class PridePdpConfig:
             command.extend(["--end", self.end.strftime("%Y/%m/%d %H:%M:%S")])
         
         if self.interval:
-            command.extend(["--interval", self.interval])
+            command.extend(["--interval", str(self.interval)])
 
         if self.high_ion:
             command.append("--high-ion")
@@ -329,7 +329,7 @@ def novatel_to_rinex(
         except:
             raise ValueError("Argument source_type must be a valid AssetType ['novatel','novatel770','novatelpin']")
         
-        source = AssetEntry(local_path=source,source_type=source_type)
+        source = AssetEntry(local_path=source, source_type=source_type)
 
     assert source.local_path.exists(), f"File not found: {source.local_path}"
 
@@ -356,6 +356,7 @@ def novatel_to_rinex(
     metadata = get_metadata(site, serialNumber=uuid.uuid4().hex[:10])
 
     with tempfile.TemporaryDirectory(dir="/tmp/") as workdir:
+        logger.info("Creating metadata file")
         metadata_path = os.path.join(workdir, "metadata.json")
         with open(metadata_path, "w") as f:
             json_object = json.dumps(metadata, indent=4)
@@ -364,18 +365,18 @@ def novatel_to_rinex(
         if source.timestamp_data_start is not None:
             file_date = source.timestamp_data_start.date().strftime("%Y%m%d")
         else:
-            file_date = os.path.splitext(os.path.basename(source.local_path))[0].split(
-                "_"
-            )[-4]
+            file_date = os.path.splitext(os.path.basename(source.local_path))[0].split( "_")[-4]
         if year is None:        
             year = '23'     # todo what is this for?
 
+        logger.info("Copying Novatel file to temp directory")
         rinex_outfile = os.path.join(workdir, f"{site}_{file_date}_rinex.{year}O")
         file_tmp_dest = shutil.copy(
             source.local_path,
             os.path.join(workdir, os.path.basename(source.local_path)),
         )
 
+        logger.info(f"Converting Novatel file {source.local_path} \n to RINEX file {rinex_outfile}")
         cmd = [
             str(binary_path),
             "-meta",
@@ -384,10 +385,12 @@ def novatel_to_rinex(
             rinex_outfile,
         ]
         cmd.extend([file_tmp_dest])
+        logger.info(f"Running command: {' '.join(cmd)}")
         result = subprocess.run(cmd, check=True, capture_output=True)
         if result.stderr:
-            logger.error(result.stderr)
+            logger.error(f"Error converting Novatel file to RINEX, error code: {result.returncode}, error message: {result.stderr}")
             return None
+        
         rinex_asset = AssetEntry(
             parent_id=source.id,
             local_path=rinex_outfile,
@@ -616,3 +619,86 @@ def dev_merge_rinex(sources: List[AssetEntry],output:Path) -> List[AssetEntry]:
     #     return None
     # return AssetEntry(local_path=output,type=AssetType.RINEX)
     pass
+
+
+def daily_rinex_to_kin(
+    source: Union[AssetEntry,str,Path],
+    writedir: Path,
+    pridedir: Path,
+    site: str = None,
+    show_details: bool = True,
+    PridePdpConfig: PridePdpConfig = None,
+) -> AssetEntry:
+    """
+    Convert a RINEX file to a position file
+
+    Parameters:
+        source (str): The path to the RINEX file
+        writedir (Path): The directory to write the kin file to
+        pridedir (Path): The directory to run pride in
+        site (str): The site name (4 characters), default is None
+        show_details (bool): Print details to the console, default is True
+        PridePdpConfig (PridePdpConfig): The configuration object for PRIDE-PPP, default is None
+
+    Returns:
+        kin_file (str): The path to the kin file
+    """
+    if isinstance(source, str) or isinstance(source, Path):
+        source = AssetEntry(local_path=source, type=AssetType.RINEX)
+        print("source:", source)
+    assert source.type == AssetType.RINEX, "Invalid source file type"
+
+    logger.info(f"Converting RINEX file {source.local_path} to kin file")
+
+    # simul link the rinex file to the same file with file_uuid attached at the front
+    if not os.path.exists(source.local_path):
+        logger.error(f"RINEX file {source.local_path} not found")
+        return None
+    
+    if not site:
+        site = uuid.uuid4().hex[:4]
+
+    # If PridePdpConfig is not provided, use the default configuration
+    if PridePdpConfig is None:
+        PridePdpConfig = PridePdpConfig()
+    pdp_command = PridePdpConfig.generate_pdp_command(site=site, 
+                                                        local_file_path=source.local_path)
+
+    logger.info(f"Running PDP3 command: {' '.join(pdp_command)}")
+    if show_details:
+        print(f"Running PDP3 command: {' '.join(pdp_command)}")
+    result = subprocess.run(
+        pdp_command,
+        capture_output=True,
+        cwd=str(pridedir),
+    )
+
+    if result.stderr:
+        logger.error(result.stderr)
+        
+    with open(source.local_path, 'r') as f:
+        for line in f:
+            if "TIME OF FIRST OBS" in line:
+                line_data = line.split()
+                #print(line_data)
+                source.timestamp_data_start = datetime.fromisoformat(f"{line_data[0]}-{line_data[1].zfill(2)}-{line_data[2].zfill(2)}T{line_data[3].zfill(2)}:{line_data[4].zfill(2)}:00")
+                year = source.timestamp_data_start.year
+                dayOfYear = source.timestamp_data_start.timetuple().tm_yday
+                break
+    
+    kin_filepath = os.path.join(pridedir, str(year), str(dayOfYear))
+    kin_file = AssetEntry(
+                type=AssetType.KIN,
+                parent_id=source.id,
+                start_time=source.timestamp_data_start,
+                local_path=kin_filepath,
+            )
+    response = f"Converted RINEX file {source.local_path} to kin file {kin_file.local_path}"
+    logger.info(response)
+    if show_details:
+        print(response)
+    
+    try:
+        return kin_file
+    except:
+        return None
