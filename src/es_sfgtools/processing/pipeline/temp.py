@@ -101,7 +101,7 @@ class DataHandler:
         """
    
         if isinstance(directory,str):
-            directory = Path(data_dir)
+            directory = Path(directory)
     
         self.main_directory = directory
         self.pride_dir = self.main_directory / "Pride"
@@ -467,7 +467,21 @@ class DataHandler:
         fig.suptitle(f"Found Dates For {self.network} {self.station}")
         plt.show()
   
-
+    @check_network_station_survey
+    def get_asset_by_type(self,type:AssetType|str) -> List[AssetEntry] | None:
+        if isinstance(type,str):
+            try:
+                type = AssetType(type.lower())
+            except:
+                raise ValueError(f"AssetType {type} must be one of {AssetType.__members__.keys()}")
+        found_assets:List[AssetEntry] = self.catalog.get_assets(self.network,self.station,self.survey,type)
+        if len(found_assets) == 0:
+            response = f"No {type} assets found"
+            logger.error(response)
+            print(response)
+            return
+        return found_assets
+    
     @check_network_station_survey
     def pipeline_sv3(self,override:bool=False,show_details:bool=False,plot:bool=False):
         pipeline = SV3Pipeline(catalog=self.catalog)
