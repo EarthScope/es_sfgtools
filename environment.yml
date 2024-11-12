@@ -28,6 +28,7 @@ dependencies:
   - seaborn
   - folium
   - sqlalchemy
+  - tiledb
   - pip:
     - -e .
     - garpos @ git+https://github.com/EarthScope/garpos.git
