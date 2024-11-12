@@ -41,7 +41,7 @@ from es_sfgtools.processing.assets.tiledb_temp import TDBAcousticArray,TDBGNSSAr
 from es_sfgtools.processing.operations.utils import merge_shotdata_gnss
 from .catalog import Catalog
 
-
+from .plotting import plot_gnss_data
 from .pipelines import SV3Pipeline
 from .constants import FILE_TYPE,DATA_TYPE,REMOTE_TYPE,ALIAS_MAP,FILE_TYPES
 from .datadiscovery import scrape_directory_local,get_file_type_local,get_file_type_remote
@@ -238,31 +238,9 @@ class DataHandler:
 
     def view_data(self):
 
-        shotdata_dates = self.shotdata_tdb.get_unique_dates().tolist()
-        gnss_dates = self.gnss_tdb.get_unique_dates().tolist()
-        date_set = shotdata_dates + gnss_dates
-        date_set = sorted(list(set(date_set)))
-       
-        date_tick_map = {date:i for i, date in enumerate(date_set)}
-        fig, ax = plt.subplots()
-        # plot the gnss dates with red vertical line
-        gnss_x = [date_tick_map[date] for date in gnss_dates]
-        gnss_y = [1 for _ in gnss_dates]
-   
-        ax.scatter(x=gnss_x,y=gnss_y,c='r', marker='o',label='Pride GNSS Positions')
-        # plot the shotdata dates with blue vertical line
-        shotdata_x = [date_tick_map[date] for date in shotdata_dates]
-        shotdata_y = [2 for _ in shotdata_dates]
-        ax.scatter(x=shotdata_x,y=shotdata_y,c='b', marker='o',label='ShotData')
-        ax.xaxis.set_ticks(
-            [i for i in date_tick_map.values()],
-            [str(date) for date in date_tick_map.keys()],
-        )
-        ax.yaxis.set_ticks([])
-        ax.set_xlabel("Date")
-        fig.legend()
-        fig.suptitle(f"Found Dates For {self.network} {self.station}")
-        plt.show()
+        rinex_assets = self.catalog.get_asset_by_type(AssetType.RINEX)
+        plot_gnss_data(self.gnss_tdb,rinex_assets)
+
   
     @check_network_station_survey
     def get_asset_by_type(self,type:AssetType|str) -> List[AssetEntry] | None:
