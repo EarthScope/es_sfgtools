@@ -83,7 +83,7 @@ def plot_gnss_data(gnss_data:TDBGNSSArray,rinex_entries:List[AssetEntry] = []) -
             unique_months.append(y_m)
 
     unique_months = [[int(x) for x in ym.split("-")] for ym in unique_months]
-    fig, axes = plt.subplots(ncols=1, nrows=len(unique_months), figsize=(16, 4))
+    fig, axes = plt.subplots(ncols=1, nrows=len(unique_months), figsize=(12, 4))
     for i, ym in enumerate(unique_months):
         if len(unique_months) == 1:
             current_ax = axes
@@ -135,7 +135,7 @@ def plot_gnss_data(gnss_data:TDBGNSSArray,rinex_entries:List[AssetEntry] = []) -
 
         y_df = np.ones_like(df_dates)
 
-        current_ax.scatter(df_timestamps, y_df, marker="|", label="GNSS Data", color="b")
+        current_ax.scatter(df_timestamps, y_df, marker="_", label="GNSS Data", color="b",s=300,linewidth=20)
         [current_ax.axvline(d, color="r", linestyle="-") for d in day_tick_points]
         current = date_min.copy().astype("datetime64[D]").astype("datetime64[h]")
         while current < date_max:
@@ -146,7 +146,7 @@ def plot_gnss_data(gnss_data:TDBGNSSArray,rinex_entries:List[AssetEntry] = []) -
         
         if rinex_timestamps:
             y_rnx = np.ones_like(rinex_timestamps)*2
-            current_ax.scatter(rinex_timestamps, y_rnx*2, marker="|", label="RINEX Data", color="g",linewidth=2)
+            current_ax.scatter(rinex_timestamps, y_rnx*2, marker="_", label="RINEX Data", color="g",s=300,linewidth=20)
 
         current_ax.yaxis.set_ticks([])
         current_ax.xaxis.set_ticks(hour_tick_points[::2], hour_tick_dates[::2])
