@@ -34,7 +34,7 @@ if __name__ == "__main__":
     
     dh.change_working_station(network=network,station="NCL1")
     dh.change_working_survey("2023")
-    #dh.pipeline_sv3(override=True)
+    dh.pipeline_sv3(override=True)
     dh.view_data()
   
     # dh.pipeline_sv3()

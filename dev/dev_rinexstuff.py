@@ -40,3 +40,4 @@ novatel_dir = Path(
 novatel_assets = [x for x in scrape_directory_local(novatel_dir) if x.type == AssetType.NOVATEL770]
 
 rinex_assets = novatel_to_rinex_batch(novatel_assets, writedir=write_dir,show_details=True)
+print(rinex_assets)
