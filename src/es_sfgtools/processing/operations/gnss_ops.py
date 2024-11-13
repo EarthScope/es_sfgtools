@@ -371,7 +371,7 @@ def _novatel_to_rinex(
             str(binary_path),
             "-meta",
             str(metadata_path)
-        ] + source_list
+        ] + [str(x) for x in source_list]
 
         result = subprocess.run(cmd, check=True, capture_output=True, cwd=workdir)
         if result.stderr:
