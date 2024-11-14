@@ -535,7 +535,7 @@ def rinex_to_kin(
     writedir: Path,
     pridedir: Path,
     site="SIT1",
-    PridePdpConfig: PridePdpConfig = None,
+    pride_config: PridePdpConfig = None,
     show_details: bool = True
 ) -> Tuple[AssetEntry]:
 
@@ -589,9 +589,9 @@ def rinex_to_kin(
         site = source.station
     
     # If PridePdpConfig is not provided, use the default configuration
-    if PridePdpConfig is None:
-        PridePdpConfig = PridePdpConfig()
-    pdp_command = PridePdpConfig.generate_pdp_command(site=site, 
+    if pride_config is None:
+        pride_config = PridePdpConfig()
+    pdp_command = pride_config.generate_pdp_command(site=site, 
                                                         local_file_path=source.local_path)
 
     # Run pdp3 in the pride directory
