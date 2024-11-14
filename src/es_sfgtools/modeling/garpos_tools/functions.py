@@ -9,7 +9,6 @@ from datetime import datetime
 import numpy as np
 import sys
 import os
-import pyproj
 import pymap3d as pm
 import math
 import julian
@@ -40,20 +39,6 @@ logger = logging.getLogger(__name__)
 
 ECEF = "epsg:4978"
 LLH = "epsg:4326"
-
-_yxz2llh = pyproj.Transformer.from_crs(ECEF, LLH)
-_llh2yxz = pyproj.Transformer.from_crs(LLH, ECEF)
-
-
-def xyz2llh(X,Y ,Z,**kwargs):
-    lon, lat, z = _yxz2llh.transform(X,Y, Z)
-    return {"lat": lat, "lon": lon, "hgt": z}
-
-
-def llh2xyz(lat, lon, hgt,**kwargs):
-    x,y,z = _llh2yxz.transform(lat, lon, hgt)
-
-    return {"X": x, "Y": y, "Z": z}
 
 
 def LLHDEG2DEC(lat: List[float], lon: List[float]) -> List[float]:

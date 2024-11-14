@@ -132,7 +132,7 @@ class PridePPP(BaseModel):
         except ValidationError as e:
             raise Exception(f"Error parsing into PridePPP {e}")
 
-# define system enum to use 
+# define system enum to use
 class Constellations(str, Enum):
     GPS = "G"
     GLONASS = "R"
@@ -301,6 +301,7 @@ def _rinex_get_time(line):
 
 def rinex_get_meta(source:AssetEntry | MultiAssetEntry) ->AssetEntry|MultiAssetEntry:
     assert source.type == AssetType.RINEX, f"Expected RINEX file, got {source.type}"
+
     with open(source.local_path) as f:
         files = f.readlines()
         for line in files:
@@ -308,8 +309,29 @@ def rinex_get_meta(source:AssetEntry | MultiAssetEntry) ->AssetEntry|MultiAssetE
                 start_time = _rinex_get_time(line)
                 file_date = start_time.strftime("%Y%m%d%H%M")
                 source.timestamp_data_start = start_time
-                break
+                source.timestamp_data_end = start_time
+                year = str(source.timestamp_data_start.year)[2:]
+                
 
+            if source.timestamp_data_start is not None:
+       
+    
+                # line sample: 23  6 24 23 59 59.5000000  0  9G21G27G32G08G10G23G24G02G18
+                if line.strip().startswith(year):
+                    date_line = line.strip().split()
+                    try:
+                        current_date = datetime(
+                            year=2000 + int(date_line[0]),
+                            month=int(date_line[1]),
+                            day=int(date_line[2]),
+                            hour=int(date_line[3]),
+                            minute=int(date_line[4]),
+                            second=int(float(date_line[5])),
+                        )
+                        if current_date > source.timestamp_data_start:
+                            source.timestamp_data_end = current_date
+                    except Exception as e:
+                        pass
 
     return source
 
@@ -342,6 +364,14 @@ def _novatel_to_rinex(
         >>> rinex_files: List[Path] = _novatel_to_rinex(novatel_paths, writedir, site, source_type)
 
     """
+    # Sort sourcelist
+    def sort_key(path: Path):
+        name = path.name.replace('NOV', '').replace("_", "")
+        # replace all non numeric characters with empty string
+        name_non_numeric = re.sub(r"\D", "", name)
+        return int(name_non_numeric)
+    
+    source_list = sorted(source_list, key=sort_key)
 
     system = platform.system().lower()
     arch = platform.machine().lower()
@@ -371,13 +401,18 @@ def _novatel_to_rinex(
             str(binary_path),
             "-meta",
             str(metadata_path)
-        ] + source_list
+        ] + [str(x) for x in source_list]
 
         result = subprocess.run(cmd, check=True, capture_output=True, cwd=workdir)
         if result.stderr:
-            logger.error(result.stderr)
-            if show_details:
-                print(result.stderr)
+            result_message = result.stderr.decode("utf-8").split("msg=")
+            for log_line in result_message:
+                message = log_line.split("\n")[0]
+                if "Processing" in message or "Created" in message:
+                    logger.info(message)
+                    if show_details:
+                        print(message)
+         
         rnx_files = list(Path(workdir).rglob(f"*{site}*"))
         response = f"Converted {len(source_list)} files of type {source_type.value} to {len(rnx_files)} Daily RINEX files"
         logger.info(response)
@@ -429,7 +464,8 @@ def novatel_to_rinex_batch(
         writedir = Path(writedir)
     elif writedir is None:
         writedir = source[0].local_path.parent
-
+    if site is None:
+        site = "SIT1"
     rinex_paths = _novatel_to_rinex(
         source_list=[x.local_path for x in source],
         writedir=writedir,
@@ -498,6 +534,7 @@ def rinex_to_kin(
     writedir: Path,
     pridedir: Path,
     site="SIT1",
+    PridePdpConfig: PridePdpConfig = None,
     show_details: bool = True
 ) -> Tuple[AssetEntry]:
 
@@ -545,8 +582,8 @@ def rinex_to_kin(
         raise FileNotFoundError(f"RINEX file {source.local_path} not found")
 
     source = rinex_get_meta(source)
-    # get_nav_file(rinex_path=source.local_path)
-    # get_gnss_products(rinex_path=source.local_path,pride_dir=pridedir)
+    #get_nav_file(rinex_path=source.local_path)
+    get_gnss_products(rinex_path=source.local_path,pride_dir=pridedir)
     if source.station is not None:
         site = source.station
     

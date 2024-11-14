@@ -69,7 +69,8 @@ def plot_gnss_data(gnss_data:TDBGNSSArray,rinex_entries:List[AssetEntry] = []) -
     if rinex_entries:
     
         for entry in rinex_entries:
-            entry.timestamp_data_end = get_rinex_timelast(entry)
+            if entry.timestamp_data_end is None:
+                entry.timestamp_data_end = get_rinex_timelast(entry)
             gnss_dates.extend(
                 [entry.timestamp_data_start.date(), entry.timestamp_data_end.date()])
             rinex_ym_map[entry.timestamp_data_start.year].setdefault(
