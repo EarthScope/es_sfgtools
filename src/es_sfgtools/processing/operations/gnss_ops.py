@@ -534,6 +534,7 @@ def rinex_to_kin(
     writedir: Path,
     pridedir: Path,
     site="SIT1",
+    PridePdpConfig: PridePdpConfig = None,
     show_details: bool = True
 ) -> Tuple[AssetEntry]:
 
@@ -581,8 +582,8 @@ def rinex_to_kin(
         raise FileNotFoundError(f"RINEX file {source.local_path} not found")
 
     source = rinex_get_meta(source)
-    # get_nav_file(rinex_path=source.local_path)
-    # get_gnss_products(rinex_path=source.local_path,pride_dir=pridedir)
+    #get_nav_file(rinex_path=source.local_path)
+    get_gnss_products(rinex_path=source.local_path,pride_dir=pridedir)
     if source.station is not None:
         site = source.station
     
