@@ -302,20 +302,21 @@ def _rinex_get_time(line):
 def rinex_get_meta(source:AssetEntry | MultiAssetEntry) ->AssetEntry|MultiAssetEntry:
     assert source.type == AssetType.RINEX, f"Expected RINEX file, got {source.type}"
 
+    if source.timestamp_data_start is not None:
+        year = str(source.timestamp_data_start.year)[2:]
     with open(source.local_path) as f:
         files = f.readlines()
         for line in files:
-            if "TIME OF FIRST OBS" in line:
-                start_time = _rinex_get_time(line)
-                file_date = start_time.strftime("%Y%m%d%H%M")
-                source.timestamp_data_start = start_time
-                source.timestamp_data_end = start_time
-                year = str(source.timestamp_data_start.year)[2:]
-                
-
+            if source.timestamp_data_start is None:
+                if "TIME OF FIRST OBS" in line:
+                    start_time = _rinex_get_time(line)
+                    file_date = start_time.strftime("%Y%m%d%H%M")
+                    source.timestamp_data_start = start_time
+                    source.timestamp_data_end = start_time
+                    year = str(source.timestamp_data_start.year)[2:]
+            
+        
             if source.timestamp_data_start is not None:
-       
-    
                 # line sample: 23  6 24 23 59 59.5000000  0  9G21G27G32G08G10G23G24G02G18
                 if line.strip().startswith(year):
                     date_line = line.strip().split()
