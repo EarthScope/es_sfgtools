@@ -265,7 +265,7 @@ class DataHandler:
             station=self.station,
             survey=self.survey,
             writedir=self.inter_dir,
-            override=False,
+            override=override,
             show_details=show_details)
         
         pipeline.process_rinex(
