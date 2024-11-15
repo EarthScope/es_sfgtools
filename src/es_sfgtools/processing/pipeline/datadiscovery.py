@@ -104,17 +104,13 @@ def get_file_type_remote(file_path: str) -> AssetType:
         if pattern.search(file_path):
             file_type = ftype
             break
+
     if file_type is None:
         warnings.warn(f"File type not recognized for {file_path}")
-        return
+        return None
+    
+    return file_type
 
-    discoveredFile = AssetType(
-        remote_path=file_path,
-        type=AssetType.value,
-        timestamp_data_start=None,
-        timestamp_data_end=None,
-    )
-    return discoveredFile
 
 def scrape_directory_local(directory: Union[str, Path]) -> List[AssetType]:
     """
