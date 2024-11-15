@@ -26,7 +26,7 @@ import threading
 
 import time
 import itertools
-import multiprocessing_logging
+# import multiprocessing_logging
 from functools import wraps
 warnings.filterwarnings("ignore")
 seaborn.set_theme(style="whitegrid")
@@ -39,12 +39,12 @@ from es_sfgtools.modeling.garpos_tools import functions as modeling_funcs
 from es_sfgtools.modeling.garpos_tools import hyper_params
 from es_sfgtools.processing.assets.tiledb_temp import TDBAcousticArray,TDBGNSSArray,TDBPositionArray,TDBShotDataArray
 from es_sfgtools.processing.operations.utils import merge_shotdata_gnss
-from .catalog import Catalog
+from es_sfgtools.processing.pipeline.catalog import Catalog
 
 
-from .pipelines import SV3Pipeline
-from .constants import FILE_TYPE,DATA_TYPE,REMOTE_TYPE,ALIAS_MAP,FILE_TYPES
-from .datadiscovery import scrape_directory_local,get_file_type_local,get_file_type_remote
+from es_sfgtools.processing.pipeline.pipelines import SV3Pipeline
+from es_sfgtools.processing.pipeline.constants import FILE_TYPE,DATA_TYPE,REMOTE_TYPE,ALIAS_MAP,FILE_TYPES
+from es_sfgtools.processing.pipeline.datadiscovery import scrape_directory_local, get_file_type_local, get_file_type_remote
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
 
@@ -66,96 +66,133 @@ class DataHandler:
     """
 
     def __init__(self,
-                 directory:Path | str
+                 directory: Path | str,
+                 network: str = None,
+                 station: str = None,
+                 survey: str = None,
                  ) -> None:
         """
         Initialize the DataHandler object.
 
-        Creates the following files and directories within the data directory if they do not exist:
-            - SFGDirectory/
-                - catalog.sqlite
-                - Pride/
-                - <network>/
-                    - <station>/
-                        - TileDB/
-                            - acoustic_db.tdb
-                            - gnss_db.tdb
-                            - position_db.tdb
-                            - shotdata_db.tdb
-
-                        - Data/
-                            - raw/
-                            - intermediate/
-                            - processed/
-                            - Garpos
-
-
         Args:
-            network (str): The network name.
-            station (str): The station name.
-            survey (str): The survey name.
-            data_dir (Path): The working directory path.
+            directory (Path | str): The directory path to store files under.
+            network (str, optional): The network name.
+            station (str, optional): The station name.
+            survey (str, optional): The survey name.
 
         Returns:
             None
         """
-   
-        if isinstance(directory,str):
-            directory = Path(data_dir)
-    
-        self.main_directory = directory
-        self.pride_dir = self.main_directory / "Pride"
 
-        self.db_path = self.main_directory / "catalog.sqlite"
-        self.pride_dir.mkdir(exist_ok=True,parents=True)
-        if not self.db_path.exists():
-            self.db_path.touch()
-
-        self.catalog = Catalog(self.db_path)
-        self.network = None
-        self.station = None
-        self.survey = None
-
-
-    def build_station_dir_structure(self,network:str,station:str):
-        station_dir = self.main_directory / network / station
-        station_dir.mkdir(parents=True,exist_ok=True)
-        tileb_dir = station_dir / "TileDB"
-        tileb_dir.mkdir(exist_ok=True)
-        data_dir = station_dir / "Data"
-        data_dir.mkdir(exist_ok=True)
-        raw_dir = data_dir / "raw"
-        raw_dir.mkdir(exist_ok=True)
-        inter_dir = data_dir / "intermediate"
-        inter_dir.mkdir(exist_ok=True)
-        proc_dir = data_dir / "processed"
-        proc_dir.mkdir(exist_ok=True)
-    
-    def change_working_station(self,network:str,station:str):
         self.network = network
         self.station = station
-        self.build_station_dir_structure(network,station)
-        self.working_dir = self.main_directory / self.network / self.station
-        self.tileb_dir = self.working_dir / "TileDB"
+        self.survey = survey
+   
+        # Create the main & pride directory
+        self.main_directory = Path(directory)
+        self.pride_dir = self.main_directory / "Pride"
+        self.pride_dir.mkdir(exist_ok=True, parents=True)
+
+        # Create the catalog
+        self.db_path = self.main_directory / "catalog.sqlite"
+        if not self.db_path.exists():
+            self.db_path.touch()
+        self.catalog = Catalog(self.db_path)
+
+
+
+    def build_station_dir_structure(self, network: str, station: str):
+        """
+        Build the directory structure for a station.
+        Format is as follows:
+            - SFGDirectory/
+                - <network>/
+                    - <station>/
+                        - TileDB/
+                        - Data/
+                            - raw/
+                            - intermediate/
+                            - processed/  
+        """
+
+        # Create the network/station directory structure
+        self.station_dir = self.main_directory / network / station
+        self.station_dir.mkdir(parents=True,exist_ok=True)
+
+        # Create the TileDB directory structure (network/station/TileDB)
+        self.tileb_dir = self.station_dir / "TileDB"
+        self.tileb_dir.mkdir(exist_ok=True)
+
+        # Create the Data directory structure (network/station/Data)
+        data_dir = self.station_dir / "Data"
+        data_dir.mkdir(exist_ok=True)
+
+        # Create the raw, intermediate, and processed directories (network/station/Data/raw) and store as class attributes
+        self.raw_dir = data_dir / "raw"
+        self.raw_dir.mkdir(exist_ok=True)
+
+        self.inter_dir = data_dir / "intermediate"
+        self.inter_dir.mkdir(exist_ok=True)
+
+        self.proc_dir = data_dir / "processed"
+        self.proc_dir.mkdir(exist_ok=True)
+
+    def build_tileDB_arrays(self):
+        """
+        Build the TileDB arrays for the current station. TileDB directory is /network/station/TileDB
+        """
         self.acoustic_tdb = TDBAcousticArray(self.tileb_dir/"acoustic_db.tdb")
         self.gnss_tdb = TDBGNSSArray(self.tileb_dir/"gnss_db.tdb")
         self.position_tdb = TDBPositionArray(self.tileb_dir/"position_db.tdb")
         self.shotdata_tdb = TDBShotDataArray(self.tileb_dir/"shotdata_db.tdb")
-        self.build_station_dir_structure(self.network,self.station)
-        self.raw_dir = self.working_dir / "Data" / "raw"
-        self.inter_dir = self.working_dir / "Data" / "intermediate"
-        self.proc_dir = self.working_dir / "Data" / "processed"
-        response = f"Changed working station to {network} {station}"
-        logger.info(response)
-        print(response)
     
-    def change_working_survey(self,survey:str):
-        self.survey = survey
+    def change_working_station(self, network: str, station: str, survey: str = None):
+        """
+        Change the working station.
+        
+        Args:
+            network (str): The network name.
+            station (str): The station name.
+
+        Returns:
+            None
+        """
+        # Set class attributes & create the directory structure
+        self.network = network
+        self.station = station
+        if survey is not None:
+            self.survey = survey
+
+        # Build the directory structure and TileDB arrays
+        self.build_station_dir_structure(network, station)
+        self.build_tileDB_arrays()
+
+        logger.info(f"Changed working station to {network} {station}")
+
+
+        # # Set the working directories
+        # self.working_dir = self.main_directory / self.network / self.station
+        # self.tileb_dir = self.working_dir / "TileDB"
+
+        # Create the TileDB arrays
+        # self.acoustic_tdb = TDBAcousticArray(self.tileb_dir/"acoustic_db.tdb")
+        # self.gnss_tdb = TDBGNSSArray(self.tileb_dir/"gnss_db.tdb")
+        # self.position_tdb = TDBPositionArray(self.tileb_dir/"position_db.tdb")
+        # self.shotdata_tdb = TDBShotDataArray(self.tileb_dir/"shotdata_db.tdb")
+
+        # Set the data directories
+        # self.raw_dir = self.working_dir / "Data" / "raw"
+        # self.inter_dir = self.working_dir / "Data" / "intermediate"
+        # self.proc_dir = self.working_dir / "Data" / "processed"
     
+    # def change_working_survey(self, survey: str):
+    #     self.survey = survey
 
     @check_network_station_survey
     def get_dtype_counts(self):
-        return self.catalog.get_dtype_counts(network=self.network,station=self.station,survey=self.survey)
+        return self.catalog.get_dtype_counts(network=self.network, 
+                                             station=self.station, 
+                                             survey=self.survey)
 
     @check_network_station_survey
     def _add_data_local(self,
@@ -190,7 +227,7 @@ class DataHandler:
         if show_details:
             print(response)
 
-    def discover_data_directory(self,network:str,station:str,survey:str,dir_path:Path,show_details:bool=True):
+    def discover_data_directory(self, network:str, station:str, survey:str, dir_path:Path, show_details:bool=True):
         """
         For a given directory of data, iterate through all files and add them to the catalog.
         
@@ -206,8 +243,10 @@ class DataHandler:
         Returns:
             None
         """
-        self.change_working_station(network,station)
-        self.change_working_survey(survey)
+        self.change_working_station(network=network,
+                                    station=station,
+                                    survey=survey)
+
         files = scrape_directory_local(dir_path)
         if len(files) == 0:
             response = f"No files found in {dir_path}"
@@ -221,10 +260,11 @@ class DataHandler:
     @check_network_station_survey
     def add_data_local(self,
                         local_filepaths:Union[List[Union[str,Path]],str],
-                        show_details:bool=True,
-                        **kwargs):
+                        show_details:bool=True):
+        
         if isinstance(local_filepaths,str):
             local_filepaths = [Path(local_filepaths)]
+
         discovered_files : List[AssetEntry] = [get_file_type_local(file) for file in local_filepaths]
         discovered_files = [x for x in discovered_files if x is not None]
 
@@ -234,13 +274,13 @@ class DataHandler:
             if show_details:
                 print(response)
             return
+        
         self._add_data_local(discovered_files,show_details=show_details)
 
     def add_data_remote(self, 
-                          remote_filepaths: List[str],
-                          remote_type:Union[REMOTE_TYPE,str] = REMOTE_TYPE.HTTP,
-                          show_details:bool=True,
-                          **kwargs):
+                        remote_filepaths: List[str],
+                        remote_type:Union[REMOTE_TYPE,str] = REMOTE_TYPE.HTTP,
+                        show_details:bool=True):
         """
         Add campaign data to the catalog.
 
@@ -252,123 +292,149 @@ class DataHandler:
         Returns:
             None
         """
-        if isinstance(remote_type,str):
+        # Check that the remote type is valid, default is HTTP
+        if isinstance(remote_type, str):
             try:
                 remote_type = REMOTE_TYPE(remote_type)
             except:
                 raise ValueError(f"Remote type {remote_type} must be one of {REMOTE_TYPE.__members__.keys()}")
-
+            
+        
+        # Create an AssetEntry for each file and append to a list
         file_data_list = []
         for file in remote_filepaths:
-            discovered_file: Union[AssetEntry,None] = get_file_type_remote(file)
-            # raise ValueError(f"File type not recognized for {file}")
-            if discovered_file is None:
+            # Get the file type, If the file type is not recognized, it returns None
+            file_type = get_file_type_remote(file)
+
+            if file_type is None: # If the file type is not recognized, skip it
                 continue
 
-            file_data = AssetEntry(**(discovered_file.model_dump() | {
-                "network": self.network,
-                "station": self.station,
-                "survey": self.survey,
-                "timestamp_created": datetime.datetime.now(),
-            }
-            ))
+            file_data = AssetEntry(
+                remote_path=file,
+                type=file_type,
+                network=self.network,
+                station=self.station,
+                survey=self.survey,
+            )
             file_data_list.append(file_data)
 
+        # Add each file (AssetEntry) to the catalog
         count = len(file_data_list)
         uploadCount = 0
-        for asset in file_data_list:
-            if self.catalog.add_entry(asset):
+        for file_assest in file_data_list:
+            print("Adding", file_assest)
+            if self.catalog.add_entry(file_assest):
                 uploadCount += 1
         response = f"Added {uploadCount} out of {count} files to the catalog"
         logger.info(response)
+
         if show_details:
             print(response)
 
-    def download_data(self,
-                    file_type: str="all",
-                    override:bool=False,
-                    show_details:bool=True):
+    def download_data(self, file_type: str="all", override: bool=False, show_details:bool=True):
         """
         Retrieves and catalogs data from the remote locations stored in the catalog.
 
         Args:
             file_type (str): The type of file to download
             override (bool): Whether to download the data even if it already exists
-            from_s3 (bool): Use S3 download functionality if remote resourses are in an s3 bucket
             show_details (bool): Log details of each file downloaded  
 
         Raises:
             Exception: If no matching data found in catalog.
         """
-        # os.environ["DH_SHOW_DETAILS"] = str(show_details)
+
         if file_type == 'all':
             file_types = FILE_TYPES
         else:
             file_types = [file_type]
-        with self.engine.begin() as conn:
-            entries = [dict(row._mapping) for row in conn.execute(
-                sa.select(Assets).where(
-                    Assets.network.in_([self.network]),Assets.station.in_([self.station]),Assets.survey.in_([self.survey]),Assets.type.in_(file_types)
-                )
-            ).fetchall()]
-        if len(entries) == 0:
+
+        # Grab assests from the catalog that match the network, station, survey, and file type
+        assets = self.catalog.get_assets(network=self.network,
+                                       station=self.station,
+                                       survey=self.survey,
+                                       types=file_types)
+        print(assets)
+
+        if len(assets) == 0:
             response = f"No matching data found in catalog"
             logger.error(response)
             print(response)
             return
-        # find entries that have a value for "local_path"
-        entries_to_get = []
-        for entry in entries:
-            if entry['local_path'] is not None:
-                if Path(entry['local_path']).exists():
-                    entries_to_get.append(False)
+        
+        # Find files that we need to download based on the catalog output. If override is True, download all files.
+        if override:
+            assets_to_download = assets
+        else:
+            assets_to_download = []
+            for file_asset in assets:
+                if file_asset.local_path is None:
+                    assets_to_download.append(file_asset)
                 else:
-                    entries_to_get.append(True)
-            else:
-                entries_to_get.append(True)
+                    # Check to see if the file exists locally anyway
+                    if not Path(file_asset.local_path).exists():
+                        assets_to_download.append(file_asset)
 
-        to_get = np.logical_or(entries_to_get,override)
-        entries = np.array(entries)[to_get].tolist()
-        if len(entries) == 0:
-            response = f"No new files of type {file_type} to download"
-            logger.info(response)
-            print(response)
-            return
+        if len(assets_to_download) == 0:
+            logger.info(f"No new files of type {file_type} to download")
+        
         # split the entries into s3 and http
-        s3_entries = [x for x in entries if x['remote_type'] == REMOTE_TYPE.S3.value]
-        http_entries = [x for x in entries if x['remote_type'] == REMOTE_TYPE.HTTP.value]
+        s3_assets = [x for x in assets if x['remote_type'] == REMOTE_TYPE.S3.value]
+        http_assets = [x for x in assets if x['remote_type'] == REMOTE_TYPE.HTTP.value]
         updated_entries = []
-        # download s3 entries
-        if len(s3_entries) > 0:
-            s3_entries_processed = []
-            for entry in s3_entries:
-                _path = Path(entry['remote_path'])
-                s3_entries_processed.append({
-                    "bucket":(bucket :=_path.root),
-                    "prefix":_path.relative_to(bucket)
-                })
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                results = executor.map(self._download_data_s3,s3_entries_processed)
-                for result,entry in zip(results,s3_entries):
-                    if result is not None:
-                        entry['local_path'] = str(result)
-                        updated_entries.append(entry)
+
+        if len(s3_assets) > 0:
+            self._download_S3_files(s3_assets, show_details=show_details)
+            # todo update catalog with local path
+        
+        if len(http_assets) > 0:
+            pass
+            # todo update catalog with local path
+
+
 
         # download http entries
         # TODO: re-implement multithreading, switched to serial downloading.
         # need to solve cataloging each file after download and making progress bar work in parallel
 
-        if len(http_entries) > 0:
-            _download_func = partial(self._download_https,destination_dir=self.raw_dir, show_details=show_details)
-            for entry in tqdm(http_entries, total=len(http_entries), desc=f"Downloading {file_type} files"):
-                if (local_path :=_download_func(entry['remote_path']))  is not None:
-                    entry["local_path"] = str(local_path)
-                    with self.engine.begin() as conn:
-                        conn.execute(
-                            sa.update(Assets).where(Assets.remote_path == entry['remote_path']).values(dict(entry))
-                        )
 
-    def _download_data_s3(self,bucket:str,prefix:str,**kwargs) -> Union[Path,None]:
+    def _download_S3_files(self, s3_assets: List[AssetEntry[str, str]], show_details: bool = True):
+        # download s3 entries
+        if len(s3_assets) > 0:
+            s3_entries_processed = []
+            for file in s3_assets:
+                _path = Path(file.remote_path)
+                s3_entries_processed.append({
+                    "bucket":(bucket :=_path.root),
+                    "prefix":_path.relative_to(bucket)
+                })
+
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                results = executor.map(self._S3_download_file, s3_entries_processed)
+                for result, file_asset in zip(results, s3_assets):
+                    if result is not None:
+                        # Update the local path in the AssetEntry
+                        file_asset.local_path = str(result)
+
+                        # Update catlog with local path
+
+                        # updated_entries.append(row)
+
+    def _HTTP_download_files(self, http_assets: List[AssetEntry[str, str]], show_details: bool = True):
+        if len(http_assets) > 0:
+            _download_func = partial(self._download_https_file, 
+                                     destination_dir=self.raw_dir, 
+                                     show_details=show_details)
+            
+            for file_asset in tqdm(http_assets, total=len(http_assets), desc=f"Downloading {file_asset.remote_path}"):
+                if (local_path :=_download_func(file_asset.remote_path)) is not None:
+                    file_asset.local_path = str(local_path)
+                    # with self.engine.begin() as conn:
+                    #     conn.execute(
+                    #         sa.update(Assets).where(Assets.remote_path == file_asset['remote_path']).values(dict(file_asset))
+                    #     )
+
+    def _S3_download_file(self, bucket:str, prefix:str, **kwargs) -> Union[Path,None]:
         """
         Retrieves and catalogs data from the s3 locations stored in the catalog.
 
@@ -386,11 +452,16 @@ class DataHandler:
 
         # If the file does not exist and has not been processed, then download it!
         try:
-            client.download_file(Bucket=bucket, Key=str(prefix), Filename=str(local_path))
+            logger.info(f"Downloading {prefix} to {local_path}")
+            client.download_file(Bucket=bucket, 
+                                 Key=str(prefix), 
+                                 Filename=str(local_path))
             response = f"Downloaded {str(prefix)} to {str(local_path)}"
             logger.info(response)
+
             if os.environ.get("DH_SHOW_DETAILS",False):
                 print(response)
+
             return local_path
 
         except Exception as e:
@@ -401,11 +472,11 @@ class DataHandler:
                 print(response)
             return None
 
-    def _download_https(self, 
-                        remote_url: Path, 
-                        destination_dir: Path, 
-                        token_path='.',
-                        show_details: bool=True) -> Union[Path,None]:
+    def _download_https_file(self, 
+                            remote_url: Path, 
+                            destination_dir: Path, 
+                            token_path='.',
+                            show_details: bool=True) -> Union[Path,None]:
         """
         Downloads a file from the specified https url on gage-data
 
@@ -440,7 +511,6 @@ class DataHandler:
             return None
 
     def view_data(self):
-
         shotdata_dates = self.shotdata_tdb.get_unique_dates().tolist()
         gnss_dates = self.gnss_tdb.get_unique_dates().tolist()
         date_set = shotdata_dates + gnss_dates
@@ -510,4 +580,3 @@ class DataHandler:
             override=override,
             plot=plot
         )
-
