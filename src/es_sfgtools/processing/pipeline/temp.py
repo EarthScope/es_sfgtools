@@ -153,6 +153,7 @@ class DataHandler:
         Args:
             network (str): The network name.
             station (str): The station name.
+            survey (str): The survey name. Default is None.
 
         Returns:
             None
@@ -170,24 +171,6 @@ class DataHandler:
         logger.info(f"Changed working station to {network} {station}")
 
 
-        # # Set the working directories
-        # self.working_dir = self.main_directory / self.network / self.station
-        # self.tileb_dir = self.working_dir / "TileDB"
-
-        # Create the TileDB arrays
-        # self.acoustic_tdb = TDBAcousticArray(self.tileb_dir/"acoustic_db.tdb")
-        # self.gnss_tdb = TDBGNSSArray(self.tileb_dir/"gnss_db.tdb")
-        # self.position_tdb = TDBPositionArray(self.tileb_dir/"position_db.tdb")
-        # self.shotdata_tdb = TDBShotDataArray(self.tileb_dir/"shotdata_db.tdb")
-
-        # Set the data directories
-        # self.raw_dir = self.working_dir / "Data" / "raw"
-        # self.inter_dir = self.working_dir / "Data" / "intermediate"
-        # self.proc_dir = self.working_dir / "Data" / "processed"
-    
-    # def change_working_survey(self, survey: str):
-    #     self.survey = survey
-
     @check_network_station_survey
     def get_dtype_counts(self):
         return self.catalog.get_dtype_counts(network=self.network, 
@@ -197,8 +180,7 @@ class DataHandler:
     @check_network_station_survey
     def _add_data_local(self,
                         local_filepaths:List[AssetEntry],
-                        show_details:bool=True,
-                        **kwargs):
+                        show_details:bool=True):
         count = 0
         file_data_list = []
         for discovered_file in local_filepaths:
@@ -287,7 +269,6 @@ class DataHandler:
         Args:
             remote_filepaths (List[str]): A list of file locations on gage-data.
             remote_type (Union[REMOTE_TYPE,str]): The type of remote location.
-            **kwargs: Additional keyword arguments.
 
         Returns:
             None
@@ -331,7 +312,7 @@ class DataHandler:
         if show_details:
             print(response)
 
-    def download_data(self, file_type: str="all", override: bool=False, show_details:bool=True):
+    def download_data(self, file_types: List = FILE_TYPES, override: bool=False, show_details:bool=True):
         """
         Retrieves and catalogs data from the remote locations stored in the catalog.
 
@@ -343,11 +324,6 @@ class DataHandler:
         Raises:
             Exception: If no matching data found in catalog.
         """
-
-        if file_type == 'all':
-            file_types = FILE_TYPES
-        else:
-            file_types = [file_type]
 
         # Grab assests from the catalog that match the network, station, survey, and file type
         assets = self.catalog.get_assets(network=self.network,
@@ -376,21 +352,24 @@ class DataHandler:
                         assets_to_download.append(file_asset)
 
         if len(assets_to_download) == 0:
-            logger.info(f"No new files of type {file_type} to download")
+            logger.info(f"No new files to download")
         
         # split the entries into s3 and http
         s3_assets = [x for x in assets if x['remote_type'] == REMOTE_TYPE.S3.value]
         http_assets = [x for x in assets if x['remote_type'] == REMOTE_TYPE.HTTP.value]
-        updated_entries = []
 
         if len(s3_assets) > 0:
-            self._download_S3_files(s3_assets, show_details=show_details)
-            # todo update catalog with local path
+            with threading.Lock(): # TODO is this necessary?
+                client = boto3.client('s3')
+            self._download_S3_files(client=client,
+                                    s3_assets=s3_assets, 
+                                    show_details=show_details)
+            # TODO update catalog with local path
         
         if len(http_assets) > 0:
-            pass
-            # todo update catalog with local path
-
+            self.download_HTTP_files(http_assets=http_assets, 
+                                      show_details=show_details)
+            # TODO update catalog with local path
 
 
         # download http entries
@@ -398,59 +377,49 @@ class DataHandler:
         # need to solve cataloging each file after download and making progress bar work in parallel
 
 
-    def _download_S3_files(self, s3_assets: List[AssetEntry[str, str]], show_details: bool = True):
-        # download s3 entries
-        if len(s3_assets) > 0:
-            s3_entries_processed = []
-            for file in s3_assets:
-                _path = Path(file.remote_path)
-                s3_entries_processed.append({
-                    "bucket":(bucket :=_path.root),
-                    "prefix":_path.relative_to(bucket)
-                })
-
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                results = executor.map(self._S3_download_file, s3_entries_processed)
-                for result, file_asset in zip(results, s3_assets):
-                    if result is not None:
-                        # Update the local path in the AssetEntry
-                        file_asset.local_path = str(result)
-
-                        # Update catlog with local path
-
-                        # updated_entries.append(row)
-
-    def _HTTP_download_files(self, http_assets: List[AssetEntry[str, str]], show_details: bool = True):
-        if len(http_assets) > 0:
-            _download_func = partial(self._download_https_file, 
-                                     destination_dir=self.raw_dir, 
-                                     show_details=show_details)
-            
-            for file_asset in tqdm(http_assets, total=len(http_assets), desc=f"Downloading {file_asset.remote_path}"):
-                if (local_path :=_download_func(file_asset.remote_path)) is not None:
-                    file_asset.local_path = str(local_path)
-                    # with self.engine.begin() as conn:
-                    #     conn.execute(
-                    #         sa.update(Assets).where(Assets.remote_path == file_asset['remote_path']).values(dict(file_asset))
-                    #     )
-
-    def _S3_download_file(self, bucket:str, prefix:str, **kwargs) -> Union[Path,None]:
-        """
-        Retrieves and catalogs data from the s3 locations stored in the catalog.
+    def _download_S3_files(self, s3_assets: List[AssetEntry[str, str]]):
+        """ 
+        Download a list of files from S3.
 
         Args:
+            s3_assets (List[AssetEntry[str, str]]): A list of S3 assets to download.
+        
+        Returns:
+            None
+        """
+
+        s3_entries_processed = []
+        for file in s3_assets:
+            _path = Path(file.remote_path)
+            s3_entries_processed.append({
+                "bucket":(bucket :=_path.root),
+                "prefix":_path.relative_to(bucket)
+            })
+
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            local_path_results = executor.map(self._S3_download_file, s3_entries_processed)
+            for local_downloaded_path, file_asset in zip(local_path_results, s3_assets):
+                if local_downloaded_path is not None:
+                    # Update the local path in the AssetEntry
+                    file_asset.local_path = str(local_downloaded_path)
+                    # Update catalog with local path
+
+    def _S3_download_file(self, client, bucket: str, prefix: str) -> Union[Path,None]:
+        """
+        Downloads a file from the specified S3 bucket and prefix.
+
+        Args:
+            client (boto3.client): The boto3 client object.
             bucket (str): S3 bucket name
             prefix (str): S3 object prefix
 
-        Raises:
-            Exception: If no matching data found in catalog.
+        Returns:
+            local_path (Path): The local path where the file was downloaded, or None if the download failed.
         """
-        with threading.Lock():
-            client = boto3.client('s3')
+
 
         local_path = self.raw_dir / Path(prefix).name
 
-        # If the file does not exist and has not been processed, then download it!
         try:
             logger.info(f"Downloading {prefix} to {local_path}")
             client.download_file(Bucket=bucket, 
@@ -459,56 +428,56 @@ class DataHandler:
             response = f"Downloaded {str(prefix)} to {str(local_path)}"
             logger.info(response)
 
-            if os.environ.get("DH_SHOW_DETAILS",False):
-                print(response)
+        except Exception as e:
+            logger.error(f"Error downloading {prefix} from {bucket }\n {e} \n HINT: $ aws sso login")
+            local_path = None
 
+        finally:
             return local_path
 
-        except Exception as e:
-            response = f"Error downloading {prefix} \n {e}"
-            response += "\n HINT: $ aws sso login"
-            logger.error(response)
-            if os.environ.get("DH_SHOW_DETAILS",False):
-                print(response)
-            return None
+    def download_HTTP_files(self, http_assets: List[AssetEntry[str, str]], show_details: bool = True):
+        if len(http_assets) > 0:
+            _download_func = partial(self.HTTP_download_file, 
+                                     destination_dir=self.raw_dir, 
+                                     show_details=show_details)
+            
+            for file_asset in tqdm(http_assets, total=len(http_assets), desc=f"Downloading {file_asset.remote_path}"):
+                if (local_path :=_download_func(file_asset.remote_path)) is not None:
+                    file_asset.local_path = str(local_path)
 
-    def _download_https_file(self, 
-                            remote_url: Path, 
-                            destination_dir: Path, 
-                            token_path='.',
-                            show_details: bool=True) -> Union[Path,None]:
+    
+
+    def HTTP_download_file(self, remote_url: Path, destination_dir: Path, token_path='.') -> Union[Path, None]:
         """
         Downloads a file from the specified https url on gage-data
 
         Args:
             remote_url (Path): The path of the file in the gage-data storage.
             destination (Path): The local path where the file will be downloaded.
+            token_path (str): The path to the token file for authentication.
 
         Returns:
-            bool: True if the file was downloaded successfully, False otherwise.
+            local_path (Path): The local path where the file was downloaded, or None if the download failed.
         """
         try:
             local_path = destination_dir / Path(remote_url).name
             download_file_from_archive(url=remote_url, 
-                                    dest_dir=destination_dir, 
-                                    token_path=token_path,
-                                    )
-            if not local_path.exists():
+                                       dest_dir=destination_dir, 
+                                       token_path=token_path,
+                                       )
+            
+            if not local_path.exists(): # TODO: check if this is necessary
                 raise Exception
 
             response = f"Downloaded {str(remote_url)} to {str(local_path)}"
             logger.info(response)
-            if show_details:
-                print(response)
-            return local_path
 
         except Exception as e:
-            response = f"Error downloading {str(remote_url)} \n {e}"
-            response += "\n HINT: Check authentication credentials"
-            logger.error(response)
-            if show_details:
-                print(response)
-            return None
+            logger.error(f"Error downloading {str(remote_url)} \n {e}" + "\n HINT: Check authentication credentials")
+            local_path = None
+
+        finally:
+            return local_path
 
     def view_data(self):
         shotdata_dates = self.shotdata_tdb.get_unique_dates().tolist()
