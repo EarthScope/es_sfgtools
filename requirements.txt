@@ -18,4 +18,5 @@ seaborn
 folium
 scikit-learn
 sqlalchemy
+tiledb
 garpos @ git+https://github.com/EarthScope/garpos.git
