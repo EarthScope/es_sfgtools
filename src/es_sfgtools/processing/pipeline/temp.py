@@ -1,63 +1,53 @@
-import os
+""" Contains the DataHandler class for handling data operations. """
+import warnings
+warnings.filterwarnings("ignore")
+
 from pathlib import Path
-from typing import List,Callable,Union,Generator,Tuple,LiteralString,Optional,Dict,Literal
-import pandas as pd
+from typing import List, Callable, Union, Generator, Tuple, LiteralString, Optional, Dict, Literal
 import datetime
 import logging
-import pandera as pa
-import uuid
 import boto3
-from enum import Enum
 import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
-import seaborn 
 from tqdm.auto import tqdm 
-from multiprocessing import Pool, cpu_count
 from functools import partial
-import numpy as np
-import warnings
-import folium
-import json
 import concurrent.futures
-import itertools
-import logging
-import multiprocessing
 import threading
-
-import time
-import itertools
-# import multiprocessing_logging
 from functools import wraps
-warnings.filterwarnings("ignore")
-seaborn.set_theme(style="whitegrid")
+
+# import seaborn 
+# seaborn.set_theme(style="whitegrid")
+
 from es_sfgtools.utils.archive_pull import download_file_from_archive
-from es_sfgtools.processing.assets.file_schemas import AssetEntry,AssetType,MultiAssetEntry,MultiAssetPre
-from es_sfgtools.processing.operations import sv2_ops,sv3_ops,gnss_ops,site_ops
-from es_sfgtools.processing.assets import observables,siteconfig,constants,file_schemas
-from es_sfgtools.modeling.garpos_tools import schemas as modeling_schemas
-from es_sfgtools.modeling.garpos_tools import functions as modeling_funcs
-from es_sfgtools.modeling.garpos_tools import hyper_params
+from es_sfgtools.processing.assets.file_schemas import AssetEntry
 from es_sfgtools.processing.assets.tiledb_temp import TDBAcousticArray,TDBGNSSArray,TDBPositionArray,TDBShotDataArray
-from es_sfgtools.processing.operations.utils import merge_shotdata_gnss
 from es_sfgtools.processing.pipeline.catalog import Catalog
-
-
 from es_sfgtools.processing.pipeline.pipelines import SV3Pipeline
-from es_sfgtools.processing.pipeline.constants import FILE_TYPE,DATA_TYPE,REMOTE_TYPE,ALIAS_MAP,FILE_TYPES
+from es_sfgtools.processing.pipeline.constants import REMOTE_TYPE, FILE_TYPES
 from es_sfgtools.processing.pipeline.datadiscovery import scrape_directory_local, get_file_type_local, get_file_type_remote
+
+# from es_sfgtools.processing.operations import sv2_ops,sv3_ops,gnss_ops,site_ops
+# from es_sfgtools.processing.assets import observables,siteconfig,constants,file_schemas
+# from es_sfgtools.modeling.garpos_tools import schemas
+# from es_sfgtools.modeling.garpos_tools import functions
+# from es_sfgtools.modeling.garpos_tools import hyper_params
+# from es_sfgtools.processing.operations.utils import merge_shotdata_gnss
+
+# Set up logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
 
-def check_network_station_survey(func:Callable):
+
+def check_network_station_survey(func: Callable):
+    """ Wrapper to check if network, station, and survey are set before running a function. """
     @wraps(func)
-    def wrapper(self,*args,**kwargs):
+    def wrapper(self, *args, **kwargs):
         if self.network is None:
             raise ValueError("Network name not set, use change_working_station")
         if self.station is None:
             raise ValueError("Station name not set, use change_working_station")
         if self.survey is None:
             raise ValueError("Survey name not set, use change_working_survey")
-        return func(self,*args,**kwargs)
+        return func(self, *args, **kwargs)
     return wrapper
 
 class DataHandler:
@@ -88,10 +78,12 @@ class DataHandler:
         self.station = station
         self.survey = survey
    
-        # Create the main & pride directory
+        # Create the directory structures
         self.main_directory = Path(directory)
-        self.pride_dir = self.main_directory / "Pride"
-        self.pride_dir.mkdir(exist_ok=True, parents=True)
+        self.build_station_dir_structure(self.network, self.station)
+
+        # Create the TileDB arrays
+        self.build_tileDB_arrays()
 
         # Create the catalog
         self.db_path = self.main_directory / "catalog.sqlite"
@@ -114,10 +106,13 @@ class DataHandler:
                             - intermediate/
                             - processed/  
         """
+        # Create the main and pride directory
+        self.pride_dir = self.main_directory / "Pride"
+        self.pride_dir.mkdir(exist_ok=True, parents=True)
 
         # Create the network/station directory structure
         self.station_dir = self.main_directory / network / station
-        self.station_dir.mkdir(parents=True,exist_ok=True)
+        self.station_dir.mkdir(parents=True, exist_ok=True)
 
         # Create the TileDB directory structure (network/station/TileDB)
         self.tileb_dir = self.station_dir / "TileDB"
@@ -198,9 +193,9 @@ class DataHandler:
         # See if the data is already in the catalog
         file_paths = [AssetEntry(**x) for x in file_data_list]
         uploadCount = 0
-        for asset in file_paths:
+        for file_asset in file_paths:
             try:
-                if self.catalog.add_entry(asset):
+                if self.catalog.add_entry(file_asset):
                     uploadCount += 1
             except Exception as e:
                 pass
@@ -237,12 +232,10 @@ class DataHandler:
                 print(response)
             return
 
-        self._add_data_local(files,show_details=show_details)
+        self._add_data_local(files, show_details=show_details)
 
     @check_network_station_survey
-    def add_data_local(self,
-                        local_filepaths:Union[List[Union[str,Path]],str],
-                        show_details:bool=True):
+    def add_data_local(self, local_filepaths:Union[List[Union[str,Path]],str], show_details:bool=True):
         
         if isinstance(local_filepaths,str):
             local_filepaths = [Path(local_filepaths)]
@@ -396,7 +389,7 @@ class DataHandler:
                 "prefix":_path.relative_to(bucket)
             })
 
-        with concurrent.futures.ThreadPoolExecutor() as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
             local_path_results = executor.map(self._S3_download_file, s3_entries_processed)
             for local_downloaded_path, file_asset in zip(local_path_results, s3_assets):
                 if local_downloaded_path is not None:
@@ -508,7 +501,7 @@ class DataHandler:
   
 
     @check_network_station_survey
-    def pipeline_sv3(self,override:bool=False,show_details:bool=False,plot:bool=False):
+    def pipeline_sv3(self, override:bool=False, show_details:bool=False, plot:bool=False):
         pipeline = SV3Pipeline(catalog=self.catalog)
         pipeline.process_novatel(
             network=self.network,
