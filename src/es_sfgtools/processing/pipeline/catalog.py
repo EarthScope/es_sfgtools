@@ -65,13 +65,10 @@ class Catalog:
             result = conn.execute(query).fetchall()
             out = []
             for row in result:
-                print(row._mapping)
                 try:
-                    data = row._mapping
-                    print(f"Data being passed to schema: {data}")
                     out.append(schema(**row._mapping))
                 except Exception as e:
-                    print(e)
+                    print("Unable to add row, error: {}".format(e))
             return out
         
     def get_single_entries_to_process(self,
@@ -127,10 +124,26 @@ class Catalog:
             if results:
                 return schema(**results._mapping)
         return None
+    
+    def update_local_path(self, id, local_path: str):
+        """ Update the local path for an entry in the database. """
+        try:
+            logger.info(f"Updating local path in catalog for id {id} to {local_path}")
+            with self.engine.begin() as conn:
+                conn.execute(
+                    sa.update(Assets)
+                    .where(Assets.id == id)
+                    .values(local_path=local_path)
+                )
+        except Exception as e:
+            logger.error(f"Error updating local path for id {id}: {e}")
 
-    def add_or_update(self,entry: AssetEntry | MultiAssetEntry):
+
+    def add_or_update(self, entry: AssetEntry | MultiAssetEntry):
         if entry is None:
+            logger.warning("No entry to add or update")
             return
+        
         table = Assets if isinstance(entry, AssetEntry) else MultiAssets
     
         with self.engine.begin() as conn:
@@ -151,8 +164,7 @@ class Catalog:
                     logger.error(f"Error adding or updating entry {entry}")
                     pass
 
-    def query_catalog(self,
-                      query:str) -> pd.DataFrame:
+    def query_catalog(self, query:str) -> pd.DataFrame:
         with self.engine.begin() as conn:
             try:
                 return pd.read_sql_query(query,conn)

@@ -25,13 +25,6 @@ from es_sfgtools.processing.pipeline.pipelines import SV3Pipeline
 from es_sfgtools.processing.pipeline.constants import REMOTE_TYPE, FILE_TYPES
 from es_sfgtools.processing.pipeline.datadiscovery import scrape_directory_local, get_file_type_local, get_file_type_remote
 
-# from es_sfgtools.processing.operations import sv2_ops,sv3_ops,gnss_ops,site_ops
-# from es_sfgtools.processing.assets import observables,siteconfig,constants,file_schemas
-# from es_sfgtools.modeling.garpos_tools import schemas
-# from es_sfgtools.modeling.garpos_tools import functions
-# from es_sfgtools.modeling.garpos_tools import hyper_params
-# from es_sfgtools.processing.operations.utils import merge_shotdata_gnss
-
 # Set up logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
@@ -43,10 +36,13 @@ def check_network_station_survey(func: Callable):
     def wrapper(self, *args, **kwargs):
         if self.network is None:
             raise ValueError("Network name not set, use change_working_station")
+        
         if self.station is None:
             raise ValueError("Station name not set, use change_working_station")
+        
         if self.survey is None:
             raise ValueError("Survey name not set, use change_working_survey")
+        
         return func(self, *args, **kwargs)
     return wrapper
 
@@ -168,14 +164,19 @@ class DataHandler:
 
     @check_network_station_survey
     def get_dtype_counts(self):
+        """ 
+        Get the data type counts for the current station from the catalog.
+
+        Returns:
+            Dict[str,int]: A dictionary of data types and their counts.
+        """ 
         return self.catalog.get_dtype_counts(network=self.network, 
                                              station=self.station, 
                                              survey=self.survey)
 
     @check_network_station_survey
-    def _add_data_local(self,
-                        local_filepaths:List[AssetEntry],
-                        show_details:bool=True):
+    def _add_data_local(self, local_filepaths: List[AssetEntry], show_details:bool=True):
+        # TODO work on this later
         count = 0
         file_data_list = []
         for discovered_file in local_filepaths:
@@ -235,7 +236,7 @@ class DataHandler:
         self._add_data_local(files, show_details=show_details)
 
     @check_network_station_survey
-    def add_data_local(self, local_filepaths:Union[List[Union[str,Path]],str], show_details:bool=True):
+    def add_data_local(self, local_filepaths: Union[List[Union[str,Path]],str], show_details:bool=True):
         
         if isinstance(local_filepaths,str):
             local_filepaths = [Path(local_filepaths)]
@@ -285,6 +286,7 @@ class DataHandler:
 
             file_data = AssetEntry(
                 remote_path=file,
+                remote_type=remote_type,
                 type=file_type,
                 network=self.network,
                 station=self.station,
@@ -320,10 +322,9 @@ class DataHandler:
 
         # Grab assests from the catalog that match the network, station, survey, and file type
         assets = self.catalog.get_assets(network=self.network,
-                                       station=self.station,
-                                       survey=self.survey,
-                                       types=file_types)
-        print(assets)
+                                         station=self.station,
+                                         survey=self.survey,
+                                         types=file_types)
 
         if len(assets) == 0:
             response = f"No matching data found in catalog"
@@ -348,8 +349,8 @@ class DataHandler:
             logger.info(f"No new files to download")
         
         # split the entries into s3 and http
-        s3_assets = [x for x in assets if x['remote_type'] == REMOTE_TYPE.S3.value]
-        http_assets = [x for x in assets if x['remote_type'] == REMOTE_TYPE.HTTP.value]
+        s3_assets = [file for file in assets if file.remote_type == REMOTE_TYPE.S3.value]
+        http_assets = [file for file in assets if file.remote_type == REMOTE_TYPE.HTTP.value]
 
         if len(s3_assets) > 0:
             with threading.Lock(): # TODO is this necessary?
@@ -357,20 +358,19 @@ class DataHandler:
             self._download_S3_files(client=client,
                                     s3_assets=s3_assets, 
                                     show_details=show_details)
-            # TODO update catalog with local path
+            for file in s3_assets:
+                if file.local_path is not None:
+                    self.catalog.update_local_path(file.id, file.local_path)
         
         if len(http_assets) > 0:
             self.download_HTTP_files(http_assets=http_assets, 
                                       show_details=show_details)
-            # TODO update catalog with local path
 
-
-        # download http entries
         # TODO: re-implement multithreading, switched to serial downloading.
         # need to solve cataloging each file after download and making progress bar work in parallel
 
 
-    def _download_S3_files(self, s3_assets: List[AssetEntry[str, str]]):
+    def _download_S3_files(self, s3_assets: List[AssetEntry]):
         """ 
         Download a list of files from S3.
 
@@ -396,6 +396,7 @@ class DataHandler:
                     # Update the local path in the AssetEntry
                     file_asset.local_path = str(local_downloaded_path)
                     # Update catalog with local path
+                    self.catalog.update_local_path(file_asset.id, file_asset.local_path)
 
     def _S3_download_file(self, client, bucket: str, prefix: str) -> Union[Path,None]:
         """
@@ -428,19 +429,14 @@ class DataHandler:
         finally:
             return local_path
 
-    def download_HTTP_files(self, http_assets: List[AssetEntry[str, str]], show_details: bool = True):
-        if len(http_assets) > 0:
-            _download_func = partial(self.HTTP_download_file, 
-                                     destination_dir=self.raw_dir, 
-                                     show_details=show_details)
-            
-            for file_asset in tqdm(http_assets, total=len(http_assets), desc=f"Downloading {file_asset.remote_path}"):
-                if (local_path :=_download_func(file_asset.remote_path)) is not None:
-                    file_asset.local_path = str(local_path)
+    def download_HTTP_files(self, http_assets: List[AssetEntry], show_details: bool = True):
+        for file_asset in http_assets:
+            if (local_path := self._HTTP_download_file(file_asset.remote_path)) is not None:
+                file_asset.local_path = str(local_path)
+                self.catalog.update_local_path(file_asset.id, file_asset.local_path)
 
-    
 
-    def HTTP_download_file(self, remote_url: Path, destination_dir: Path, token_path='.') -> Union[Path, None]:
+    def _HTTP_download_file(self, remote_url: Path, token_path='.') -> Union[Path, None]:
         """
         Downloads a file from the specified https url on gage-data
 
@@ -453,9 +449,9 @@ class DataHandler:
             local_path (Path): The local path where the file was downloaded, or None if the download failed.
         """
         try:
-            local_path = destination_dir / Path(remote_url).name
+            local_path = self.raw_dir / Path(remote_url).name
             download_file_from_archive(url=remote_url, 
-                                       dest_dir=destination_dir, 
+                                       dest_dir=self.raw_dir, 
                                        token_path=token_path,
                                        )
             

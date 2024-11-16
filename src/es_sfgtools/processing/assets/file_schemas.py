@@ -89,6 +89,7 @@ class AssetType(Enum):
 class _AssetBase(BaseModel):
     local_path: Optional[Union[str, Path]] = Field(default=None)
     remote_path: Optional[str] = Field(default=None)
+    remote_type: Optional[str] = Field(default=None)
     type: Optional[AssetType] = Field(default=None)
     id: Optional[int] = Field(default=None)
     network: Optional[str] = Field(default=None)
