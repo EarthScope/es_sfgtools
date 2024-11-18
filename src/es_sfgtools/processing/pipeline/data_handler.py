@@ -4,7 +4,6 @@ warnings.filterwarnings("ignore")
 
 from pathlib import Path
 from typing import List, Callable, Union, Generator, Tuple, LiteralString, Optional, Dict, Literal
-import datetime
 import logging
 import boto3
 import matplotlib.pyplot as plt
@@ -280,11 +279,7 @@ class DataHandler:
 
         Args:
             file_type (str): The type of file to download
-            override (bool): Whether to download the data even if it already exists
-            show_details (bool): Log details of each file downloaded  
-
-        Raises:
-            Exception: If no matching data found in catalog.
+            override (bool): Whether to download the data even if it already exists. Default is False.
         """
 
         # Grab assests from the catalog that match the network, station, survey, and file type
@@ -317,6 +312,7 @@ class DataHandler:
         s3_assets = [file for file in assets if file.remote_type == REMOTE_TYPE.S3.value]
         http_assets = [file for file in assets if file.remote_type == REMOTE_TYPE.HTTP.value]
 
+        # Download Files from either S3 or HTTP
         if len(s3_assets) > 0:
             with threading.Lock():
                 client = boto3.client('s3')
@@ -335,9 +331,6 @@ class DataHandler:
 
         Args:
             s3_assets (List[AssetEntry[str, str]]): A list of S3 assets to download.
-        
-        Returns:
-            None
         """
 
         s3_entries_processed = []
@@ -358,7 +351,7 @@ class DataHandler:
                     self.catalog.update_local_path(id=file_asset.id, 
                                                    local_path=file_asset.local_path)
 
-    def _S3_download_file(self, client, bucket: str, prefix: str) -> Union[Path,None]:
+    def _S3_download_file(self, client, bucket: str, prefix: str) -> Path:
         """
         Downloads a file from the specified S3 bucket and prefix.
 
@@ -389,7 +382,12 @@ class DataHandler:
             return local_path
 
     def download_HTTP_files(self, http_assets: List[AssetEntry]):
-        """ Download HTTP files with progress bar. """
+        """ 
+        Download HTTP files with progress bar and updates the catalog with the local path. 
+        
+        Args:
+            http_assets (List[AssetEntry]): A list of HTTP assets to download.
+        """
 
         for file_asset in tqdm(http_assets, desc="Downloading HTTP Files"):
             if (local_path := self._HTTP_download_file(file_asset.remote_path)) is not None:
@@ -400,7 +398,7 @@ class DataHandler:
                                                local_path=file_asset.local_path)
 
 
-    def _HTTP_download_file(self, remote_url: Path, token_path='.') -> Union[Path, None]:
+    def _HTTP_download_file(self, remote_url: Path, token_path='.') -> Path:
         """
         Downloads a file from the specified https url on gage-data
 
