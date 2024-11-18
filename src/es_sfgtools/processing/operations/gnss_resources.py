@@ -197,17 +197,24 @@ class GSSC:
         assert (
             constellation in cls.constellation_tag.keys()
         ), f"Constellation {constellation} not recognized"
+
+        year, doy = _parse_date(date)
+        dir_extension = f"{year}/{doy}"
+        directory = "/".join([cls.daily_gps_dir, dir_extension])
         remote_query = RemoteQuery.rnx2(date, constellation)
         remote_resource = RemoteResource(
-            ftpserver=cls.ftpserver, directory=cls.daily_gps_dir, remote_query=remote_query
+            ftpserver=cls.ftpserver, directory=directory, remote_query=remote_query
         )
         return remote_resource
 
     @classmethod
     def get_rinex_3_nav(cls, date: datetime) -> RemoteResource:
         remote_query = RemoteQuery.rnx3(date)
+        year, doy = _parse_date(date)
+        dir_extension = f"{year}/{doy}"
+        directory = "/".join([cls.daily_gps_dir, dir_extension])
         remote_resource = RemoteResource(
-            ftpserver=cls.ftpserver, directory=cls.daily_gps_dir, remote_query=remote_query
+            ftpserver=cls.ftpserver, directory=directory, remote_query=remote_query
         )
         return remote_resource
 
