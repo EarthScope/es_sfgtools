@@ -50,6 +50,7 @@ def _rinex_get_meta(data:AssetType) -> AssetType:
     return data
 
 
+
 def get_file_type_local(file_path: Path) -> AssetType:
     """
     Get the file type of a file.
@@ -69,27 +70,17 @@ def get_file_type_local(file_path: Path) -> AssetType:
     size = file_path.stat().st_size
 
     if size == 0:
-        warnings.warn(f"File {str(file_path)} is empty")
-        return
+        warnings.warn(f"File {str(file_path)} is empty, not processing")
+        return None, None
+    
     if file_type is None:
         warnings.warn(f"File type not recognized for {str(file_path)}")
-        return
+        return None, None
+    
+    return file_type, size
 
-    discoveredFile =AssetEntry(
-        local_path=str(file_path),
-        type=file_type,
-        size=size,
-        timestamp_data_start=None,
-        timestamp_data_end=None,
-    )
-    return discoveredFile
-    # match file_type:
-    #     case AssetType.RINEX:
-    #         return _rinex_get_meta(discoveredFile)
-    #     case _:
-    #         return discoveredFile
 
-def get_file_type_remote(file_path: str) -> AssetType:
+def get_file_type_remote(file_path: str):
     """
     Get the file type of a file.
 
@@ -112,27 +103,26 @@ def get_file_type_remote(file_path: str) -> AssetType:
     return file_type
 
 
-def scrape_directory_local(directory: Union[str, Path]) -> List[AssetType]:
+def scrape_directory_local(directory: Path) -> List[Path]:
     """
     Scrape a directory for files.
 
     Args:
-        directory (Union[str, Path]): The directory.
+        directory (str): The directory to scrape files from.
 
-    Returns:
-        List[DiscoveredFile]: The discovered files.
     """
     if isinstance(directory, str):
         directory = Path(directory)
-    files = list(directory.rglob("*"))
-    output = []
-    for file in files:
+
+    initial_files = list(directory.rglob("*"))
+
+    output_files = []
+    for file in initial_files:
         if file.is_file():
-            discoveredFile: Union[AssetEntry, None] = get_file_type_local(file)
-            if discoveredFile is not None:
-                output.append(discoveredFile)
+            output_files.append(file)
     
-    if output is None:
+    if len(output_files) == 0:
         warnings.warn("No files found in directory")
-        
-    return output
+        return None
+    
+    return output_files

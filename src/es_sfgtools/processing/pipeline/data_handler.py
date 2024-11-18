@@ -41,14 +41,14 @@ def check_network_station_survey(func: Callable):
             raise ValueError("Station name not set, use change_working_station")
         
         if self.survey is None:
-            raise ValueError("Survey name not set, use change_working_survey")
+            raise ValueError("Survey name not set, use change_working_station")
         
         return func(self, *args, **kwargs)
     return wrapper
 
 class DataHandler:
     """
-    A class to handle data operations such as adding campaign data, downloading data, and processing data.
+    A class to handle data operations such as searching for, adding, downloading and processing data.
     """
 
     def __init__(self,
@@ -93,14 +93,15 @@ class DataHandler:
         """
         Build the directory structure for a station.
         Format is as follows:
-            - SFGDirectory/
+            - [SFG Data Directory]/
                 - <network>/
                     - <station>/
                         - TileDB/
                         - Data/
                             - raw/
                             - intermediate/
-                            - processed/  
+                            - processed/ 
+                - Pride/ 
         """
         # Create the main and pride directory
         self.pride_dir = self.main_directory / "Pride"
@@ -130,14 +131,14 @@ class DataHandler:
 
     def build_tileDB_arrays(self):
         """
-        Build the TileDB arrays for the current station. TileDB directory is /network/station/TileDB
+        Build the TileDB arrays for the current station. TileDB directory is /network/station/TileDB.
         """
         self.acoustic_tdb = TDBAcousticArray(self.tileb_dir/"acoustic_db.tdb")
         self.gnss_tdb = TDBGNSSArray(self.tileb_dir/"gnss_db.tdb")
         self.position_tdb = TDBPositionArray(self.tileb_dir/"position_db.tdb")
         self.shotdata_tdb = TDBShotDataArray(self.tileb_dir/"shotdata_db.tdb")
     
-    def change_working_station(self, network: str, station: str, survey: str = None):
+    def change_working_station(self, station: str, network: str = None, survey: str = None):
         """
         Change the working station.
         
@@ -149,9 +150,13 @@ class DataHandler:
         Returns:
             None
         """
+
         # Set class attributes & create the directory structure
-        self.network = network
         self.station = station
+
+        if network is not None:
+            self.network = network
+
         if survey is not None:
             self.survey = survey
 
@@ -175,97 +180,62 @@ class DataHandler:
                                              survey=self.survey)
 
     @check_network_station_survey
-    def _add_data_local(self, local_filepaths: List[AssetEntry], show_details:bool=True):
-        # TODO work on this later
-        count = 0
-        file_data_list = []
-        for discovered_file in local_filepaths:
-
-            file_data = discovered_file.model_dump() | {
-                "network": self.network,
-                "station": self.station,
-                "survey": self.survey,
-                "timestamp_created": datetime.datetime.now(),
-            }
-
-            file_data_list.append(file_data)
-            count += 1
-
-        # See if the data is already in the catalog
-        file_paths = [AssetEntry(**x) for x in file_data_list]
-        uploadCount = 0
-        for file_asset in file_paths:
-            try:
-                if self.catalog.add_entry(file_asset):
-                    uploadCount += 1
-            except Exception as e:
-                pass
-        response = f"Added {uploadCount} out of {count} files to the catalog"
-        logger.info(response)
-        if show_details:
-            print(response)
-
-    def discover_data_directory(self, network:str, station:str, survey:str, dir_path:Path, show_details:bool=True):
+    def discover_data_and_add_files(self, directory_path: Path) -> None:
         """
         For a given directory of data, iterate through all files and add them to the catalog.
         
         Note: Be sure to correctly set the network, station, and survey before running this function.
 
         Args:
-            network (str): The network name.
-            station (str): The station name.
-            survey (str): The survey name.
-            dir_path (Path): The directory path.
-            show_details (bool): Log details of each file added.
-
-        Returns:
-            None
+            dir_path (Path): The directory path to look for files and add them to the catalog.
         """
-        self.change_working_station(network=network,
-                                    station=station,
-                                    survey=survey)
 
-        files = scrape_directory_local(dir_path)
+        files = scrape_directory_local(directory_path)
         if len(files) == 0:
-            response = f"No files found in {dir_path}"
-            logger.error(response)
-            if show_details:
-                print(response)
+            logger.error(f"No files found in {directory_path}, ensure the directory is correct.")
             return
 
-        self._add_data_local(files, show_details=show_details)
+        self.add_data_to_catalog(files)
 
     @check_network_station_survey
-    def add_data_local(self, local_filepaths: Union[List[Union[str,Path]],str], show_details:bool=True):
-        
-        if isinstance(local_filepaths,str):
-            local_filepaths = [Path(local_filepaths)]
+    def add_data_to_catalog(self, local_filepaths: List[str]):
+        """ Using the local filepaths, add the data to the catalog. """
+        file_data_list = []
+        for file in local_filepaths:
+            if not Path(file).exists():
+                logger.error(f"File {file} does not exist")
+                continue
+            file_type, _size = get_file_type_local(file)
 
-        discovered_files : List[AssetEntry] = [get_file_type_local(file) for file in local_filepaths]
-        discovered_files = [x for x in discovered_files if x is not None]
+            file_data = AssetEntry(
+                local_path=file,
+                type=file_type,
+                network=self.network,
+                station=self.station,
+                survey=self.survey,
+            )
+            file_data_list.append(file_data)
 
-        if len(discovered_files) == 0:
-            response = f"No files found in {local_filepaths}"
-            logger.error(response)
-            if show_details:
-                print(response)
-            return
-        
-        self._add_data_local(discovered_files,show_details=show_details)
+        # Add each file (AssetEntry) to the catalog
+        count = len(file_data_list)
+        uploadCount = 0
+        for file_assest in file_data_list:
+            if self.catalog.add_entry(file_assest):
+                uploadCount += 1
+
+        logger.info(f"Added {uploadCount} out of {count} files to the catalog")
+
 
     def add_data_remote(self, 
                         remote_filepaths: List[str],
-                        remote_type:Union[REMOTE_TYPE,str] = REMOTE_TYPE.HTTP,
-                        show_details:bool=True):
+                        remote_type:Union[REMOTE_TYPE,str] = REMOTE_TYPE.HTTP
+                        ) -> None:
         """
         Add campaign data to the catalog.
 
         Args:
             remote_filepaths (List[str]): A list of file locations on gage-data.
             remote_type (Union[REMOTE_TYPE,str]): The type of remote location.
-
-        Returns:
-            None
         """
         # Check that the remote type is valid, default is HTTP
         if isinstance(remote_type, str):
@@ -282,6 +252,7 @@ class DataHandler:
             file_type = get_file_type_remote(file)
 
             if file_type is None: # If the file type is not recognized, skip it
+                logger.warning(f"File type not recognized for {file}")
                 continue
 
             file_data = AssetEntry(
@@ -298,16 +269,12 @@ class DataHandler:
         count = len(file_data_list)
         uploadCount = 0
         for file_assest in file_data_list:
-            print("Adding", file_assest)
             if self.catalog.add_entry(file_assest):
                 uploadCount += 1
-        response = f"Added {uploadCount} out of {count} files to the catalog"
-        logger.info(response)
 
-        if show_details:
-            print(response)
+        logger.info(f"Added {uploadCount} out of {count} files to the catalog")
 
-    def download_data(self, file_types: List = FILE_TYPES, override: bool=False, show_details:bool=True):
+    def download_data(self, file_types: List = FILE_TYPES, override: bool=False):
         """
         Retrieves and catalogs data from the remote locations stored in the catalog.
 
@@ -327,9 +294,7 @@ class DataHandler:
                                          types=file_types)
 
         if len(assets) == 0:
-            response = f"No matching data found in catalog"
-            logger.error(response)
-            print(response)
+            logger.error(f"No matching data found in catalog")
             return
         
         # Find files that we need to download based on the catalog output. If override is True, download all files.
@@ -353,11 +318,10 @@ class DataHandler:
         http_assets = [file for file in assets if file.remote_type == REMOTE_TYPE.HTTP.value]
 
         if len(s3_assets) > 0:
-            with threading.Lock(): # TODO is this necessary?
+            with threading.Lock():
                 client = boto3.client('s3')
             self._download_S3_files(client=client,
-                                    s3_assets=s3_assets, 
-                                    show_details=show_details)
+                                    s3_assets=s3_assets)
             for file in s3_assets:
                 if file.local_path is not None:
                     self.catalog.update_local_path(file.id, file.local_path)
@@ -365,13 +329,9 @@ class DataHandler:
         if len(http_assets) > 0:
             self.download_HTTP_files(http_assets=http_assets)
 
-        # TODO: re-implement multithreading, switched to serial downloading.
-        # need to solve cataloging each file after download and making progress bar work in parallel
-
-
     def _download_S3_files(self, s3_assets: List[AssetEntry]):
         """ 
-        Download a list of files from S3.
+        Downloads a list of files from S3.
 
         Args:
             s3_assets (List[AssetEntry[str, str]]): A list of S3 assets to download.
@@ -395,7 +355,8 @@ class DataHandler:
                     # Update the local path in the AssetEntry
                     file_asset.local_path = str(local_downloaded_path)
                     # Update catalog with local path
-                    self.catalog.update_local_path(file_asset.id, file_asset.local_path)
+                    self.catalog.update_local_path(id=file_asset.id, 
+                                                   local_path=file_asset.local_path)
 
     def _S3_download_file(self, client, bucket: str, prefix: str) -> Union[Path,None]:
         """
@@ -418,8 +379,7 @@ class DataHandler:
             client.download_file(Bucket=bucket, 
                                  Key=str(prefix), 
                                  Filename=str(local_path))
-            response = f"Downloaded {str(prefix)} to {str(local_path)}"
-            logger.info(response)
+            logger.info(f"Downloaded {str(prefix)} to {str(local_path)}")
 
         except Exception as e:
             logger.error(f"Error downloading {prefix} from {bucket }\n {e} \n HINT: $ aws sso login")
@@ -433,8 +393,11 @@ class DataHandler:
 
         for file_asset in tqdm(http_assets, desc="Downloading HTTP Files"):
             if (local_path := self._HTTP_download_file(file_asset.remote_path)) is not None:
+                # Update the local path in the AssetEntry
                 file_asset.local_path = str(local_path)
-                self.catalog.update_local_path(file_asset.id, file_asset.local_path)
+                # Update catalog with local path
+                self.catalog.update_local_path(id=file_asset.id, 
+                                               local_path=file_asset.local_path)
 
 
     def _HTTP_download_file(self, remote_url: Path, token_path='.') -> Union[Path, None]:
@@ -459,8 +422,7 @@ class DataHandler:
             if not local_path.exists(): 
                 raise Exception
 
-            response = f"Downloaded {str(remote_url)} to {str(local_path)}"
-            logger.info(response)
+            logger.info(f"Downloaded {str(remote_url)} to {str(local_path)}")
 
         except Exception as e:
             logger.error(f"Error downloading {str(remote_url)} \n {e}" + "\n HINT: Check authentication credentials")

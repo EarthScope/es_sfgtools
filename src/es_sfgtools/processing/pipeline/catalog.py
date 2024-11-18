@@ -126,7 +126,13 @@ class Catalog:
         return None
     
     def update_local_path(self, id, local_path: str):
-        """ Update the local path for an entry in the database. """
+        """ 
+        Update the local path for an entry in the database. 
+        
+        Args:
+            id (int): The id of the entry to update.
+            local_path (str): The new local path.
+        """
         try:
             logger.info(f"Updating local path in catalog for id {id} to {local_path}")
             with self.engine.begin() as conn:
