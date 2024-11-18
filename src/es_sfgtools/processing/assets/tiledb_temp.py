@@ -1,7 +1,7 @@
 import tiledb
 import numpy as np
 from pathlib import Path
-from datetime import datetime
+import datetime
 import pandas as pd
 from pandera import check_types
 from pandera.typing import DataFrame
@@ -151,11 +151,13 @@ class TBDArray:
             df = self.dataframe_schema.validate(df,lazy=True)
         tiledb.from_pandas(str(self.uri),df,mode='append')
 
-    def read_df(self,start:datetime,end:datetime=None,validate:bool=True,**kwargs)->pd.DataFrame:
+    def read_df(self,start:datetime.datetime,end:datetime.datetime=None,validate:bool=True,**kwargs)->pd.DataFrame:
 
         # TODO slice array by start and end and return the dataframe
         if end is None:
-            end = start
+            end = start + datetime.timedelta(days=1)
+        else:
+            end = end + datetime.timedelta(days=1)
         with tiledb.open(str(self.uri), mode="r") as array:
             try:
                 df = array.df[slice(np.datetime64(start), np.datetime64(end))]
