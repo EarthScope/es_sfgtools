@@ -45,6 +45,9 @@ sp3 = WuhanIGS.get_product_sp3(start_date)
 clk = WuhanIGS.get_product_clk(start_date)
 erp = WuhanIGS.get_product_erp(start_date)
 
+rnx_3 = WuhanIGS.get_rinex_3_nav(start_date)
+
+rnx_3_update = update_source(rnx_3)
 sp3_update = update_source(sp3)
 clk_update = update_source(clk)
 erp_update = update_source(erp)
@@ -52,7 +55,16 @@ erp_update = update_source(erp)
 sp3_local_path = common_product_dir/sp3_update.file_name
 clk_local_path = common_product_dir/clk_update.file_name
 erp_local_path = common_product_dir/erp_update.file_name
+rnx_3_local_path = rinex_path.parent/rnx_3_update.file_name
 
-download(sp3_update,sp3_local_path)
-download(clk_update,clk_local_path)
-download(erp_update,erp_local_path)
+dl_rnx_3_local_path = get_nav_file(rinex_path,override=True,mode='process')
+if not rnx_3_local_path.exists():
+    download(rnx_3_update,rnx_3_local_path)
+if not sp3_local_path.exists():
+    download(sp3_update,sp3_local_path)
+if not clk_local_path.exists():
+    download(clk_update,clk_local_path)
+if not erp_local_path.exists():
+    download(erp_update,erp_local_path)
+
+

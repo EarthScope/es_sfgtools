@@ -124,11 +124,14 @@ class WuhanIGS:
         remote_query = RemoteQuery.rnx2(date,constellation)
         remote_resource = RemoteResource(ftpserver=cls.ftpserver,directory=cls.daily_gps_dir,remote_query=remote_query)
         return remote_resource
-    
+
     @classmethod
     def get_rinex_3_nav(cls,date:datetime) -> RemoteResource:
         remote_query = RemoteQuery.rnx3(date)
-        remote_resource = RemoteResource(ftpserver=cls.ftpserver,directory=cls.daily_gps_dir,remote_query=remote_query)
+        year, doy = _parse_date(date)
+        dir_extension = f"{year}/{doy}/{year[2:]}p"
+        directory = "/".join([cls.daily_gps_dir, dir_extension])
+        remote_resource = RemoteResource(ftpserver=cls.ftpserver,directory=directory,remote_query=remote_query)
         return remote_resource
 
     @classmethod
@@ -139,7 +142,6 @@ class WuhanIGS:
         remote_query = RemoteQuery.sp3(date)
         return RemoteResource(ftpserver=cls.ftpserver,directory=directory,remote_query=remote_query)
 
-
     @classmethod
     def get_product_obx(cls,date:datetime.date)->RemoteResource:
         year,doy = _parse_date(date)
@@ -147,7 +149,6 @@ class WuhanIGS:
         directory = "/".join([cls.daily_product_dir, dir_extension])
         remote_query = RemoteQuery.obx(date)
         return RemoteResource(ftpserver=cls.ftpserver,directory=directory,remote_query=remote_query)
-                
 
     @classmethod
     def get_product_clk(cls,date:datetime.date)->RemoteResource:
@@ -164,7 +165,6 @@ class WuhanIGS:
         directory = "/".join([cls.daily_product_dir, dir_extension])
         remote_query = RemoteQuery.sum(date)
         return RemoteResource(ftpserver=cls.ftpserver,directory=directory,remote_query=remote_query)
-
 
     @classmethod
     def get_product_bias(cls,date:datetime.date)->RemoteResource:
@@ -234,7 +234,7 @@ class GSSC:
         ), f"Constellation {constellation} not recognized"
         remote_query = RemoteQuery.rnx2(date, constellation)
         remote_resource = RemoteResource(
-            ftpserver=cls.ftpserver, directory=cls.daily_gps_dir, query=remote_query
+            ftpserver=cls.ftpserver, directory=cls.daily_gps_dir, remote_query=remote_query
         )
         return remote_resource
 
@@ -242,7 +242,7 @@ class GSSC:
     def get_rinex_3_nav(cls, date: datetime) -> RemoteResource:
         remote_query = RemoteQuery.rnx3(date)
         remote_resource = RemoteResource(
-            ftpserver=cls.ftpserver, directory=cls.daily_gps_dir, query=remote_query
+            ftpserver=cls.ftpserver, directory=cls.daily_gps_dir, remote_query=remote_query
         )
         return remote_resource
 
@@ -261,7 +261,7 @@ class CLSIGS:
         ), f"Constellation {constellation} not recognized"
         remote_query = RemoteQuery.rnx2(date, constellation)
         remote_resource = RemoteResource(
-            ftpserver=cls.ftpserver, directory=cls.daily_gps_dir, query=remote_query
+            ftpserver=cls.ftpserver, directory=cls.daily_gps_dir, remote_query=remote_query
         )
         return remote_resource
 
@@ -269,7 +269,7 @@ class CLSIGS:
     def get_rinex_3_nav(cls, date: datetime) -> RemoteResource:
         remote_query = RemoteQuery.rnx3(date)
         remote_resource = RemoteResource(
-            ftpserver=cls.ftpserver, directory=cls.daily_gps_dir, query=remote_query
+            ftpserver=cls.ftpserver, directory=cls.daily_gps_dir, remote_query=remote_query
         )
         return remote_resource
 

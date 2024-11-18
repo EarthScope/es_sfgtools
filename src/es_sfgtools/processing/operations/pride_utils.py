@@ -8,6 +8,7 @@ import logging
 from pydantic import BaseModel,field_validator
 import shutil
 import warnings
+import re
 
 from es_sfgtools.processing.operations.gnss_resources import RemoteQuery,RemoteResource,WuhanIGS,CLSIGS,GSSC #,CDDIS
 logger = logging.getLogger(__name__)    
@@ -62,8 +63,7 @@ def update_source(source:RemoteResource) -> RemoteResource:
     print(f"Match found for {remote_query.pattern} : {source.file_name}")
     return source 
 
-        
-    
+
 def download(source:RemoteResource,dest:Path) ->Path:
     print(f"\nDownloading {str(source)} to {str(dest)}\n")
     with FTP(source.ftpserver.replace("ftp://",""),timeout=60) as ftp:
@@ -347,18 +347,17 @@ def merge_broadcast_files(brdn:Path, brdg:Path, output_folder:Path) ->Path:
 
     if brdm.exists():
         print(f"Files merged into {brdm}")
-        return True
-    return False
+        return brdm
+    return None
 
 
-def get_nav_file(rinex_path:Path,override:bool=False,mode:Literal['process','test'] = 'process') -> Path:
+def get_nav_file(rinex_path:Path,override:bool=False) -> Path:
     """
     Attempts to build a navigation file for a given RINEX file by downloading the necessary files from the IGS FTP server.
 
     Args:
         rinex_path (Path): The path to the RINEX file.
         override (bool): If True, the function will attempt to download the navigation file even if it already exists.
-        mode (Literal['process','test']): The mode in which the function is running. Test mode attempt downloads from all resources
     Returns:
         brdm_path (Path): The path to the navigation file.
     Raises:
@@ -366,14 +365,12 @@ def get_nav_file(rinex_path:Path,override:bool=False,mode:Literal['process','tes
 
     Examples:
         >>> rinex_path = Path("data/NCB11750.23o")
-        >>> brdm_path = get_nav_file(rinex_path)
+        >>> nav_path = get_nav_file(rinex_path)
         Attempting to build nav file for data/NCB11750.23o
-        >>> brdm_path
-        Path("data/brdm1750.23p")
+        >>> nav_path
+        Path("data/BRDC00IGS_R_20231750000_01D_MN.rnx.gz")
     """
-    assert mode in ['process','test'], f"Mode {mode} not recognized"
-    if mode == 'test':
-        override = True
+  
     response = f"\nAttempting to build nav file for {str(rinex_path)}"
     logger.info(response)
 
@@ -391,52 +388,57 @@ def get_nav_file(rinex_path:Path,override:bool=False,mode:Literal['process','tes
     if start_date is None:
         response = "No TIME OF FIRST OBS found in RINEX file."
         logger.error(response)
-  
+
         return
     year = str(start_date.year)
     doy = str(start_date.timetuple().tm_yday)
-    brdm_path = rinex_path.parent/f"brdm{doy}0.{year[-2:]}p"
-    if brdm_path.exists() and not override:
-        response = f"{brdm_path} already exists.\n"
+    brdc_pattern = re.compile(rf"BRDC.*{year}{doy}.*rnx.*")
+    brdm_pattern = re.compile(rf"brdm{doy}0.{year[-2:]}p")
+
+    found_nav_files = [x for x in rinex_path.parent.glob("*") if brdc_pattern.search(x.name) or brdm_pattern.search(x.name)]
+
+    for nav_file in found_nav_files:
+        if nav_file.stat().st_size > 0 and not override:
+            response = f"{nav_file} already exists."
+            logger.info(response)
+            return nav_file
+
+    remote_resource_dict: Dict[str,RemoteResource] = get_daily_rinex_url(start_date)
+    for source,remote_resource in remote_resource_dict["rinex_3"].items():
+
+        remote_resource_updated = update_source(remote_resource)
+        if remote_resource_updated.file_name is None:
+            continue
+
+        response = f"Attemping to download {source} - {str(remote_resource)}"
         logger.info(response)
 
-        return brdm_path
-    remote_resource_dict: Dict[str,RemoteResource] = get_daily_rinex_url(start_date)
-    for source,remote_resources in remote_resource_dict["rinex_3"].items():
-        if not isinstance(remote_resources,list):
-            remote_resources = [remote_resources]
-        for remote_resource in remote_resources:
-            response = f"Attemping to download {source} - {str(remote_resource)}"
-            logger.info(response)
-    
-            local_path = rinex_path.parent /remote_resource.file_name
-            try:
-                download(remote_resource,local_path)
-            except Exception as e:
-                logger.error(f"Failed to download {str(remote_resource)} | {e}")
-        
-                continue
-            if local_path.exists():
+        local_path = rinex_path.parent /remote_resource.file_name
+        try:
+            download(remote_resource,local_path)
+        except Exception as e:
+            logger.error(f"Failed to download {str(remote_resource)} | {e}")
 
-                logger.info(
-                    f"Succesfully downloaded {str(remote_resource)} to {str(local_path)}"
-                )
+            continue
+        if local_path.exists():
 
-                local_path = uncompressed_file(local_path)
-                local_path.rename(local_path.parent/brdm_path)
-                logger.info(f"Successfully built {brdm_path} From {str(remote_resource)}")
-
-                match mode:
-                    case 'process':
-                        return brdm_path
-                    case 'test':
-                        brdm_path.unlink()
+            logger.info(
+                f"Succesfully downloaded {str(remote_resource)} to {str(local_path)}"
+            )
+            logger.info(f"Successfully built {str(local_path)} From {str(remote_resource)}")
+            return local_path
 
     with tempfile.TemporaryDirectory() as tempdir:
         # If rinex 3 nav file pathway is not found, try rinex 2
         for source,constellations in remote_resource_dict["rinex_2"].items():
-            gps_url = constellations["gps"]
-            glonass_url = constellations["glonass"]
+            gps_url:RemoteResource = constellations["gps"]
+            glonass_url:RemoteResource = constellations["glonass"]
+
+            gps_url_updated = update_source(gps_url)
+            glonass_url_updated = update_source(glonass_url)
+            if gps_url_updated.file_name is None or glonass_url_updated.file_name is None:
+                continue
+
             gps_local_name = gps_url.file_name
             glonass_local_name = glonass_url.file_name
 
@@ -446,11 +448,10 @@ def get_nav_file(rinex_path:Path,override:bool=False,mode:Literal['process','tes
             logger.info(f"Attemping to download {source} From {str(gps_url)}")
 
             try:
-                if not gps_dl_path.exists() or override:
-                    download(gps_url,gps_dl_path)
-    
-                if not glonass_dl_path.exists() or override:
-                    download(glonass_url,glonass_dl_path)
+
+                download(gps_url,gps_dl_path)
+
+                download(glonass_url,glonass_dl_path)
 
             except Exception as e:
 
@@ -462,15 +463,11 @@ def get_nav_file(rinex_path:Path,override:bool=False,mode:Literal['process','tes
             if gps_dl_path.exists() and glonass_dl_path.exists():
                 gps_dl_path = uncompressed_file(gps_dl_path)
                 glonass_dl_path = uncompressed_file(glonass_dl_path)
-                if merge_broadcast_files(gps_dl_path,glonass_dl_path,rinex_path.parent):
+                if (brdm_path := merge_broadcast_files(gps_dl_path,glonass_dl_path,rinex_path.parent)) is not None:
 
                     logger.info(f"Successfully built {brdm_path}")
 
-                    match mode:
-                        case 'process':
-                            return brdm_path
-                        case 'test':
-                            brdm_path.unlink()
+                    return brdm_path
             else:
                 response = f"Failed to download {str(gps_url)} or {str(glonass_url)}"
                 logger.error(response)
