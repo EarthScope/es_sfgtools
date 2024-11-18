@@ -12,7 +12,7 @@ import re
 
 from es_sfgtools.processing.operations.gnss_resources import RemoteQuery,RemoteResource,WuhanIGS,CLSIGS,GSSC #,CDDIS
 logger = logging.getLogger(__name__)    
-# TODO use ftplib to download filessß
+# TODO use ftplib to download files
 # https://docs.python.org/3/library/ftplib.html
 
 
@@ -358,6 +358,7 @@ def get_nav_file(rinex_path:Path,override:bool=False) -> Path:
     Args:
         rinex_path (Path): The path to the RINEX file.
         override (bool): If True, the function will attempt to download the navigation file even if it already exists.
+        mode (Literal['process','test']): The mode in which the function is running. Test mode attempt downloads from all resources
     Returns:
         brdm_path (Path): The path to the navigation file.
     Raises:
@@ -527,60 +528,44 @@ def get_gnss_products(
     year = str(start_date.year)
     common_product_dir = pride_dir/year/"product"/"common"
     common_product_dir.mkdir(exist_ok=True,parents=True)
-    remote_resource_dict: Dict[str,RemoteResource] = get_gnss_common_products(start_date)
+    cp_dir_list = list(common_product_dir.glob("*"))
+    remote_resource_dict: Dict[str,Dict[str,RemoteResource]] = get_gnss_common_products(start_date)
+
+    product_status = {}
+
     for product_type,sources in remote_resource_dict.items():
         logger.info(f"Attempting to download {product_type} products")
-
-        is_file_downloaded = False
+        if product_type not in product_status:
+            product_status[product_type] = 'False'
   
-        for _,remote_resources in sources.items():
-            if is_file_downloaded:
+        for source,remote_resource in sources.items():
+            # check if file already exists
+            found_files = [f for f in cp_dir_list if remote_resource.pattern.match(f.name)]
+            if found_files and not override:
+                logger.info(f"Found {found_files[0]} for product {product_type}")
                 break
-            if not isinstance(remote_resources,list):
-                remote_resources = [remote_resources]
-            to_check = []
 
-            for remote_resource in remote_resources:
+           
+            remote_resource_updated = update_source(remote_resource)
+            if remote_resource_updated.file_name is None:
+                continue
+            
+            
             # For a given product type, try to download from each source
-                local_path = common_product_dir/remote_resource.file_name
-                if (local_path.exists() and local_path.stat().st_size > 0) and not override:
-                    logger.info(f"Found {local_path}")
-                    is_file_downloaded = True
-                    break
-                else:
-                    to_check.append(remote_resource)
-            if is_file_downloaded:
-                break
+            local_path = common_product_dir/remote_resource.file_name
+            try:
+                download(remote_resource,local_path)
+                logger.info(f"\n Succesfully downloaded {product_type} FROM {str(remote_resource)} TO {str(local_path)}\n")
+                product_status[product_type] = str(local_path)
+            except Exception as e:
+                logger.error(f"Failed to download {str(remote_resource)} | {e}")
+                if local_path.exists() and local_path.stat().st_size == 0:
+                    local_path.unlink()
+                continue
+    for product_type,product_path in product_status.items():
+        logger.info(f"{product_type} : {product_path}")
+    
 
-            for remote_resource in to_check:
-                local_path = common_product_dir/remote_resource.file_name
-                logger.info(f"Attempting to download {product_type} FROM {str(remote_resource)} TO {str(local_path)}")
-                dir_list = list_source(remote_resource)    
-                try:
-                    download(remote_resource,local_path)
-                    logger.info(f"\n Succesfully downloaded {product_type} FROM {str(remote_resource)} TO {str(local_path)}\n")
-                except Exception as e:
-                    logger.error(f"Failed to download {str(remote_resource)} | {e}")
-                    if local_path.exists() and local_path.stat().st_size == 0:
-                        local_path.unlink()
-                    continue
-                if local_path.exists():
-                    logger.info(
-                        f"\n Succesfully downloaded {product_type} FROM {str(remote_resource)} TO {str(local_path)}\n"
-                    )
-                    match mode:
-                        case 'process':
-                            is_file_downloaded = True
-                            break
-                        case 'test':
-                            local_path.unlink()
-            if is_file_downloaded and mode == "process":
-                break
-
-        if not local_path.exists():
-            response = f"Failed to download {product_type} products"
-            logger.error(response)
-            warnings.warn(response)
 
 
 if __name__ == '__main__':
