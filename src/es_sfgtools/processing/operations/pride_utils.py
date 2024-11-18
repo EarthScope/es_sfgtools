@@ -9,7 +9,7 @@ from pydantic import BaseModel,field_validator
 import shutil
 import warnings
 
-from es_sfgtools.processing.operations.gnss_resources import RemoteResource,WuhanIGS,CLSIGS,GSSC #,CDDIS
+from es_sfgtools.processing.operations.gnss_resources import RemoteQuery,RemoteResource,WuhanIGS,CLSIGS,GSSC #,CDDIS
 logger = logging.getLogger(__name__)    
 # TODO use ftplib to download filessß
 # https://docs.python.org/3/library/ftplib.html
@@ -20,17 +20,54 @@ logger = logging.getLogger(__name__)
 #     directory=["gnss","products","final"],
 # )
 
-def list_source(source:RemoteResource) ->List[str]:
-    with FTP(source.ftpserver.replace("ftp://",""),timeout=60*5) as ftp:
-        ftp.set_pasv(True)
-        ftp.login()
-        ftp.cwd("/" + source.directory)
-        return ftp.nlst()
+def update_source(source:RemoteResource) -> RemoteResource:
+    
+    """
+    Get the contents of the directory on a remote FTP server and return the first file that matches the sorted remote query.
+    Args:
+        source (RemoteResource): An object containing the FTP server details, directory to list, and the remote query for matching files.
+    Returns:
+        RemoteResource: The updated source object with the file_name attribute set to the first matching file in the sorted order, or None if no match is found.
+    Raises:
+        ftplib.all_errors: Any FTP-related errors encountered during the connection, login, or directory listing process.
+    """
+    # List the contents of the directory and return the first file that matches the sorted remote query
+    assert isinstance(source.remote_query,RemoteQuery), f"Remote query not set for {source}"
+
+    try:
+        with FTP(source.ftpserver.replace("ftp://",""),timeout=60) as ftp:
+            ftp.set_pasv(True)
+            ftp.login()
+            ftp.cwd("/" + source.directory)
+            dir_list = ftp.nlst()
+    except Exception as e:
+        print(f"Failed to list directory {source.directory} on {source.ftpserver} | {e}")
+        return source
+
+    remote_query = source.remote_query
+    
+    dir_match = [d for d in dir_list if remote_query.pattern.search(d)]
+    if len(dir_match) == 0:
+        print(f"No match found for {remote_query.pattern}")
+        return source
+    
+    sorted_match = []
+    if remote_query.sort_order is not None:
+        for prod_type in remote_query.sort_order:
+            for idx,d in enumerate(dir_match):
+                if prod_type in d:
+                    sorted_match.append(dir_match.pop(idx))
+    sorted_match.extend(dir_match)
+    source.file_name = sorted_match[0]
+    print(f"Match found for {remote_query.pattern} : {source.file_name}")
+    return source 
+
+        
     
 def download(source:RemoteResource,dest:Path) ->Path:
     print(f"\nDownloading {str(source)} to {str(dest)}\n")
     with FTP(source.ftpserver.replace("ftp://",""),timeout=60) as ftp:
-        ftp.set_pasv(False)
+        ftp.set_pasv(True)
         ftp.login()
         ftp.cwd("/" + source.directory)
         with open(dest,"wb") as f:

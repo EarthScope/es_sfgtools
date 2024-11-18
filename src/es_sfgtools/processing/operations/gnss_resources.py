@@ -39,49 +39,51 @@ class RemoteQuery:
     @classmethod
     def sp3(cls, date: datetime.date):
         year, doy = _parse_date(date)
-        pattern = re.compile(rf"\d{year}\d{doy}.*SP3")
+        search_pattern = rf".*{year}{doy}.*SP3.*"
+        pattern = re.compile(search_pattern)
         search_order = ["FIN", "RAP", "RTS"]
         return cls(pattern, search_order)
 
     @classmethod
     def obx(cls, date: datetime.date):
         year, doy = _parse_date(date)
-        pattern = re.compile(rf"\d{year}\d{doy}.*OBX")
+
+        pattern = re.compile(rf".*{year}{doy}.*OBX.*")
         search_order = ["FIN", "RAP", "RTS"]
         return cls(pattern, search_order)
 
     @classmethod
     def clk(cls, date: datetime.date):
         year, doy = _parse_date(date)
-        pattern = re.compile(rf"\d{year}\d{doy}.*CLK")
+        pattern = re.compile(rf".*{year}{doy}.*CLK.*")
         search_order = ["FIN", "RAP", "RTS"]
         return cls(pattern, search_order)
 
     @classmethod
     def sum(cls, date: datetime.date):
         year, doy = _parse_date(date)
-        pattern = re.compile(rf"\d{year}\d{doy}.*SUM")
+        pattern = re.compile(rf".*{year}{doy}.*SUM.*")
         search_order = ["FIN", "RAP", "RTS"]
         return cls(pattern, search_order)
 
     @classmethod
     def bias(cls, date: datetime.date):
         year, doy = _parse_date(date)
-        pattern = re.compile(rf"\d{year}\d{doy}.*BIA")
+        pattern = re.compile(rf".*{year}{doy}.*BIA.*")
         search_order = ["FIN", "RAP", "RTS"]
         return cls(pattern, search_order)
 
     @classmethod
     def erp(cls, date: datetime.date):
         year, doy = _parse_date(date)
-        pattern = re.compile(rf"\d{year}\d{doy}.*ERP")
+        pattern = re.compile(rf".*{year}{doy}.*ERP.*")
         search_order = ["FIN", "RAP", "RTS"]
         return cls(pattern, search_order)
 
     @classmethod
     def rnx3(cls, date: datetime.date):
         year, doy = _parse_date(date)
-        pattern = re.compile(rf"BRDC.*\d{year}\d{doy}.*rnx")
+        pattern = re.compile(rf"BRDC.*{year}{doy}.*rnx.*")
         return cls(pattern)
 
     @classmethod
@@ -92,14 +94,14 @@ class RemoteQuery:
             "glonass": "g",
         }
         const_tag = constellation_tag[constellation]
-        pattern = re.compile(f"brdc{doy}0.{year[2:]}{const_tag}.gz")
+        pattern = re.compile(rf"brdc{doy}0.{year[2:]}{const_tag}.gz")
         return cls(pattern)
 
 @dataclass
 class RemoteResource:
     ftpserver:str
     directory:str
-    query:RemoteQuery
+    remote_query:RemoteQuery
     file_name:Optional[str] = None
 
     def __str__(self):
@@ -120,13 +122,13 @@ class WuhanIGS:
     def get_rinex_2_nav(cls,date:datetime.date,constellation:Literal["gps","glonass"]="gps")->RemoteResource:
         assert constellation in cls.constellation_tag.keys(),f"Constellation {constellation} not recognized"
         remote_query = RemoteQuery.rnx2(date,constellation)
-        remote_resource = RemoteResource(ftpserver=cls.ftpserver,directory=cls.daily_gps_dir,query=remote_query)
+        remote_resource = RemoteResource(ftpserver=cls.ftpserver,directory=cls.daily_gps_dir,remote_query=remote_query)
         return remote_resource
     
     @classmethod
     def get_rinex_3_nav(cls,date:datetime) -> RemoteResource:
         remote_query = RemoteQuery.rnx3(date)
-        remote_resource = RemoteResource(ftpserver=cls.ftpserver,directory=cls.daily_gps_dir,query=remote_query)
+        remote_resource = RemoteResource(ftpserver=cls.ftpserver,directory=cls.daily_gps_dir,remote_query=remote_query)
         return remote_resource
 
     @classmethod
@@ -135,7 +137,7 @@ class WuhanIGS:
         dir_extension = f"{year}/orbit"
         directory = "/".join([cls.daily_product_dir, dir_extension])
         remote_query = RemoteQuery.sp3(date)
-        return RemoteResource(ftpserver=cls.ftpserver,directory=directory,query=remote_query)
+        return RemoteResource(ftpserver=cls.ftpserver,directory=directory,remote_query=remote_query)
 
 
     @classmethod
@@ -144,7 +146,7 @@ class WuhanIGS:
         dir_extension = f"{year}/orbit"
         directory = "/".join([cls.daily_product_dir, dir_extension])
         remote_query = RemoteQuery.obx(date)
-        return RemoteResource(ftpserver=cls.ftpserver,directory=directory,query=remote_query)
+        return RemoteResource(ftpserver=cls.ftpserver,directory=directory,remote_query=remote_query)
                 
 
     @classmethod
@@ -153,7 +155,7 @@ class WuhanIGS:
         dir_extension = f"{year}/clock"
         directory = "/".join([cls.daily_product_dir, dir_extension])
         remote_query = RemoteQuery.clk(date)
-        return RemoteResource(ftpserver=cls.ftpserver,directory=directory,query=remote_query)
+        return RemoteResource(ftpserver=cls.ftpserver,directory=directory,remote_query=remote_query)
 
     @classmethod
     def get_product_sum(cls,date:datetime.date)->RemoteResource:
@@ -161,7 +163,7 @@ class WuhanIGS:
         dir_extension = f"{year}/clock"
         directory = "/".join([cls.daily_product_dir, dir_extension])
         remote_query = RemoteQuery.sum(date)
-        return RemoteResource(ftpserver=cls.ftpserver,directory=directory,query=remote_query)
+        return RemoteResource(ftpserver=cls.ftpserver,directory=directory,remote_query=remote_query)
 
 
     @classmethod
@@ -170,7 +172,7 @@ class WuhanIGS:
         dir_extension = f"{year}/bias"
         directory = "/".join([cls.daily_product_dir, dir_extension])
         remote_query = RemoteQuery.bias(date)
-        return RemoteResource(ftpserver=cls.ftpserver,directory=directory,query=remote_query)
+        return RemoteResource(ftpserver=cls.ftpserver,directory=directory,remote_query=remote_query)
 
     @classmethod
     def get_product_erp(cls,date:datetime.date)->RemoteResource:
@@ -178,7 +180,7 @@ class WuhanIGS:
         dir_extension = f"{year}/orbit"
         directory = "/".join([cls.daily_product_dir, dir_extension])
         remote_query = RemoteQuery.erp(date)
-        return RemoteResource(ftpserver=cls.ftpserver,directory=directory,query=remote_query)
+        return RemoteResource(ftpserver=cls.ftpserver,directory=directory,remote_query=remote_query)
 
 # class CDDIS:
 #     ftpserver = "ftp://cddis.gsfc.nasa.gov"
@@ -277,7 +279,7 @@ class CLSIGS:
         dir_extension = f"{gps_week}"
         directory = "/".join([cls.daily_products_dir, dir_extension])
         remote_query = RemoteQuery.sp3(date)
-        return RemoteResource(ftpserver=cls.ftpserver,directory=directory,query=remote_query)
+        return RemoteResource(ftpserver=cls.ftpserver,directory=directory,remote_query=remote_query)
 
 
     @classmethod
@@ -286,7 +288,7 @@ class CLSIGS:
         dir_extension = f"{gps_week}"
         directory = "/".join([cls.daily_products_dir, dir_extension])
         remote_query = RemoteQuery.clk(date)
-        return RemoteResource(ftpserver=cls.ftpserver,directory=directory,query=remote_query)
+        return RemoteResource(ftpserver=cls.ftpserver,directory=directory,remote_query=remote_query)
 
     @classmethod
     def get_product_erp(cls,date:datetime.date)->RemoteResource:
@@ -294,7 +296,7 @@ class CLSIGS:
         dir_extension = f"{gps_week}"
         directory = "/".join([cls.daily_products_dir, dir_extension])
         remote_query = RemoteQuery.erp(date)
-        return RemoteResource(ftpserver=cls.ftpserver,directory=directory,query=remote_query)
+        return RemoteResource(ftpserver=cls.ftpserver,directory=directory,remote_query=remote_query)
         
 
     @classmethod
@@ -303,7 +305,7 @@ class CLSIGS:
         dir_extension = f"{gps_week}"
         directory = "/".join([cls.daily_products_dir, dir_extension])
         remote_query = RemoteQuery.obx(date)
-        return RemoteResource(ftpserver=cls.ftpserver,directory=directory,query=remote_query)
+        return RemoteResource(ftpserver=cls.ftpserver,directory=directory,remote_query=remote_query)
 
     @classmethod
     def get_product_bias(cls,date:datetime.date)->RemoteResource:
@@ -311,7 +313,7 @@ class CLSIGS:
         dir_extension = f"{gps_week}"
         directory = "/".join([cls.daily_products_dir, dir_extension])
         remote_query = RemoteQuery.bias(date)
-        return RemoteResource(ftpserver=cls.ftpserver,directory=directory,query=remote_query)
+        return RemoteResource(ftpserver=cls.ftpserver,directory=directory,remote_query=remote_query)
 
 class Potsdam:
     ftpserver = "ftp://isdcftp.gfz-potsdam.de"
