@@ -156,9 +156,11 @@ def get_gnss_common_products(date:datetime.date) ->Dict[str,Dict[str,Path]]:
         },
         "obx": {
             "wuhan": WuhanIGS.get_product_obx(date),
+            "cligs": CLSIGS.get_product_obx(date),
         },
         "erp": {
             "wuhan": WuhanIGS.get_product_erp(date),
+            "cligs": CLSIGS.get_product_erp(date),
         },
     }
     return urls
@@ -482,7 +484,7 @@ def get_gnss_products(
     rinex_path: Path,
     pride_dir: Path,
     override: bool = False,
-    mode: Literal["process", "test"] = "process",
+    source: Literal["all","wuhan", "cligs"] = "all"
 ) -> None:
     """
     Retrieves GNSS products associated with the given RINEX file.
@@ -499,16 +501,13 @@ def get_gnss_products(
         rinex_path (Path): The path to the RINEX file.
         pride_dir (Path): The directory where the GNSS products will be stored.
         override (bool): If True, the function will attempt to download the GNSS products even if they already exist.
-        mode (Literal["process", "test"]): The mode in which the function is running. Test mode attempt downloads from all resources
+        source (Literal['all','wuhan', 'cligs']): The source of the GNSS products to download. (default: "all")
     Returns:
         None
     Raises:
         Exception: If there is an error while downloading the GNSS products.
-        Warning: If the GNSS products cannot be downloaded.
+    
     """
-    assert mode in ["process", "test"], f"Mode {mode} not recognized"
-    if mode == "test":
-        override = True
 
     start_date = None
     with open(rinex_path) as f:
@@ -538,9 +537,11 @@ def get_gnss_products(
         if product_type not in product_status:
             product_status[product_type] = 'False'
   
-        for source,remote_resource in sources.items():
+        for dl_source,remote_resource in sources.items():
+            if source != "all" and dl_source != source:
+                continue
             # check if file already exists
-            found_files = [f for f in cp_dir_list if remote_resource.pattern.match(f.name)]
+            found_files = [f for f in cp_dir_list if remote_resource.remote_query.pattern.match(f.name)]
             if found_files and not override:
                 logger.info(f"Found {found_files[0]} for product {product_type}")
                 break

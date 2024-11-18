@@ -182,41 +182,6 @@ class WuhanIGS:
         remote_query = RemoteQuery.erp(date)
         return RemoteResource(ftpserver=cls.ftpserver,directory=directory,remote_query=remote_query)
 
-# class CDDIS:
-#     ftpserver = "ftp://cddis.gsfc.nasa.gov"
-#     daily_gps_dir = "gnss/data/daily"
-
-#     constellation_tag = {
-#         "gps": "n",
-#         "glonass": "g",
-#     }
-
-#     @classmethod
-#     def get_rinex_2_nav(
-#         cls, date: datetime.date, constellation: Literal["gps", "glonass"] = "gps"
-#     ) -> RemoteResource:
-#         assert (
-#             constellation in cls.constellation_tag.keys()
-#         ), f"Constellation {constellation} not recognized"
-#         const_tag = cls.constellation_tag[constellation]
-#         year, doy = _parse_date(date)
-#         dir_extension = f"{year}/{doy}/{year[2:]}{const_tag}"
-#         file_name = f"brdc{doy}0.{year[2:]}{const_tag}.gz"
-#         directory = "/".join([cls.daily_gps_dir, dir_extension])
-#         return RemoteResource(
-#             ftpserver=cls.ftpserver, directory=directory, file_name=file_name
-#         )
-
-#     @classmethod
-#     def get_rinex_3_nav(cls, date: datetime) -> RemoteResource:
-#         year, doy = _parse_date(date)
-#         dir_extension = f"{year}/{doy}/{year[2:]}p"
-#         file_name = f"BRDC00IGS_R_{year}{doy}0000_01D_MN.rnx.gz"
-#         directory = "/".join([cls.daily_gps_dir, dir_extension])
-#         return RemoteResource(
-#             ftpserver=cls.ftpserver, directory=directory, file_name=file_name
-#         )
-
 class GSSC:
     ftpserver = "ftp://gssc.esa.int"
     daily_gps_dir = "gnss/data/daily"
@@ -300,7 +265,7 @@ class CLSIGS:
         
 
     @classmethod
-    def get_product_orbit(cls,date:datetime.date)->RemoteResource:
+    def get_product_obx(cls,date:datetime.date)->RemoteResource:
         gps_week = _date_to_gps_week(date)
         dir_extension = f"{gps_week}"
         directory = "/".join([cls.daily_products_dir, dir_extension])
