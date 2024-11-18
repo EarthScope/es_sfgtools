@@ -72,10 +72,15 @@ class DataHandler:
    
         # Create the directory structures
         self.main_directory = Path(directory)
-        self.build_station_dir_structure(self.network, self.station)
+        # Create the main and pride directory
+        self.pride_dir = self.main_directory / "Pride"
+        self.pride_dir.mkdir(exist_ok=True, parents=True)
 
-        # Create the TileDB arrays
-        self.build_tileDB_arrays()
+        if self.network is not None and self.station is not None:
+            # Create the network/station directory structure
+            self.build_station_dir_structure(self.network, self.station)
+            # Create the TileDB arrays
+            self.build_tileDB_arrays()
 
         # Create the catalog
         self.db_path = self.main_directory / "catalog.sqlite"
@@ -99,9 +104,6 @@ class DataHandler:
                             - processed/ 
                 - Pride/ 
         """
-        # Create the main and pride directory
-        self.pride_dir = self.main_directory / "Pride"
-        self.pride_dir.mkdir(exist_ok=True, parents=True)
 
         # Create the network/station directory structure
         self.station_dir = self.main_directory / network / station
