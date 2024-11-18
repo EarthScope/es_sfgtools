@@ -4,21 +4,21 @@ from typing import List,Dict
 from datetime import datetime
 from pathlib import Path
 import pandas as pd
-from es_sfgtools.processing.assets.file_schemas import AssetEntry, AssetType,MultiAssetEntry,MultiAssetPre
-from .database import Base, Assets, MultiAssets, ModelResults,MergeJobs
+from es_sfgtools.processing.assets.file_schemas import AssetEntry, AssetType, MultiAssetEntry, MultiAssetPre
+from .database import Base, Assets, MultiAssets, ModelResults, MergeJobs
 
 logger = logging.getLogger(__name__)
 
 
 class Catalog:
-    def __init__(self,db_path:Path):
+    def __init__(self, db_path:Path):
         self.db_path = db_path
         self.engine = self.engine = sa.create_engine(
             f"sqlite+pysqlite:///{self.db_path}", poolclass=sa.pool.NullPool
         )
         Base.metadata.create_all(self.engine)
     
-    def get_dtype_counts(self,network:str,station:str,survey:str,**kwargs) -> Dict[str,int]:
+    def get_dtype_counts(self, network:str, station:str, survey:str, **kwargs) -> Dict[str,int]:
         with self.engine.begin() as conn:
             data_type_counts = [
                 dict(row._mapping)
@@ -38,10 +38,10 @@ class Catalog:
         return {x["type"]: x["count_1"] for x in data_type_counts}
     
     def get_assets(self,
-                   network:str,
-                   station:str,
-                   survey:str,
-                   type:AssetType,
+                   network: str,
+                   station: str,
+                   survey: str,
+                   types: List[AssetType],
                    multiasset:bool=False) -> List[AssetEntry | MultiAssetEntry]:
 
         if multiasset:
@@ -50,23 +50,25 @@ class Catalog:
         else:
             table = Assets
             schema = AssetEntry
+
+        print(f"Getting assets for {network} {station} {survey} {types}")
+
         with self.engine.connect() as conn:
             query = sa.select(table).where(
                 sa.and_(
                     table.network == network,
                     table.station == station,
                     table.survey == survey,
-                    table.type == type.value
+                    table.type.in_(types)
                 )
             )
             result = conn.execute(query).fetchall()
             out = []
             for row in result:
                 try:
-    
                     out.append(schema(**row._mapping))
                 except Exception as e:
-                    print(e)
+                    print("Unable to add row, error: {}".format(e))
             return out
         
     def get_single_entries_to_process(self,
@@ -122,10 +124,32 @@ class Catalog:
             if results:
                 return schema(**results._mapping)
         return None
+    
+    def update_local_path(self, id, local_path: str):
+        """ 
+        Update the local path for an entry in the database. 
+        
+        Args:
+            id (int): The id of the entry to update.
+            local_path (str): The new local path.
+        """
+        try:
+            logger.info(f"Updating local path in catalog for id {id} to {local_path}")
+            with self.engine.begin() as conn:
+                conn.execute(
+                    sa.update(Assets)
+                    .where(Assets.id == id)
+                    .values(local_path=local_path)
+                )
+        except Exception as e:
+            logger.error(f"Error updating local path for id {id}: {e}")
 
-    def add_or_update(self,entry: AssetEntry | MultiAssetEntry):
+
+    def add_or_update(self, entry: AssetEntry | MultiAssetEntry):
         if entry is None:
+            logger.warning("No entry to add or update")
             return
+        
         table = Assets if isinstance(entry, AssetEntry) else MultiAssets
     
         with self.engine.begin() as conn:
@@ -146,8 +170,7 @@ class Catalog:
                     logger.error(f"Error adding or updating entry {entry}")
                     pass
 
-    def query_catalog(self,
-                      query:str) -> pd.DataFrame:
+    def query_catalog(self, query:str) -> pd.DataFrame:
         with self.engine.begin() as conn:
             try:
                 return pd.read_sql_query(query,conn)
@@ -155,13 +178,14 @@ class Catalog:
                 # handle queries that don't return results
                 conn.execute(sa.text(query))
     
-    def add_entry(self,entry:AssetEntry | MultiAssetEntry) -> bool:
+    def add_entry(self, entry:AssetEntry | MultiAssetEntry) -> bool:
         table = Assets if isinstance(entry, AssetEntry) else MultiAssets
         try:
             with self.engine.begin() as conn:
                 conn.execute(sa.insert(table).values(entry.model_dump()))
             return True
-        except sa.exc.IntegrityError:
+        except sa.exc.IntegrityError as e:
+            print(e)
             return False
 
     def add_merge_job(self,parent_type:str,child_type:str,parent_ids:List[int],**kwargs):
@@ -174,6 +198,7 @@ class Catalog:
                 MergeJobs.child_type.name: child_type,
                 MergeJobs.parent_ids.name: parent_id_string
             }))
+             
     def is_merge_complete(self,parent_type:str,child_type:str,parent_ids:List[int],**kwargs) -> bool:
         parent_ids.sort()
         parent_id_string = "-".join([str(x) for x in parent_ids])

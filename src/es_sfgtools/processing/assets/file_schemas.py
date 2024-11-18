@@ -1,4 +1,4 @@
-from pydantic import BaseModel,Field,field_validator,field_serializer,conlist,model_serializer,root_validator
+from pydantic import BaseModel,Field,field_validator,field_serializer,conlist,model_serializer,root_validator, ValidationInfo
 from typing import Optional,Union,List,Dict
 from datetime import datetime
 from pathlib import Path
@@ -48,6 +48,7 @@ class BaseObservable(BaseModel):
         with open(path, "r+b") as f:
             self.data = mmap.mmap(f.fileno(), 0)
         self.local_path = path
+
     def write(self, dir: Union[str, Path]):
         """
         Write the data to the local_path.
@@ -87,6 +88,8 @@ class AssetType(Enum):
 
 class _AssetBase(BaseModel):
     local_path: Optional[Union[str, Path]] = Field(default=None)
+    remote_path: Optional[str] = Field(default=None)
+    remote_type: Optional[str] = Field(default=None)
     type: Optional[AssetType] = Field(default=None)
     id: Optional[int] = Field(default=None)
     network: Optional[str] = Field(default=None)
@@ -108,32 +111,32 @@ class _AssetBase(BaseModel):
     # def _validate_timestamp(cls,v:Optional[str]) 
 
     @field_validator("type", mode="before")
-    def _check_type(cls, v: Union[str, AssetType]):
-        if isinstance(v, str):
-            v = AssetType(v)
-        return v
+    def _check_type(cls, type_value: Union[str, AssetType]):
+        if isinstance(type_value, str):
+            type_value = AssetType(type_value)
+        return type_value
 
     @field_serializer("type", when_used="always")
-    def _serialize_type(self, v: Union[str, AssetType]):
-        if isinstance(v, AssetType):
-            return v.value
-        return v
+    def _serialize_type(self, type_value: Union[str, AssetType]):
+        if isinstance(type_value, AssetType):
+            return type_value.value
+        return type_value
+    
+    @root_validator(pre=True)
+    def _check_at_least_one(cls, values):
+        if not values.get("local_path") and not values.get("remote_path"):
+            raise ValueError("At least one of the following must be set: local_path, remote_path")
+        
+        if isinstance(values.get("local_path"), str):
+            values["local_path"] = Path(values["local_path"])
 
-    @field_validator("local_path", mode="before")
-    def _check_local_path(cls, v: Union[str, Path]):
-        if v is None:
-            raise ValueError("local_path must be set")
-        if isinstance(v, str):
-            v = Path(v)
-        if not v.exists():
-            raise ValueError(f"local_path {str(v)} does not exist")
-        return v
+        return values
 
     @field_serializer("local_path", when_used="always")
-    def _serialize_local_path(self, v: Union[str, Path]):
-        if isinstance(v, Path):
-            return str(v)
-        return v
+    def _serialize_local_path(self, local_path_value: Union[str, Path]):
+        if isinstance(local_path_value, Path):
+            return str(local_path_value)
+        return local_path_value
 
     class Config:
         arbitrary_types_allowed = True
