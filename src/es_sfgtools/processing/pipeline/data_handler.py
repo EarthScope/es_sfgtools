@@ -14,8 +14,8 @@ import concurrent.futures
 import threading
 from functools import wraps
 
-# import seaborn 
-# seaborn.set_theme(style="whitegrid")
+import seaborn 
+seaborn.set_theme(style="whitegrid")
 
 from es_sfgtools.utils.archive_pull import download_file_from_archive
 from es_sfgtools.processing.assets.file_schemas import AssetEntry
@@ -363,8 +363,7 @@ class DataHandler:
                     self.catalog.update_local_path(file.id, file.local_path)
         
         if len(http_assets) > 0:
-            self.download_HTTP_files(http_assets=http_assets, 
-                                      show_details=show_details)
+            self.download_HTTP_files(http_assets=http_assets)
 
         # TODO: re-implement multithreading, switched to serial downloading.
         # need to solve cataloging each file after download and making progress bar work in parallel
@@ -429,8 +428,10 @@ class DataHandler:
         finally:
             return local_path
 
-    def download_HTTP_files(self, http_assets: List[AssetEntry], show_details: bool = True):
-        for file_asset in http_assets:
+    def download_HTTP_files(self, http_assets: List[AssetEntry]):
+        """ Download HTTP files with progress bar. """
+
+        for file_asset in tqdm(http_assets, desc="Downloading HTTP Files"):
             if (local_path := self._HTTP_download_file(file_asset.remote_path)) is not None:
                 file_asset.local_path = str(local_path)
                 self.catalog.update_local_path(file_asset.id, file_asset.local_path)
@@ -455,7 +456,7 @@ class DataHandler:
                                        token_path=token_path,
                                        )
             
-            if not local_path.exists(): # TODO: check if this is necessary
+            if not local_path.exists(): 
                 raise Exception
 
             response = f"Downloaded {str(remote_url)} to {str(local_path)}"
