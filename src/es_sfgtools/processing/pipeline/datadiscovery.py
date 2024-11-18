@@ -59,7 +59,8 @@ def get_file_type_local(file_path: Path) -> AssetType:
         file_path (Path): The file path.
 
     Returns:
-        DiscoveredFile: The discovered file.
+        file_type: The file type.
+        file_size: The file size.
     """
     file_type = None
     for pattern, ftype in pattern_map.items():
@@ -88,7 +89,7 @@ def get_file_type_remote(file_path: str):
         file_path (str): The file path.
 
     Returns:
-        DiscoveredFile: The discovered file.
+        file_type: The file type.
     """
     file_type = None
     for pattern, ftype in pattern_map.items():
@@ -109,6 +110,9 @@ def scrape_directory_local(directory: Path) -> List[Path]:
 
     Args:
         directory (str): The directory to scrape files from.
+
+    Returns:
+        List[Path]: The list of files in the directory.
 
     """
     if isinstance(directory, str):

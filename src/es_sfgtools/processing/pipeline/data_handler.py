@@ -64,9 +64,6 @@ class DataHandler:
             network (str, optional): The network name.
             station (str, optional): The station name.
             survey (str, optional): The survey name.
-
-        Returns:
-            None
         """
 
         self.network = network
@@ -145,9 +142,6 @@ class DataHandler:
             network (str): The network name.
             station (str): The station name.
             survey (str): The survey name. Default is None.
-
-        Returns:
-            None
         """
 
         # Set class attributes & create the directory structure
@@ -198,7 +192,13 @@ class DataHandler:
 
     @check_network_station_survey
     def add_data_to_catalog(self, local_filepaths: List[str]):
-        """ Using the local filepaths, add the data to the catalog. """
+        """ 
+        Using a list of local filepaths, add the data to the catalog. 
+        
+        Args:
+            local_filepaths (List[str]): A list of local filepaths to add to the catalog.
+        """
+
         file_data_list = []
         for file in local_filepaths:
             if not Path(file).exists():
