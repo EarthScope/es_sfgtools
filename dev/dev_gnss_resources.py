@@ -8,7 +8,7 @@ handler = logging.StreamHandler(sys.stdout)
 handler.setLevel(logging.DEBUG)
 root.addHandler(handler)
 root.addHandler(filemode)
-from es_sfgtools.processing.operations.pride_utils import get_nav_file,get_gnss_products,download
+from es_sfgtools.processing.operations.pride_utils import get_nav_file,get_gnss_products,download,list_source
 from es_sfgtools.processing.operations.gnss_resources import WuhanIGS,CLSIGS,GSSC
 
 pride_dir = Path(

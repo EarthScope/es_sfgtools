@@ -11,7 +11,7 @@ import warnings
 
 from es_sfgtools.processing.operations.gnss_resources import RemoteResource,WuhanIGS,CLSIGS,GSSC #,CDDIS
 logger = logging.getLogger(__name__)    
-# TODO use ftplib to download files
+# TODO use ftplib to download filessß
 # https://docs.python.org/3/library/ftplib.html
 
 
@@ -19,6 +19,14 @@ logger = logging.getLogger(__name__)
 #     ftpserver="ftp://isdcftp.gfz-potsdam.de",
 #     directory=["gnss","products","final"],
 # )
+
+def list_source(source:RemoteResource) ->List[str]:
+    with FTP(source.ftpserver.replace("ftp://",""),timeout=60*5) as ftp:
+        ftp.set_pasv(True)
+        ftp.login()
+        ftp.cwd("/" + source.directory)
+        return ftp.nlst()
+    
 def download(source:RemoteResource,dest:Path) ->Path:
     print(f"\nDownloading {str(source)} to {str(dest)}\n")
     with FTP(source.ftpserver.replace("ftp://",""),timeout=60) as ftp:
@@ -512,7 +520,8 @@ def get_gnss_products(
 
             for remote_resource in to_check:
                 local_path = common_product_dir/remote_resource.file_name
-                logger.info(f"Attempting to download {product_type} FROM {str(remote_resource)} TO {str(local_path)}")    
+                logger.info(f"Attempting to download {product_type} FROM {str(remote_resource)} TO {str(local_path)}")
+                dir_list = list_source(remote_resource)    
                 try:
                     download(remote_resource,local_path)
                     logger.info(f"\n Succesfully downloaded {product_type} FROM {str(remote_resource)} TO {str(local_path)}\n")
