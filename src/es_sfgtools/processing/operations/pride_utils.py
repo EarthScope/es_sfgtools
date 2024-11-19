@@ -8,25 +8,92 @@ import logging
 from pydantic import BaseModel,field_validator
 import shutil
 import warnings
+import re
 
-from es_sfgtools.processing.operations.gnss_resources import RemoteResource,WuhanIGS,CLSIGS,GSSC #,CDDIS
+from es_sfgtools.processing.operations.gnss_resources import RemoteQuery,RemoteResource,WuhanIGS,CLSIGS,GSSC #,CDDIS
 logger = logging.getLogger(__name__)    
-# TODO use ftplib to download files
-# https://docs.python.org/3/library/ftplib.html
+
+def update_source(source:RemoteResource) -> RemoteResource:
+    
+    """
+    Get the contents of the directory on a remote FTP server and return the first file that matches the sorted remote query.
+    Args:
+        source (RemoteResource): An object containing the FTP server details, directory to list, and the remote query for matching files.
+    Returns:
+        RemoteResource: The updated source object with the file_name attribute set to the first matching file in the sorted order, or None if no match is found.
+    Raises:
+        ftplib.all_errors: Any FTP-related errors encountered during the connection, login, or directory listing process.
+
+    Example:
+        >>> remote_resource = WuhanIGS.get_rinex_3_nav(datetime.date(2021,1,1))
+        >>> remote_resource.file_name
+        None
+        >>> updated_remote_resource = update_source(remote_resource)
+        >>> updated_remote_resource.file_name
+        "BRDC20210010000.rnx.gz"
+    """
+    # List the contents of the directory and return the first file that matches the sorted remote query
+    assert isinstance(source.remote_query,RemoteQuery), f"Remote query not set for {source}"
+
+    try:
+        with FTP(source.ftpserver.replace("ftp://",""),timeout=60) as ftp:
+            ftp.set_pasv(True)
+            ftp.login()
+            ftp.cwd("/" + source.directory)
+            dir_list = ftp.nlst()
+    except Exception as e:
+        logger.error(f"Failed to list directory {source.directory} on {source.ftpserver} | {e}")
+        return source
+
+    remote_query = source.remote_query
+    
+    dir_match = [d for d in dir_list if remote_query.pattern.search(d)]
+    if len(dir_match) == 0:
+        logger.error(f"No match found for {remote_query.pattern}")
+        return source
+    
+    sorted_match = []
+    if remote_query.sort_order is not None:
+        for prod_type in remote_query.sort_order:
+            for idx,d in enumerate(dir_match):
+                if prod_type in d:
+                    sorted_match.append(dir_match.pop(idx))
+    sorted_match.extend(dir_match)
+    source.file_name = sorted_match[0]
+    logger.info(f"Match found for {remote_query.pattern} : {source.file_name}")
+    return source 
 
 
-# POTSDAM_SP3 = RemoteResource(
-#     ftpserver="ftp://isdcftp.gfz-potsdam.de",
-#     directory=["gnss","products","final"],
-# )
 def download(source:RemoteResource,dest:Path) ->Path:
-    print(f"\nDownloading {str(source)} to {str(dest)}\n")
+
+    """
+    Downloads a file from a remote FTP server to a local destination.
+    Args:
+        source (RemoteResource): An object containing the FTP server details, directory, and file name.
+        dest (Path): The local path where the file will be saved.
+    Returns:
+        Path: The local path where the file has been saved.
+    Raises:
+        ftplib.all_errors: If any FTP-related error occurs during the download process.
+    Example:
+        >>> source = WuhanIGS.get_rinex_3_nav(datetime.date(2021,1,1))
+        >>> updated_source = update_source(source)
+        >>> dest_dir = Path("dest/to/data")
+        >>> dest = dest_dir/updated_source.file_name
+        >>> download(source, dest)
+        "Downloading ftp://igs.gnsswhu.cn/pub/gps/data/daily/2021/001/21p/BRDC20210010000.rnx.gz" to dest/to/data/BRDC20210010000.rnx.gz"
+        >>> dest.exists()
+        True
+    """
+
+    logger.info(f"\nAttempting Download of {str(source)} to {str(dest)}\n")
     with FTP(source.ftpserver.replace("ftp://",""),timeout=60) as ftp:
-        ftp.set_pasv(False)
+        ftp.set_pasv(True)
         ftp.login()
         ftp.cwd("/" + source.directory)
         with open(dest,"wb") as f:
             ftp.retrbinary(f"RETR {source.file_name}",f.write)
+    logger.info(f"\nDownloaded {str(source)} to {str(dest)}\n")
     return dest
 
 def uncompressed_file(file_path:Path) ->Path:
@@ -60,7 +127,7 @@ def uncompressed_file(file_path:Path) ->Path:
 
 def get_daily_rinex_url(date:datetime.date) ->Dict[str,Dict[str,RemoteResource]]:
     """
-    This function returns the url for the IGS rinex observation file for a given date.
+    This function returns the 'RemoteResource' for the IGS rinex observation file for a given date.
     url config docs at https://igs.org/products-access/#gnss-broadcast-ephemeris
 
     Args:
@@ -71,9 +138,11 @@ def get_daily_rinex_url(date:datetime.date) ->Dict[str,Dict[str,RemoteResource]]
         >>> date = datetime.date(2021,1,1)
         >>> urls = get_daily_rinex_url(date)
         >>> str(urls["rinex_2"]["wuhan_gps"])
-        "ftp://igs.gnsswhu.cn/pub/gps/data/daily/21/001/21n/brdc0010.21n.gz"
+        "ftp://igs.gnsswhu.cn/pub/gps/data/daily/21/001/21n/"
         >>> str(urls["rinex_2"]["wuhan_glonass"])
-        "ftp://igs.gnsswhu.cn/pub/gps/data/daily/21/001/21g/brdc0010.21g.gz"
+        "ftp://igs.gnsswhu.cn/pub/gps/data/daily/21/001/21g/"
+    Note:
+        Until the remote resorces are updated with 'update_source', the file_name attribute will be None.
     """
 
     urls = {
@@ -96,23 +165,60 @@ def get_daily_rinex_url(date:datetime.date) ->Dict[str,Dict[str,RemoteResource]]
     return urls
 
 def get_gnss_common_products(date:datetime.date) ->Dict[str,Dict[str,Path]]:
+
+    """
+    Retrieve GNSS common products for a given date.
+    This function fetches various GNSS products (sp3, clk, bias, obx, erp) from 
+    different sources (WuhanIGS and CLSIGS) for the specified date.
+    Args:
+        date (datetime.date): The date for which to retrieve the GNSS products.
+    Returns:
+        Dict[str, Dict[str, Path]]: A dictionary containing the GNSS products 
+        categorized by product type and source. The structure of the dictionary is:
+            {   "sp3": {
+                    "wuhan": Path to WuhanIGS sp3 product,
+                    "cligs": Path to CLSIGS sp3 product,
+                    }.
+                "clk": {
+                    "wuhan": Path to WuhanIGS clk product,
+                    "cligs": Path to CLSIGS clk product,
+                    },
+                "bias": {
+                    "wuhan": Path to WuhanIGS bias product,
+                    "cligs": Path to CLSIGS bias product,
+                    },
+                "obx": {
+                    "wuhan": Path to WuhanIGS obx product,
+                    "cligs": Path to CLSIGS obx product,
+                    },
+                "erp": {
+                    "wuhan": Path to WuhanIGS erp product,
+                    "cligs": Path to CLSIGS erp product,
+                    }
+            }
+    Note:
+        Until the remote resorces are updated with 'update_source', the file_name attribute will be None.
+    """
+
     urls = {
         "sp3": {
-            "wuhan": WuhanIGS.get_product_sp3(date),
             "cligs": CLSIGS.get_product_sp3(date),
+            "wuhan": WuhanIGS.get_product_sp3(date),
         },
         "clk": {
-            "wuhan": WuhanIGS.get_product_clk(date),
             "cligs": CLSIGS.get_product_clk(date),
+            "wuhan": WuhanIGS.get_product_clk(date),
         },
         "bias": {
-            "wuhan": WuhanIGS.get_product_bias(date),
             "cligs": CLSIGS.get_product_bias(date),
+            "wuhan": WuhanIGS.get_product_bias(date),
         },
         "obx": {
+            "cligs": CLSIGS.get_product_obx(date),
             "wuhan": WuhanIGS.get_product_obx(date),
         },
         "erp": {
+            "cligs": CLSIGS.get_product_erp(date),
             "wuhan": WuhanIGS.get_product_erp(date),
         },
     }
@@ -140,6 +246,7 @@ def merge_broadcast_files(brdn:Path, brdg:Path, output_folder:Path) ->Path:
         >>> merged_brdm
         Path("data/brdm1500.21p")
     """
+    logger.info(f"Merging {brdn} and {brdg} into a single BRDM file.")
 
     def write_brdn(file:Path, prefix:str, fm:IO):
         """
@@ -301,12 +408,13 @@ def merge_broadcast_files(brdn:Path, brdg:Path, output_folder:Path) ->Path:
     fm.close()
 
     if brdm.exists():
-        print(f"Files merged into {brdm}")
-        return True
-    return False
+        logger.info(f"Files merged into {str(brdm)}")
+        return brdm
+    logger.error(f"Failed to merge files into {str(brdm)}")
+    return None
 
 
-def get_nav_file(rinex_path:Path,override:bool=False,mode:Literal['process','test'] = 'process') -> Path:
+def get_nav_file(rinex_path:Path,override:bool=False) -> Path:
     """
     Attempts to build a navigation file for a given RINEX file by downloading the necessary files from the IGS FTP server.
 
@@ -321,14 +429,12 @@ def get_nav_file(rinex_path:Path,override:bool=False,mode:Literal['process','tes
 
     Examples:
         >>> rinex_path = Path("data/NCB11750.23o")
-        >>> brdm_path = get_nav_file(rinex_path)
+        >>> nav_path = get_nav_file(rinex_path)
         Attempting to build nav file for data/NCB11750.23o
-        >>> brdm_path
-        Path("data/brdm1750.23p")
+        >>> nav_path
+        Path("data/BRDC00IGS_R_20231750000_01D_MN.rnx.gz")
     """
-    assert mode in ['process','test'], f"Mode {mode} not recognized"
-    if mode == 'test':
-        override = True
+  
     response = f"\nAttempting to build nav file for {str(rinex_path)}"
     logger.info(response)
 
@@ -346,52 +452,57 @@ def get_nav_file(rinex_path:Path,override:bool=False,mode:Literal['process','tes
     if start_date is None:
         response = "No TIME OF FIRST OBS found in RINEX file."
         logger.error(response)
-  
+
         return
     year = str(start_date.year)
     doy = str(start_date.timetuple().tm_yday)
-    brdm_path = rinex_path.parent/f"brdm{doy}0.{year[-2:]}p"
-    if brdm_path.exists() and not override:
-        response = f"{brdm_path} already exists.\n"
+    brdc_pattern = re.compile(rf"BRDC.*{year}{doy}.*rnx.*")
+    brdm_pattern = re.compile(rf"brdm{doy}0.{year[-2:]}p")
+
+    found_nav_files = [x for x in rinex_path.parent.glob("*") if brdc_pattern.search(x.name) or brdm_pattern.search(x.name)]
+
+    for nav_file in found_nav_files:
+        if nav_file.stat().st_size > 0 and not override:
+            response = f"{nav_file} already exists."
+            logger.info(response)
+            return nav_file
+
+    remote_resource_dict: Dict[str,RemoteResource] = get_daily_rinex_url(start_date)
+    for source,remote_resource in remote_resource_dict["rinex_3"].items():
+
+        remote_resource_updated = update_source(remote_resource)
+        if remote_resource_updated.file_name is None:
+            continue
+
+        response = f"Attemping to download {source} - {str(remote_resource)}"
         logger.info(response)
 
-        return brdm_path
-    remote_resource_dict: Dict[str,RemoteResource] = get_daily_rinex_url(start_date)
-    for source,remote_resources in remote_resource_dict["rinex_3"].items():
-        if not isinstance(remote_resources,list):
-            remote_resources = [remote_resources]
-        for remote_resource in remote_resources:
-            response = f"Attemping to download {source} - {str(remote_resource)}"
-            logger.info(response)
-    
-            local_path = rinex_path.parent /remote_resource.file_name
-            try:
-                download(remote_resource,local_path)
-            except Exception as e:
-                logger.error(f"Failed to download {str(remote_resource)} | {e}")
-        
-                continue
-            if local_path.exists():
+        local_path = rinex_path.parent /remote_resource.file_name
+        try:
+            download(remote_resource,local_path)
+        except Exception as e:
+            logger.error(f"Failed to download {str(remote_resource)} | {e}")
 
-                logger.info(
-                    f"Succesfully downloaded {str(remote_resource)} to {str(local_path)}"
-                )
+            continue
+        if local_path.exists():
 
-                local_path = uncompressed_file(local_path)
-                local_path.rename(local_path.parent/brdm_path)
-                logger.info(f"Successfully built {brdm_path} From {str(remote_resource)}")
-
-                match mode:
-                    case 'process':
-                        return brdm_path
-                    case 'test':
-                        brdm_path.unlink()
+            logger.info(
+                f"Succesfully downloaded {str(remote_resource)} to {str(local_path)}"
+            )
+            logger.info(f"Successfully built {str(local_path)} From {str(remote_resource)}")
+            return local_path
 
     with tempfile.TemporaryDirectory() as tempdir:
         # If rinex 3 nav file pathway is not found, try rinex 2
         for source,constellations in remote_resource_dict["rinex_2"].items():
-            gps_url = constellations["gps"]
-            glonass_url = constellations["glonass"]
+            gps_url:RemoteResource = constellations["gps"]
+            glonass_url:RemoteResource = constellations["glonass"]
+
+            gps_url_updated = update_source(gps_url)
+            glonass_url_updated = update_source(glonass_url)
+            if gps_url_updated.file_name is None or glonass_url_updated.file_name is None:
+                continue
+
             gps_local_name = gps_url.file_name
             glonass_local_name = glonass_url.file_name
 
@@ -401,11 +512,10 @@ def get_nav_file(rinex_path:Path,override:bool=False,mode:Literal['process','tes
             logger.info(f"Attemping to download {source} From {str(gps_url)}")
 
             try:
-                if not gps_dl_path.exists() or override:
-                    download(gps_url,gps_dl_path)
-    
-                if not glonass_dl_path.exists() or override:
-                    download(glonass_url,glonass_dl_path)
+
+                download(gps_url,gps_dl_path)
+
+                download(glonass_url,glonass_dl_path)
 
             except Exception as e:
 
@@ -417,15 +527,11 @@ def get_nav_file(rinex_path:Path,override:bool=False,mode:Literal['process','tes
             if gps_dl_path.exists() and glonass_dl_path.exists():
                 gps_dl_path = uncompressed_file(gps_dl_path)
                 glonass_dl_path = uncompressed_file(glonass_dl_path)
-                if merge_broadcast_files(gps_dl_path,glonass_dl_path,rinex_path.parent):
+                if (brdm_path := merge_broadcast_files(gps_dl_path,glonass_dl_path,rinex_path.parent)) is not None:
 
                     logger.info(f"Successfully built {brdm_path}")
 
-                    match mode:
-                        case 'process':
-                            return brdm_path
-                        case 'test':
-                            brdm_path.unlink()
+                    return brdm_path
             else:
                 response = f"Failed to download {str(gps_url)} or {str(glonass_url)}"
                 logger.error(response)
@@ -439,8 +545,9 @@ def get_gnss_products(
     rinex_path: Path,
     pride_dir: Path,
     override: bool = False,
-    mode: Literal["process", "test"] = "process",
+    source: Literal["all","wuhan", "cligs"] = "all"
 ) -> None:
+
     """
     Retrieves GNSS products associated with the given RINEX file.
 
@@ -456,16 +563,14 @@ def get_gnss_products(
         rinex_path (Path): The path to the RINEX file.
         pride_dir (Path): The directory where the GNSS products will be stored.
         override (bool): If True, the function will attempt to download the GNSS products even if they already exist.
-        mode (Literal["process", "test"]): The mode in which the function is running. Test mode attempt downloads from all resources
+        source (Literal['all','wuhan', 'cligs']): The source of the GNSS products to download. (default: "all")
     Returns:
         None
     Raises:
         Exception: If there is an error while downloading the GNSS products.
-        Warning: If the GNSS products cannot be downloaded.
+    
     """
-    assert mode in ["process", "test"], f"Mode {mode} not recognized"
-    if mode == "test":
-        override = True
+    assert source in ["all","wuhan", "cligs"], f"Invalid source {source}"
 
     start_date = None
     with open(rinex_path) as f:
@@ -485,68 +590,41 @@ def get_gnss_products(
     year = str(start_date.year)
     common_product_dir = pride_dir/year/"product"/"common"
     common_product_dir.mkdir(exist_ok=True,parents=True)
-    remote_resource_dict: Dict[str,RemoteResource] = get_gnss_common_products(start_date)
+    cp_dir_list = list(common_product_dir.glob("*"))
+    remote_resource_dict: Dict[str,Dict[str,RemoteResource]] = get_gnss_common_products(start_date)
+
+    product_status = {}
+
     for product_type,sources in remote_resource_dict.items():
         logger.info(f"Attempting to download {product_type} products")
-
-        is_file_downloaded = False
+        if product_type not in product_status:
+            product_status[product_type] = 'False'
   
-        for _,remote_resources in sources.items():
-            if is_file_downloaded:
+        for dl_source,remote_resource in sources.items():
+            if source != "all" and dl_source != source:
+                continue
+            # check if file already exists
+            found_files = [f for f in cp_dir_list if remote_resource.remote_query.pattern.match(f.name)]
+            if found_files and not override:
+                logger.info(f"Found {found_files[0]} for product {product_type}")
                 break
-            if not isinstance(remote_resources,list):
-                remote_resources = [remote_resources]
-            to_check = []
 
-            for remote_resource in remote_resources:
+           
+            remote_resource_updated = update_source(remote_resource)
+            if remote_resource_updated.file_name is None:
+                continue
+            
+            
             # For a given product type, try to download from each source
-                local_path = common_product_dir/remote_resource.file_name
-                if (local_path.exists() and local_path.stat().st_size > 0) and not override:
-                    logger.info(f"Found {local_path}")
-                    is_file_downloaded = True
-                    break
-                else:
-                    to_check.append(remote_resource)
-            if is_file_downloaded:
-                break
-
-            for remote_resource in to_check:
-                local_path = common_product_dir/remote_resource.file_name
-                logger.info(f"Attempting to download {product_type} FROM {str(remote_resource)} TO {str(local_path)}")    
-                try:
-                    download(remote_resource,local_path)
-                    logger.info(f"\n Succesfully downloaded {product_type} FROM {str(remote_resource)} TO {str(local_path)}\n")
-                except Exception as e:
-                    logger.error(f"Failed to download {str(remote_resource)} | {e}")
-                    if local_path.exists() and local_path.stat().st_size == 0:
-                        local_path.unlink()
-                    continue
-                if local_path.exists():
-                    logger.info(
-                        f"\n Succesfully downloaded {product_type} FROM {str(remote_resource)} TO {str(local_path)}\n"
-                    )
-                    match mode:
-                        case 'process':
-                            is_file_downloaded = True
-                            break
-                        case 'test':
-                            local_path.unlink()
-            if is_file_downloaded and mode == "process":
-                break
-
-        if not local_path.exists():
-            response = f"Failed to download {product_type} products"
-            logger.error(response)
-            warnings.warn(response)
-
-
-if __name__ == '__main__':
-    test_rinex = (
-        Path(
-            "/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/Cascadia2023/NCL1/NCB/NCB1/2023/intermediate"
-        )
-        / "NCB11750.23o"
-    )
-    get_nav_file(test_rinex)
-    pride_dir = Path("/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/TestSV3/Pride")
-    get_gnss_products(test_rinex,pride_dir)
+            local_path = common_product_dir/remote_resource.file_name
+            try:
+                download(remote_resource,local_path)
+                logger.info(f"\n Succesfully downloaded {product_type} FROM {str(remote_resource)} TO {str(local_path)}\n")
+                product_status[product_type] = str(local_path)
+            except Exception as e:
+                logger.error(f"Failed to download {str(remote_resource)} | {e}")
+                if local_path.exists() and local_path.stat().st_size == 0:
+                    local_path.unlink()
+                continue
+    for product_type,product_path in product_status.items():
+        logger.info(f"{product_type} : {product_path}")
