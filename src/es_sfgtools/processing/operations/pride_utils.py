@@ -165,7 +165,7 @@ def get_daily_rinex_url(date:datetime.date) ->Dict[str,Dict[str,RemoteResource]]
     return urls
 
 def get_gnss_common_products(date:datetime.date) ->Dict[str,Dict[str,Path]]:
-    
+
     """
     Retrieve GNSS common products for a given date.
     This function fetches various GNSS products (sp3, clk, bias, obx, erp) from 
@@ -199,28 +199,27 @@ def get_gnss_common_products(date:datetime.date) ->Dict[str,Dict[str,Path]]:
     Note:
         Until the remote resorces are updated with 'update_source', the file_name attribute will be None.
     """
-    
 
     urls = {
         "sp3": {
-            "wuhan": WuhanIGS.get_product_sp3(date),
             "cligs": CLSIGS.get_product_sp3(date),
+            "wuhan": WuhanIGS.get_product_sp3(date),
         },
         "clk": {
-            "wuhan": WuhanIGS.get_product_clk(date),
             "cligs": CLSIGS.get_product_clk(date),
+            "wuhan": WuhanIGS.get_product_clk(date),
         },
         "bias": {
-            "wuhan": WuhanIGS.get_product_bias(date),
             "cligs": CLSIGS.get_product_bias(date),
+            "wuhan": WuhanIGS.get_product_bias(date),
         },
         "obx": {
-            "wuhan": WuhanIGS.get_product_obx(date),
             "cligs": CLSIGS.get_product_obx(date),
+            "wuhan": WuhanIGS.get_product_obx(date),
         },
         "erp": {
-            "wuhan": WuhanIGS.get_product_erp(date),
             "cligs": CLSIGS.get_product_erp(date),
+            "wuhan": WuhanIGS.get_product_erp(date),
         },
     }
     return urls
