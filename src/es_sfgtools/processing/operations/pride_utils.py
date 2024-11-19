@@ -31,6 +31,14 @@ def update_source(source:RemoteResource) -> RemoteResource:
         RemoteResource: The updated source object with the file_name attribute set to the first matching file in the sorted order, or None if no match is found.
     Raises:
         ftplib.all_errors: Any FTP-related errors encountered during the connection, login, or directory listing process.
+
+    Example:
+        >>> remote_resource = WuhanIGS.get_rinex_3_nav(datetime.date(2021,1,1))
+        >>> remote_resource.file_name
+        None
+        >>> updated_remote_resource = update_source(remote_resource)
+        >>> updated_remote_resource.file_name
+        "BRDC20210010000.rnx.gz"
     """
     # List the contents of the directory and return the first file that matches the sorted remote query
     assert isinstance(source.remote_query,RemoteQuery), f"Remote query not set for {source}"
@@ -65,6 +73,27 @@ def update_source(source:RemoteResource) -> RemoteResource:
 
 
 def download(source:RemoteResource,dest:Path) ->Path:
+
+    """
+    Downloads a file from a remote FTP server to a local destination.
+    Args:
+        source (RemoteResource): An object containing the FTP server details, directory, and file name.
+        dest (Path): The local path where the file will be saved.
+    Returns:
+        Path: The local path where the file has been saved.
+    Raises:
+        ftplib.all_errors: If any FTP-related error occurs during the download process.
+    Example:
+        >>> source = WuhanIGS.get_rinex_3_nav(datetime.date(2021,1,1))
+        >>> updated_source = update_source(source)
+        >>> dest_dir = Path("dest/to/data")
+        >>> dest = dest_dir/updated_source.file_name
+        >>> download(source, dest)
+        "Downloading ftp://igs.gnsswhu.cn/pub/gps/data/daily/2021/001/21p/BRDC20210010000.rnx.gz" to dest/to/data/BRDC20210010000.rnx.gz"
+        >>> dest.exists()
+        True
+    """
+
     print(f"\nDownloading {str(source)} to {str(dest)}\n")
     with FTP(source.ftpserver.replace("ftp://",""),timeout=60) as ftp:
         ftp.set_pasv(True)
@@ -105,7 +134,7 @@ def uncompressed_file(file_path:Path) ->Path:
 
 def get_daily_rinex_url(date:datetime.date) ->Dict[str,Dict[str,RemoteResource]]:
     """
-    This function returns the url for the IGS rinex observation file for a given date.
+    This function returns the 'RemoteResource' for the IGS rinex observation file for a given date.
     url config docs at https://igs.org/products-access/#gnss-broadcast-ephemeris
 
     Args:
@@ -116,9 +145,11 @@ def get_daily_rinex_url(date:datetime.date) ->Dict[str,Dict[str,RemoteResource]]
         >>> date = datetime.date(2021,1,1)
         >>> urls = get_daily_rinex_url(date)
         >>> str(urls["rinex_2"]["wuhan_gps"])
-        "ftp://igs.gnsswhu.cn/pub/gps/data/daily/21/001/21n/brdc0010.21n.gz"
+        "ftp://igs.gnsswhu.cn/pub/gps/data/daily/21/001/21n/"
         >>> str(urls["rinex_2"]["wuhan_glonass"])
-        "ftp://igs.gnsswhu.cn/pub/gps/data/daily/21/001/21g/brdc0010.21g.gz"
+        "ftp://igs.gnsswhu.cn/pub/gps/data/daily/21/001/21g/"
+    Note:
+        Until the remote resorces are updated with 'update_source', the file_name attribute will be None.
     """
 
     urls = {
@@ -141,6 +172,42 @@ def get_daily_rinex_url(date:datetime.date) ->Dict[str,Dict[str,RemoteResource]]
     return urls
 
 def get_gnss_common_products(date:datetime.date) ->Dict[str,Dict[str,Path]]:
+    
+    """
+    Retrieve GNSS common products for a given date.
+    This function fetches various GNSS products (sp3, clk, bias, obx, erp) from 
+    different sources (WuhanIGS and CLSIGS) for the specified date.
+    Args:
+        date (datetime.date): The date for which to retrieve the GNSS products.
+    Returns:
+        Dict[str, Dict[str, Path]]: A dictionary containing the GNSS products 
+        categorized by product type and source. The structure of the dictionary is:
+            {   "sp3": {
+                    "wuhan": Path to WuhanIGS sp3 product,
+                    "cligs": Path to CLSIGS sp3 product,
+                    }.
+                "clk": {
+                    "wuhan": Path to WuhanIGS clk product,
+                    "cligs": Path to CLSIGS clk product,
+                    },
+                "bias": {
+                    "wuhan": Path to WuhanIGS bias product,
+                    "cligs": Path to CLSIGS bias product,
+                    },
+                "obx": {
+                    "wuhan": Path to WuhanIGS obx product,
+                    "cligs": Path to CLSIGS obx product,
+                    },
+                "erp": {
+                    "wuhan": Path to WuhanIGS erp product,
+                    "cligs": Path to CLSIGS erp product,
+                    }
+            }
+    Note:
+        Until the remote resorces are updated with 'update_source', the file_name attribute will be None.
+    """
+    
+
     urls = {
         "sp3": {
             "wuhan": WuhanIGS.get_product_sp3(date),
@@ -486,6 +553,7 @@ def get_gnss_products(
     override: bool = False,
     source: Literal["all","wuhan", "cligs"] = "all"
 ) -> None:
+
     """
     Retrieves GNSS products associated with the given RINEX file.
 
@@ -565,8 +633,6 @@ def get_gnss_products(
                 continue
     for product_type,product_path in product_status.items():
         logger.info(f"{product_type} : {product_path}")
-    
-
 
 
 if __name__ == '__main__':
