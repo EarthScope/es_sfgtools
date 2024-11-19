@@ -571,6 +571,7 @@ def get_gnss_products(
         Exception: If there is an error while downloading the GNSS products.
     
     """
+    assert source in ["all","wuhan", "cligs"], f"Invalid source {source}"
 
     start_date = None
     with open(rinex_path) as f:
@@ -628,15 +629,3 @@ def get_gnss_products(
                 continue
     for product_type,product_path in product_status.items():
         logger.info(f"{product_type} : {product_path}")
-
-
-if __name__ == '__main__':
-    test_rinex = (
-        Path(
-            "/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/Cascadia2023/NCL1/NCB/NCB1/2023/intermediate"
-        )
-        / "NCB11750.23o"
-    )
-    get_nav_file(test_rinex)
-    pride_dir = Path("/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/TestSV3/Pride")
-    get_gnss_products(test_rinex,pride_dir)
