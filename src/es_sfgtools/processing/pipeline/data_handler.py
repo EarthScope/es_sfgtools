@@ -17,7 +17,7 @@ import seaborn
 seaborn.set_theme(style="whitegrid")
 
 from es_sfgtools.utils.archive_pull import download_file_from_archive
-from es_sfgtools.processing.assets.file_schemas import AssetEntry
+from es_sfgtools.processing.assets.file_schemas import AssetEntry,AssetType
 from es_sfgtools.processing.assets.tiledb_temp import TDBAcousticArray,TDBGNSSArray,TDBPositionArray,TDBShotDataArray
 from es_sfgtools.processing.pipeline.catalog import Catalog
 from es_sfgtools.processing.pipeline.pipelines import SV3Pipeline
@@ -136,7 +136,7 @@ class DataHandler:
         self.position_tdb = TDBPositionArray(self.tileb_dir/"position_db.tdb")
         self.shotdata_tdb = TDBShotDataArray(self.tileb_dir/"shotdata_db.tdb")
     
-    def change_working_station(self, station: str, network: str = None, survey: str = None):
+    def change_working_station(self, network:str,station:str, survey: str = None):
         """
         Change the working station.
         
@@ -185,7 +185,7 @@ class DataHandler:
             dir_path (Path): The directory path to look for files and add them to the catalog.
         """
 
-        files = scrape_directory_local(directory_path)
+        files:List[Path] = scrape_directory_local(directory_path)
         if len(files) == 0:
             logger.error(f"No files found in {directory_path}, ensure the directory is correct.")
             return
@@ -202,20 +202,20 @@ class DataHandler:
         """
 
         file_data_list = []
-        for file in local_filepaths:
-            if not Path(file).exists():
-                logger.error(f"File {file} does not exist")
+        for file_path in local_filepaths:
+            if not file_path.exists():
+                logger.error(f"File {str(file_path)} does not exist")
                 continue
-            file_type, _size = get_file_type_local(file)
-
-            file_data = AssetEntry(
-                local_path=file,
-                type=file_type,
-                network=self.network,
-                station=self.station,
-                survey=self.survey,
-            )
-            file_data_list.append(file_data)
+            file_type, _size = get_file_type_local(file_path)
+            if file_type is not None:
+                file_data = AssetEntry(
+                    local_path=file_path,
+                    type=file_type,
+                    network=self.network,
+                    station=self.station,
+                    survey=self.survey,
+                )
+                file_data_list.append(file_data)
 
         # Add each file (AssetEntry) to the catalog
         count = len(file_data_list)
@@ -275,7 +275,7 @@ class DataHandler:
 
         logger.info(f"Added {uploadCount} out of {count} files to the catalog")
 
-    def download_data(self, file_types: List = FILE_TYPES, override: bool=False):
+    def download_data(self, file_types: List[AssetType] | List[str] | str = FILE_TYPES, override: bool=False):
         """
         Retrieves and catalogs data from the remote locations stored in the catalog.
 
@@ -285,47 +285,57 @@ class DataHandler:
         """
 
         # Grab assests from the catalog that match the network, station, survey, and file type
-        assets = self.catalog.get_assets(network=self.network,
-                                         station=self.station,
-                                         survey=self.survey,
-                                         types=file_types)
+        if not isinstance(file_types,list):
+            file_types = [file_types]
+        file_types = list(set(file_types)) # Remove duplicates
+        for type in file_types:
+            if isinstance(type,str):
+                try:
+                    file_types[file_types.index(type)] = AssetType(type)
+                except:
+                    raise ValueError(f"File type {type} must be one of {AssetType.__members__.keys()}")
+        for type in file_types:
+            assets = self.catalog.get_assets(network=self.network,
+                                            station=self.station,
+                                            survey=self.survey,
+                                            type=type)
 
-        if len(assets) == 0:
-            logger.error(f"No matching data found in catalog")
-            return
-        
-        # Find files that we need to download based on the catalog output. If override is True, download all files.
-        if override:
-            assets_to_download = assets
-        else:
-            assets_to_download = []
-            for file_asset in assets:
-                if file_asset.local_path is None:
-                    assets_to_download.append(file_asset)
-                else:
-                    # Check to see if the file exists locally anyway
-                    if not Path(file_asset.local_path).exists():
+            if len(assets) == 0:
+                logger.error(f"No matching data found in catalog")
+                continue
+            
+            # Find files that we need to download based on the catalog output. If override is True, download all files.
+            if override:
+                assets_to_download = assets
+            else:
+                assets_to_download = []
+                for file_asset in assets:
+                    if file_asset.local_path is None:
                         assets_to_download.append(file_asset)
+                    else:
+                        # Check to see if the file exists locally anyway
+                        if not file_asset.local_path.exists():
+                            assets_to_download.append(file_asset)
 
-        if len(assets_to_download) == 0:
-            logger.info(f"No new files to download")
-        
-        # split the entries into s3 and http
-        s3_assets = [file for file in assets if file.remote_type == REMOTE_TYPE.S3.value]
-        http_assets = [file for file in assets if file.remote_type == REMOTE_TYPE.HTTP.value]
+            if len(assets_to_download) == 0:
+                logger.info(f"No new files to download")
+            
+            # split the entries into s3 and http
+            s3_assets = [file for file in assets if file.remote_type == REMOTE_TYPE.S3.value]
+            http_assets = [file for file in assets if file.remote_type == REMOTE_TYPE.HTTP.value]
 
-        # Download Files from either S3 or HTTP
-        if len(s3_assets) > 0:
-            with threading.Lock():
-                client = boto3.client('s3')
-            self._download_S3_files(client=client,
-                                    s3_assets=s3_assets)
-            for file in s3_assets:
-                if file.local_path is not None:
-                    self.catalog.update_local_path(file.id, file.local_path)
-        
-        if len(http_assets) > 0:
-            self.download_HTTP_files(http_assets=http_assets)
+            # Download Files from either S3 or HTTP
+            if len(s3_assets) > 0:
+                with threading.Lock():
+                    client = boto3.client('s3')
+                self._download_S3_files(client=client,
+                                        s3_assets=s3_assets)
+                for file in s3_assets:
+                    if file.local_path is not None:
+                        self.catalog.update_local_path(file.id, file.local_path)
+            
+            if len(http_assets) > 0:
+                self.download_HTTP_files(http_assets=http_assets)
 
     def _download_S3_files(self, s3_assets: List[AssetEntry]):
         """ 
@@ -467,7 +477,7 @@ class DataHandler:
             station=self.station,
             survey=self.survey,
             writedir=self.inter_dir,
-            override=False,
+            override=override,
             show_details=show_details)
         
         pipeline.process_rinex(

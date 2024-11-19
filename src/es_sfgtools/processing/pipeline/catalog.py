@@ -17,7 +17,7 @@ class Catalog:
             f"sqlite+pysqlite:///{self.db_path}", poolclass=sa.pool.NullPool
         )
         Base.metadata.create_all(self.engine)
-    
+
     def get_dtype_counts(self, network:str, station:str, survey:str, **kwargs) -> Dict[str,int]:
         with self.engine.begin() as conn:
             data_type_counts = [
@@ -36,41 +36,33 @@ class Catalog:
             if len(data_type_counts) == 0:
                 return {"Local files found": 0}
         return {x["type"]: x["count_1"] for x in data_type_counts}
-    
+
     def get_assets(self,
                    network: str,
                    station: str,
                    survey: str,
-                   types: List[AssetType],
-                   multiasset:bool=False) -> List[AssetEntry | MultiAssetEntry]:
+                   type: AssetType) -> List[AssetEntry | MultiAssetEntry]:
 
-        if multiasset:
-            table = MultiAssets
-            schema = MultiAssetEntry
-        else:
-            table = Assets
-            schema = AssetEntry
-
-        print(f"Getting assets for {network} {station} {survey} {types}")
+        print(f"Getting assets for {network} {station} {survey} {str(type)}")
 
         with self.engine.connect() as conn:
-            query = sa.select(table).where(
+            query = sa.select(Assets).where(
                 sa.and_(
-                    table.network == network,
-                    table.station == station,
-                    table.survey == survey,
-                    table.type.in_(types)
+                    Assets.network == network,
+                    Assets.station == station,
+                    Assets.survey == survey,
+                    Assets.type == type.value,
                 )
             )
             result = conn.execute(query).fetchall()
             out = []
             for row in result:
                 try:
-                    out.append(schema(**row._mapping))
+                    out.append(AssetEntry(**row._mapping))
                 except Exception as e:
                     print("Unable to add row, error: {}".format(e))
             return out
-        
+
     def get_single_entries_to_process(self,
                                network:str,
                                station:str,
@@ -84,32 +76,13 @@ class Catalog:
             if override:
                 return parent_entries
             return [entry for entry in parent_entries if not entry.is_processed]
-        
+
         child_entries = self.get_assets(network,station,survey,child_type)
         parent_id_map = {entry.id:entry for entry in parent_entries}
         if not override:
             [parent_id_map.pop(child_entry.parent_id) for child_entry in child_entries if child_entry.parent_id in parent_id_map]
         return list(parent_id_map.values())
 
-    def get_multi_entries_to_process(self,
-                                 network:str,
-                                 station:str,
-                                 survey:str,
-                                 parent_type:AssetType,
-                                 child_type:AssetType,
-                                 override:bool=False) -> List[MultiAssetPre]:
-
-        parent_entries: List[AssetEntry] = self.get_assets(network,station,survey,parent_type,multiasset=False)
-        doy_ma_map: Dict[datetime.date : MultiAssetPre] = MultiAssetPre.from_asset_list(parent_entries,child_type=child_type)
-        # Search for the multiasset entries that are already in the database
-        to_remove = []
-        for doy,multiasset_pre in doy_ma_map.items():
-            matching_entry = self.find_entry(multiasset_pre.to_multiasset())
-            if matching_entry and not override:
-                to_remove.append(doy)
-        [doy_ma_map.pop(doy) for doy in to_remove]
-
-        return [x for x in doy_ma_map.values()]
 
     def find_entry(self,entry:AssetEntry | MultiAssetEntry) -> AssetEntry | MultiAssetEntry | None:
         table = Assets if isinstance(entry, AssetEntry) else MultiAssets
@@ -124,7 +97,7 @@ class Catalog:
             if results:
                 return schema(**results._mapping)
         return None
-    
+
     def update_local_path(self, id, local_path: str):
         """ 
         Update the local path for an entry in the database. 
@@ -144,21 +117,20 @@ class Catalog:
         except Exception as e:
             logger.error(f"Error updating local path for id {id}: {e}")
 
-
     def add_or_update(self, entry: AssetEntry | MultiAssetEntry):
         if entry is None:
             logger.warning("No entry to add or update")
             return
-        
+
         table = Assets if isinstance(entry, AssetEntry) else MultiAssets
-    
+
         with self.engine.begin() as conn:
 
             try:
                 conn.execute(
                     sa.insert(table).values(entry.model_dump()))
             except Exception as e:
-                #print(e)
+                # print(e)
                 try:
                     conn.execute(
                         sa.update(table=table)
@@ -166,7 +138,7 @@ class Catalog:
                         .values(entry.model_dump()) 
                     )
                 except Exception as e:
-       
+
                     logger.error(f"Error adding or updating entry {entry}")
                     pass
 
@@ -177,7 +149,7 @@ class Catalog:
             except sa.exc.ResourceClosedError:
                 # handle queries that don't return results
                 conn.execute(sa.text(query))
-    
+
     def add_entry(self, entry:AssetEntry | MultiAssetEntry) -> bool:
         table = Assets if isinstance(entry, AssetEntry) else MultiAssets
         try:
@@ -185,7 +157,7 @@ class Catalog:
                 conn.execute(sa.insert(table).values(entry.model_dump()))
             return True
         except sa.exc.IntegrityError as e:
-            print(e)
+
             return False
 
     def add_merge_job(self,parent_type:str,child_type:str,parent_ids:List[int],**kwargs):
@@ -193,12 +165,12 @@ class Catalog:
         parent_ids.sort()
         parent_id_string = "-".join([str(x) for x in parent_ids])
         with self.engine.begin() as conn:
-             conn.execute(sa.insert(MergeJobs).values({
+            conn.execute(sa.insert(MergeJobs).values({
                 MergeJobs.parent_type.name: parent_type,
                 MergeJobs.child_type.name: child_type,
                 MergeJobs.parent_ids.name: parent_id_string
             }))
-             
+
     def is_merge_complete(self,parent_type:str,child_type:str,parent_ids:List[int],**kwargs) -> bool:
         parent_ids.sort()
         parent_id_string = "-".join([str(x) for x in parent_ids])
