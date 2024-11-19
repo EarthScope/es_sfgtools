@@ -12,14 +12,6 @@ import re
 
 from es_sfgtools.processing.operations.gnss_resources import RemoteQuery,RemoteResource,WuhanIGS,CLSIGS,GSSC #,CDDIS
 logger = logging.getLogger(__name__)    
-# TODO use ftplib to download files
-# https://docs.python.org/3/library/ftplib.html
-
-
-# POTSDAM_SP3 = RemoteResource(
-#     ftpserver="ftp://isdcftp.gfz-potsdam.de",
-#     directory=["gnss","products","final"],
-# )
 
 def update_source(source:RemoteResource) -> RemoteResource:
     
@@ -50,14 +42,14 @@ def update_source(source:RemoteResource) -> RemoteResource:
             ftp.cwd("/" + source.directory)
             dir_list = ftp.nlst()
     except Exception as e:
-        print(f"Failed to list directory {source.directory} on {source.ftpserver} | {e}")
+        logger.error(f"Failed to list directory {source.directory} on {source.ftpserver} | {e}")
         return source
 
     remote_query = source.remote_query
     
     dir_match = [d for d in dir_list if remote_query.pattern.search(d)]
     if len(dir_match) == 0:
-        print(f"No match found for {remote_query.pattern}")
+        logger.error(f"No match found for {remote_query.pattern}")
         return source
     
     sorted_match = []
@@ -68,7 +60,7 @@ def update_source(source:RemoteResource) -> RemoteResource:
                     sorted_match.append(dir_match.pop(idx))
     sorted_match.extend(dir_match)
     source.file_name = sorted_match[0]
-    print(f"Match found for {remote_query.pattern} : {source.file_name}")
+    logger.info(f"Match found for {remote_query.pattern} : {source.file_name}")
     return source 
 
 
@@ -94,13 +86,14 @@ def download(source:RemoteResource,dest:Path) ->Path:
         True
     """
 
-    print(f"\nDownloading {str(source)} to {str(dest)}\n")
+    logger.info(f"\nAttempting Download of {str(source)} to {str(dest)}\n")
     with FTP(source.ftpserver.replace("ftp://",""),timeout=60) as ftp:
         ftp.set_pasv(True)
         ftp.login()
         ftp.cwd("/" + source.directory)
         with open(dest,"wb") as f:
             ftp.retrbinary(f"RETR {source.file_name}",f.write)
+    logger.info(f"\nDownloaded {str(source)} to {str(dest)}\n")
     return dest
 
 def uncompressed_file(file_path:Path) ->Path:
@@ -254,6 +247,7 @@ def merge_broadcast_files(brdn:Path, brdg:Path, output_folder:Path) ->Path:
         >>> merged_brdm
         Path("data/brdm1500.21p")
     """
+    logger.info(f"Merging {brdn} and {brdg} into a single BRDM file.")
 
     def write_brdn(file:Path, prefix:str, fm:IO):
         """
@@ -415,8 +409,9 @@ def merge_broadcast_files(brdn:Path, brdg:Path, output_folder:Path) ->Path:
     fm.close()
 
     if brdm.exists():
-        print(f"Files merged into {brdm}")
+        logger.info(f"Files merged into {str(brdm)}")
         return brdm
+    logger.error(f"Failed to merge files into {str(brdm)}")
     return None
 
 
