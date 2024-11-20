@@ -470,7 +470,7 @@ class DataHandler:
   
 
     @check_network_station_survey
-    def pipeline_sv3(self, override:bool=False, show_details:bool=False, plot:bool=False):
+    def pipeline_sv3(self, override:bool=False, show_details:bool=False, plot:bool=False,update_shotdata:bool=False):
         pipeline = SV3Pipeline(catalog=self.catalog)
         pipeline.process_novatel(
             network=self.network,
@@ -505,9 +505,11 @@ class DataHandler:
             override=override,
             show_details=show_details,
         )
-        pipeline.update_shotdata(
-            shotdatasource=self.shotdata_tdb,
-            gnssdatasource=self.gnss_tdb,
-            override=override,
-            plot=plot
-        )
+        if update_shotdata:
+            pipeline.update_shotdata(
+                shotdatasource=self.shotdata_tdb,
+                gnssdatasource=self.gnss_tdb,
+                override=override,
+                plot=plot
+            )
+

@@ -81,6 +81,7 @@ class Catalog:
         parent_id_map = {entry.id:entry for entry in parent_entries}
         if not override:
             [parent_id_map.pop(child_entry.parent_id) for child_entry in child_entries if child_entry.parent_id in parent_id_map]
+    
         return list(parent_id_map.values())
 
 
@@ -159,6 +160,17 @@ class Catalog:
 
             return False
 
+    def delete_entry(self, entry:AssetEntry) -> bool:
+        with self.engine.begin() as conn:
+            try:
+                conn.execute(sa.delete(Assets).where(
+                    Assets.id == entry.id
+                ))
+                return True
+            except Exception as e:
+                logger.error(f"Error deleting entry {entry} | {e}")
+        return False
+        
     def add_merge_job(self,parent_type:str,child_type:str,parent_ids:List[int],**kwargs):
         # sort parent_ids to ensure that the order is consistent
         parent_ids.sort()
