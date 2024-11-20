@@ -536,7 +536,7 @@ class DataHandler:
         )
 
     @check_network_station_survey
-    def run_all_sv3_pipelines(self, override:bool=False, show_details:bool=False, plot:bool=False):
+    def run_all_sv3_pipelines(self, override:bool=False, show_details:bool=False, plot:bool=False, update_shotdata:bool=False):
         # Pass catalog to pipeline
         logger.info(f"Running all SV3 pipelines for {self.network} {self.station} {self.survey}")
 
@@ -548,7 +548,10 @@ class DataHandler:
         self.run_dfop00_pipeline(override=override)
         logger.info("Done. \n Starting Kin pipeline..")
         self.run_kin_pipeline(override=override, show_details=show_details)
-        logger.info("Done. \n Updating ShotData..")
-        self.update_shotdata(override=override, plot=plot)
-        logger.info("Done. \n All SV3 pipelines complete.")
+        logger.info("Done.")
+        if update_shotdata:
+            logger.info("Updating ShotData..")
+            self.update_shotdata(override=override, plot=plot)
+            logger.info("Done.")
+        logger.info("\n All SV3 pipelines complete.")
 
