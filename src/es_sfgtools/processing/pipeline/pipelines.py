@@ -147,19 +147,7 @@ class SV3Pipeline:
                         resfile_entries.append(resfile)
                     rinex_entries[idx].is_processed = True
                     self.catalog.add_or_update(rinex_entries[idx])
-                    # if (
-                    #     gnss_df := gnss_ops.kin_to_gnssdf(kinfile)
-                    # ) is not None:
-                    #     if resfile is not None:
-                    #         wrms = gnss_ops.get_wrms_from_res(str(resfile.local_path))
-                    #         gnss_df = pd.merge(gnss_df, wrms, left_on="time", right_on="time")
-
-                    #     response = f'Adding GNSS Data of shape {gnss_df.shape} and daterange {gnss_df["time"].min().isoformat()} to {gnss_df["time"].max().isoformat()} to GNSS TDB'
-                    #     logger.info(response)
-                    #     if show_details:
-                    #         print(response)
-                    #     self.gnss_tdb.write_df(gnss_df)
-
+                   
         response = f"Generated {count} Kin Files From {len(rinex_entries)} Rinex Files, Added {uploadCount} to the Catalog"
         logger.info(response)
         if show_details:
