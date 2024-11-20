@@ -4,73 +4,36 @@ from es_sfgtools.processing.assets.file_schemas import AssetType, AssetEntry
 from pathlib import Path
 import pandas as pd
 import datetime
-dh_dir_sv3 = Path(
-        "/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/Cascadia2023/NCL1/"
-    )
-tildb_path = dh_dir_sv3 / "test.tdb"
+from collections import defaultdict
+import matplotlib.pyplot as plt
+import numpy as np
 
-gnss_array = TDBGNSSArray(tildb_path)
-
-acoustic_array = TDBAcousticArray(dh_dir_sv3 / "acoustic.tdb")
-
-position_array = TDBPositionArray(dh_dir_sv3 / "position.tdb")
-
-shot_data_array = TDBShotDataArray(dh_dir_sv3 / "shot_data.tdb")
+from es_sfgtools.processing.pipeline.plotting import plot_gnss_data
 
 
-
-network = "NCB"
-station = "NCB1"
+network = "Cascadia"
 survey = "2023"
+main_dir = Path("/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/Cascadia2023/SFGTools")
+dh = DataHandler(main_dir)
 
-dh = DataHandler(network=network, station=station, survey=survey, data_dir=dh_dir_sv3)
+dh.change_working_station(network=network,station="NCL1")
+dh.change_working_survey("2023")
 
-gnss_entries = dh.catalog.get_assets(
-    network=network, station=station, survey=survey, type=AssetType.GNSS
+tildb_path = Path(
+    "/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/Cascadia2023/SFGTools/Cascadia/NCL1/TileDB"
 )
 
-time_min = datetime.datetime(1900,1,1,0,0,0)
-time_max = datetime.datetime(2100,1,1,0,0,0)
-total_rows = 0
-for entry in gnss_entries:
-    df = pd.read_csv(entry.local_path).drop(labels=["modified_julian_date","second_of_day"],axis=1)
-    gnss_array.write_df(df)
-    total_rows += df.shape[0]
+gnss_array = TDBGNSSArray(tildb_path / "gnss_db.tdb")
 
-# query the data
-df = gnss_array.read_df(start=time_min,end=time_max)
-print(df)
+acoustic_array = TDBAcousticArray(tildb_path / "acoustic.tdb")
+
+position_array = TDBPositionArray(tildb_path / "position.tdb")
+
+shot_data_array = TDBShotDataArray(tildb_path / "shot_data.tdb")
 
 
-acoustic_entries = dh.catalog.get_assets(
-    network=network, station=station, survey=survey, type=AssetType.ACOUSTIC
-)
+# Dev testing
+rinex_assets = dh.get_asset_by_type("RINEX")
+plot_gnss_data(gnss_array,rinex_assets)
 
-for entry in acoustic_entries:
-    df = pd.read_csv(entry.local_path)
-    acoustic_array.write_df(df)
-  
-acoustic_df = acoustic_array.read_df(start=time_min,end=time_max)
-print(acoustic_df)
-
-position_entries = dh.catalog.get_assets(
-    network=network, station=station, survey=survey, type=AssetType.POSITION
-)
-
-# for entry in position_entries:
-#     df = pd.read_csv(entry.local_path)
-#     position_array.write_df(df)
-
-# position_df = position_array.read_df(start=time_min,end=time_max)
-# print(position_df)
-
-shot_data_entries = dh.catalog.get_assets(
-    network=network, station=station, survey=survey, type=AssetType.SHOTDATA
-)
-
-for entry in shot_data_entries:
-    df = pd.read_csv(entry.local_path)
-    shot_data_array.write_df(df)
-
-shot_data_df = shot_data_array.read_df(start=time_min,end=time_max)
-print(shot_data_df)
+print("Done")
