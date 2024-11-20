@@ -17,7 +17,7 @@ import seaborn
 seaborn.set_theme(style="whitegrid")
 
 from es_sfgtools.utils.archive_pull import download_file_from_archive
-from es_sfgtools.processing.assets.file_schemas import AssetEntry,AssetType
+from es_sfgtools.processing.assets.file_schemas import AssetEntry, AssetType
 from es_sfgtools.processing.assets.tiledb_temp import TDBAcousticArray,TDBGNSSArray,TDBPositionArray,TDBShotDataArray
 from es_sfgtools.processing.pipeline.catalog import Catalog
 from es_sfgtools.processing.pipeline.pipelines import SV3Pipeline
@@ -136,7 +136,7 @@ class DataHandler:
         self.position_tdb = TDBPositionArray(self.tileb_dir/"position_db.tdb")
         self.shotdata_tdb = TDBShotDataArray(self.tileb_dir/"shotdata_db.tdb")
     
-    def change_working_station(self, network:str,station:str, survey: str = None):
+    def change_working_station(self, network: str, station: str, survey: str = None):
         """
         Change the working station.
         
@@ -287,13 +287,17 @@ class DataHandler:
         # Grab assests from the catalog that match the network, station, survey, and file type
         if not isinstance(file_types,list):
             file_types = [file_types]
-        file_types = list(set(file_types)) # Remove duplicates
+
+        # Remove duplicates
+        file_types = list(set(file_types)) 
         for type in file_types:
             if isinstance(type,str):
                 try:
                     file_types[file_types.index(type)] = AssetType(type)
                 except:
                     raise ValueError(f"File type {type} must be one of {AssetType.__members__.keys()}")
+                
+        # Pull files from the catalog by type
         for type in file_types:
             assets = self.catalog.get_assets(network=self.network,
                                             station=self.station,
@@ -317,25 +321,25 @@ class DataHandler:
                         if not file_asset.local_path.exists():
                             assets_to_download.append(file_asset)
 
-        if len(assets_to_download) == 0:
-            logger.info(f"No new files to download")
-        
-        # split the entries into s3 and http
-        s3_assets = [file for file in assets_to_download if file.remote_type == REMOTE_TYPE.S3.value]
-        http_assets = [file for file in assets_to_download if file.remote_type == REMOTE_TYPE.HTTP.value]
+            if len(assets_to_download) == 0:
+                logger.info(f"No new files to download")
+            
+            # split the entries into s3 and http
+            s3_assets = [file for file in assets_to_download if file.remote_type == REMOTE_TYPE.S3.value]
+            http_assets = [file for file in assets_to_download if file.remote_type == REMOTE_TYPE.HTTP.value]
 
-        # Download Files from either S3 or HTTP
-        if len(s3_assets) > 0:
-            with threading.Lock():
-                client = boto3.client('s3')
-            self._download_S3_files(client=client,
-                                    s3_assets=s3_assets)
-            for file in s3_assets:
-                if file.local_path is not None:
-                    self.catalog.update_local_path(file.id, file.local_path)
-        
-        if len(http_assets) > 0:
-            self.download_HTTP_files(http_assets=http_assets)
+            # Download Files from either S3 or HTTP
+            if len(s3_assets) > 0:
+                with threading.Lock():
+                    client = boto3.client('s3')
+                self._download_S3_files(client=client,
+                                        s3_assets=s3_assets)
+                for file in s3_assets:
+                    if file.local_path is not None:
+                        self.catalog.update_local_path(file.id, file.local_path)
+            
+            if len(http_assets) > 0:
+                self.download_HTTP_files(http_assets=http_assets)
 
     def _download_S3_files(self, s3_assets: List[AssetEntry]):
         """ 
