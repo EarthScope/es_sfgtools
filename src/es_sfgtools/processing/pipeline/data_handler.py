@@ -324,18 +324,18 @@ class DataHandler:
         s3_assets = [file for file in assets_to_download if file.remote_type == REMOTE_TYPE.S3.value]
         http_assets = [file for file in assets_to_download if file.remote_type == REMOTE_TYPE.HTTP.value]
 
-            # Download Files from either S3 or HTTP
-            if len(s3_assets) > 0:
-                with threading.Lock():
-                    client = boto3.client('s3')
-                self._download_S3_files(client=client,
-                                        s3_assets=s3_assets)
-                for file in s3_assets:
-                    if file.local_path is not None:
-                        self.catalog.update_local_path(file.id, file.local_path)
-            
-            if len(http_assets) > 0:
-                self.download_HTTP_files(http_assets=http_assets)
+        # Download Files from either S3 or HTTP
+        if len(s3_assets) > 0:
+            with threading.Lock():
+                client = boto3.client('s3')
+            self._download_S3_files(client=client,
+                                    s3_assets=s3_assets)
+            for file in s3_assets:
+                if file.local_path is not None:
+                    self.catalog.update_local_path(file.id, file.local_path)
+        
+        if len(http_assets) > 0:
+            self.download_HTTP_files(http_assets=http_assets)
 
     def _download_S3_files(self, s3_assets: List[AssetEntry]):
         """ 
