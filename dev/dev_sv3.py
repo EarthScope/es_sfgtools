@@ -2,6 +2,7 @@ from pathlib import Path
 import logging
 logging.basicConfig(level=logging.WARNING,filename="dev.log",filemode="w")
 from es_sfgtools.processing.pipeline.data_handler import DataHandler
+from es_sfgtools.processing.pipeline.pipelines import SV3Pipeline,SV3PipelineConfig
 import os
 
 data_dir = (
@@ -30,9 +31,15 @@ if __name__ == "__main__":
         NCL1
     )
     
-    dh.pipeline_sv3(override=False)
-    dh.view_data()
-  
+    pipeline,config = dh.get_pipeline_sv3()
+
+    print(config)
+
+    pipeline.process_novatel()
+    pipeline.process_rinex()
+    pipeline.process_kin()
+    pipeline.process_dfop00()
+
     # dh.pipeline_sv3()
 
     # dh.discover_data_directory(

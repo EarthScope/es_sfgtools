@@ -159,27 +159,13 @@ class Tides(str, Enum):
         for option in cls:
             print(f"{option.value} for {option.name}")
 
-class PridePdpConfig:
-    def __init__(self,
-                 sample_frequency: float = 5.0,
-                 system: str = "GREC23J", 
-                 frequency: list = ["G12", "R12", "E15", "C26", "J12"], 
-                 loose_edit: bool = True, 
-                 cutoff_elevation: int =7, 
-                 start: datetime = None, 
-                 end: datetime = None, 
-                 interval: float = None, 
-                 high_ion: bool = False, 
-                 tides: str = "SOP",
-                 local_pdp3_path: str = None):
-        """
-        Initialize the PridePdpConfig class with the following parameters:
-
-        Args:
-        sample_frequency (float): Seconds per sample. Default is 5.0.
-        system (str): The GNSS system(s) to use. Default is "GREC23J" which is “GPS/GLONASS/Galileo/BDS/BDS-2/BDS-3/QZSS”
-        frequency (str): The GNSS frequencies to use. Default is "G12 R12 E15 C26 J12, Refer to Table 5-4 in PRIDE-PPP-AR v.3.0 manual for more options"
-        loose_edit (bool): disable strict editing mode, which should be used when high dynamic data quality is poor. Default is True. 
+class PridePdpConfig(BaseModel):
+    '''
+    PridePdpConfig is a configuration class for setting up and generating commands to run the pdp3 GNSS processing tool.
+    Attributes:
+        system (str): The GNSS system(s) to use. Default is "GREC23J" which is “GPS/GLONASS/Galileo/BDS/BDS-2/BDS-3/QZSS”.
+        frequency (list): The GNSS frequencies to use. Default is ["G12", "R12", "E15", "C26", "J12"]. Refer to Table 5-4 in PRIDE-PPP-AR v.3.0 manual for more options.
+        loose_edit (bool): Disable strict editing mode, which should be used when high dynamic data quality is poor. Default is True.
         cutoff_elevation (int): The elevation cutoff angle in degrees (0-60 degrees). Default is 7.
         start (datetime): The start time used for processing. Default is None.
         end (datetime): The end time used for processing. Default is None.
@@ -187,36 +173,42 @@ class PridePdpConfig:
         high_ion (bool): Use 2nd ionospheric delay model with CODE's GIM product. When this option is not entered, no higher-order ionospheric correction is performed. Default is False.
         tides (str): Enter one or more of "S" "O" "P", e.g SO for solid, ocean, and polar tides. Default is "SOP", which uses all tides.
         local_pdp3_path (str): The path to the local pdp3 binary. Default is None.
-        """
+    Methods:
+        generate_pdp_command(site: str, local_file_path: str) -> List[str]:
+            Generate the command to run pdp3 with the given parameters.
+                site (str): The site identifier for the GNSS data.
+                local_file_path (str): The local file path to the GNSS data.
+            Returns:
+                List[str]: The command to run pdp3 with the specified configuration.
+    '''
+    sample_frequency: float = Field(default=5),
+    system: str = Field(default="GREC23J"), 
+    frequency: list = Field(default=["G12", "R12", "E15", "C26", "J12"]), 
+    loose_edit: bool = Field(default=True), 
+    cutoff_elevation: int = Field(default=7), 
+    start: datetime = Field(default=None), 
+    end: datetime = Field(default=None),
+    interval: float = Field(default=None),
+    high_ion: bool = Field(default=False), 
+    tides: str = Field(default="SOP"),
+    local_pdp3_path: str = Field(default= None)
 
+    def __post_init__(self):
         # Check if system is valid
-        system = system.upper() # Default to GREC23J which is “GPS/GLONASS/Galileo/BDS/BDS-2/BDS-3/QZSS”
+        system = self.system.upper() # Default to GREC23J which is “GPS/GLONASS/Galileo/BDS/BDS-2/BDS-3/QZSS”
         for char in system:
             if char not in Constellations._value2member_map_:
                 Constellations.print_options()
                 raise ValueError(f"Invalid constelation character: {char}")
-        self.system = system
 
-        self.frequency = frequency
-        self.loose_edit = loose_edit
-        self.cutoff_elevation = cutoff_elevation
-
-        self.start = start
-        self.end = end
-        self.interval = interval
-        self.high_ion = high_ion
-        self.sample_frequency = sample_frequency
-        
         # If entered, check if tide characters are valid
-        tides = tides.upper()
+        tides = self.tides.upper()
         for char in tides:
             if char not in Tides._value2member_map_:
                 Tides.print_options()
                 raise ValueError(f"Invalid tide character: {char}")
-        self.tides = tides
+  
 
-        self.local_pdp3_path = local_pdp3_path
-    
     def generate_pdp_command(self, site: str, local_file_path: str) -> List[str]:
         """
         Generate the command to run pdp3 with the given parameters
@@ -232,7 +224,7 @@ class PridePdpConfig:
 
         command.extend(["-m", "K"])
 
-        command.extend("-i", str(self.sample_frequency))
+        command.extend(["-i", str(self.sample_frequency)])
 
         if self.system != "GREC23J":
             command.extend(["--system", self.system])
@@ -251,7 +243,7 @@ class PridePdpConfig:
 
         if self.end:
             command.extend(["--end", self.end.strftime("%Y/%m/%d %H:%M:%S")])
-        
+
         if self.interval:
             command.extend(["--interval", str(self.interval)])
 
@@ -793,7 +785,7 @@ def qcpin_to_novatelpin(source: AssetEntry, writedir: Path) -> AssetEntry:
 
 #     Returns:
 #         merged_files (List[MultiAssetEntry]): A list of MultiAssetEntry instances containing the merged RINEX files
-    
+
 #     Raises:
 #         ValueError: If no merged files are found/created or if the binary is not found
 #     """
