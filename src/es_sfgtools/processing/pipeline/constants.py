@@ -27,7 +27,7 @@ class FILE_TYPE(Enum):
         return [x.name for x in cls]
 
 
-FILE_TYPES = [x.value for x in FILE_TYPE]
+FILE_TYPES = [x for x in FILE_TYPE]
 ALIAS_MAP = {"nov770": "novatel770"}
 ALIAS_MAP = ALIAS_MAP | {x: x for x in FILE_TYPES}
 
