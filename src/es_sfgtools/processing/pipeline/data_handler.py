@@ -311,8 +311,8 @@ class DataHandler:
             logger.info(f"No new files to download")
         
         # split the entries into s3 and http
-        s3_assets = [file for file in assets if file.remote_type == REMOTE_TYPE.S3.value]
-        http_assets = [file for file in assets if file.remote_type == REMOTE_TYPE.HTTP.value]
+        s3_assets = [file for file in assets_to_download if file.remote_type == REMOTE_TYPE.S3.value]
+        http_assets = [file for file in assets_to_download if file.remote_type == REMOTE_TYPE.HTTP.value]
 
         # Download Files from either S3 or HTTP
         if len(s3_assets) > 0:
