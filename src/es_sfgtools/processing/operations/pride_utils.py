@@ -546,7 +546,7 @@ def get_gnss_products(
     pride_dir: Path,
     override: bool = False,
     source: Literal["all","wuhan", "cligs"] = "all"
-) -> None:
+) -> dict:
 
     """
     Retrieves GNSS products associated with the given RINEX file.
@@ -565,7 +565,7 @@ def get_gnss_products(
         override (bool): If True, the function will attempt to download the GNSS products even if they already exist.
         source (Literal['all','wuhan', 'cligs']): The source of the GNSS products to download. (default: "all")
     Returns:
-        None
+        product_status (dict): A dictionary containing the status of the GNSS products downloaded.
     Raises:
         Exception: If there is an error while downloading the GNSS products.
     
@@ -599,7 +599,7 @@ def get_gnss_products(
         logger.info(f"Attempting to download {product_type} products")
         if product_type not in product_status:
             product_status[product_type] = 'False'
-  
+
         for dl_source,remote_resource in sources.items():
             if source != "all" and dl_source != source:
                 continue
@@ -607,24 +607,31 @@ def get_gnss_products(
             found_files = [f for f in cp_dir_list if remote_resource.remote_query.pattern.match(f.name)]
             if found_files and not override:
                 logger.info(f"Found {found_files[0]} for product {product_type}")
+                product_status[product_type] = str(found_files[0])
                 break
 
-           
             remote_resource_updated = update_source(remote_resource)
             if remote_resource_updated.file_name is None:
                 continue
-            
-            
-            # For a given product type, try to download from each source
+
             local_path = common_product_dir/remote_resource.file_name
+            if local_path.exists() and local_path.stat().st_size > 0 and not override:
+                product_status[product_type] = str(local_path)
+                logger.info(f"Found {str(local_path)} for product {product_type}")
+                break
             try:
+                logger.info(f"Attempting to download {product_type} product from {str(remote_resource)}")
                 download(remote_resource,local_path)
                 logger.info(f"\n Succesfully downloaded {product_type} FROM {str(remote_resource)} TO {str(local_path)}\n")
                 product_status[product_type] = str(local_path)
+                break
             except Exception as e:
                 logger.error(f"Failed to download {str(remote_resource)} | {e}")
                 if local_path.exists() and local_path.stat().st_size == 0:
                     local_path.unlink()
                 continue
+
     for product_type,product_path in product_status.items():
         logger.info(f"{product_type} : {product_path}")
+
+    return product_status

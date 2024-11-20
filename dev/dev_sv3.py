@@ -30,7 +30,7 @@ if __name__ == "__main__":
         NCL1
     )
     
-    dh.pipeline_sv3(override=True)
+    dh.pipeline_sv3(override=False)
     dh.view_data()
   
     # dh.pipeline_sv3()

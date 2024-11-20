@@ -114,9 +114,11 @@ class SV3Pipeline:
             print(response)
         
         for rinex_entry in tqdm(rinex_entries,total=len(rinex_entries),desc="Getting nav/obs files for Processing Rinex Files"):
-            get_nav_file(rinex_path=rinex_entry.local_path, override=override)
-            get_gnss_products(rinex_path=rinex_entry.local_path, pride_dir=pride_dir, override=override)
-
+            nav_file: Path = get_nav_file(rinex_path=rinex_entry.local_path, override=override)
+            product_status: dict = get_gnss_products(rinex_path=rinex_entry.local_path, pride_dir=pride_dir, override=override)
+            if show_details:
+                print(f"\nProduct Status: {product_status}\n")
+                print(f"\nNav File: {str(nav_file)}\n")
 
         process_rinex_partial = partial(
             gnss_ops.rinex_to_kin,
@@ -135,12 +137,12 @@ class SV3Pipeline:
             )):
                 if kinfile is not None:
                     count += 1
-                    if self.catalog.add_entry(kinfile):
+                    if self.catalog.add_or_update(kinfile):
                         uploadCount += 1
                     kin_entries.append(kinfile)
                     if resfile is not None:
                         count += 1
-                        if self.catalog.add_entry(resfile):
+                        if self.catalog.add_or_update(resfile):
                             uploadCount += 1
                         resfile_entries.append(resfile)
                     rinex_entries[idx].is_processed = True
@@ -195,22 +197,16 @@ class SV3Pipeline:
         count = 0
         uploadCount = 0
         for kin_entry in tqdm(kin_entries, total=len(kin_entries), desc="Processing Kin Files"):
+            if not kin_entry.local_path.exists():
+                self.catalog.delete_entry(kin_entry)
+                continue
             gnss_df = gnss_ops.kin_to_gnssdf(kin_entry)
             if gnss_df is not None:
                 count += 1
                 kin_entry.is_processed = True
                 self.catalog.add_or_update(kin_entry)
-            # wrms = gnss_ops.get_wrms_from_res(str(res_entry.local_path))
-            # if wrms is not None:
-            #     gnss_df = pd.merge(gnss_df, wrms, left_on="time", right_on="time")
-            #     res_entry.is_processed = True
-            #     self.catalog.add_or_update(res_entry)
-                gnss_tdb.write_df(gnss_df)           
 
-                # response = f'Adding GNSS Data of shape {gnss_df.shape} and daterange {gnss_df["time"].min().isoformat()} to {gnss_df["time"].max().isoformat()} to GNSS TDB'
-                # logger.info(response)
-                # if show_details:
-                #     print(response)
+                gnss_tdb.write_df(gnss_df)           
 
         response = f"Generated {count} GNSS Dataframes From {len(kin_entries)} Kin Files, Added {uploadCount} to the Catalog"
         logger.info(response)

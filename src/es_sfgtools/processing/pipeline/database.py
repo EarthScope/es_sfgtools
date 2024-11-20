@@ -26,7 +26,7 @@ class Assets(Base):
     station = Column(String)
     survey = Column(String)
     remote_path = Column(String,nullable=True,unique=True)
-    remote_type = Column(Enum("s3","http"),nullable=True)
+    remote_type = Column(String,nullable=True)#Column(Enum("s3","http"),nullable=True)
     local_path = Column(String,nullable=True,unique=True)
     type = Column(String)
     timestamp_data_start = Column(DateTime,nullable=True)
@@ -35,20 +35,6 @@ class Assets(Base):
     parent_id = Column(Integer, ForeignKey("assets.id"),nullable=True)
     is_processed = Column(Boolean,default=False)
 
-class MultiAssets(Base):
-    __tablename__ = "multiassets"
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    type = Column(String)
-    timestamp_data_start = Column(DateTime)
-    timestamp_data_end = Column(DateTime)
-    network = Column(String)
-    station = Column(String)
-    survey = Column(String)
-    parent_type = Column(String) # SV3, SV3,SV3_QC
-    local_path = Column(String, nullable=True, unique=True)
-    is_updated = Column(Boolean, default=False)
-    parent_id = Column(String)
-    timestamp_created = Column(DateTime,default=datetime.datetime.now())
 
 class ModelResults(Base):
     __tablename__ = "modelresults"
