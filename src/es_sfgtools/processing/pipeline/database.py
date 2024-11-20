@@ -40,9 +40,7 @@ class ModelResults(Base):
     __tablename__ = "modelresults"
     id = Column(Integer, primary_key=True, autoincrement=True)
     asset_id = Column(Integer, ForeignKey("assets.id"))
-    asset_parent_type = Column(String, ForeignKey("assets.parent_type"))
     asset_local_path = Column(String,ForeignKey("assets.local_path"))
-    sound_velocity_path = Column(String, ForeignKey("assets.local_path"))
     hyper_params = Column(JSON)
     rms_tt = Column(Float)
     abic = Column(Float)
