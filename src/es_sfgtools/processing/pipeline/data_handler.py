@@ -76,9 +76,9 @@ class DataHandler:
         self.pride_dir = self.main_directory / "Pride"
         self.pride_dir.mkdir(exist_ok=True, parents=True)
 
-        if self.network is not None and self.station is not None:
+        if self.network is not None and self.station is not None and self.survey is not None:
             # Create the network/station directory structure
-            self.build_station_dir_structure(self.network, self.station)
+            self.build_station_dir_structure(self.network, self.station, self.survey)
             # Create the TileDB arrays
             self.build_tileDB_arrays()
 
@@ -89,19 +89,19 @@ class DataHandler:
         self.catalog = Catalog(self.db_path)
 
 
-
-    def build_station_dir_structure(self, network: str, station: str):
+    def build_station_dir_structure(self, network: str, station: str, survey: str):
         """
         Build the directory structure for a station.
         Format is as follows:
             - [SFG Data Directory]/
                 - <network>/
                     - <station>/
-                        - TileDB/
-                        - Data/
+                        - <survey>/
                             - raw/
                             - intermediate/
                             - processed/ 
+                        - TileDB/
+
                 - Pride/ 
         """
 
@@ -114,17 +114,17 @@ class DataHandler:
         self.tileb_dir.mkdir(exist_ok=True)
 
         # Create the Data directory structure (network/station/Data)
-        data_dir = self.station_dir / "Data"
-        data_dir.mkdir(exist_ok=True)
+        survey_data_dir = self.station_dir / survey
+        survey_data_dir.mkdir(exist_ok=True)
 
         # Create the raw, intermediate, and processed directories (network/station/Data/raw) and store as class attributes
-        self.raw_dir = data_dir / "raw"
+        self.raw_dir = survey_data_dir / "raw"
         self.raw_dir.mkdir(exist_ok=True)
 
-        self.inter_dir = data_dir / "intermediate"
+        self.inter_dir = survey_data_dir / "intermediate"
         self.inter_dir.mkdir(exist_ok=True)
 
-        self.proc_dir = data_dir / "processed"
+        self.proc_dir = survey_data_dir / "processed"
         self.proc_dir.mkdir(exist_ok=True)
 
     def build_tileDB_arrays(self):
@@ -458,18 +458,24 @@ class DataHandler:
         fig.suptitle(f"Found Dates For {self.network} {self.station}")
         plt.show()
   
-
     @check_network_station_survey
-    def pipeline_sv3(self, override:bool=False, show_details:bool=False, plot:bool=False):
+    def run_novatel_pipeline(self, override:bool=False, show_details:bool=False):
+        # Pass catalog to pipeline
         pipeline = SV3Pipeline(catalog=self.catalog)
+
         pipeline.process_novatel(
             network=self.network,
             station=self.station,
             survey=self.survey,
             writedir=self.inter_dir,
-            override=False,
+            override=override,
             show_details=show_details)
         
+    @check_network_station_survey
+    def run_rinex_pipeline(self, override:bool=False, show_details:bool=False):
+        # Pass catalog to pipeline
+        pipeline = SV3Pipeline(catalog=self.catalog)
+
         pipeline.process_rinex(
             network=self.network,
             station=self.station,
@@ -479,6 +485,11 @@ class DataHandler:
             override=override,
             show_details=show_details,
         )
+    
+    @check_network_station_survey
+    def run_dfop00_pipeline(self, override:bool=False):
+        # Pass catalog to pipeline
+        pipeline = SV3Pipeline(catalog=self.catalog)
 
         pipeline.process_dfop00(
             network=self.network,
@@ -487,6 +498,12 @@ class DataHandler:
             override=override,
             shotdatadest=self.shotdata_tdb,
         )
+
+    @check_network_station_survey
+    def run_kin_pipeline(self, override:bool=False, show_details:bool=False):
+        # Pass catalog to pipeline
+        pipeline = SV3Pipeline(catalog=self.catalog)
+
         pipeline.process_kin(
             network=self.network,
             station=self.station,
@@ -495,9 +512,33 @@ class DataHandler:
             override=override,
             show_details=show_details,
         )
+
+    @check_network_station_survey
+    def update_shotdata(self, override:bool=False, plot:bool=False):
+        # Pass catalog to pipeline
+        pipeline = SV3Pipeline(catalog=self.catalog)
+
         pipeline.update_shotdata(
             shotdatasource=self.shotdata_tdb,
             gnssdatasource=self.gnss_tdb,
             override=override,
             plot=plot
         )
+
+    @check_network_station_survey
+    def run_all_sv3_pipelines(self, override:bool=False, show_details:bool=False, plot:bool=False):
+        # Pass catalog to pipeline
+        logger.info(f"Running all SV3 pipelines for {self.network} {self.station} {self.survey}")
+
+        logger.info("Starting Novatel Pipeline..")
+        self.run_novatel_pipeline(override=override, show_details=show_details)
+        logger.info("Done. \n Starting rinex pipeline..")
+        self.run_rinex_pipeline(override=override, show_details=show_details)
+        logger.info("Done. \n Starting DFOP00 pipeline..")
+        self.run_dfop00_pipeline(override=override)
+        logger.info("Done. \n Starting Kin pipeline..")
+        self.run_kin_pipeline(override=override, show_details=show_details)
+        logger.info("Done. \n Updating ShotData..")
+        self.update_shotdata(override=override, plot=plot)
+        logger.info("Done. \n All SV3 pipelines complete.")
+
