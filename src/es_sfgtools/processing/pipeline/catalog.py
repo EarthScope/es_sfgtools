@@ -4,8 +4,8 @@ from typing import List,Dict
 from datetime import datetime
 from pathlib import Path
 import pandas as pd
-from es_sfgtools.processing.assets.file_schemas import AssetEntry, AssetType, MultiAssetEntry, MultiAssetPre
-from .database import Base, Assets, MultiAssets, ModelResults, MergeJobs
+from es_sfgtools.processing.assets.file_schemas import AssetEntry, AssetType
+from .database import Base, Assets, ModelResults, MergeJobs
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +41,7 @@ class Catalog:
                    network: str,
                    station: str,
                    survey: str,
-                   type: AssetType) -> List[AssetEntry | MultiAssetEntry]:
+                   type: AssetType) -> List[AssetEntry]:
 
         print(f"Getting assets for {network} {station} {survey} {str(type)}")
 
@@ -84,18 +84,17 @@ class Catalog:
         return list(parent_id_map.values())
 
 
-    def find_entry(self,entry:AssetEntry | MultiAssetEntry) -> AssetEntry | MultiAssetEntry | None:
-        table = Assets if isinstance(entry, AssetEntry) else MultiAssets
-        schema = AssetEntry if isinstance(entry, AssetEntry) else MultiAssetEntry
+    def find_entry(self,entry:AssetEntry ) -> AssetEntry | None:
+       
         with self.engine.connect() as conn:
-            results = conn.execute(sa.select(table).where(
-                table.parent_id == ",".join([str(x) for x in entry.parent_id]),
-                table.network == entry.network,
-                table.station == entry.station,
-                table.survey == entry.survey,
-                table.type == entry.type.value)).fetchone()
+            results = conn.execute(sa.select(Assets).where(
+                Assets.parent_id == ",".join([str(x) for x in entry.parent_id]),
+                Assets.network == entry.network,
+                Assets.station == entry.station,
+                Assets.survey == entry.survey,
+                Assets.type == entry.type.value)).fetchone()
             if results:
-                return schema(**results._mapping)
+                return AssetEntry(**results._mapping)
         return None
 
     def update_local_path(self, id, local_path: str):
@@ -117,31 +116,32 @@ class Catalog:
         except Exception as e:
             logger.error(f"Error updating local path for id {id}: {e}")
 
-    def add_or_update(self, entry: AssetEntry | MultiAssetEntry):
+    def add_or_update(self, entry: AssetEntry ) -> bool:
         if entry is None:
             logger.warning("No entry to add or update")
             return
-
-        table = Assets if isinstance(entry, AssetEntry) else MultiAssets
 
         with self.engine.begin() as conn:
 
             try:
                 conn.execute(
-                    sa.insert(table).values(entry.model_dump()))
+                    sa.insert(Assets).values(entry.model_dump()))
+                return True
             except Exception as e:
                 # print(e)
                 try:
+
                     conn.execute(
-                        sa.update(table=table)
-                        .where(table.local_path.is_(str(entry.local_path)))
-                        .values(entry.model_dump()) 
+                        sa.update(table=Assets)
+                        .where(Assets.local_path.is_(str(entry.local_path)))
+                        .values(entry.to_update_dict()) 
                     )
+                    return True
                 except Exception as e:
 
                     logger.error(f"Error adding or updating entry {entry}")
                     pass
-
+        return False
     def query_catalog(self, query:str) -> pd.DataFrame:
         with self.engine.begin() as conn:
             try:
@@ -150,11 +150,10 @@ class Catalog:
                 # handle queries that don't return results
                 conn.execute(sa.text(query))
 
-    def add_entry(self, entry:AssetEntry | MultiAssetEntry) -> bool:
-        table = Assets if isinstance(entry, AssetEntry) else MultiAssets
+    def add_entry(self, entry:AssetEntry) -> bool:
         try:
             with self.engine.begin() as conn:
-                conn.execute(sa.insert(table).values(entry.model_dump()))
+                conn.execute(sa.insert(Assets).values(entry.model_dump()))
             return True
         except sa.exc.IntegrityError as e:
 

@@ -21,7 +21,7 @@ import numpy as np
 import uuid
 from warnings import warn
 import matplotlib.pyplot as plt
-from ..assets.file_schemas import AssetEntry,AssetType,MultiAssetEntry,MultiAssetPre
+from ..assets.file_schemas import AssetEntry,AssetType
 from ..assets.observables import GNSSDataFrame
 from .pride_utils import get_nav_file,get_gnss_products
 logger = logging.getLogger(__name__)
@@ -299,7 +299,7 @@ def _rinex_get_time(line):
     return start_time
 
 
-def rinex_get_meta(source:AssetEntry | MultiAssetEntry) ->AssetEntry|MultiAssetEntry:
+def rinex_get_meta(source:AssetEntry) ->AssetEntry:
     assert source.type == AssetType.RINEX, f"Expected RINEX file, got {source.type}"
 
     if source.timestamp_data_start is not None:
@@ -778,131 +778,131 @@ def qcpin_to_novatelpin(source: AssetEntry, writedir: Path) -> AssetEntry:
     return novatel_pin
 
 
-def dev_merge_rinex(sources: List[AssetEntry],working_dir:Path) -> List[MultiAssetEntry]:
-    """
-    Merge multiple RINEX files into a single RINEX file
+# def dev_merge_rinex(sources: List[AssetEntry],working_dir:Path) -> List[MultiAssetEntry]:
+#     """
+#     Merge multiple RINEX files into a single RINEX file
 
-    Parameters:
-        sources (List[AssetEntry]): A list of AssetEntry instances
-        working_dir (Path): The working directory
+#     Parameters:
+#         sources (List[AssetEntry]): A list of AssetEntry instances
+#         working_dir (Path): The working directory
 
-    Returns:
-        merged_files (List[MultiAssetEntry]): A list of MultiAssetEntry instances containing the merged RINEX files
+#     Returns:
+#         merged_files (List[MultiAssetEntry]): A list of MultiAssetEntry instances containing the merged RINEX files
     
-    Raises:
-        ValueError: If no merged files are found/created or if the binary is not found
-    """
+#     Raises:
+#         ValueError: If no merged files are found/created or if the binary is not found
+#     """
 
-    # get system platform and architecture
-    system = platform.system().lower()
-    arch = platform.machine().lower()
-    if arch == "x86_64":
-        arch = "amd64"
-    if system not in ["darwin", "linux"]:
-        raise ValueError(f"Unsupported platform: {system}")
-    if arch not in ["amd64", "arm64"]:
-        raise ValueError(f"Unsupported architecture: {arch}")
+#     # get system platform and architecture
+#     system = platform.system().lower()
+#     arch = platform.machine().lower()
+#     if arch == "x86_64":
+#         arch = "amd64"
+#     if system not in ["darwin", "linux"]:
+#         raise ValueError(f"Unsupported platform: {system}")
+#     if arch not in ["amd64", "arm64"]:
+#         raise ValueError(f"Unsupported architecture: {arch}")
 
-    binary_path = TEQC_BIN_PATH[f"{system}_{arch}"]
-    assert os.path.exists(binary_path), f"Binary not found: {binary_path}"
+#     binary_path = TEQC_BIN_PATH[f"{system}_{arch}"]
+#     assert os.path.exists(binary_path), f"Binary not found: {binary_path}"
 
-    # Gen rinex metadata
-    #sources = [rinex_get_meta(source) for source in sources if source.timestamp_data_start is None else source]
-    sources = sorted(sources, key=lambda x: x.timestamp_data_start)
-    doy_filemap = {}
-    for source in sources:
-        doy_filemap.setdefault(source.timestamp_data_start.timetuple().tm_yday, []).append(
-            str(source.id) if source.id is not None else str(source.parent_id)
-        )
-    survey = sources[0].station
+#     # Gen rinex metadata
+#     #sources = [rinex_get_meta(source) for source in sources if source.timestamp_data_start is None else source]
+#     sources = sorted(sources, key=lambda x: x.timestamp_data_start)
+#     doy_filemap = {}
+#     for source in sources:
+#         doy_filemap.setdefault(source.timestamp_data_start.timetuple().tm_yday, []).append(
+#             str(source.id) if source.id is not None else str(source.parent_id)
+#         )
+#     survey = sources[0].station
 
-    cmd = [
-        str(binary_path),
-        "+obs",
-        "+",
-        "-tbin",
-        "1d", # Time binning interval
-        survey,
-    ] + [str(source.local_path) for source in sources]
+#     cmd = [
+#         str(binary_path),
+#         "+obs",
+#         "+",
+#         "-tbin",
+#         "1d", # Time binning interval
+#         survey,
+#     ] + [str(source.local_path) for source in sources]
 
 
-    result = subprocess.run(" ".join(cmd), shell=True,cwd=str(working_dir))
-    if result.stderr:
-        logger.error(result.stderr)
-        return None
-    # get all merged rinex files
-    # merged_files = list(Path(tempdir).rglob(f"{survey}*"))
-    merged_files = []
-    for doy,source_id_str in doy_filemap.items():
-        merged_file = list(Path(working_dir).rglob(f"{survey}{doy:03d}0*"))
-        if not merged_file:
-            continue
-        assert len(merged_file) == 1, f"Expected 1 merged file, got {len(merged_file)}"
-        merged_file:Path = merged_file[0]
-        new_merged_rinex_name = "-".join(source_id_str) + "_" + merged_file.name
-        merged_file = merged_file.rename(working_dir / new_merged_rinex_name)
-        merged_asset = MultiAssetEntry(
-            parent_id=source_id_str,
-            local_path=merged_file,
-            type=AssetType.RINEX,
-            network=sources[0].network,
-            station=sources[0].station,
-            survey=sources[0].survey,
-            timestamp_created=datetime.now(),
-        )
-        merged_files.append(merged_asset)
-    if not merged_files:
-        raise ValueError("No merged files found")
-    return merged_files
+#     result = subprocess.run(" ".join(cmd), shell=True,cwd=str(working_dir))
+#     if result.stderr:
+#         logger.error(result.stderr)
+#         return None
+#     # get all merged rinex files
+#     # merged_files = list(Path(tempdir).rglob(f"{survey}*"))
+#     merged_files = []
+#     for doy,source_id_str in doy_filemap.items():
+#         merged_file = list(Path(working_dir).rglob(f"{survey}{doy:03d}0*"))
+#         if not merged_file:
+#             continue
+#         assert len(merged_file) == 1, f"Expected 1 merged file, got {len(merged_file)}"
+#         merged_file:Path = merged_file[0]
+#         new_merged_rinex_name = "-".join(source_id_str) + "_" + merged_file.name
+#         merged_file = merged_file.rename(working_dir / new_merged_rinex_name)
+#         merged_asset = MultiAssetEntry(
+#             parent_id=source_id_str,
+#             local_path=merged_file,
+#             type=AssetType.RINEX,
+#             network=sources[0].network,
+#             station=sources[0].station,
+#             survey=sources[0].survey,
+#             timestamp_created=datetime.now(),
+#         )
+#         merged_files.append(merged_asset)
+#     if not merged_files:
+#         raise ValueError("No merged files found")
+#     return merged_files
 
-def dev_merge_rinex_multiasset(source:MultiAssetPre,working_dir:Path) -> MultiAssetEntry:
+# def dev_merge_rinex_multiasset(source:MultiAssetPre,working_dir:Path) -> MultiAssetEntry:
 
-    # get system platform and architecture
-    system = platform.system().lower()
-    arch = platform.machine().lower()
-    if arch == "x86_64":
-        arch = "amd64"
-    if system not in ["darwin", "linux"]:
-        raise ValueError(f"Unsupported platform: {system}")
-    if arch not in ["amd64", "arm64"]:
-        raise ValueError(f"Unsupported architecture: {arch}")
+#     # get system platform and architecture
+#     system = platform.system().lower()
+#     arch = platform.machine().lower()
+#     if arch == "x86_64":
+#         arch = "amd64"
+#     if system not in ["darwin", "linux"]:
+#         raise ValueError(f"Unsupported platform: {system}")
+#     if arch not in ["amd64", "arm64"]:
+#         raise ValueError(f"Unsupported architecture: {arch}")
 
-    binary_path = TEQC_BIN_PATH[f"{system}_{arch}"]
-    assert os.path.exists(binary_path), f"Binary not found: {binary_path}"
+#     binary_path = TEQC_BIN_PATH[f"{system}_{arch}"]
+#     assert os.path.exists(binary_path), f"Binary not found: {binary_path}"
 
-    doy = source.timestamp_data_start.timetuple().tm_yday
-    survey = source.station
-    cmd = [
-        str(binary_path),
-        "+obs",
-        "+",
-        "-tbin",
-        "1d", # Time binning interval
-        survey,
-    ] + [str(x) for x in source.source_paths]
-    result = subprocess.run(" ".join(cmd), shell=True, cwd=str(working_dir))
-    if result.stderr:
-        logger.error(result.stderr)
-        return None
+#     doy = source.timestamp_data_start.timetuple().tm_yday
+#     survey = source.station
+#     cmd = [
+#         str(binary_path),
+#         "+obs",
+#         "+",
+#         "-tbin",
+#         "1d", # Time binning interval
+#         survey,
+#     ] + [str(x) for x in source.source_paths]
+#     result = subprocess.run(" ".join(cmd), shell=True, cwd=str(working_dir))
+#     if result.stderr:
+#         logger.error(result.stderr)
+#         return None
 
-    merged_file = list(Path(working_dir).rglob(f"*{survey}{doy}0*"))
-    if not merged_file:
-        raise ValueError("No merged files found")
+#     merged_file = list(Path(working_dir).rglob(f"*{survey}{doy}0*"))
+#     if not merged_file:
+#         raise ValueError("No merged files found")
 
-    merged_file = merged_file[0]
-    parent_id_str = "-".join([str(x) for x in source.parent_id])
-    new_merged_rinex_name = parent_id_str + "_" + merged_file.name
-    merged_file = merged_file.rename(working_dir / new_merged_rinex_name)
-    merged_asset = MultiAssetEntry(
-        parent_id=source.parent_id,
-        local_path=merged_file,
-        type=AssetType.RINEX,
-        network=source.network,
-        station=source.station,
-        survey=source.survey,
-        timestamp_created=datetime.now(),
-    )
-    return rinex_get_meta(merged_asset)
+#     merged_file = merged_file[0]
+#     parent_id_str = "-".join([str(x) for x in source.parent_id])
+#     new_merged_rinex_name = parent_id_str + "_" + merged_file.name
+#     merged_file = merged_file.rename(working_dir / new_merged_rinex_name)
+#     merged_asset = MultiAssetEntry(
+#         parent_id=source.parent_id,
+#         local_path=merged_file,
+#         type=AssetType.RINEX,
+#         network=source.network,
+#         station=source.station,
+#         survey=source.survey,
+#         timestamp_created=datetime.now(),
+#     )
+#     return rinex_get_meta(merged_asset)
 
 
 def read_kin_data(kin_path):

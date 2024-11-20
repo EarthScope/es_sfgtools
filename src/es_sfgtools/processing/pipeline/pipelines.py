@@ -114,9 +114,11 @@ class SV3Pipeline:
             print(response)
         
         for rinex_entry in tqdm(rinex_entries,total=len(rinex_entries),desc="Getting nav/obs files for Processing Rinex Files"):
-            get_nav_file(rinex_path=rinex_entry.local_path, override=override)
-            get_gnss_products(rinex_path=rinex_entry.local_path, pride_dir=pride_dir, override=override)
-
+            nav_file: Path = get_nav_file(rinex_path=rinex_entry.local_path, override=override)
+            product_status: dict = get_gnss_products(rinex_path=rinex_entry.local_path, pride_dir=pride_dir, override=override)
+            if show_details:
+                print(f"\nProduct Status: {product_status}\n")
+                print(f"\nNav File: {str(nav_file)}\n")
 
         process_rinex_partial = partial(
             gnss_ops.rinex_to_kin,
@@ -135,12 +137,12 @@ class SV3Pipeline:
             )):
                 if kinfile is not None:
                     count += 1
-                    if self.catalog.add_entry(kinfile):
+                    if self.catalog.add_or_update(kinfile):
                         uploadCount += 1
                     kin_entries.append(kinfile)
                     if resfile is not None:
                         count += 1
-                        if self.catalog.add_entry(resfile):
+                        if self.catalog.add_or_update(resfile):
                             uploadCount += 1
                         resfile_entries.append(resfile)
                     rinex_entries[idx].is_processed = True
