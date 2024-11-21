@@ -156,7 +156,7 @@ class DataHandler:
             self.survey = survey
 
         # Build the directory structure and TileDB arrays
-        self.build_station_dir_structure(network, station)
+        self.build_station_dir_structure(network, station,survey)
         self.build_tileDB_arrays()
 
         logger.info(f"Changed working station to {network} {station}")
