@@ -45,6 +45,7 @@ def check_network_station_survey(func: Callable):
         return func(self, *args, **kwargs)
     return wrapper
 
+
 class DataHandler:
     """
     A class to handle data operations such as searching for, adding, downloading and processing data.
@@ -165,7 +166,7 @@ class DataHandler:
     @check_network_station_survey
     def get_dtype_counts(self):
         """ 
-        Get the data type counts for the current station from the catalog.
+        Get the data type counts (local) for the current station from the catalog.
 
         Returns:
             Dict[str,int]: A dictionary of data types and their counts.
@@ -189,6 +190,8 @@ class DataHandler:
         if len(files) == 0:
             logger.error(f"No files found in {directory_path}, ensure the directory is correct.")
             return
+        
+        logger.info(f"Found {len(files)} files in {directory_path}")
 
         self.add_data_to_catalog(files)
 
@@ -238,6 +241,7 @@ class DataHandler:
             remote_filepaths (List[str]): A list of file locations on gage-data.
             remote_type (Union[REMOTE_TYPE,str]): The type of remote location.
         """
+
         # Check that the remote type is valid, default is HTTP
         if isinstance(remote_type, str):
             try:
@@ -256,15 +260,23 @@ class DataHandler:
                 logger.warning(f"File type not recognized for {file}")
                 continue
 
-            file_data = AssetEntry(
-                remote_path=file,
-                remote_type=remote_type,
-                type=file_type,
-                network=self.network,
-                station=self.station,
-                survey=self.survey,
-            )
-            file_data_list.append(file_data)
+            if not self.catalog.remote_file_exist(network=self.network,
+                                                  station=self.station,
+                                                  survey=self.survey,
+                                                  type=file_type,
+                                                  remote_path=file):
+                
+                file_data = AssetEntry(
+                    remote_path=file,
+                    remote_type=remote_type,
+                    type=file_type,
+                    network=self.network,
+                    station=self.station,
+                    survey=self.survey,
+                )
+                file_data_list.append(file_data)
+            else:
+                logger.info(f"File {file} already exists in the catalog")
 
         # Add each file (AssetEntry) to the catalog
         count = len(file_data_list)
