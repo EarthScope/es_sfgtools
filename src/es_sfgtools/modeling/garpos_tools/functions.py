@@ -17,6 +17,7 @@ from scipy.stats import hmean as harmonic_mean
 from sklearn.ensemble import RandomForestRegressor
 from scipy.interpolate import RBFInterpolator,CubicSpline
 from functools import partial
+import json
 
 from es_sfgtools.processing.assets.observables import AcousticDataFrame,PositionDataFrame,ShotDataFrame,SoundVelocityDataFrame
 from es_sfgtools.processing.assets.siteconfig import PositionENU,ATDOffset,Transponder,PositionLLH,SiteConfig
@@ -227,6 +228,58 @@ class CoordTransformer:
         )
 
         return e, n, u
+
+def dev_input_to_datafile(
+        site_config:SiteConfig,
+        shot_data:Path,
+        sound_velocity:Path,
+        path:Path,
+        n_shot:int,
+        **kwargs
+    ) -> None:
+
+    center_enu,center_llh = avg_transponder_position(site_config.transponders)
+    delta_center_position: List[float] = site_config.delta_center_position.get_position() + site_config.delta_center_position.get_std_dev() + [0.0, 0.0, 0.0]
+    atd_offset = site_config.atd_offset.get_offset() + [0.0, 0.0, 0.0]*2
+    date_mjd = julian.to_jd(site_config.date, fmt="mjd")
+    obs_str = f"""
+[Obs-parameter]
+    Site_name   = {site_config.name}
+    Campaign    = {site_config.campaign}
+    Date(UTC)   = {site_config.date.strftime('%Y-%m-%d')}
+    Date(jday)  = {date_mjd}
+    Ref.Frame   = "ITRF"
+    SoundSpeed  = {str(sound_velocity)}
+
+[Data-file]
+    datacsv     = {str(shot_data)}
+    N_shot      = {n_shot}
+    used_shot   = {0}
+
+[Site-parameter]
+    Latitude0   = {center_llh.latitude}
+    Longitude0  = {center_llh.longitude}
+    Height0     = {center_llh.height}
+    Stations    = {' '.join([transponder.id for transponder in site_config.transponders])}
+    Center_ENU  = {center_enu[0]} {center_enu[1]} {center_enu[2]}
+
+[Model-parameter]
+    dCentPos    = {" ".join(map(str, delta_center_position))}
+    ATDoffset   = {" ".join(map(str, atd_offset))}"""
+
+    # Add the transponder data to the string
+    for transponder in site_config.transponders:
+        position = (
+            transponder.position_enu.get_position()
+            + transponder.position_enu.get_std_dev()
+            + [0.0, 0.0, 0.0]
+        )
+        obs_str += f"""
+    {transponder.id}_dPos    = {" ".join(map(str, position))}"""
+
+    with open(path, "w") as f:
+        f.write(obs_str)
+
 
 def garposinput_to_datafile(garpos_input:GarposInput,path:Path):
     """
@@ -781,7 +834,7 @@ def dev_garpos_input_from_site_obs(
 #         observation=garpos_observation, site=garpos_site)
 #     return garpos_input
 
-def process_garpos_results(results:GarposInput) -> GarposResults:
+def process_garpos_results(results:GarposInput) -> Tuple[GarposResults,pd.DataFrame]:
     # Process garpos results to get delta x,y,z and relevant fields
 
     # Get the harmonic mean of the svp data, and use that to convert ResiTT to meters
@@ -810,7 +863,7 @@ def process_garpos_results(results:GarposInput) -> GarposResults:
         shot_data=results_df
     )
 
-    return results_out
+    return results_out,results_df
 
 def dev_main(
     site_config:SiteConfig,
@@ -897,3 +950,242 @@ def main(
     proc_results = process_garpos_results(results)
 
     return proc_results
+
+from ...processing.assets.tiledb_temp import TDBShotDataArray
+
+class DevGarposInput:
+    def __init__(self,shotdata:TDBShotDataArray,site_config:SiteConfig,working_dir:Path):
+        self.LIB_DIRECTORY = GarposFixed.LIB_DIRECTORY
+        self.LIB_RAYTRACE = GarposFixed.LIB_RAYTRACE
+        self.shotdata = shotdata
+        self.site_config = site_config
+        self.working_dir = working_dir
+        self.shotdata_dir = working_dir / "shotdata"
+        self.shotdata_dir.mkdir(exist_ok=True,parents=True)
+        self.results_dir = working_dir / "results"
+        self.results_dir.mkdir(exist_ok=True,parents=True)
+        self.inversion_params = InversionParams()
+
+        dates:np.ndarray = self.shotdata.get_unique_dates()
+        self.dates = [datetime(x) for x in dates.tolist()]
+
+        self.coord_transformer = CoordTransformer(site_config.position_llh)
+
+        for transponder in self.site_config.transponders:
+            lat, lon, hgt = (
+                transponder.position_llh.latitude,
+                transponder.position_llh.longitude,
+                transponder.position_llh.height,
+            )
+
+            e, n, u = self.coord_transformer.LLH2ENU(lat, lon, hgt)
+
+            transponder.position_enu = PositionENU(east=e, north=n, up=u)
+            transponder.id = "M" + str(transponder.id) if str(transponder.id)[0].isdigit() else str(transponder.id)
+        self.avg_transponder_enu,self.avg_transponder_llh = avg_transponder_position(site_config.transponders)
+
+    def _rectify_shotdata(self,shot_data:pd.DataFrame) -> pd.DataFrame:
+        e0,n0,u0 = self.coord_transformer.ECEF2ENU_vec(shot_data.east0.to_numpy(),shot_data.north0.to_numpy(),shot_data.up0.to_numpy())
+        e1,n1,u1 = self.coord_transformer.ECEF2ENU_vec(shot_data.east1.to_numpy(),shot_data.north1.to_numpy(),shot_data.up1.to_numpy())
+        shot_data["ant_e0"] = e0
+        shot_data["ant_n0"] = n0
+        shot_data["ant_u0"] = u0
+        shot_data["ant_e1"] = e1
+        shot_data["ant_n1"] = n1
+        shot_data["ant_u1"] = u1
+        shot_data["SET"] = "S01"
+        shot_data["LN"] = "L01"
+        rename_dict = {
+            "trigger_time":"triggertime",
+            "hae0":"height",
+            "pingTime":"ST",
+            "returnTime":"RT",
+            "tt":"TT",
+            "transponderID":"MT",
+        }
+        shot_data = (
+            shot_data.rename(columns=rename_dict)
+            .loc[
+                :,
+                [
+                    "triggerTime",
+                    "MT",
+                    "ST",
+                    "RT",
+                    "TT",
+                    "ant_e0",
+                    "ant_n0",
+                    "ant_u0",
+                    "head0",
+                    "pitch0",
+                    "roll0",
+                    "ant_e1",
+                    "ant_n1",
+                    "ant_u1",
+                    "head1",
+                    "pitch1",
+                    "roll1",
+                ],
+            ]
+        )
+        return ObservationData.validate(shot_data, lazy=True).sort_values("triggerTime")
+
+    def prep_shotdata(self,overwrite:bool=False):
+        for date in self.dates:
+            year,doy = date.year,date.timetuple().tm_yday
+            shot_data_path = self.shotdata_dir / f"{str(year)}_{str(doy)}.csv"
+            if not shot_data_path.exists() or overwrite:
+                shot_data_queried: pd.DataFrame = self.shotdata.read_df(date)
+                shot_data_rectified = self._rectify_shotdata(shot_data_queried)
+                shot_data_path = self.shotdata_dir / f"{str(year)}_{str(doy)}.csv"
+                shot_data_rectified.to_csv(shot_data_path,index=False)
+
+    def set_inversion_params(self,args:dict):
+        for key,value in args.items():
+            setattr(self.inversion_params,key,value)
+
+    def dev_input_to_datafile(
+        self,
+        shot_data: Path,
+        path: Path,
+        n_shot: int,
+        **kwargs,
+    ) -> None:
+
+        delta_center_position: List[float] = (
+            self.site_config.delta_center_position.get_position()
+            + self.site_config.delta_center_position.get_std_dev()
+            + [0.0, 0.0, 0.0]
+        )
+        atd_offset = self.site_config.atd_offset.get_offset() + [0.0, 0.0, 0.0] * 2
+        date_mjd = julian.to_jd(self.site_config.date, fmt="mjd")
+        obs_str = f"""
+    [Obs-parameter]
+        Site_name   = {self.site_config.name}
+        Campaign    = {self.site_config.campaign}
+        Date(UTC)   = {self.site_config.date.strftime('%Y-%m-%d')}
+        Date(jday)  = {date_mjd}
+        Ref.Frame   = "ITRF"
+        SoundSpeed  = {str(self.site_config.sound_velocity)}
+
+    [Data-file]
+        datacsv     = {str(shot_data)}
+        N_shot      = {n_shot}
+        used_shot   = {0}
+
+    [Site-parameter]
+        Latitude0   = {self.avg_transponder_llh.latitude}
+        Longitude0  = {self.avg_transponder_llh.longitude}
+        Height0     = {self.avg_transponder_llh.height}
+        Stations    = {' '.join([transponder.id for transponder in self.site_config.transponders])}
+        Center_ENU  = {self.avg_transponder_enu[0]} {self.avg_transponder_enu[1]} {self.avg_transponder_enu[2]}
+
+    [Model-parameter]
+        dCentPos    = {" ".join(map(str, delta_center_position))}
+        ATDoffset   = {" ".join(map(str, atd_offset))}"""
+
+        # Add the transponder data to the string
+        for transponder in self.site_config.transponders:
+            position = (
+                transponder.position_enu.get_position()
+                + transponder.position_enu.get_std_dev()
+                + [0.0, 0.0, 0.0]
+            )
+            obs_str += f"""
+        {transponder.id}_dPos    = {" ".join(map(str, position))}"""
+
+        with open(path, "w") as f:
+            f.write(obs_str)
+
+
+    def garposfixed_to_datafile(self,inversion_params:InversionParams, path: Path) -> None:
+        fixed_str = f"""[HyperParameters]
+    # Hyperparameters
+    #  When setting multiple values, ABIC-minimum HP will be searched.
+    #  The delimiter for multiple HP must be "space".
+
+    # Smoothness parameter for background perturbation (in log10 scale)
+    Log_Lambda0 = {" ".join([str(x) for x in inversion_params.log_lambda])}
+
+    # Smoothness parameter for spatial gradient ( = Lambda0 * gradLambda )
+    Log_gradLambda = {inversion_params.log_gradlambda}
+
+    # Correlation length of data for transmit time (in min.)
+    mu_t = {" ".join([str(x) for x in inversion_params.mu_t])}
+
+    # Data correlation coefficient b/w the different transponders.
+    mu_mt = {" ".join([str(x) for x in inversion_params.mu_mt])}
+
+    [Inv-parameter]
+    # The path for RayTrace lib.
+    lib_directory = {self.LIB_DIRECTORY}
+    lib_raytrace = {self.LIB_RAYTRACE}
+
+    # Typical Knot interval (in min.) for gamma's component (a0, a1, a2).
+    #  Note ;; shorter numbers recommended, but consider the computational resources.
+    knotint0 = {inversion_params.knotint0}
+    knotint1 = {inversion_params.knotint1}
+    knotint2 = {inversion_params.knotint2}
+
+    # Criteria for the rejection of data (+/- rsig * Sigma).
+    # if = 0, no data will be rejected during the process.
+    RejectCriteria = {inversion_params.rejectcriteria}
+
+    # Inversion type
+    #  0: solve only positions
+    #  1: solve only gammas (sound speed variation)
+    #  2: solve both positions and gammas
+    inversiontype = {inversion_params.inversiontype.value}
+
+    # Typical measurement error for travel time.
+    # (= 1.e-4 sec is recommended in 10 kHz carrier)
+    traveltimescale = {inversion_params.traveltimescale}
+
+    # Maximum loop for iteration.
+    maxloop = {inversion_params.maxloop}
+
+    # Convergence criteria for model parameters.
+    ConvCriteria = {inversion_params.convcriteria}
+
+    # Infinitesimal values to make Jacobian matrix.
+    deltap = {inversion_params.deltap}
+    deltab = {inversion_params.deltab}"""
+
+        with open(path, "w") as f:
+            f.write(fixed_str)
+
+
+    def _run_garpos(self,date:datetime) -> GarposResults:
+        year,doy = date.year,date.timetuple().tm_yday
+        shot_data_path = self.shotdata_dir / f"{str(year)}_{str(doy)}.csv"
+        assert shot_data_path.exists(), f"Shot data not found at {shot_data_path} for {date}"
+
+        shot_data = pd.read_csv(shot_data_path)
+        n_shot = len(shot_data)
+        results_dir = self.results_dir / f"{str(year)}_{str(doy)}"
+        results_dir.mkdir(exist_ok=True,parents=True)
+
+        input_path = self.results_dir / "observation.ini"
+        fixed_path = self.results_dir / "settings.ini"
+        self.dev_input_to_datafile(shot_data_path,input_path,n_shot)
+        self.garposfixed_to_datafile(self.inversion_params,fixed_path)
+
+        rf = drive_garpos(str(input_path), str(fixed_path), str(self.results_dir), self.site_config.campaign, 13)
+
+        results = datafile_to_garposinput(rf)
+        proc_results,results_df = process_garpos_results(results)
+
+        results_path = results_dir / "results.json"
+        results_df_path:Path = results_dir / "results_df.csv"
+        results_df.to_csv(results_df_path,index=False)
+        with open(results_path,"w") as f:
+            json.dump(proc_results.model_dump_json(),f)
+
+    
+        
+    def run_garpos(self,date_index:int=None):
+        if date_index is None:
+            for date in self.dates:
+                self._run_garpos(date)
+        else:
+            self._run_garpos(self.dates[date_index])
