@@ -4,6 +4,7 @@ from pathlib import Path
 import numpy as np
 import datetime
 import logging
+import yaml
 
 logger = logging.getLogger(__name__)
 
@@ -62,3 +63,9 @@ class SiteConfig(BaseModel):
     transponders: Optional[List[Transponder]]
     sound_speed_data: Optional[str] = None
     atd_offset: Optional[ATDOffset] = None
+
+    @classmethod
+    def from_config(self, config_file: Union[str, Path]) -> "SiteConfig":
+        with open(config_file, "r") as f:
+            config = yaml.safe_load(f)
+        
