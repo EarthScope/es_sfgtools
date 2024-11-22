@@ -955,8 +955,9 @@ from ...processing.assets.tiledb_temp import TDBShotDataArray
 
 class DevGarposInput:
     def __init__(self,shotdata:TDBShotDataArray,site_config:SiteConfig,working_dir:Path):
-        self.LIB_DIRECTORY = GarposFixed.LIB_DIRECTORY
-        self.LIB_RAYTRACE = GarposFixed.LIB_RAYTRACE
+        garpos_fixed = GarposFixed()
+        self.LIB_DIRECTORY = garpos_fixed.lib_directory
+        self.LIB_RAYTRACE = garpos_fixed.lib_raytrace   
         self.shotdata = shotdata
         self.site_config = site_config
         self.working_dir = working_dir
@@ -965,9 +966,7 @@ class DevGarposInput:
         self.results_dir = working_dir / "results"
         self.results_dir.mkdir(exist_ok=True,parents=True)
         self.inversion_params = InversionParams()
-
-        dates:np.ndarray = self.shotdata.get_unique_dates()
-        self.dates = [datetime(x) for x in dates.tolist()]
+        self.dates = self.shotdata.get_unique_dates().tolist()
 
         self.coord_transformer = CoordTransformer(site_config.position_llh)
 
@@ -1037,8 +1036,10 @@ class DevGarposInput:
             if not shot_data_path.exists() or overwrite:
                 shot_data_queried: pd.DataFrame = self.shotdata.read_df(date)
                 shot_data_rectified = self._rectify_shotdata(shot_data_queried)
+                shot_data_rectified = ShotDataFrame.validate(shot_data_rectified,lazy=True)
+                shot_data_rectified.MT = shot_data_rectified.MT.apply(lambda x: "M" + str(x) if str(x)[0].isdigit() else str(x))
                 shot_data_path = self.shotdata_dir / f"{str(year)}_{str(doy)}.csv"
-                shot_data_rectified.to_csv(shot_data_path,index=False)
+                shot_data_rectified.to_csv(shot_data_path)
 
     def set_inversion_params(self,args:dict):
         for key,value in args.items():
@@ -1059,6 +1060,7 @@ class DevGarposInput:
         )
         atd_offset = self.site_config.atd_offset.get_offset() + [0.0, 0.0, 0.0] * 2
         date_mjd = julian.to_jd(self.site_config.date, fmt="mjd")
+        position_enu = self.avg_transponder_enu.get_position()
         obs_str = f"""
     [Obs-parameter]
         Site_name   = {self.site_config.name}
@@ -1066,7 +1068,7 @@ class DevGarposInput:
         Date(UTC)   = {self.site_config.date.strftime('%Y-%m-%d')}
         Date(jday)  = {date_mjd}
         Ref.Frame   = "ITRF"
-        SoundSpeed  = {str(self.site_config.sound_velocity)}
+        SoundSpeed  = {str(self.site_config.sound_speed_data)}
 
     [Data-file]
         datacsv     = {str(shot_data)}
@@ -1078,7 +1080,7 @@ class DevGarposInput:
         Longitude0  = {self.avg_transponder_llh.longitude}
         Height0     = {self.avg_transponder_llh.height}
         Stations    = {' '.join([transponder.id for transponder in self.site_config.transponders])}
-        Center_ENU  = {self.avg_transponder_enu[0]} {self.avg_transponder_enu[1]} {self.avg_transponder_enu[2]}
+        Center_ENU  = {position_enu[0]} {position_enu[1]} {position_enu[2]}
 
     [Model-parameter]
         dCentPos    = {" ".join(map(str, delta_center_position))}
