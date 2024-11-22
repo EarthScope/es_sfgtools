@@ -160,7 +160,8 @@ class Tides(str, Enum):
             print(f"{option.value} for {option.name}")
 
 class PridePdpConfig:
-    def __init__(self, 
+    def __init__(self,
+                 sample_frequency: float = 5.0,
                  system: str = "GREC23J", 
                  frequency: list = ["G12", "R12", "E15", "C26", "J12"], 
                  loose_edit: bool = True, 
@@ -175,6 +176,7 @@ class PridePdpConfig:
         Initialize the PridePdpConfig class with the following parameters:
 
         Args:
+        sample_frequency (float): Seconds per sample. Default is 5.0.
         system (str): The GNSS system(s) to use. Default is "GREC23J" which is “GPS/GLONASS/Galileo/BDS/BDS-2/BDS-3/QZSS”
         frequency (str): The GNSS frequencies to use. Default is "G12 R12 E15 C26 J12, Refer to Table 5-4 in PRIDE-PPP-AR v.3.0 manual for more options"
         loose_edit (bool): disable strict editing mode, which should be used when high dynamic data quality is poor. Default is True. 
@@ -203,6 +205,7 @@ class PridePdpConfig:
         self.end = end
         self.interval = interval
         self.high_ion = high_ion
+        self.sample_frequency = sample_frequency
         
         # If entered, check if tide characters are valid
         tides = tides.upper()
@@ -228,6 +231,8 @@ class PridePdpConfig:
             command = ["pdp3"]
 
         command.extend(["-m", "K"])
+
+        command.extend("-i", str(self.sample_frequency))
 
         if self.system != "GREC23J":
             command.extend(["--system", self.system])
