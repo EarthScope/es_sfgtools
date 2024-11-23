@@ -402,10 +402,10 @@ def datafile_to_garposinput(path:Path) -> GarposInput:
     sound_speed_file = observation_section["soundspeed"]
 
     try:
-        shot_data_results = ObservationData.validate(pd.read_csv(shot_data_file))
+        shot_data_results = ObservationData.validate(pd.read_csv(shot_data_file),lazy=True)
     except:
-        shot_data_results = ObservationData(pd.read_csv(shot_data_file,skiprows=1))
-    sound_speed_results = SoundVelocityDataFrame(pd.read_csv(sound_speed_file))
+        shot_data_results = ObservationData.validate(pd.read_csv(shot_data_file,skiprows=1),lazy=True)
+    sound_speed_results = SoundVelocityDataFrame.validate(pd.read_csv(sound_speed_file),lazy=True)
 
     # Populate GarposObservation
    

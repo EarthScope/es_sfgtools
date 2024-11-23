@@ -281,8 +281,8 @@ class GarposObservation(BaseModel):
     date_utc: datetime
     date_mjd: float
     ref_frame: str = "ITRF2014"
-    shot_data: DataFrame[ObservationData]
-    sound_speed_data: DataFrame[SoundVelocityDataFrame]
+    shot_data: pd.DataFrame
+    sound_speed_data: pd.DataFrame
 
     @field_serializer("date_utc")
     def serialize_date(self, value):
@@ -323,6 +323,8 @@ class GarposObservation(BaseModel):
             except ValueError as e:
                 raise ValueError(f"Invalid date format: {e}")
         return value
+    class Config:
+        arbitrary_types_allowed = True
 
 
 class GarposSite(BaseModel):
