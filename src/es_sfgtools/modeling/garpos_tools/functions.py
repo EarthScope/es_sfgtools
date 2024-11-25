@@ -1187,8 +1187,8 @@ class GarposHandler:
         year_doy_results_dir = self.results_dir / f"{str(year)}_{str(doy)}"
         year_doy_results_dir.mkdir(exist_ok=True, parents=True)
 
-        input_path = self.results_dir / f"_{run_id}_" / "observation.ini"
-        fixed_path = self.results_dir / f"_{run_id}_" / "settings.ini"
+        input_path = self.results_dir / f"_{run_id}_observation.ini"
+        fixed_path = self.results_dir / f"_{run_id}_settings.ini"
         self._input_to_datafile(shot_data_path, input_path, n_shot)
         self._garposfixed_to_datafile(self.inversion_params, fixed_path)
 
@@ -1203,8 +1203,8 @@ class GarposHandler:
         results = datafile_to_garposinput(rf)
         proc_results, results_df = process_garpos_results(results)
 
-        results_path = year_doy_results_dir / f"_{run_id}_" / "results.json"
-        results_df_path: Path = year_doy_results_dir / f"_{run_id}_"/ "results_df.csv"
+        results_path = year_doy_results_dir / f"_{run_id}_results.json"
+        results_df_path: Path = year_doy_results_dir / f"_{run_id}_results_df.csv"
         results_df.to_csv(results_df_path, index=False)
         with open(results_path, "w") as f:
             json.dump(proc_results.model_dump(), f, indent=4)
