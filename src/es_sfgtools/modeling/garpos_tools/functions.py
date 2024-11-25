@@ -1,7 +1,7 @@
 import pandera as pa
 from pandera.typing import DataFrame
 from pathlib import Path
-from typing import List,Tuple,Union
+from typing import List, Tuple, Union
 import pandas as pd
 from configparser import ConfigParser
 import matplotlib.pyplot as plt
@@ -15,12 +15,22 @@ import julian
 import logging
 from scipy.stats import hmean as harmonic_mean
 from sklearn.ensemble import RandomForestRegressor
-from scipy.interpolate import RBFInterpolator,CubicSpline
+from scipy.interpolate import RBFInterpolator, CubicSpline
 from functools import partial
 import json
 
-from es_sfgtools.processing.assets.observables import AcousticDataFrame,PositionDataFrame,ShotDataFrame,SoundVelocityDataFrame
-from es_sfgtools.processing.assets.siteconfig import PositionENU,ATDOffset,Transponder,PositionLLH,SiteConfig
+from es_sfgtools.processing.assets.observables import (
+
+    ShotDataFrame,
+    SoundVelocityDataFrame,
+)
+from es_sfgtools.processing.assets.siteconfig import (
+    PositionENU,
+    ATDOffset,
+    Transponder,
+    PositionLLH,
+    SiteConfig,
+)
 from es_sfgtools.modeling.garpos_tools.schemas import (
     GarposInput,
     GarposObservation,
@@ -30,81 +40,13 @@ from es_sfgtools.modeling.garpos_tools.schemas import (
     InversionType,
     ObservationData,
     GarposObservationOutput,
-    GarposResults
+    GarposResults,
 )
 
 
 from garpos import drive_garpos
 
 logger = logging.getLogger(__name__)
-
-ECEF = "epsg:4978"
-LLH = "epsg:4326"
-
-
-def LLHDEG2DEC(lat: List[float], lon: List[float]) -> List[float]:
-    """
-    Convert lat and lon from degrees to decimal
-        >>> lat
-        [40,26,15]
-    """
-    # process lat
-    degrees, minutes, seconds = (
-        float(lat[0]),
-        float(lat[1]) / 60,
-        float(lat[2]) / (60**2),
-    )
-    lat_decimal = degrees + minutes + seconds
-
-    # process lon
-    degrees, minutes, seconds = (
-        float(lon[0]),
-        float(lon[1]) / 60,
-        float(lon[2]) / (60**2),
-    )
-    lon_decimal = degrees + minutes + seconds
-
-    return [lat_decimal, lon_decimal]
-
-
-def __llh2xyz(lt, ln, hgt):
-    """
-    Convert lat, long, height in WGS84 to ECEF (X,Y,Z).
-    lat and long given in decimal degrees.
-    height should be given in meters
-
-    Parameters
-    ----------
-    lt : float
-            Latitude in degrees
-    ln : float
-            Longitude in degrees
-    hgt : float
-            Height in meters
-
-    Returns
-    -------
-    X : float
-            X (m) in ECEF
-    Y : float
-            Y (m) in ECEF
-    Z : float
-            Z (m) in ECEF
-    """
-    lat = lt * math.pi / 180.0
-    lon = ln * math.pi / 180.0
-    a = 6378137.0  # earth semimajor axis in meters
-    f = 1.0 / 298.257223563  # reciprocal flattening
-    e2 = 2.0 * f - f**2  # eccentricity squared
-
-    chi = (1.0 - e2 * (math.sin(lat)) ** 2) ** 0.5
-    b = a * (1.0 - e2)
-
-    X = (a / chi + hgt) * math.cos(lat) * math.cos(lon)
-    Y = (a / chi + hgt) * math.cos(lat) * math.sin(lon)
-    Z = (b / chi + hgt) * math.sin(lat)
-
-    return X, Y, Z
 
 
 def xyz2enu(x, y, z, lat0, lon0, hgt0, inv=1, **kwargs):
@@ -157,9 +99,47 @@ def xyz2enu(x, y, z, lat0, lon0, hgt0, inv=1, **kwargs):
 
     return e, n, u
 
+
 class CoordTransformer:
-    def __init__(self,pos_llh):
-        if isinstance(pos_llh,list):
+    """
+    A class to transform coordinates between different systems.
+
+    Attributes:
+        lat0 : float
+            Latitude of the reference point.
+        lon0 : float
+            Longitude of the reference point.
+        hgt0 : float
+            Height of the reference point.
+        X0 : float
+            X coordinate of the reference point in ECEF.
+        Y0 : float
+            Y coordinate of the reference point in ECEF.
+        Z0 : float
+            Z coordinate of the reference point in ECEF.
+
+    Methods:
+        XYZ2ENU(X, Y, Z, **kwargs):
+            Converts ECEF coordinates to ENU coordinates.
+        LLH2ENU(lat, lon, hgt, **kwargs):
+            Converts geodetic coordinates (latitude, longitude, height) to ENU coordinates.
+        LLH2ENU_vec(lat: np.ndarray, lon: np.ndarray, hgt: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+            Converts arrays of geodetic coordinates to ENU coordinates.
+        ECEF2ENU_vec(X: np.ndarray, Y: np.ndarray, Z: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+            Converts arrays of ECEF coordinates to ENU coordinates.
+    """
+
+    def __init__(self, pos_llh: list | PositionLLH):
+        """
+        Initialize the object with a position in latitude, longitude, and height.
+        Args:
+            pos_llh (list | PositionLLH): The position in latitude, longitude, and height.
+                                      It can be either a list [latitude, longitude, height]
+                                      or an instance of PositionLLH class.
+        """
+
+
+        if isinstance(pos_llh, list):
             self.lat0 = pos_llh[0]
             self.lon0 = pos_llh[1]
             self.hgt0 = pos_llh[2]
@@ -168,54 +148,22 @@ class CoordTransformer:
             self.lon0 = pos_llh.longitude
             self.hgt0 = pos_llh.height
 
-        self.X0,self.Y0,self.Z0 = pm.geodetic2ecef(self.lat0,self.lon0,self.hgt0)
-    def XYZ2ENU(self,X,Y,Z,**kwargs):
-        dX,dY,dZ = X-self.X0,Y-self.Y0,Z-self.Z0
-        e, n, u = xyz2enu(
-            **{
-                "x": dX,
-                "y": dY,
-                "z": dZ,
-                "lat0": self.lat0,
-                "lon0": self.lon0,
-                "hgt0": self.hgt0,
-            }
-        )
+        self.X0, self.Y0, self.Z0 = pm.geodetic2ecef(self.lat0, self.lon0, self.hgt0)
 
-        return e, n, u
-    def LLH2ENU(self,lat,lon,hgt,**kwargs):
-        X,Y,Z = pm.geodetic2ecef(lat,lon,hgt)
-        dX,dY,dZ = X-self.X0,Y-self.Y0,Z-self.Z0
-        e, n, u = xyz2enu(
-            **{
-                "x": dX,
-                "y": dY,
-                "z": dZ,
-                "lat0": self.lat0,
-                "lon0": self.lon0,
-                "hgt0": self.hgt0,
-            }
-        )
+    def XYZ2ENU(self, X:float, Y:float, Z:float) -> Tuple[float, float, float]:
+        """
+        Convert Cartesian coordinates (X, Y, Z) to East-North-Up (ENU) coordinates.
 
-        return e, n, u
-    
-    def LLH2ENU_vec(self,lat:np.ndarray,lon:np.ndarray,hgt:np.ndarray) -> Tuple[np.ndarray,np.ndarray,np.ndarray]:
-        X,Y,Z = pm.geodetic2ecef(lat,lon,hgt)
-        dX,dY,dZ = X-self.X0,Y-self.Y0,Z-self.Z0
-        e, n, u = xyz2enu(
-            **{
-                "x": dX,
-                "y": dY,
-                "z": dZ,
-                "lat0": self.lat0,
-                "lon0": self.lon0,
-                "hgt0": self.hgt0,
-            }
-        )
+        Args:
+            X (float): X coordinate in the Cartesian system.
+            Y (float): Y coordinate in the Cartesian system.
+            Z (float): Z coordinate in the Cartesian system.
 
-        return e, n, u
-    def ECEF2ENU_vec(self,X:np.ndarray,Y:np.ndarray,Z:np.ndarray) -> Tuple[np.ndarray,np.ndarray,np.ndarray]:
-        dX,dY,dZ = X-self.X0,Y-self.Y0,Z-self.Z0
+        Returns:
+            tuple: A tuple containing the East (e), North (n), and Up (u) coordinates.
+        """
+
+        dX, dY, dZ = X - self.X0, Y - self.Y0, Z - self.Z0
         e, n, u = xyz2enu(
             **{
                 "x": dX,
@@ -229,67 +177,114 @@ class CoordTransformer:
 
         return e, n, u
 
-def dev_input_to_datafile(
-        site_config:SiteConfig,
-        shot_data:Path,
-        sound_velocity:Path,
-        path:Path,
-        n_shot:int,
-        **kwargs
-    ) -> None:
+    def LLH2ENU(self, lat:float, lon:float, hgt:float) -> Tuple[float, float, float]:
+        """
+        Convert latitude, longitude, and height (LLH) to East, North, Up (ENU) coordinates.
+        This function converts geodetic coordinates (latitude, longitude, height) to local 
+        tangent plane coordinates (East, North, Up) relative to a reference point.
 
-    center_enu,center_llh = avg_transponder_position(site_config.transponders)
-    delta_center_position: List[float] = site_config.delta_center_position.get_position() + site_config.delta_center_position.get_std_dev() + [0.0, 0.0, 0.0]
-    atd_offset = site_config.atd_offset.get_offset() + [0.0, 0.0, 0.0]*2
-    date_mjd = julian.to_jd(site_config.date, fmt="mjd")
-    obs_str = f"""
-[Obs-parameter]
-    Site_name   = {site_config.name}
-    Campaign    = {site_config.campaign}
-    Date(UTC)   = {site_config.date.strftime('%Y-%m-%d')}
-    Date(jday)  = {date_mjd}
-    Ref.Frame   = "ITRF"
-    SoundSpeed  = {str(sound_velocity)}
+        Args:
+            lat (float): Latitude in degrees.
+            lon (float): Longitude in degrees.
+            hgt (float): Height in meters.
+        Returns:
+            Tuple[float, float, float]: A tuple containing the East, North, and Up coordinates in meters.
+        """
 
-[Data-file]
-    datacsv     = {str(shot_data)}
-    N_shot      = {n_shot}
-    used_shot   = {0}
-
-[Site-parameter]
-    Latitude0   = {center_llh.latitude}
-    Longitude0  = {center_llh.longitude}
-    Height0     = {center_llh.height}
-    Stations    = {' '.join([transponder.id for transponder in site_config.transponders])}
-    Center_ENU  = {center_enu[0]} {center_enu[1]} {center_enu[2]}
-
-[Model-parameter]
-    dCentPos    = {" ".join(map(str, delta_center_position))}
-    ATDoffset   = {" ".join(map(str, atd_offset))}"""
-
-    # Add the transponder data to the string
-    for transponder in site_config.transponders:
-        position = (
-            transponder.position_enu.get_position()
-            + transponder.position_enu.get_std_dev()
-            + [0.0, 0.0, 0.0]
+        X, Y, Z = pm.geodetic2ecef(lat, lon, hgt)
+        dX, dY, dZ = X - self.X0, Y - self.Y0, Z - self.Z0
+        e, n, u = xyz2enu(
+            **{
+                "x": dX,
+                "y": dY,
+                "z": dZ,
+                "lat0": self.lat0,
+                "lon0": self.lon0,
+                "hgt0": self.hgt0,
+            }
         )
-        obs_str += f"""
-    {transponder.id}_dPos    = {" ".join(map(str, position))}"""
 
-    with open(path, "w") as f:
-        f.write(obs_str)
+        return e, n, u
+
+    def LLH2ENU_vec(
+        self, lat: np.ndarray, lon: np.ndarray, hgt: np.ndarray
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+
+        """
+        Convert latitude, longitude, and height (LLH) coordinates to East-North-Up (ENU) coordinates.
+
+        Args:
+            lat : np.ndarray
+                Array of latitudes in degrees.
+            lon : np.ndarray
+                Array of longitudes in degrees.
+            hgt : np.ndarray
+                Array of heights in meters.
+        Returns:
+            Tuple[np.ndarray, np.ndarray, np.ndarray]
+                Tuple containing arrays of East, North, and Up coordinates in meters.
+        """   
+
+        X, Y, Z = pm.geodetic2ecef(lat, lon, hgt)
+        dX, dY, dZ = X - self.X0, Y - self.Y0, Z - self.Z0
+        e, n, u = xyz2enu(
+            **{
+                "x": dX,
+                "y": dY,
+                "z": dZ,
+                "lat0": self.lat0,
+                "lon0": self.lon0,
+                "hgt0": self.hgt0,
+            }
+        )
+
+        return e, n, u
+
+    def ECEF2ENU_vec(
+        self, X: np.ndarray, Y: np.ndarray, Z: np.ndarray
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Convert ECEF coordinates to ENU coordinates.
+
+        Args:
+            X : np.ndarray
+                Array of X coordinates in meters.
+            Y : np.ndarray
+                Array of Y coordinates in meters.
+            Z : np.ndarray
+                Array of Z coordinates in meters.
+        Returns:
+            Tuple[np.ndarray, np.ndarray, np.ndarray]
+                Tuple containing arrays of East, North, and Up coordinates in meters.
+        """
+        dX, dY, dZ = X - self.X0, Y - self.Y0, Z - self.Z0
+        e, n, u = xyz2enu(
+            **{
+                "x": dX,
+                "y": dY,
+                "z": dZ,
+                "lat0": self.lat0,
+                "lon0": self.lon0,
+                "hgt0": self.hgt0,
+            }
+        )
+
+        return e, n, u
 
 
-def garposinput_to_datafile(garpos_input:GarposInput,path:Path):
+def garposinput_to_datafile(garpos_input: GarposInput, path: Path):
     """
     Write a GarposInput to a datafile
     """
-    
+
     # Write the data file
     center_enu: List[float] = garpos_input.site.center_enu.get_position()
-    delta_center_position: List[float] = garpos_input.site.delta_center_position.get_position() + garpos_input.site.delta_center_position.get_std_dev() + [0.0, 0.0, 0.0]
-    atd_offset = garpos_input.site.atd_offset.get_offset() + [0.0, 0.0, 0.0]*2
+    delta_center_position: List[float] = (
+        garpos_input.site.delta_center_position.get_position()
+        + garpos_input.site.delta_center_position.get_std_dev()
+        + [0.0, 0.0, 0.0]
+    )
+    atd_offset = garpos_input.site.atd_offset.get_offset() + [0.0, 0.0, 0.0] * 2
 
     obs_str = f"""
 [Obs-parameter]
@@ -316,7 +311,7 @@ def garposinput_to_datafile(garpos_input:GarposInput,path:Path):
     dCentPos    = {" ".join(map(str, delta_center_position))}
     ATDoffset   = {" ".join(map(str, atd_offset))}"""
 
-        # Add the transponder data to the string
+    # Add the transponder data to the string
     for transponder in garpos_input.site.transponders:
         position = (
             transponder.position_enu.get_position()
@@ -330,7 +325,7 @@ def garposinput_to_datafile(garpos_input:GarposInput,path:Path):
         f.write(obs_str)
 
 
-def datafile_to_garposinput(path:Path) -> GarposInput:
+def datafile_to_garposinput(path: Path) -> GarposInput:
     """
     Read a GarposInput from a datafile
     """
@@ -358,10 +353,10 @@ def datafile_to_garposinput(path:Path) -> GarposInput:
         ) = [float(x) for x in model_section[key].split()]
         position = PositionENU(
             east=east_value,
-            east_sigma =east_sigma,
-            north=north_value, 
+            east_sigma=east_sigma,
+            north=north_value,
             north_sigma=north_sigma,
-            up=up_value, 
+            up=up_value,
             up_sigma=up_sigma,
             cov_en=cov_en,
             cov_ue=cov_ue,
@@ -379,7 +374,7 @@ def datafile_to_garposinput(path:Path) -> GarposInput:
                 rightward=position.north,
                 downward=position.up,
             )
-        
+
     site = GarposSite(
         name=observation_section["Site_name"],
         center_llh=PositionLLH(
@@ -402,26 +397,39 @@ def datafile_to_garposinput(path:Path) -> GarposInput:
     sound_speed_file = observation_section["soundspeed"]
 
     try:
-        shot_data_results = ObservationData.validate(pd.read_csv(shot_data_file),lazy=True)
+        shot_data_results = ObservationData.validate(
+            pd.read_csv(shot_data_file), lazy=True
+        )
     except:
-        shot_data_results = ObservationData.validate(pd.read_csv(shot_data_file,skiprows=1),lazy=True)
-    sound_speed_results = SoundVelocityDataFrame.validate(pd.read_csv(sound_speed_file),lazy=True)
+        shot_data_results = ObservationData.validate(
+            pd.read_csv(shot_data_file, skiprows=1), lazy=True
+        )
+    sound_speed_results = SoundVelocityDataFrame.validate(
+        pd.read_csv(sound_speed_file), lazy=True
+    )
 
     # Populate GarposObservation
-   
+
     observation = GarposObservation(
         campaign=observation_section["campaign"],
-        date_utc=(date_utc := datetime.strptime(observation_section["date(UTC)"], "%Y-%m-%d")),
+        date_utc=(
+            date_utc := datetime.strptime(observation_section["date(UTC)"], "%Y-%m-%d")
+        ),
         date_mjd=julian.to_jd(date_utc, fmt="jd"),
         ref_frame=observation_section["ref.frame"],
         shot_data=shot_data_results,
         sound_speed_data=sound_speed_results,
     )
 
-    return GarposInput(site=site, observation=observation, shot_data_file=shot_data_file, sound_speed_file=sound_speed_file)
+    return GarposInput(
+        site=site,
+        observation=observation,
+        shot_data_file=shot_data_file,
+        sound_speed_file=sound_speed_file,
+    )
 
 
-def garposfixed_to_datafile(garpos_fixed,path:Path) -> None:
+def garposfixed_to_datafile(garpos_fixed, path: Path) -> None:
     fixed_str = f"""[HyperParameters]
 # Hyperparameters
 #  When setting multiple values, ABIC-minimum HP will be searched.
@@ -478,7 +486,7 @@ deltab = {garpos_fixed.inversion_params.deltab}"""
         f.write(fixed_str)
 
 
-def garposfixed_from_datafile(path:Path) -> GarposFixed:
+def garposfixed_from_datafile(path: Path) -> GarposFixed:
     config = ConfigParser()
     config.read(path)
 
@@ -496,7 +504,7 @@ def garposfixed_from_datafile(path:Path) -> GarposFixed:
         knotint1=int(inv_parameters["knotint1"]),
         knotint2=int(inv_parameters["knotint2"]),
         rejectcriteria=float(inv_parameters["RejectCriteria"]),
-        inversiontype=InversionType(int(inv_parameters.get("inversiontype",0))),
+        inversiontype=InversionType(int(inv_parameters.get("inversiontype", 0))),
         traveltimescale=float(inv_parameters["traveltimescale"]),
         maxloop=int(inv_parameters["maxloop"]),
         convcriteria=float(inv_parameters["ConvCriteria"]),
@@ -513,11 +521,18 @@ def garposfixed_from_datafile(path:Path) -> GarposFixed:
     )
     return garpos_fixed
 
+
 def avg_transponder_position(
     transponders: List[Transponder],
 ) -> Tuple[PositionENU, PositionLLH]:
     """
-    Calculate the average position of the transponders
+    Calculate the average position of the transponders.
+
+    Args:
+        transponders (List[Transponder]): A list of transponders.
+    
+    Returns:
+        Tuple[PositionENU, PositionLLH]: A tuple containing the average position in ENU and LLH coordinates.
     """
     pos_array_llh = []
     pos_array_enu = []
@@ -533,16 +548,17 @@ def avg_transponder_position(
     avg_pos_llh = np.mean(pos_array_llh, axis=0).tolist()
     avg_pos_enu = np.mean(pos_array_enu, axis=0).tolist()
 
-    min_pos_llh = np.min(pos_array_llh, axis=0).tolist()
-
     out_pos_llh = PositionLLH(
         latitude=avg_pos_llh[0], longitude=avg_pos_llh[1], height=avg_pos_llh[2]
     )
-    out_pos_enu = PositionENU(east=avg_pos_enu[0], north=avg_pos_enu[1], up=avg_pos_enu[2])
+    out_pos_enu = PositionENU(
+        east=avg_pos_enu[0], north=avg_pos_enu[1], up=avg_pos_enu[2]
+    )
 
     return out_pos_enu, out_pos_llh
 
-def plot_enu_llh_side_by_side(garpos_input:GarposInput):
+
+def plot_enu_llh_side_by_side(garpos_input: GarposInput):
     # Create a figure with two subplots
     fig, axs = plt.subplots(1, 2, figsize=(20, 10))
 
@@ -619,51 +635,54 @@ def plot_enu_llh_side_by_side(garpos_input:GarposInput):
     plt.tight_layout()
     plt.show()
 
-def sitedata_to_garpossite(site_config:SiteConfig,atd_offset:ATDOffset) -> GarposSite:
-    site_center_llh = site_config.position_llh
-    coord_transformer = CoordTransformer(site_center_llh)
-
-    for transponder in site_config.transponders:
-        lat, lon, hgt = (
-            transponder.position_llh.latitude,
-            transponder.position_llh.longitude,
-            transponder.position_llh.height,
-        )
-
-        e, n, u = coord_transformer.LLH2ENU(lat, lon, hgt)
-
-        transponder.position_enu = PositionENU(east=e, north=n, up=u)
-        transponder.id = "M" + str(transponder.id) if str(transponder.id)[0].isdigit() else str(transponder.id)
-
-
-    transponder_avg_enu, _ = avg_transponder_position(site_config.transponders)
-    #
-
-    delta_center_position = PositionENU()
-    delta_center_position.east_sigma = 1.0
-    delta_center_position.north_sigma = 1.0
-    delta_center_position.up_sigma = 0.0
-
-    site_config.name = "NCB1"
-    garpos_site = GarposSite(
-        name=site_config.name,
-        center_llh=site_center_llh,
-        center_enu=transponder_avg_enu,
-        atd_offset=atd_offset,
-        transponders=site_config.transponders,
-        delta_center_position=delta_center_position,
-    )
-
-    return garpos_site
 
 def rectify_shotdata_site(
-        site_config:SiteConfig,
-        shot_data:DataFrame[ObservationData]) -> Tuple[SiteConfig,DataFrame[ShotDataFrame]]:
-    
-    site_config = site_config.copy() # avoid aliasing
+    site_config: SiteConfig, shot_data: DataFrame[ObservationData]
+) -> Tuple[SiteConfig, DataFrame[ShotDataFrame]]:
+
+    """
+    Rectifies shot data for a given site configuration.
+    This function transforms the shot data coordinates from ECEF to ENU, renames
+    certain columns, and updates the transponder positions in the site configuration.
+    Args:
+        site_config (SiteConfig): The site configuration containing transponder information.
+        shot_data (DataFrame[ObservationData]): The shot data to be rectified.
+    Returns:
+        Tuple[SiteConfig, DataFrame[ShotDataFrame]]: A tuple containing the updated site configuration
+        and the rectified shot data.
+
+    The returned shot data DataFrame will have the following columns:
+        - triggerTime
+        - MT (transponder ID)
+        - ST (ping time)
+        - RT (return time)
+        - TT (travel time)
+        - ant_e0 (antenna east coordinate at time 0)
+        - ant_n0 (antenna north coordinate at time 0)
+        - ant_u0 (antenna up coordinate at time 0)
+        - head0 (heading at time 0)
+        - pitch0 (pitch at time 0)
+        - roll0 (roll at time 0)
+        - ant_e1 (antenna east coordinate at time 1)
+        - ant_n1 (antenna north coordinate at time 1)
+        - ant_u1 (antenna up coordinate at time 1)
+        - head1 (heading at time 1)
+        - pitch1 (pitch at time 1)
+        - roll1 (roll at time 1)
+    """
+
+    site_config = site_config.copy()  # avoid aliasing
     coord_transformer = CoordTransformer(site_config.position_llh)
-    e0,n0,u0 = coord_transformer.ECEF2ENU_vec(shot_data.east0.to_numpy(),shot_data.north0.to_numpy(),shot_data.up0.to_numpy())
-    e1,n1,u1 = coord_transformer.ECEF2ENU_vec(shot_data.east1.to_numpy(),shot_data.north1.to_numpy(),shot_data.up1.to_numpy())
+    e0, n0, u0 = coord_transformer.ECEF2ENU_vec(
+        shot_data.east0.to_numpy(),
+        shot_data.north0.to_numpy(),
+        shot_data.up0.to_numpy(),
+    )
+    e1, n1, u1 = coord_transformer.ECEF2ENU_vec(
+        shot_data.east1.to_numpy(),
+        shot_data.north1.to_numpy(),
+        shot_data.up1.to_numpy(),
+    )
     shot_data["ant_e0"] = e0
     shot_data["ant_n0"] = n0
     shot_data["ant_u0"] = u0
@@ -673,38 +692,35 @@ def rectify_shotdata_site(
     shot_data["SET"] = "S01"
     shot_data["LN"] = "L01"
     rename_dict = {
-        "trigger_time":"triggertime",
-        "hae0":"height",
-        "pingTime":"ST",
-        "returnTime":"RT",
-        "tt":"TT",
-        "transponderID":"MT",
+        "trigger_time": "triggertime",
+        "hae0": "height",
+        "pingTime": "ST",
+        "returnTime": "RT",
+        "tt": "TT",
+        "transponderID": "MT",
     }
-    shot_data = (
-        shot_data.rename(columns=rename_dict)
-        .loc[
-            :,
-            [
-                "triggerTime",
-                "MT",
-                "ST",
-                "RT",
-                "TT",
-                "ant_e0",
-                "ant_n0",
-                "ant_u0",
-                "head0",
-                "pitch0",
-                "roll0",
-                "ant_e1",
-                "ant_n1",
-                "ant_u1",
-                "head1",
-                "pitch1",
-                "roll1",
-            ],
-        ]
-    )
+    shot_data = shot_data.rename(columns=rename_dict).loc[
+        :,
+        [
+            "triggerTime",
+            "MT",
+            "ST",
+            "RT",
+            "TT",
+            "ant_e0",
+            "ant_n0",
+            "ant_u0",
+            "head0",
+            "pitch0",
+            "roll0",
+            "ant_e1",
+            "ant_n1",
+            "ant_u1",
+            "head1",
+            "pitch1",
+            "roll1",
+        ],
+    ]
     for transponder in site_config.transponders:
         lat, lon, hgt = (
             transponder.position_llh.latitude,
@@ -715,256 +731,134 @@ def rectify_shotdata_site(
         e, n, u = coord_transformer.LLH2ENU(lat, lon, hgt)
 
         transponder.position_enu = PositionENU(east=e, north=n, up=u)
-        transponder.id = "M" + str(transponder.id) if str(transponder.id)[0].isdigit() else str(transponder.id)
+        transponder.id = (
+            "M" + str(transponder.id)
+            if str(transponder.id)[0].isdigit()
+            else str(transponder.id)
+        )
 
-    return site_config,ObservationData.validate(shot_data,lazy=True).sort_values("triggerTime")
-
-def dev_garpos_input_from_site_obs(
-    site_config:SiteConfig,
-    shot_data:pd.DataFrame,
-):
-    garpos_site: GarposSite = sitedata_to_garpossite(site_config,atd_offset)
-    coord_transformer = CoordTransformer(site_config.position_llh)
-    e0,n0,u0 = coord_transformer.ECEF2ENU_vec(shot_data.east0.to_numpy(),shot_data.north0.to_numpy(),shot_data.up0.to_numpy())
-    e1,n1,u1 = coord_transformer.ECEF2ENU_vec(shot_data.east1.to_numpy(),shot_data.north1.to_numpy(),shot_data.up1.to_numpy())
-    date_utc = shot_data.triggerTime.min()
-    date_mjd = julian.to_jd(date_utc, fmt="mjd")
-    shot_data["ant_e0"] = e0
-    shot_data["ant_n0"] = n0
-    shot_data["ant_u0"] = u0
-    shot_data["ant_e1"] = e1
-    shot_data["ant_n1"] = n1
-    shot_data["ant_u1"] = u1
-    shot_data["SET"] = "S01"
-    shot_data["LN"] = "L01"
-    rename_dict = {
-        "trigger_time":"triggertime",
-        "hae0":"height",
-        "pingTime":"ST",
-        "returnTime":"RT",
-        "tt":"TT",
-        "transponderID":"MT",
-    }
-    shot_data = (
-        shot_data.rename(columns=rename_dict)
-        .loc[
-            :,
-            [
-                "triggerTime",
-                "MT",
-                "ST",
-                "RT",
-                "TT",
-                "ant_e0",
-                "ant_n0",
-                "ant_u0",
-                "head0",
-                "pitch0",
-                "roll0",
-                "ant_e1",
-                "ant_n1",
-                "ant_u1",
-                "head1",
-                "pitch1",
-                "roll1",
-            ],
-        ]
+    return site_config, ObservationData.validate(shot_data, lazy=True).sort_values(
+        "triggerTime"
     )
 
-    shot_data = ObservationData.validate(shot_data,lazy=True).sort_values("triggerTime")
-    garpos_observation = GarposObservation(
-        campaign=site_config.name,
-        date_utc=date_utc,
-        date_mjd=date_mjd,
-        ref_frame="ITRF",
-        shot_data=shot_data,
-        sound_speed_data=sound_velocity,
-    )
-    garpos_input = GarposInput(observation=garpos_observation, site=garpos_site)
-    return garpos_input
 
-# def garpos_input_from_site_obs(
-#         site_config:SiteConfig,
-#         atd_offset:ATDOffset,
-#         gnss_data:DataFrame[PositionDataFrame],
-#         imu_data:DataFrame[IMUDataFrame],
-#         acoustic_data:DataFrame[AcousticDataFrame],
-#         sound_velocity:DataFrame[SoundVelocityDataFrame]
-#     ) -> GarposInput:
+def process_garpos_results(results: GarposInput) -> Tuple[GarposResults, pd.DataFrame]:
+    """
+    Process garpos results to compute delta x, y, z and relevant fields.
+    This function processes the garpos results to calculate the delta x, y, z 
+    for each transponder and other relevant fields. It also converts the 
+    residual travel time (ResiTT) to meters using the harmonic mean of the 
+    sound speed data.
 
-#     gnss_data.longitude = gnss_data.longitude.apply(lambda x: x if x < 180 else x - 360)
-#     gnss_data.time = pd.to_datetime(gnss_data.time,format='mixed')
-#     imu_data.Time = pd.to_datetime(imu_data.Time, format="mixed")
-#     acoustic_data.TriggerTime = pd.to_datetime(
-#         acoustic_data.TriggerTime, format="mixed"
-#     )
+    Args:
+        results (GarposInput): The input data containing observations and site information.
+    Returns:
+        Tuple[GarposResults, pd.DataFrame]: A tuple containing the processed garpos results 
+        and a DataFrame with the shot data including the calculated residual ranges.
+    """
 
-#     gnss_data = PositionDataFrame.validate(gnss_data,lazy=True)
-#     imu_data = IMUDataFrame.validate(imu_data,lazy=True)
-#     acoustic_data = AcousticDataFrame.validate(acoustic_data,lazy=True)
-#     sound_velocity = SoundVelocityDataFrame.validate(sound_velocity,lazy=True)
 
-#     gnss_data.sort_values("time",inplace=True)
-#     imu_data.sort_values("Time",inplace=True)
-#     acoustic_data.sort_values("TriggerTime",inplace=True)
-
-#     garpos_site: GarposSite = sitedata_to_garpossite(site_config,atd_offset)
-#     coord_transformer = CoordTransformer(site_config.position_llh)
-
-#     e,n,u = coord_transformer.LLH2ENU_vec(gnss_data.latitude.to_numpy(),gnss_data.longitude.to_numpy(),gnss_data.height.to_numpy())
-#     gnss_data["x"] = e
-#     gnss_data["y"] = n
-#     gnss_data["z"] = u
-
-#     date_utc = gnss_data.time.min()
-#     date_mjd = julian.to_jd(date_utc, fmt="mjd")
-#     shot_data: DataFrame[ObservationData] = merge_to_shotdata(
-#         acoustic=acoustic_data, imu=imu_data, gnss=gnss_data
-#     )
-#     print(f"Shot data: {shot_data.shape[0]} Merged From {acoustic_data.shape[0]} Acoustic, {imu_data.shape[0]} IMU and {gnss_data.shape[0]} GNSS")
-#     garpos_observation = GarposObservation(
-#         campaign=site_config.name,
-#         date_utc=date_utc,
-#         date_mjd=date_mjd,
-#         ref_frame="ITRF",
-#         shot_data=shot_data,
-#         sound_speed_data=sound_velocity,
-#     )
-#     garpos_input = GarposInput(
-#         observation=garpos_observation, site=garpos_site)
-#     return garpos_input
-
-def process_garpos_results(results:GarposInput) -> Tuple[GarposResults,pd.DataFrame]:
     # Process garpos results to get delta x,y,z and relevant fields
 
     # Get the harmonic mean of the svp data, and use that to convert ResiTT to meters
     speed_mean = harmonic_mean(results.observation.sound_speed_data.speed.values)
-    range_residuals = results.observation.shot_data.ResiTT.values * speed_mean /2
+    range_residuals = results.observation.shot_data.ResiTT.values * speed_mean / 2
 
     results_df = results.observation.shot_data
     results_df["ResiRange"] = range_residuals
-    results_df = GarposObservationOutput.validate(results_df,lazy=True)
+    results_df = GarposObservationOutput.validate(results_df, lazy=True)
     # For each transponder, get the delta x,y,and z respectively
-   
+
     for transponder in results.site.transponders:
         id = transponder.id
-        takeoff = np.deg2rad(results.observation.shot_data[results.observation.shot_data.MT == id].TakeOff.values)
-        azimuth = np.deg2rad(results.observation.shot_data[results.observation.shot_data.MT == id].head1.values)
-        delta_x = np.mean(np.cos(takeoff)*np.cos(azimuth))
-        delta_y = np.mean(np.cos(takeoff)*np.sin(azimuth))
+        takeoff = np.deg2rad(
+            results.observation.shot_data[
+                results.observation.shot_data.MT == id
+            ].TakeOff.values
+        )
+        azimuth = np.deg2rad(
+            results.observation.shot_data[
+                results.observation.shot_data.MT == id
+            ].head1.values
+        )
+        delta_x = np.mean(np.cos(takeoff) * np.cos(azimuth))
+        delta_y = np.mean(np.cos(takeoff) * np.sin(azimuth))
         delta_z = np.mean(np.sin(azimuth))
 
-        transponder.delta_center_position = PositionENU(east=delta_x,north=delta_y,up=delta_z)
-    
+        transponder.delta_center_position = PositionENU(
+            east=delta_x, north=delta_y, up=delta_z
+        )
+
     results_out = GarposResults(
         center_llh=results.site.center_llh,
         delta_center_position=results.site.delta_center_position,
         transponders=results.site.transponders,
-        shot_data=results_df
+        shot_data=results_df,
     )
 
-    return results_out,results_df
+    return results_out, results_df
 
-def dev_main(
-    site_config:SiteConfig,
-    hyper_params:InversionParams,
-    shot_data:Union[str,Path],
-    working_dir:Path=Path("/tmp/garpos/")
-) -> GarposResults:
-
-    working_dir.mkdir(exist_ok=True)
-    try:
-        shot_data = ShotDataFrame.validate(pd.read_csv(shot_data),lazy=True)
-    except Exception as e:
-        logger.error(f"ShotDataFrame - Error reading shot data: {e}")
-        return None
-    # Add "M" to transponder ids if they are numbers
-
-    # process the shot data
-    site_config_rectified,shot_data_rectified = rectify_shotdata_site(site_config,shot_data)
-    shot_data_rectified_path = working_dir / "rectified_shot_data.csv"
-    shot_data_rectified.to_csv(shot_data_rectified_path,index=False)
-
-    avg_enu,avg_llh = avg_transponder_position(site_config_rectified.transponders)
-
-    garpos_site = GarposSite(
-        name=site_config.name,
-        center_llh=site_config.position_llh,
-        center_enu=avg_enu,
-        atd_offset=site_config.atd_offset,
-        transponders=site_config.transponders,
-        delta_center_position=hyper_params.delta_center_position,
-    )
-    garpos_observation = GarposObservation(
-        campaign=site_config.campaign,
-        date_utc=site_config.date,
-        date_mjd=julian.to_jd(site_config.date, fmt="jd"),
-        ref_frame="ITRF",
-        shot_data=shot_data_rectified,
-        sound_speed_data=pd.read_csv(site_config.sound_speed_data)
-    )
-    garpos_input = GarposInput(
-        observation=garpos_observation,
-        site=garpos_site
-    )
-    garpos_fixed = GarposFixed()
-    garpos_fixed.inversion_params = hyper_params
-
-    working_dir.mkdir(exist_ok=True)
-
-    results_dir = working_dir / "results"
-    results_dir.mkdir(exist_ok=True)
-
-    input_path = working_dir / "observation.ini"
-    fixed_path = working_dir / "settings.ini"
-
-    garposinput_to_datafile(garpos_input, input_path)
-    garposfixed_to_datafile(garpos_fixed, fixed_path)
-
-    rf = drive_garpos(str(input_path), str(fixed_path), str(results_dir), "test", 13)
-
-    results = datafile_to_garposinput(rf)
-    proc_results = process_garpos_results(results)
-
-    return proc_results
-
-
-def main(
-    input: GarposInput, fixed: GarposFixed,working_dir:Path=Path("/tmp/garpos/")
-) -> GarposObservationOutput:
-   
-    working_dir.mkdir(exist_ok=True)
-
-    results_dir = working_dir / "results"
-    results_dir.mkdir(exist_ok=True)
-
-    input_path = working_dir / "observation.ini"
-    fixed_path = working_dir / "settings.ini"
-
-    garposinput_to_datafile(input, input_path)
-    garposfixed_to_datafile(fixed, fixed_path)
-
-    rf = drive_garpos(str(input_path), str(fixed_path), str(results_dir), "test", 13)
-
-    results = datafile_to_garposinput(rf)
-    proc_results = process_garpos_results(results)
-
-    return proc_results
 
 from ...processing.assets.tiledb_temp import TDBShotDataArray
 
-class DevGarposInput:
-    def __init__(self,shotdata:TDBShotDataArray,site_config:SiteConfig,working_dir:Path):
+class GarposHandler:
+    '''
+    GarposHandler is a class that handles the processing and preparation of shot data for the GARPOS model. 
+    It includes methods for rectifying shot data, preparing shot data files, setting inversion parameters, 
+    generating observation parameter files, generating data files with fixed parameters, and running the GARPOS model.
+
+    Note:
+        Respective instances of this class are intended to be for individual stations only.
+
+    Attributes:
+        LIB_DIRECTORY (str): Directory path for the RayTrace library.
+        LIB_RAYTRACE (str): Path to the RayTrace library.
+        shotdata (TDBShotDataArray): Array containing shot data.
+        site_config (SiteConfig): Configuration for the site.
+        working_dir (Path): Working directory path.
+        shotdata_dir (Path): Directory path for shot data.
+        results_dir (Path): Directory path for results.
+        inversion_params (InversionParams): Parameters for the inversion process.
+        dates (list): List of unique dates from the shot data.
+        coord_transformer (CoordTransformer): Coordinate transformer for converting coordinates.
+
+    Methods:
+        __init__(self, shotdata: TDBShotDataArray, site_config: SiteConfig, working_dir: Path):
+            Initializes the GarposHandler with shot data, site configuration, and working directory.
+        _rectify_shotdata(self, shot_data: pd.DataFrame) -> pd.DataFrame:
+        prep_shotdata(self, overwrite: bool = False):
+            Prepares and saves shot data for each date in the object's date list.
+        set_inversion_params(self, parameters: dict | InversionParams):
+            Sets inversion parameters for the model.
+        _input_to_datafile(self, shot_data: Path, path: Path, n_shot: int) -> None:
+        _garposfixed_to_datafile(self, inversion_params: InversionParams, path: Path) -> None:
+        _run_garpos(self, date: datetime, run_id: int | str = 0) -> GarposResults:
+            Runs the GARPOS model for a given date and run ID.
+        run_garpos(self, date_index: int = None, run_id: int | str = 0) -> None:
+            Runs the GARPOS model for a specific date or for all dates.
+    '''
+
+    def __init__(
+        self, shotdata: TDBShotDataArray, site_config: SiteConfig, working_dir: Path
+    ):
+
+        """
+        Initializes the class with shot data, site configuration, and working directory.
+        Args:
+            shotdata (TDBShotDataArray): The shot data array.
+            site_config (SiteConfig): The site configuration.
+            working_dir (Path): The working directory path.
+        """
         garpos_fixed = GarposFixed()
         self.LIB_DIRECTORY = garpos_fixed.lib_directory
-        self.LIB_RAYTRACE = garpos_fixed.lib_raytrace   
+        self.LIB_RAYTRACE = garpos_fixed.lib_raytrace
         self.shotdata = shotdata
         self.site_config = site_config
         self.working_dir = working_dir
         self.shotdata_dir = working_dir / "shotdata"
-        self.shotdata_dir.mkdir(exist_ok=True,parents=True)
+        self.shotdata_dir.mkdir(exist_ok=True, parents=True)
         self.results_dir = working_dir / "results"
-        self.results_dir.mkdir(exist_ok=True,parents=True)
+        self.results_dir.mkdir(exist_ok=True, parents=True)
         self.inversion_params = InversionParams()
         self.dates = self.shotdata.get_unique_dates().tolist()
 
@@ -980,12 +874,46 @@ class DevGarposInput:
             e, n, u = self.coord_transformer.LLH2ENU(lat, lon, hgt)
 
             transponder.position_enu = PositionENU(east=e, north=n, up=u)
-            transponder.id = "M" + str(transponder.id) if str(transponder.id)[0].isdigit() else str(transponder.id)
-        self.avg_transponder_enu,self.avg_transponder_llh = avg_transponder_position(site_config.transponders)
+            transponder.id = (
+                "M" + str(transponder.id)
+                if str(transponder.id)[0].isdigit()
+                else str(transponder.id)
+            )
+        self.avg_transponder_enu, self.avg_transponder_llh = avg_transponder_position(
+            site_config.transponders
+        )
 
-    def _rectify_shotdata(self,shot_data:pd.DataFrame) -> pd.DataFrame:
-        e0,n0,u0 = self.coord_transformer.ECEF2ENU_vec(shot_data.east0.to_numpy(),shot_data.north0.to_numpy(),shot_data.up0.to_numpy())
-        e1,n1,u1 = self.coord_transformer.ECEF2ENU_vec(shot_data.east1.to_numpy(),shot_data.north1.to_numpy(),shot_data.up1.to_numpy())
+    def _rectify_shotdata(self, shot_data: pd.DataFrame) -> pd.DataFrame:
+        """
+        Rectifies the shot data to the site local coordinate system by transforming coordinates and renaming columns.
+        This method performs the following operations on the input shot data:
+        1. Transforms the ECEF coordinates to ENU coordinates for two sets of points.
+        2. Adds the transformed coordinates to the DataFrame.
+        3. Sets default values for the "SET" and "LN" columns.
+        4. Renames specific columns according to a predefined mapping.
+        5. Selects and reorders the columns in the DataFrame.
+        6. Validates and sorts the DataFrame by "triggerTime".
+
+        Args:
+            shot_data (pd.DataFrame): The input DataFrame containing shot data with columns 
+                                      "east0", "north0", "up0", "east1", "north1", "up1", 
+                                      "trigger_time", "hae0", "pingTime", "returnTime", 
+                                      "tt", "transponderID", "head0", "pitch0", "roll0", 
+                                      "head1", "pitch1", and "roll1".
+        Returns:
+            pd.DataFrame: The rectified and validated DataFrame sorted by "triggerTime".
+        """
+
+        e0, n0, u0 = self.coord_transformer.ECEF2ENU_vec(
+            shot_data.east0.to_numpy(),
+            shot_data.north0.to_numpy(),
+            shot_data.up0.to_numpy(),
+        )
+        e1, n1, u1 = self.coord_transformer.ECEF2ENU_vec(
+            shot_data.east1.to_numpy(),
+            shot_data.north1.to_numpy(),
+            shot_data.up1.to_numpy(),
+        )
         shot_data["ant_e0"] = e0
         shot_data["ant_n0"] = n0
         shot_data["ant_u0"] = u0
@@ -995,63 +923,113 @@ class DevGarposInput:
         shot_data["SET"] = "S01"
         shot_data["LN"] = "L01"
         rename_dict = {
-            "trigger_time":"triggertime",
-            "hae0":"height",
-            "pingTime":"ST",
-            "returnTime":"RT",
-            "tt":"TT",
-            "transponderID":"MT",
+            "trigger_time": "triggertime",
+            "hae0": "height",
+            "pingTime": "ST",
+            "returnTime": "RT",
+            "tt": "TT",
+            "transponderID": "MT",
         }
-        shot_data = (
-            shot_data.rename(columns=rename_dict)
-            .loc[
-                :,
-                [
-                    "triggerTime",
-                    "MT",
-                    "ST",
-                    "RT",
-                    "TT",
-                    "ant_e0",
-                    "ant_n0",
-                    "ant_u0",
-                    "head0",
-                    "pitch0",
-                    "roll0",
-                    "ant_e1",
-                    "ant_n1",
-                    "ant_u1",
-                    "head1",
-                    "pitch1",
-                    "roll1",
-                ],
-            ]
-        )
+        shot_data = shot_data.rename(columns=rename_dict).loc[
+            :,
+            [
+                "triggerTime",
+                "MT",
+                "ST",
+                "RT",
+                "TT",
+                "ant_e0",
+                "ant_n0",
+                "ant_u0",
+                "head0",
+                "pitch0",
+                "roll0",
+                "ant_e1",
+                "ant_n1",
+                "ant_u1",
+                "head1",
+                "pitch1",
+                "roll1",
+            ],
+        ]
         return ObservationData.validate(shot_data, lazy=True).sort_values("triggerTime")
 
-    def prep_shotdata(self,overwrite:bool=False):
+    def prep_shotdata(self, overwrite: bool = False):
+        """
+        A method to prepare and save shot data for each date in the object's date list using the following steps:
+
+        1. Check if the shot data file exists for each date within self.shotdata_dir.
+        2. If the file does not exist or if the `overwrite` flag is set to True, read, rectify, validate, and save the shot data to a CSV file.
+        3. Query the shot data for the date from the TDBShotDataArray
+        4. Rectify the shot data using the `_rectify_shotdata` method
+        5. Validate the rectified shot data
+        6. Save the rectified shot data to a CSV file
+
+        Args:
+            overwrite (bool): If True, existing shot data files will be overwritten.
+                      Defaults to False.
+        Raises:
+            ValueError: If the shot data fails validation.
+        """
+
         for date in self.dates:
-            year,doy = date.year,date.timetuple().tm_yday
+            year, doy = date.year, date.timetuple().tm_yday
             shot_data_path = self.shotdata_dir / f"{str(year)}_{str(doy)}.csv"
             if not shot_data_path.exists() or overwrite:
                 shot_data_queried: pd.DataFrame = self.shotdata.read_df(date)
                 shot_data_rectified = self._rectify_shotdata(shot_data_queried)
-                shot_data_rectified = ShotDataFrame.validate(shot_data_rectified,lazy=True)
-                shot_data_rectified.MT = shot_data_rectified.MT.apply(lambda x: "M" + str(x) if str(x)[0].isdigit() else str(x))
-                shot_data_path = self.shotdata_dir / f"{str(year)}_{str(doy)}.csv"
-                shot_data_rectified.to_csv(shot_data_path)
+                try:
+                    shot_data_rectified = ShotDataFrame.validate(
+                        shot_data_rectified, lazy=True
+                    )
+                    shot_data_rectified.MT = shot_data_rectified.MT.apply(
+                        lambda x: "M" + str(x) if str(x)[0].isdigit() else str(x)
+                    )
+                    shot_data_path = self.shotdata_dir / f"{str(year)}_{str(doy)}.csv"
+                    shot_data_rectified.to_csv(shot_data_path)
+                except Exception as e:
+                    raise ValueError(
+                        f"Shot data for {str(year)}_{str(doy)} failed validation."
+                    ) from e
 
-    def set_inversion_params(self,args:dict):
-        for key,value in args.items():
-            setattr(self.inversion_params,key,value)
+    def set_inversion_params(self, parameters: dict | InversionParams):
+        """
+        Set inversion parameters for the model.
+        This method updates the inversion parameters of the model using the key-value pairs
+        provided in the `args` dictionary. Each key in the dictionary corresponds to an attribute
+        of the `inversion_params` object, and the associated value is assigned to that attribute.
 
-    def dev_input_to_datafile(
+        Args:
+            parameters (dict | InversionParams): A dictionary containing key-value pairs to update the inversion parameters or an InversionParams object.
+        
+        """
+
+        if isinstance(parameters, InversionParams):
+            self.inversion_params = parameters
+        else:
+            for key, value in parameters.items():
+                setattr(self.inversion_params, key, value)
+
+    def _input_to_datafile(
         self,
         shot_data: Path,
         path: Path,
         n_shot: int,
-        **kwargs,
     ) -> None:
+
+        """
+        Generates an observation parameter file from the provided shot data and site configuration.
+        Args:
+            shot_data (Path): Path to the shot data CSV file.
+            path (Path): Path where the output observation parameter file will be saved.
+            n_shot (int): Number of shots in the shot data.
+        Returns:
+            None
+        Raises:
+            IOError: If there is an issue writing to the specified path.
+        The generated file includes sections for observation parameters, data file information,
+        site parameters, and model parameters. It also includes transponder data.
+        """
 
         delta_center_position: List[float] = (
             self.site_config.delta_center_position.get_position()
@@ -1099,8 +1077,22 @@ class DevGarposInput:
         with open(path, "w") as f:
             f.write(obs_str)
 
+    def _garposfixed_to_datafile(
+        self, inversion_params: InversionParams, path: Path
+    ) -> None:
 
-    def garposfixed_to_datafile(self,inversion_params:InversionParams, path: Path) -> None:
+        """
+        Generates a data file with fixed parameters for the inversion process.
+        This method creates a configuration file with hyperparameters and inversion parameters
+        required for the inversion process. The generated file is written to the specified path.
+        Args:
+            inversion_params (InversionParams): An instance of InversionParams containing the
+                parameters for the inversion process.
+            path (Path): The file path where the generated configuration file will be saved.
+        Returns:
+            None
+        """
+
         fixed_str = f"""[HyperParameters]
     # Hyperparameters
     #  When setting multiple values, ABIC-minimum HP will be searched.
@@ -1156,38 +1148,80 @@ class DevGarposInput:
         with open(path, "w") as f:
             f.write(fixed_str)
 
+    def _run_garpos(self, date: datetime,run_id:int|str=0) -> GarposResults:
+        
+        """
+        Run the GARPOS model for a given date and run ID.
 
-    def _run_garpos(self,date:datetime) -> GarposResults:
-        year,doy = date.year,date.timetuple().tm_yday
+        Args:
+            date (datetime): The date for which to run the GARPOS model.
+            run_id (int | str, optional): The run identifier. Defaults to 0.
+
+        Returns:
+            GarposResults: The results of the GARPOS model run.
+
+        Raises:
+            AssertionError: If the shot data file does not exist for the given date.
+
+        This method performs the following steps:
+        1. Extracts the year and day of year (DOY) from the given date.
+        2. Constructs the path to the shot data file and checks its existence.
+        3. Reads the shot data from the CSV file.
+        4. Creates a results directory for the given year and DOY.
+        5. Prepares input and settings files for the GARPOS model.
+        6. Runs the GARPOS model using the prepared input and settings files.
+        7. Processes the GARPOS model results.
+        8. Saves the processed results to a JSON file.
+        9. Saves the results DataFrame to a CSV file.
+        """
+
+
+        year, doy = date.year, date.timetuple().tm_yday
         shot_data_path = self.shotdata_dir / f"{str(year)}_{str(doy)}.csv"
-        assert shot_data_path.exists(), f"Shot data not found at {shot_data_path} for {date}"
+        assert (
+            shot_data_path.exists()
+        ), f"Shot data not found at {shot_data_path} for {date}"
 
         shot_data = pd.read_csv(shot_data_path)
         n_shot = len(shot_data)
-        results_dir = self.results_dir / f"{str(year)}_{str(doy)}"
-        results_dir.mkdir(exist_ok=True,parents=True)
+        year_doy_results_dir = self.results_dir / f"{str(year)}_{str(doy)}"
+        year_doy_results_dir.mkdir(exist_ok=True, parents=True)
 
-        input_path = self.results_dir / "observation.ini"
-        fixed_path = self.results_dir / "settings.ini"
-        self.dev_input_to_datafile(shot_data_path,input_path,n_shot)
-        self.garposfixed_to_datafile(self.inversion_params,fixed_path)
+        input_path = self.results_dir / f"_{run_id}_" / "observation.ini"
+        fixed_path = self.results_dir / f"_{run_id}_" / "settings.ini"
+        self._input_to_datafile(shot_data_path, input_path, n_shot)
+        self._garposfixed_to_datafile(self.inversion_params, fixed_path)
 
-        rf = drive_garpos(str(input_path), str(fixed_path), str(self.results_dir), self.site_config.campaign, 13)
+        rf = drive_garpos(
+            str(input_path),
+            str(fixed_path),
+            str(year_doy_results_dir) + "/",
+            self.site_config.campaign+f"_{run_id}",
+            13,
+        )
 
         results = datafile_to_garposinput(rf)
-        proc_results,results_df = process_garpos_results(results)
+        proc_results, results_df = process_garpos_results(results)
 
-        results_path = results_dir / "results.json"
-        results_df_path:Path = results_dir / "results_df.csv"
-        results_df.to_csv(results_df_path,index=False)
-        with open(results_path,"w") as f:
-            json.dump(proc_results.model_dump_json(),f)
+        results_path = year_doy_results_dir / f"_{run_id}_" / "results.json"
+        results_df_path: Path = year_doy_results_dir / f"_{run_id}_"/ "results_df.csv"
+        results_df.to_csv(results_df_path, index=False)
+        with open(results_path, "w") as f:
+            json.dump(proc_results.model_dump(), f, indent=4)
 
-    
-        
-    def run_garpos(self,date_index:int=None):
+    def run_garpos(self, date_index: int = None,run_id:int|str=0) -> None:
+        """
+        Run the GARPOS model for a specific date or for all dates.
+        Args:
+            date_index (int, optional): The index of the date in the self.dates list to run the model for. 
+                                        If None, the model will be run for all dates. Defaults to None.
+            run_id (int or str, optional): An identifier for the run. Defaults to 0.
+        Returns:
+            None
+        """
+
         if date_index is None:
             for date in self.dates:
-                self._run_garpos(date)
+                self._run_garpos(date,run_id=run_id)
         else:
-            self._run_garpos(self.dates[date_index])
+            self._run_garpos(self.dates[date_index],run_id=run_id)

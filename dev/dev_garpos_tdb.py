@@ -3,7 +3,7 @@ import logging
 
 logging.basicConfig(level=logging.WARNING, filename="dev.log", filemode="w")
 from es_sfgtools.processing.pipeline.data_handler import DataHandler
-from es_sfgtools.modeling.garpos_tools.functions import DevGarposInput
+from es_sfgtools.modeling.garpos_tools.functions import GarposHandler
 from es_sfgtools.processing.assets.siteconfig import SiteConfig
 from es_sfgtools.processing.operations.site_ops import CTDfile_to_svp
 from es_sfgtools.processing.assets import AssetEntry,AssetType
@@ -47,6 +47,6 @@ if __name__ == "__main__":
 
     config = SiteConfig.from_config(config_path)
     config.sound_speed_data = svp_path_processed
-    garposInput = DevGarposInput(shotdata=dh.shotdata_tdb,site_config=config,working_dir=dh.station_dir)
+    garposInput = GarposHandler(shotdata=dh.shotdata_tdb,site_config=config,working_dir=dh.station_dir/'GARPOS')
     garposInput.prep_shotdata(overwrite=True)
     garposInput.run_garpos()
