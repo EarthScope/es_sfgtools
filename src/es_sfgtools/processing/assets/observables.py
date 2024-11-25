@@ -301,3 +301,7 @@ class SoundVelocityDataFrame(pa.DataFrameModel):
     speed: Series[float] = pa.Field(unique=True,
         ge=0, le=3800, description="Spee of sound [m/s]", coerce=True
     )
+
+    class Config:
+        coerce = True
+        drop_invalid_rows = True

@@ -377,3 +377,18 @@ def leverarmfile_to_atdoffset(
     if show_details:
         print(response)
     return ATDOffset(forward=forward, rightward=rightward, downward=downward)
+
+@pa.check_types(lazy=True)
+def CTDfile_to_svp(source: Union[AssetEntry,str,Path]) -> DataFrame[SoundVelocityDataFrame]:
+
+    if isinstance(source,AssetEntry):
+        assert source.type == AssetType.CTD
+
+        local_path = source.local_path
+    else:
+        local_path = source
+
+    df = pd.read_csv(local_path, usecols=[0, 1], names=["depth", "speed"], sep=" ")
+    df.depth = df.depth * -1
+
+    return df
