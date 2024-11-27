@@ -34,7 +34,6 @@ if __name__ == "__main__":
     pipeline,config = dh.get_pipeline_sv3()
 
     print(config)
-
     pipeline.process_novatel()
     pipeline.process_rinex()
     pipeline.process_kin()

@@ -32,18 +32,18 @@ from es_sfgtools.processing.operations.utils import (
 logger = logging.getLogger(__name__)
 
 class NovatelConfig(BaseModel):
-    ovveride: bool = Field(False, title="Flag to Override Existing Data")
+    override: bool = Field(False, title="Flag to Override Existing Data")
     show_details: bool = Field(False, title="Flag to Show Processing Details")
 
 class RinexConfig(BaseModel):
-    ovveride: bool = Field(False, title="Flag to Override Existing Data")
+    override: bool = Field(False, title="Flag to Override Existing Data")
     show_details: bool = Field(False, title="Flag to Show Processing Details")
-    pride_config: PridePdpConfig = Field(default_factory=lambda x:PridePdpConfig(), title="Pride Configuration")
+    pride_config: PridePdpConfig = Field(default_factory=PridePdpConfig, title="Pride Configuration")
     override_products_download: bool = Field(False, title="Flag to Override Existing Products Download")
-    n_processes: int = Field(default_factory=lambda x:cpu_count(), title="Number of Processes to Use")
+    n_processes: int = Field(default_factory=cpu_count, title="Number of Processes to Use")
 
 class DFOP00Config(BaseModel):
-    ovveride: bool = Field(False, title="Flag to Override Existing Data")
+    override: bool = Field(False, title="Flag to Override Existing Data")
     show_details: bool = Field(False, title="Flag to Show Processing Details")
 
 class PositionUpdateConfig(BaseModel):
@@ -54,18 +54,16 @@ class SV3PipelineConfig(BaseModel):
     network: str = Field(..., title="Network Name")
     station: str = Field(..., title="Station Name")
     survey: str = Field(..., title="Survey Name")
-    writedir: Path = Field(..., title="Write Directory")
     inter_dir: Path = Field(..., title="Intermediate Directory")
     pride_dir: Path = Field(..., title="Pride Directory")
     catalog_path: Path = Field(..., title="Catalog Path")
 
-    novatel_config: NovatelConfig = Field(default_factory=lambda x: NovatelConfig(), title="Novatel Configuration")
-    rinex_config: RinexConfig = Field(default_factory=lambda x:RinexConfig(), title="Rinex Configuration")
-    dfop00_config: DFOP00Config = Field(default_factory=lambda x:DFOP00Config(), title="DFOP00 Configuration")
-    position_update_config: PositionUpdateConfig = Field(default_factory=lambda x:PositionUpdateConfig(), title="Position Update Configuration")
-    shot_data_dest: TDBShotDataArray = Field(None, title="ShotData Destination")
-    gnss_data_dest: TDBGNSSArray = Field(None, title="GNSS Data Destination")
-
+    novatel_config: NovatelConfig = NovatelConfig()
+    rinex_config: RinexConfig = RinexConfig()
+    dfop00_config: DFOP00Config = DFOP00Config()
+    position_update_config: PositionUpdateConfig = PositionUpdateConfig()
+    shot_data_dest: TDBShotDataArray = None
+    gnss_data_dest: TDBGNSSArray = None
     class Config:
         title = "SV3 Pipeline Configuration"
         arbitrary_types_allowed = True
@@ -77,18 +75,22 @@ class SV3PipelineConfig(BaseModel):
     # def s_gnsdata(self,v):
     #     return str(v.uri)
     @validator("shot_data_dest")
-    def _v_shotdata(cls,v:str):
-        return TDBShotDataArray(Path(v))
+    def _v_shotdata(cls,v:str|TDBShotDataArray):
+        if isinstance(v,str):
+            return TDBShotDataArray(Path(v))
+        return v
 
     @field_validator("gnss_data_dest")
-    def _v_gnssdata(cls,v:str):
-        return TDBGNSSArray(Path(v))
+    def _v_gnssdata(cls,v:str|TDBGNSSArray):
+        if isinstance(v,str):
+            return TDBGNSSArray(Path(v))
+        return v
 
-    @field_serializer("writedir","inter_dir","pride_dir","catalog_path")
+    @field_serializer("inter_dir","pride_dir","catalog_path")
     def _s_path(self,v):
         return str(v)
 
-    @field_validator("writedir","inter_dir","pride_dir","catalog_path")
+    @field_validator("inter_dir","pride_dir","catalog_path")
     def _v_path(cls,v:str):
         return Path(v)
 
@@ -129,7 +131,7 @@ class SV3Pipeline:
         if self.config.novatel_config.override or not self.catalog.is_merge_complete(**merge_signature):
             rinex_entries: List[AssetEntry] = gnss_ops.novatel_to_rinex_batch(
                 source=novatel_770_entries,
-                writedir =self.config.writedir,
+                writedir =self.config.inter_dir,
                 show_details=self.config.novatel_config.show_details,
             )
             uploadCount = 0
@@ -204,7 +206,7 @@ class SV3Pipeline:
         count = 0
         uploadCount = 0
 
-        with multiprocessing.Pool(processes=self.config.rinex_config.num_processes) as pool:
+        with multiprocessing.Pool(processes=self.config.rinex_config.n_processes) as pool:
 
             try:
                 results = pool.imap(process_rinex_partial, rinex_entries)
@@ -338,7 +340,7 @@ class SV3Pipeline:
             "child_type": AssetType.SHOTDATA.value,
             "parent_ids": merge_signature,
         }
-        if not self.catalog.is_merge_complete(**merge_job) or override:
+        if not self.catalog.is_merge_complete(**merge_job) or self.config.position_update_config.override:
             dates.append(dates[-1]+datetime.timedelta(days=1))
             merge_shotdata_gnss(
                 shotdata=self.config.shot_data_dest, gnss=self.config.gnss_data_dest, dates=dates, plot=self.config.position_update_config.plot

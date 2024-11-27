@@ -489,7 +489,7 @@ class DataHandler:
         config = SV3PipelineConfig(network=self.network, 
                                  station=self.station, 
                                  survey=self.survey,
-                                 writedir=self.inter_dir,
+                                 inter_dir=self.inter_dir,
                                  pride_dir=self.pride_dir,
                                  shot_data_dest=self.shotdata_tdb,
                                  gnss_data_dest=self.gnss_tdb,

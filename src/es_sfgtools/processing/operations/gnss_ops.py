@@ -182,16 +182,16 @@ class PridePdpConfig(BaseModel):
                 List[str]: The command to run pdp3 with the specified configuration.
     '''
     sample_frequency: float = Field(default=5),
-    system: str = Field(default="GREC23J"), 
-    frequency: list = Field(default=["G12", "R12", "E15", "C26", "J12"]), 
-    loose_edit: bool = Field(default=True), 
-    cutoff_elevation: int = Field(default=7), 
-    start: datetime = Field(default=None), 
-    end: datetime = Field(default=None),
-    interval: float = Field(default=None),
-    high_ion: bool = Field(default=False), 
-    tides: str = Field(default="SOP"),
-    local_pdp3_path: str = Field(default= None)
+    system: str = "GREC23J"
+    frequency: list = ["G12", "R12", "E15", "C26", "J12"]
+    loose_edit: bool = True 
+    cutoff_elevation: int = 7
+    start: datetime = None
+    end: datetime = None
+    interval: float = None
+    high_ion: bool = None
+    tides: str = "SOP"
+    local_pdp3_path: str = None
 
     def __post_init__(self):
         # Check if system is valid
