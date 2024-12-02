@@ -8,6 +8,7 @@ from typing import List
 from pathlib import Path
 import multiprocessing
 import datetime
+import signal
 
 from es_sfgtools.processing.pipeline.catalog import Catalog
 from es_sfgtools.processing.assets.file_schemas import AssetEntry,AssetType
@@ -130,13 +131,16 @@ class SV3Pipeline:
         resfile_entries = []
         count = 0
         uploadCount = 0
+        
         with multiprocessing.Pool() as pool:
-            results = pool.imap(process_rinex_partial, rinex_entries)
-            for idx,(kinfile, resfile) in enumerate(tqdm(
-                results, total=len(rinex_entries), desc="Processing Rinex Files"
-            )):
-                if kinfile is not None:
-                    count += 1
+            
+            try:
+                results = pool.imap(process_rinex_partial, rinex_entries)
+                for idx, (kinfile, resfile) in enumerate(tqdm(
+                    results, total=len(rinex_entries), desc="Processing Rinex Files"
+                )):
+                    if kinfile is not None:
+                        count += 1
                     if self.catalog.add_or_update(kinfile):
                         uploadCount += 1
                     kin_entries.append(kinfile)
@@ -144,9 +148,13 @@ class SV3Pipeline:
                         count += 1
                         if self.catalog.add_or_update(resfile):
                             uploadCount += 1
-                        resfile_entries.append(resfile)
+                            resfile_entries.append(resfile)
                     rinex_entries[idx].is_processed = True
                     self.catalog.add_or_update(rinex_entries[idx])
+            except KeyboardInterrupt:
+                pool.terminate()
+                pool.join()
+    
                    
         response = f"Generated {count} Kin Files From {len(rinex_entries)} Rinex Files, Added {uploadCount} to the Catalog"
         logger.info(response)

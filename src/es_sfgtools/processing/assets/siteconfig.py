@@ -4,13 +4,14 @@ from pathlib import Path
 import numpy as np
 import datetime
 import logging
+import yaml
 
 logger = logging.getLogger(__name__)
 
 class PositionLLH(BaseModel):
     latitude: float
     longitude: float
-    height: float
+    height: Optional[float] = 0
 
 class PositionENU(BaseModel):
     east: Optional[float] = 0
@@ -62,3 +63,58 @@ class SiteConfig(BaseModel):
     transponders: Optional[List[Transponder]]
     sound_speed_data: Optional[str] = None
     atd_offset: Optional[ATDOffset] = None
+    delta_center_position: Optional[PositionENU] = PositionENU()
+
+    @classmethod
+    def from_config(cls, config_file: Union[str, Path]) -> "SiteConfig":
+        with open(config_file, "r") as f:
+            config = yaml.safe_load(f)
+
+        name = config["site_id"]
+        campaign = config["campaign"]
+        date = config["time_origin"]
+        array_center = config["array_center"]
+        height = config["solver"]["geoid_undulation"]
+        position_llh = PositionLLH(latitude=array_center["lat"], longitude=array_center["lon"], height=height)
+        transponder_set = []
+        for transponder in config["transponders"]:
+            transponder_position = PositionLLH(
+                latitude=transponder["lat"],
+                longitude=transponder["lon"],
+                height=transponder["height"]
+            )
+            tat_offset = transponder["sv_mean"]
+            name = transponder["pxp_id"]
+            match name.split("-")[1]:
+                case "1":
+                    id = "5209"
+                case "2":
+                    id = "5210"
+                case "3":
+                    id = "5211"
+                case "4":
+                    id = "5212"
+            transponder_set.append(Transponder(
+                position_llh=transponder_position,
+                tat_offset=tat_offset,
+                id=id,
+                name=name
+            ))
+        atd_offset_dict = config["posfilter"]["atd_offsets"]
+        atd_offset = ATDOffset(
+            forward=atd_offset_dict["forward"],
+            rightward=atd_offset_dict["rightward"],
+            downward=atd_offset_dict["downward"],
+        )
+
+        return SiteConfig(
+            name=name,
+            campaign=campaign,
+            date=date,
+            position_llh=position_llh,
+            transponders=transponder_set,
+            atd_offset=atd_offset
+        )
+
+
+
