@@ -7,6 +7,7 @@ MINIMAL_NOTEBOOK_FORMAT = logging.Formatter('%(message)s')
 
 BASE_LOG_FILE_NAME = 'es_sfg_tools.log'
 PRIDE_LOG_FILE_NAME = 'pride.log'
+RINEX_LOG_FILE_NAME = 'rinex.log'
 
 def ensure_directory_exists(func):
     @wraps(func)
@@ -90,6 +91,36 @@ def setup_pride_logger(directory_path='./logs'):
     pride_logger.propagate = True
 
     return pride_logger
+
+@ensure_directory_exists
+def setup_rinex_logger(directory_path='./logs'):
+    """ 
+    This function sets up a logger for the rinex module. 
+    It logs to the base log file and prints to the console with only the message.
+    """
+    # Rinex logger (child of base_logger)
+    rinex_logger = logging.getLogger('base_logger.rinex_logger')
+    rinex_logger.setLevel(logging.INFO)
+    rinex_log_file = os.path.join(directory_path, RINEX_LOG_FILE_NAME)
+
+    # Set up the formatter for the rinex logger and the console handler
+    rinex_console_handler = logging.StreamHandler()
+    rinex_console_handler.setLevel(logging.INFO)
+    rinex_console_handler.setFormatter(BASIC_FORMAT)
+    rinex_logger.addHandler(rinex_console_handler)
+
+    # Create a file handler for the pride logger
+    rinex_file_handler = logging.FileHandler(rinex_log_file)
+    rinex_file_handler.setLevel(logging.INFO)
+    rinex_file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+    rinex_logger.addHandler(rinex_file_handler)
+
+
+    # Set the logger to propagate to the base logger
+    rinex_logger.propagate = True
+
+    return rinex_logger
+
 
 def setup_notebook_logger():
     """ 
