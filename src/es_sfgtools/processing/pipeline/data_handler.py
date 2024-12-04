@@ -23,10 +23,7 @@ from es_sfgtools.processing.pipeline.catalog import Catalog
 from es_sfgtools.processing.pipeline.pipelines import SV3Pipeline
 from es_sfgtools.processing.pipeline.constants import REMOTE_TYPE, FILE_TYPES
 from es_sfgtools.processing.pipeline.datadiscovery import scrape_directory_local, get_file_type_local, get_file_type_remote
-
-# Set up logging
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.WARNING)
+from es_sfgtools.utils.loggers import setup_notebook_logger
 
 
 def check_network_station_survey(func: Callable):
@@ -56,6 +53,7 @@ class DataHandler:
                  network: str = None,
                  station: str = None,
                  survey: str = None,
+                 show_logs: bool = False
                  ) -> None:
         """
         Initialize the DataHandler object.
@@ -70,7 +68,8 @@ class DataHandler:
         self.network = network
         self.station = station
         self.survey = survey
-   
+        self.logger = setup_notebook_logger() if show_logs else logging.getLogger('base_logger')
+
         # Create the directory structures
         self.main_directory = Path(directory)
         # Create the main and pride directory
@@ -90,6 +89,7 @@ class DataHandler:
         self.catalog = Catalog(self.db_path)
 
 
+
     def build_station_dir_structure(self, network: str, station: str, survey: str):
         """
         Build the directory structure for a station.
@@ -105,7 +105,7 @@ class DataHandler:
 
                 - Pride/ 
         """
-
+        self.logger.info(f"Building directory structure for {network} {station} {survey}")
         # Create the network/station directory structure
         self.station_dir = self.main_directory / network / station
         self.station_dir.mkdir(parents=True, exist_ok=True)
@@ -132,6 +132,7 @@ class DataHandler:
         """
         Build the TileDB arrays for the current station. TileDB directory is /network/station/TileDB.
         """
+        self.logger.info(f"Building TileDB arrays for {self.station}")
         self.acoustic_tdb = TDBAcousticArray(self.tileb_dir/"acoustic_db.tdb")
         self.gnss_tdb = TDBGNSSArray(self.tileb_dir/"gnss_db.tdb")
         self.position_tdb = TDBPositionArray(self.tileb_dir/"position_db.tdb")
@@ -160,7 +161,7 @@ class DataHandler:
         self.build_station_dir_structure(network, station,survey)
         self.build_tileDB_arrays()
 
-        logger.info(f"Changed working station to {network} {station}")
+        self.logger.info(f"Changed working station to {network} {station}")
 
 
     @check_network_station_survey
@@ -188,10 +189,10 @@ class DataHandler:
 
         files:List[Path] = scrape_directory_local(directory_path)
         if len(files) == 0:
-            logger.error(f"No files found in {directory_path}, ensure the directory is correct.")
+            self.logger.error(f"No files found in {directory_path}, ensure the directory is correct.")
             return
         
-        logger.info(f"Found {len(files)} files in {directory_path}")
+        self.logger.info(f"Found {len(files)} files in {directory_path}")
 
         self.add_data_to_catalog(files)
 
@@ -207,7 +208,7 @@ class DataHandler:
         file_data_list = []
         for file_path in local_filepaths:
             if not file_path.exists():
-                logger.error(f"File {str(file_path)} does not exist")
+                self.logger.error(f"File {str(file_path)} does not exist")
                 continue
             file_type, _size = get_file_type_local(file_path)
             if file_type is not None:
@@ -227,7 +228,7 @@ class DataHandler:
             if self.catalog.add_entry(file_assest):
                 uploadCount += 1
 
-        logger.info(f"Added {uploadCount} out of {count} files to the catalog")
+        self.logger.info(f"Added {uploadCount} out of {count} files to the catalog")
 
 
     def add_data_remote(self, 
@@ -257,7 +258,7 @@ class DataHandler:
             file_type = get_file_type_remote(file)
 
             if file_type is None: # If the file type is not recognized, skip it
-                logger.warning(f"File type not recognized for {file}")
+                self.logger.warning(f"File type not recognized for {file}")
                 continue
 
             if not self.catalog.remote_file_exist(network=self.network,
@@ -276,7 +277,7 @@ class DataHandler:
                 )
                 file_data_list.append(file_data)
             else:
-                logger.info(f"File {file} already exists in the catalog")
+                self.logger.info(f"File {file} already exists in the catalog")
 
         # Add each file (AssetEntry) to the catalog
         count = len(file_data_list)
@@ -285,7 +286,7 @@ class DataHandler:
             if self.catalog.add_entry(file_assest):
                 uploadCount += 1
 
-        logger.info(f"Added {uploadCount} out of {count} files to the catalog")
+        self.logger.info(f"Added {uploadCount} out of {count} files to the catalog")
 
     def download_data(self, file_types: List[AssetType] | List[str] | str = FILE_TYPES, override: bool=False):
         """
@@ -317,7 +318,7 @@ class DataHandler:
                                             type=type)
 
             if len(assets) == 0:
-                logger.error(f"No matching data found in catalog")
+                self.logger.error(f"No matching data found in catalog")
                 continue
             
             # Find files that we need to download based on the catalog output. If override is True, download all files.
@@ -334,7 +335,7 @@ class DataHandler:
                             assets_to_download.append(file_asset)
 
             if len(assets_to_download) == 0:
-                logger.info(f"No new files to download")
+                self.logger.info(f"No new files to download")
             
             # split the entries into s3 and http
             s3_assets = [file for file in assets_to_download if file.remote_type == REMOTE_TYPE.S3.value]
@@ -396,14 +397,14 @@ class DataHandler:
         local_path = self.raw_dir / Path(prefix).name
 
         try:
-            logger.info(f"Downloading {prefix} to {local_path}")
+            self.logger.info(f"Downloading {prefix} to {local_path}")
             client.download_file(Bucket=bucket, 
                                  Key=str(prefix), 
                                  Filename=str(local_path))
-            logger.info(f"Downloaded {str(prefix)} to {str(local_path)}")
+            self.logger.info(f"Downloaded {str(prefix)} to {str(local_path)}")
 
         except Exception as e:
-            logger.error(f"Error downloading {prefix} from {bucket }\n {e} \n HINT: $ aws sso login")
+            self.logger.error(f"Error downloading {prefix} from {bucket }\n {e} \n HINT: $ aws sso login")
             local_path = None
 
         finally:
@@ -448,10 +449,10 @@ class DataHandler:
             if not local_path.exists(): 
                 raise Exception
 
-            logger.info(f"Downloaded {str(remote_url)} to {str(local_path)}")
+            self.logger.info(f"Downloaded {str(remote_url)} to {str(local_path)}")
 
         except Exception as e:
-            logger.error(f"Error downloading {str(remote_url)} \n {e}" + "\n HINT: Check authentication credentials")
+            self.logger.error(f"Error downloading {str(remote_url)} \n {e}" + "\n HINT: Check authentication credentials")
             local_path = None
 
         finally:
@@ -554,20 +555,20 @@ class DataHandler:
     @check_network_station_survey
     def run_all_sv3_pipelines(self, override:bool=False, show_details:bool=False, plot:bool=False, update_shotdata:bool=False):
         # Pass catalog to pipeline
-        logger.info(f"Running all SV3 pipelines for {self.network} {self.station} {self.survey}")
+        self.logger.info(f"Running all SV3 pipelines for {self.network} {self.station} {self.survey}")
 
-        logger.info("Starting Novatel Pipeline..")
+        self.logger.info("Starting Novatel Pipeline..")
         self.run_novatel_pipeline(override=override, show_details=show_details)
-        logger.info("Done. \n Starting rinex pipeline..")
+        self.logger.info("Done. \n Starting rinex pipeline..")
         self.run_rinex_pipeline(override=override, show_details=show_details)
-        logger.info("Done. \n Starting DFOP00 pipeline..")
+        self.logger.info("Done. \n Starting DFOP00 pipeline..")
         self.run_dfop00_pipeline(override=override)
-        logger.info("Done. \n Starting Kin pipeline..")
+        self.logger.info("Done. \n Starting Kin pipeline..")
         self.run_kin_pipeline(override=override, show_details=show_details)
-        logger.info("Done.")
+        self.logger.info("Done.")
         if update_shotdata:
-            logger.info("Updating ShotData..")
+            self.logger.info("Updating ShotData..")
             self.update_shotdata(override=override, plot=plot)
-            logger.info("Done.")
-        logger.info("\n All SV3 pipelines complete.")
+            self.logger.info("Done.")
+        self.logger.info("\n All SV3 pipelines complete.")
 

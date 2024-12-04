@@ -1,3 +1,13 @@
+"""  
+This module contains functions to set up loggers for the package. 
+
+The base logger is set up first, writes to a file, and is used to create other loggers.
+The general logger is used for most of the package and prints to the console.
+The pride logger is used for the pride module and prints to the console and a file.
+The rinex logger is used for the rinex module and prints to the console and a file.
+The notebook logger is used for the notebook module and prints to the console with a minimal format.
+"""
+
 import logging
 import os
 from functools import wraps
@@ -115,7 +125,6 @@ def setup_rinex_logger(directory_path='./logs'):
     rinex_file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
     rinex_logger.addHandler(rinex_file_handler)
 
-
     # Set the logger to propagate to the base logger
     rinex_logger.propagate = True
 
@@ -146,8 +155,8 @@ def setup_notebook_logger():
 
 
 # Set up the loggers
-logger = setup_general_logger()
-logger.info('Starting the general logger')
+# logger = setup_general_logger()
+# logger.info('Starting the general logger')
 # pride_logger = setup_pride_logger()
 # pride_logger.info('Starting the pride logger')
 # notebook_logger = setup_notebook_logger()
