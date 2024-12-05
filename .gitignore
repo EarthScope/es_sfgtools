@@ -35,3 +35,4 @@ src/garpos_tools/build/
 build/*
 .vscode/
 
+docs/build
