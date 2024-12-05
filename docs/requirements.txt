@@ -1,0 +1,54 @@
+# Sphinx and Extensions for Read the Docs
+sphinx==7.4.7
+sphinx-rtd-theme==2.0.0
+myst-parser==4.0.0
+sphinxcontrib-apidoc==0.5.0
+sphinx_pyproject==0.3.0
+
+# Data Science and Analysis
+numpy
+scipy
+pandas
+matplotlib
+scikit-learn
+# scikit-sparse
+seaborn
+folium
+sqlalchemy
+pyarrow
+pandera
+
+# Date and Time
+julian
+
+# Geospatial
+pyproj
+pymap3d
+
+# AWS and Cloud
+boto3
+botocore
+
+# Utilities
+tqdm
+multipledispatch
+multiprocessing_logging
+
+# Jupyter and Widgets
+nodejs
+nbgitpuller
+jupyterlab
+jupyterhub
+ipykernel
+ipywidgets
+
+# Image Processing
+# libtiff
+
+# Editable install of the current package
+# -e .
+
+# Git repositories
+# garpos @ git+https://github.com/EarthScope/garpos.git
+earthscope-sdk
+earthscope-cli
