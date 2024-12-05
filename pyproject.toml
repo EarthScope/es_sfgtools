@@ -21,7 +21,7 @@ classifiers = [
 dynamic = ["dependencies", "optional-dependencies"]
 
 [tool.setuptools.dynamic]
-dependencies = {file = ["requirements.txt"]}
+dependencies = {file = ["docs/requirements.txt"]}
 optional-dependencies = {dev = { file = ["requirements-dev.txt"] }}
 
 [project.urls]
