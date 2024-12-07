@@ -12,6 +12,6 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
-   es_sfgtools.pipeline
+   es_sfgtools.modeling
    es_sfgtools.processing
    es_sfgtools.utils

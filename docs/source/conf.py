@@ -8,7 +8,6 @@ sys.path.insert(0, os.path.abspath('../../src/es_sfgtools'))
 
 config = SphinxConfig("../../pyproject.toml", globalns=globals())
 
-#
 # For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
@@ -23,8 +22,6 @@ release = '0.0.1'
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-
-
 extensions = ['sphinx.ext.napoleon',        # support for numpy-style docstrings
               'sphinx.ext.autodoc',         # support for automatic documentation
               'sphinx.ext.autosummary',     # support for automatic summaries
@@ -34,6 +31,8 @@ extensions = ['sphinx.ext.napoleon',        # support for numpy-style docstrings
               'myst_parser'                 # support for markdown
               ]
 
+
+napoleon_numpy_docstring = True
 myst_enable_extensions = ["colon_fence"]    # Enables the use of ::: for fenced code blocks.
 
 # APIDOC configuration 
@@ -45,8 +44,6 @@ apidoc_module_first = True
 
 templates_path = ['_templates']
 exclude_patterns = []
-
-
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output

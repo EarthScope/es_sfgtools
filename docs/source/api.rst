@@ -1,5 +1,5 @@
 Code documentation
-=================
+=============================================
 
 Information on specific functions, classes, and methods.
 
