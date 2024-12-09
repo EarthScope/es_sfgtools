@@ -346,3 +346,45 @@ class SV3Pipeline:
                 shotdata=self.config.shot_data_dest, gnss=self.config.gnss_data_dest, dates=dates, plot=self.config.position_update_config.plot
             )
             self.catalog.add_merge_job(**merge_job)
+
+
+class SV2Pipeline:
+    def __init__(self,catalog:Catalog=None,config:SV3PipelineConfig=None):
+        self.catalog = catalog
+        self.config = config
+        if self.catalog is None:
+            self.catalog = Catalog(self.config.catalog_path)
+
+    def process_novatel(
+        self
+    ) -> None:
+
+        print(f"Processing Novatel data for {self.config.network} {self.config.station} {self.config.survey}")
+        novatel_entries: List[AssetEntry] = self.catalog.get_assets(
+            network=self.config.network,
+            station=self.config.station,
+            survey=self.config.survey,
+            type=AssetType.NOVATEL,
+        )
+
+        merge_signature = {
+            "parent_type": AssetType.NOVATEL.value,
+            "child_type": AssetType.RINEX.value,
+            "parent_ids": [x.id for x in novatel_entries],
+        }
+        if self.config.novatel_config.override or not self.catalog.is_merge_complete(**merge_signature):
+            rinex_entries: List[AssetEntry] = gnss_ops.novatel_to_rinex_batch(
+                source=novatel_770_entries,
+                writedir =self.config.inter_dir,
+                show_details=self.config.novatel_config.show_details,
+            )
+            uploadCount = 0
+            for rinex_entry in rinex_entries:
+                if self.catalog.add_entry(rinex_entry):
+                    uploadCount += 1
+            self.catalog.add_merge_job(**merge_signature)
+            response = f"Added {uploadCount} out of {len(rinex_entries)} Rinex Entries to the catalog"
+            logger.info(response)
+            if self.config.novatel_config.show_details:
+                print(response)
+

@@ -23,7 +23,8 @@ from es_sfgtools.processing.pipeline.catalog import Catalog
 from es_sfgtools.processing.pipeline.pipelines import SV3Pipeline, SV3PipelineConfig
 from es_sfgtools.processing.pipeline.constants import REMOTE_TYPE, FILE_TYPES
 from es_sfgtools.processing.pipeline.datadiscovery import scrape_directory_local, get_file_type_local, get_file_type_remote
-
+from es_sfgtools.modeling.garpos_tools.functions import GarposHandler
+from es_sfgtools.processing.assets.siteconfig import SiteConfig
 # Set up logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
@@ -89,7 +90,7 @@ class DataHandler:
         self.catalog = Catalog(self.db_path)
 
 
-    def build_station_dir_structure(self, network: str, station: str, survey: str):
+    def _build_station_dir_structure(self, network: str, station: str, survey: str):
         """
         Build the directory structure for a station.
         Format is as follows:
@@ -127,7 +128,7 @@ class DataHandler:
         self.proc_dir = survey_data_dir / "processed"
         self.proc_dir.mkdir(exist_ok=True)
 
-    def build_tileDB_arrays(self):
+    def _build_tileDB_arrays(self):
         """
         Build the TileDB arrays for the current station. TileDB directory is /network/station/TileDB.
         """
@@ -156,8 +157,8 @@ class DataHandler:
             self.survey = survey
 
         # Build the directory structure and TileDB arrays
-        self.build_station_dir_structure(network, station,survey)
-        self.build_tileDB_arrays()
+        self._build_station_dir_structure(network, station,survey)
+        self._build_tileDB_arrays()
 
         logger.info(f"Changed working station to {network} {station}")
 
@@ -367,7 +368,7 @@ class DataHandler:
                     self.catalog.update_local_path(id=file_asset.id, 
                                                    local_path=file_asset.local_path)
 
-    def _S3_download_file(self, client, bucket: str, prefix: str) -> Path:
+    def _S3_download_file(self, client:boto3.client, bucket: str, prefix: str) -> Path:
         """
         Downloads a file from the specified S3 bucket and prefix.
 
@@ -497,4 +498,21 @@ class DataHandler:
         pipeline = SV3Pipeline(catalog=self.catalog, config=config)
 
         return pipeline, config
+    
+    @check_network_station_survey
+    def get_garpos_handler(self, site_config: SiteConfig) -> GarposHandler:
+        """
+        Creates and returns a GarposHandler object.
+        This method initializes a GarposHandler object using the instance
+        attributes such as site_config, working_dir, and shotdata_tdb.
+        
+        Args:
+            site_config (SiteConfig): A SiteConfig object.
+        
+        Returns:
+            GarposHandler: A GarposHandler object.
+        """
+        return GarposHandler(shotdata=self.shotdata_tdb,
+                             site_config=site_config,
+                             working_dir=self.station_dir/'GARPOS')
     

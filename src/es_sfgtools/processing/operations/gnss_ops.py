@@ -181,7 +181,7 @@ class PridePdpConfig(BaseModel):
             Returns:
                 List[str]: The command to run pdp3 with the specified configuration.
     '''
-    sample_frequency: float = Field(default=5),
+    sample_frequency: float = 5
     system: str = "GREC23J"
     frequency: list = ["G12", "R12", "E15", "C26", "J12"]
     loose_edit: bool = True 
