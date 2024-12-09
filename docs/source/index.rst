@@ -13,10 +13,8 @@ SV3 wavegliders, as well as run GNSS-A processing using
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
 
-   pages/Installation.md
+   Home <self>
+   usage
    api
 
-.. note:: 
-   This package and its documentation are under development.
