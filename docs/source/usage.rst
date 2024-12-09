@@ -30,11 +30,11 @@ Quickstart
 TBD.. 
 
 
-Earthscope JupyterHub
+EarthScope JupyterHub
 ---------------------
-The Earthscope JupyterHub is currently in development. It will require an Earthscope account to access.
+The Earthscope JupyterHub is currently in development. It will require an EarthScope account to access.
 
 Notebooks
 ----------
-The public ECR image will be available from the Earthscope AWS account and notebooks will be available on github.
-This image and notebook repository will be able to be loaded into the Earthscope JupyterHub. 
+The public ECR image will be available from the EarthScope AWS account and notebooks will be publicly available on github.
+This image and notebook repository will be able to be loaded into the EarthScope JupyterHub. 
