@@ -13,5 +13,5 @@ Submodules
    :maxdepth: 4
 
    es_sfgtools.utils.archive_pull
-   es_sfgtools.utils.gage_data
+   es_sfgtools.utils.loggers
    es_sfgtools.utils.metadata_generator

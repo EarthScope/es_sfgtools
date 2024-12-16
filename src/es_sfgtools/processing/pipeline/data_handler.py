@@ -23,11 +23,12 @@ from es_sfgtools.processing.pipeline.catalog import Catalog
 from es_sfgtools.processing.pipeline.pipelines import SV3Pipeline, SV3PipelineConfig
 from es_sfgtools.processing.pipeline.constants import REMOTE_TYPE, FILE_TYPES
 from es_sfgtools.processing.pipeline.datadiscovery import scrape_directory_local, get_file_type_local, get_file_type_remote
+
 from es_sfgtools.modeling.garpos_tools.functions import GarposHandler
 from es_sfgtools.processing.assets.siteconfig import SiteConfig
-# Set up logging
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.WARNING)
+
+from es_sfgtools.utils.loggers import setup_notebook_logger
+
 
 
 def check_network_station_survey(func: Callable):
@@ -46,6 +47,7 @@ def check_network_station_survey(func: Callable):
         return func(self, *args, **kwargs)
     return wrapper
 
+
 class DataHandler:
     """
     A class to handle data operations such as searching for, adding, downloading and processing data.
@@ -56,6 +58,7 @@ class DataHandler:
                  network: str = None,
                  station: str = None,
                  survey: str = None,
+                 show_logs: bool = False
                  ) -> None:
         """
         Initialize the DataHandler object.
@@ -70,7 +73,8 @@ class DataHandler:
         self.network = network
         self.station = station
         self.survey = survey
-   
+        self.logger = setup_notebook_logger() if show_logs else logging.getLogger('base_logger')
+
         # Create the directory structures
         self.main_directory = Path(directory)
         # Create the main and pride directory
@@ -91,6 +95,7 @@ class DataHandler:
 
 
     def _build_station_dir_structure(self, network: str, station: str, survey: str):
+
         """
         Build the directory structure for a station.
         Format is as follows:
@@ -105,7 +110,7 @@ class DataHandler:
 
                 - Pride/ 
         """
-
+        self.logger.info(f"Building directory structure for {network} {station} {survey}")
         # Create the network/station directory structure
         self.station_dir = self.main_directory / network / station
         self.station_dir.mkdir(parents=True, exist_ok=True)
@@ -132,6 +137,7 @@ class DataHandler:
         """
         Build the TileDB arrays for the current station. TileDB directory is /network/station/TileDB.
         """
+        self.logger.info(f"Building TileDB arrays for {self.station}")
         self.acoustic_tdb = TDBAcousticArray(self.tileb_dir/"acoustic_db.tdb")
         self.gnss_tdb = TDBGNSSArray(self.tileb_dir/"gnss_db.tdb")
         self.position_tdb = TDBPositionArray(self.tileb_dir/"position_db.tdb")
@@ -160,13 +166,13 @@ class DataHandler:
         self._build_station_dir_structure(network, station,survey)
         self._build_tileDB_arrays()
 
-        logger.info(f"Changed working station to {network} {station}")
+        self.logger.info(f"Changed working station to {network} {station}")
 
 
     @check_network_station_survey
     def get_dtype_counts(self):
         """ 
-        Get the data type counts for the current station from the catalog.
+        Get the data type counts (local) for the current station from the catalog.
 
         Returns:
             Dict[str,int]: A dictionary of data types and their counts.
@@ -188,8 +194,10 @@ class DataHandler:
 
         files:List[Path] = scrape_directory_local(directory_path)
         if len(files) == 0:
-            logger.error(f"No files found in {directory_path}, ensure the directory is correct.")
+            self.logger.error(f"No files found in {directory_path}, ensure the directory is correct.")
             return
+        
+        self.logger.info(f"Found {len(files)} files in {directory_path}")
 
         self.add_data_to_catalog(files)
 
@@ -205,7 +213,7 @@ class DataHandler:
         file_data_list = []
         for file_path in local_filepaths:
             if not file_path.exists():
-                logger.error(f"File {str(file_path)} does not exist")
+                self.logger.error(f"File {str(file_path)} does not exist")
                 continue
             file_type, _size = get_file_type_local(file_path)
             if file_type is not None:
@@ -225,7 +233,7 @@ class DataHandler:
             if self.catalog.add_entry(file_assest):
                 uploadCount += 1
 
-        logger.info(f"Added {uploadCount} out of {count} files to the catalog")
+        self.logger.info(f"Added {uploadCount} out of {count} files to the catalog")
 
 
     def add_data_remote(self, 
@@ -239,6 +247,7 @@ class DataHandler:
             remote_filepaths (List[str]): A list of file locations on gage-data.
             remote_type (Union[REMOTE_TYPE,str]): The type of remote location.
         """
+
         # Check that the remote type is valid, default is HTTP
         if isinstance(remote_type, str):
             try:
@@ -254,18 +263,26 @@ class DataHandler:
             file_type = get_file_type_remote(file)
 
             if file_type is None: # If the file type is not recognized, skip it
-                logger.warning(f"File type not recognized for {file}")
+                self.logger.warning(f"File type not recognized for {file}")
                 continue
 
-            file_data = AssetEntry(
-                remote_path=file,
-                remote_type=remote_type,
-                type=file_type,
-                network=self.network,
-                station=self.station,
-                survey=self.survey,
-            )
-            file_data_list.append(file_data)
+            if not self.catalog.remote_file_exist(network=self.network,
+                                                  station=self.station,
+                                                  survey=self.survey,
+                                                  type=file_type,
+                                                  remote_path=file):
+                
+                file_data = AssetEntry(
+                    remote_path=file,
+                    remote_type=remote_type,
+                    type=file_type,
+                    network=self.network,
+                    station=self.station,
+                    survey=self.survey,
+                )
+                file_data_list.append(file_data)
+            else:
+                self.logger.info(f"File {file} already exists in the catalog")
 
         # Add each file (AssetEntry) to the catalog
         count = len(file_data_list)
@@ -274,7 +291,7 @@ class DataHandler:
             if self.catalog.add_entry(file_assest):
                 uploadCount += 1
 
-        logger.info(f"Added {uploadCount} out of {count} files to the catalog")
+        self.logger.info(f"Added {uploadCount} out of {count} files to the catalog")
 
     def download_data(self, file_types: List[AssetType] | List[str] | str = FILE_TYPES, override: bool=False):
         """
@@ -306,7 +323,7 @@ class DataHandler:
                                             type=type)
 
             if len(assets) == 0:
-                logger.error(f"No matching data found in catalog")
+                self.logger.error(f"No matching data found in catalog")
                 continue
             
             # Find files that we need to download based on the catalog output. If override is True, download all files.
@@ -323,7 +340,7 @@ class DataHandler:
                             assets_to_download.append(file_asset)
 
             if len(assets_to_download) == 0:
-                logger.info(f"No new files to download")
+                self.logger.info(f"No new files to download")
             
             # split the entries into s3 and http
             s3_assets = [file for file in assets_to_download if file.remote_type == REMOTE_TYPE.S3.value]
@@ -385,14 +402,14 @@ class DataHandler:
         local_path = self.raw_dir / Path(prefix).name
 
         try:
-            logger.info(f"Downloading {prefix} to {local_path}")
+            self.logger.info(f"Downloading {prefix} to {local_path}")
             client.download_file(Bucket=bucket, 
                                  Key=str(prefix), 
                                  Filename=str(local_path))
-            logger.info(f"Downloaded {str(prefix)} to {str(local_path)}")
+            self.logger.info(f"Downloaded {str(prefix)} to {str(local_path)}")
 
         except Exception as e:
-            logger.error(f"Error downloading {prefix} from {bucket }\n {e} \n HINT: $ aws sso login")
+            self.logger.error(f"Error downloading {prefix} from {bucket }\n {e} \n HINT: $ aws sso login")
             local_path = None
 
         finally:
@@ -437,15 +454,16 @@ class DataHandler:
             if not local_path.exists(): 
                 raise Exception
 
-            logger.info(f"Downloaded {str(remote_url)} to {str(local_path)}")
+            self.logger.info(f"Downloaded {str(remote_url)} to {str(local_path)}")
 
         except Exception as e:
-            logger.error(f"Error downloading {str(remote_url)} \n {e}" + "\n HINT: Check authentication credentials")
+            self.logger.error(f"Error downloading {str(remote_url)} \n {e}" + "\n HINT: Check authentication credentials")
             local_path = None
 
         finally:
             return local_path
-
+    
+    @check_network_station_survey
     def view_data(self):
         shotdata_dates = self.shotdata_tdb.get_unique_dates().tolist()
         gnss_dates = self.gnss_tdb.get_unique_dates().tolist()

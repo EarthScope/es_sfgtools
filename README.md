@@ -17,9 +17,10 @@ create and activate conda environment
 
 > conda activate seafloor_geodesy
 
+## In development... [ReadTheDocs](https://es-sfgtools.readthedocs.io/en/latest/)
 
 
-# Deprecated, doesnt work due to scikit-sparse dependency
+# Deprecated install, doesn't work due to scikit-sparse dependency
 
 The plan is to make this library will be published on PyPi, and installable as follows
 

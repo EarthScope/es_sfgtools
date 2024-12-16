@@ -1,4 +1,5 @@
 import logging
+import os
 import sqlalchemy as sa
 from typing import List,Dict
 from datetime import datetime
@@ -117,6 +118,38 @@ class Catalog:
         except Exception as e:
             logger.error(f"Error updating local path for id {id}: {e}")
 
+    def remote_file_exist(self, network: str, station: str, survey: str, type: AssetType, remote_path: str) -> bool:
+        """
+        Check if a remote file name exists in the catalog already as a local file name.
+        
+        Args:
+            network (str): The network.
+            station (str): The station.
+            survey (str): The survey.
+            type (AssetType): The asset type.
+            remote_path (str): The remote path.
+            
+        Returns:
+            bool: True if the file exists, False if not.
+        """
+
+        remote_file_name = os.path.basename(remote_path)
+
+        with self.engine.connect() as conn:
+            results = conn.execute(sa.select(Assets).where(
+                sa.and_(
+                Assets.network == network,
+                Assets.station == station,
+                Assets.survey == survey,
+                Assets.type == type.value,
+                Assets.local_path.like(f"%{remote_file_name}%")
+            ))).fetchone()
+            
+            if results:
+                return True
+            
+        return False
+
     def add_or_update(self, entry: AssetEntry ) -> bool:
         if entry is None:
             logger.warning("No entry to add or update")
@@ -143,10 +176,11 @@ class Catalog:
                     logger.error(f"Error adding or updating entry {entry}")
                     pass
         return False
-    def query_catalog(self, query:str) -> pd.DataFrame:
+    
+    def query_catalog(self, query: str) -> pd.DataFrame:
         with self.engine.begin() as conn:
             try:
-                return pd.read_sql_query(query,conn)
+                return pd.read_sql_query(query, conn)
             except sa.exc.ResourceClosedError:
                 # handle queries that don't return results
                 conn.execute(sa.text(query))
