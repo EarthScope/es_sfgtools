@@ -18,6 +18,9 @@ sqlalchemy
 pyarrow
 pandera
 
+# Database
+tiledb
+
 # Date and Time
 julian
 
