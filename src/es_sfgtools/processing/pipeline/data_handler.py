@@ -20,10 +20,15 @@ from es_sfgtools.utils.archive_pull import download_file_from_archive
 from es_sfgtools.processing.assets.file_schemas import AssetEntry, AssetType
 from es_sfgtools.processing.assets.tiledb_temp import TDBAcousticArray,TDBGNSSArray,TDBPositionArray,TDBShotDataArray
 from es_sfgtools.processing.pipeline.catalog import Catalog
-from es_sfgtools.processing.pipeline.pipelines import SV3Pipeline
+from es_sfgtools.processing.pipeline.pipelines import SV3Pipeline, SV3PipelineConfig
 from es_sfgtools.processing.pipeline.constants import REMOTE_TYPE, FILE_TYPES
 from es_sfgtools.processing.pipeline.datadiscovery import scrape_directory_local, get_file_type_local, get_file_type_remote
+
+from es_sfgtools.modeling.garpos_tools.functions import GarposHandler
+from es_sfgtools.processing.assets.siteconfig import SiteConfig
+
 from es_sfgtools.utils.loggers import setup_notebook_logger
+
 
 
 def check_network_station_survey(func: Callable):
@@ -89,8 +94,8 @@ class DataHandler:
         self.catalog = Catalog(self.db_path)
 
 
+    def _build_station_dir_structure(self, network: str, station: str, survey: str):
 
-    def build_station_dir_structure(self, network: str, station: str, survey: str):
         """
         Build the directory structure for a station.
         Format is as follows:
@@ -128,7 +133,7 @@ class DataHandler:
         self.proc_dir = survey_data_dir / "processed"
         self.proc_dir.mkdir(exist_ok=True)
 
-    def build_tileDB_arrays(self):
+    def _build_tileDB_arrays(self):
         """
         Build the TileDB arrays for the current station. TileDB directory is /network/station/TileDB.
         """
@@ -158,8 +163,8 @@ class DataHandler:
             self.survey = survey
 
         # Build the directory structure and TileDB arrays
-        self.build_station_dir_structure(network, station,survey)
-        self.build_tileDB_arrays()
+        self._build_station_dir_structure(network, station,survey)
+        self._build_tileDB_arrays()
 
         self.logger.info(f"Changed working station to {network} {station}")
 
@@ -380,7 +385,7 @@ class DataHandler:
                     self.catalog.update_local_path(id=file_asset.id, 
                                                    local_path=file_asset.local_path)
 
-    def _S3_download_file(self, client, bucket: str, prefix: str) -> Path:
+    def _S3_download_file(self, client:boto3.client, bucket: str, prefix: str) -> Path:
         """
         Downloads a file from the specified S3 bucket and prefix.
 
@@ -457,7 +462,8 @@ class DataHandler:
 
         finally:
             return local_path
-
+    
+    @check_network_station_survey
     def view_data(self):
         shotdata_dates = self.shotdata_tdb.get_unique_dates().tolist()
         gnss_dates = self.gnss_tdb.get_unique_dates().tolist()
@@ -486,89 +492,45 @@ class DataHandler:
         plt.show()
   
     @check_network_station_survey
-    def run_novatel_pipeline(self, override:bool=False, show_details:bool=False):
-        # Pass catalog to pipeline
-        pipeline = SV3Pipeline(catalog=self.catalog)
-
-        pipeline.process_novatel(
-            network=self.network,
-            station=self.station,
-            survey=self.survey,
-            writedir=self.inter_dir,
-            override=override,
-            show_details=show_details)
+    def get_pipeline_sv3(self) -> Tuple[SV3Pipeline,SV3PipelineConfig]:
+        """
+        Creates and returns an SV3Pipeline object along with its configuration.
+        This method initializes an SV3PipelineConfig object using the instance
+        attributes such as network, station, survey, writedir, pride_dir,
+        shot_data_dest, gnss_data_dest, and catalog_path. It then creates an
+        SV3Pipeline object using the catalog and the created configuration.
+        Returns:
+            Tuple[SV3Pipeline, SV3PipelineConfig]: A tuple containing the 
+            SV3Pipeline object and its configuration.
+        """
         
-    @check_network_station_survey
-    def run_rinex_pipeline(self, override:bool=False, show_details:bool=False):
-        # Pass catalog to pipeline
-        pipeline = SV3Pipeline(catalog=self.catalog)
+       
+        config = SV3PipelineConfig(network=self.network, 
+                                 station=self.station, 
+                                 survey=self.survey,
+                                 inter_dir=self.inter_dir,
+                                 pride_dir=self.pride_dir,
+                                 shot_data_dest=self.shotdata_tdb,
+                                 gnss_data_dest=self.gnss_tdb,
+                                 catalog_path=self.db_path)
+        pipeline = SV3Pipeline(catalog=self.catalog, config=config)
 
-        pipeline.process_rinex(
-            network=self.network,
-            station=self.station,
-            survey=self.survey,
-            inter_dir=self.inter_dir,
-            pride_dir=self.pride_dir,
-            override=override,
-            show_details=show_details,
-        )
+        return pipeline, config
     
     @check_network_station_survey
-    def run_dfop00_pipeline(self, override:bool=False):
-        # Pass catalog to pipeline
-        pipeline = SV3Pipeline(catalog=self.catalog)
-
-        pipeline.process_dfop00(
-            network=self.network,
-            station=self.station,
-            survey=self.survey,
-            override=override,
-            shotdatadest=self.shotdata_tdb,
-        )
-
-    @check_network_station_survey
-    def run_kin_pipeline(self, override:bool=False, show_details:bool=False):
-        # Pass catalog to pipeline
-        pipeline = SV3Pipeline(catalog=self.catalog)
-
-        pipeline.process_kin(
-            network=self.network,
-            station=self.station,
-            survey=self.survey,
-            gnss_tdb=self.gnss_tdb,
-            override=override,
-            show_details=show_details,
-        )
-
-    @check_network_station_survey
-    def update_shotdata(self, override:bool=False, plot:bool=False):
-        # Pass catalog to pipeline
-        pipeline = SV3Pipeline(catalog=self.catalog)
-
-        pipeline.update_shotdata(
-            shotdatasource=self.shotdata_tdb,
-            gnssdatasource=self.gnss_tdb,
-            override=override,
-            plot=plot
-        )
-
-    @check_network_station_survey
-    def run_all_sv3_pipelines(self, override:bool=False, show_details:bool=False, plot:bool=False, update_shotdata:bool=False):
-        # Pass catalog to pipeline
-        self.logger.info(f"Running all SV3 pipelines for {self.network} {self.station} {self.survey}")
-
-        self.logger.info("Starting Novatel Pipeline..")
-        self.run_novatel_pipeline(override=override, show_details=show_details)
-        self.logger.info("Done. \n Starting rinex pipeline..")
-        self.run_rinex_pipeline(override=override, show_details=show_details)
-        self.logger.info("Done. \n Starting DFOP00 pipeline..")
-        self.run_dfop00_pipeline(override=override)
-        self.logger.info("Done. \n Starting Kin pipeline..")
-        self.run_kin_pipeline(override=override, show_details=show_details)
-        self.logger.info("Done.")
-        if update_shotdata:
-            self.logger.info("Updating ShotData..")
-            self.update_shotdata(override=override, plot=plot)
-            self.logger.info("Done.")
-        self.logger.info("\n All SV3 pipelines complete.")
-
+    def get_garpos_handler(self, site_config: SiteConfig) -> GarposHandler:
+        """
+        Creates and returns a GarposHandler object.
+        This method initializes a GarposHandler object using the instance
+        attributes such as site_config, working_dir, and shotdata_tdb.
+        
+        Args:
+            site_config (SiteConfig): A SiteConfig object.
+        
+        Returns:
+            GarposHandler: A GarposHandler object.
+        """
+        return GarposHandler(shotdata=self.shotdata_tdb,
+                             site_config=site_config,
+                             working_dir=self.station_dir/'GARPOS')
+    

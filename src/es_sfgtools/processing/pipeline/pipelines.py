@@ -9,10 +9,13 @@ from pathlib import Path
 import multiprocessing
 import datetime
 import signal
+from pydantic import BaseModel, Field, ValidationError,model_serializer,field_serializer,field_validator,validator
+import yaml
 
 from es_sfgtools.processing.pipeline.catalog import Catalog
 from es_sfgtools.processing.assets.file_schemas import AssetEntry,AssetType
 from es_sfgtools.processing.operations import sv2_ops, sv3_ops, gnss_ops, site_ops
+from es_sfgtools.processing.operations.gnss_ops import PridePdpConfig,rinex_to_kin,kin_to_gnssdf
 from es_sfgtools.processing.operations.pride_utils import get_nav_file,get_gnss_products
 from es_sfgtools.processing.assets.tiledb_temp import (
     TDBAcousticArray,
@@ -28,19 +31,95 @@ from es_sfgtools.processing.operations.utils import (
 
 logger = logging.getLogger(__name__)
 
+class NovatelConfig(BaseModel):
+    override: bool = Field(False, title="Flag to Override Existing Data")
+    show_details: bool = Field(False, title="Flag to Show Processing Details")
+
+class RinexConfig(BaseModel):
+    override: bool = Field(False, title="Flag to Override Existing Data")
+    show_details: bool = Field(False, title="Flag to Show Processing Details")
+    pride_config: PridePdpConfig = Field(default_factory=PridePdpConfig, title="Pride Configuration")
+    override_products_download: bool = Field(False, title="Flag to Override Existing Products Download")
+    n_processes: int = Field(default_factory=cpu_count, title="Number of Processes to Use")
+
+class DFOP00Config(BaseModel):
+    override: bool = Field(False, title="Flag to Override Existing Data")
+    show_details: bool = Field(False, title="Flag to Show Processing Details")
+
+class PositionUpdateConfig(BaseModel):
+    plot: bool = Field(False, title="Flag to Plot Data")
+    override: bool = Field(False, title="Flag to Override Existing Data")
+
+class SV3PipelineConfig(BaseModel):
+    network: str = Field(..., title="Network Name")
+    station: str = Field(..., title="Station Name")
+    survey: str = Field(..., title="Survey Name")
+    inter_dir: Path = Field(..., title="Intermediate Directory")
+    pride_dir: Path = Field(..., title="Pride Directory")
+    catalog_path: Path = Field(..., title="Catalog Path")
+
+    novatel_config: NovatelConfig = NovatelConfig()
+    rinex_config: RinexConfig = RinexConfig()
+    dfop00_config: DFOP00Config = DFOP00Config()
+    position_update_config: PositionUpdateConfig = PositionUpdateConfig()
+    shot_data_dest: TDBShotDataArray = None
+    gnss_data_dest: TDBGNSSArray = None
+    class Config:
+        title = "SV3 Pipeline Configuration"
+        arbitrary_types_allowed = True
+
+    @field_serializer("gnss_data_dest","shot_data_dest")
+    def _s_shotdata(self,v):
+        return str(v.uri)
+    # @field_serializer("shot_data_dest")
+    # def s_gnsdata(self,v):
+    #     return str(v.uri)
+    @validator("shot_data_dest")
+    def _v_shotdata(cls,v:str|TDBShotDataArray):
+        if isinstance(v,str):
+            return TDBShotDataArray(Path(v))
+        return v
+
+    @field_validator("gnss_data_dest")
+    def _v_gnssdata(cls,v:str|TDBGNSSArray):
+        if isinstance(v,str):
+            return TDBGNSSArray(Path(v))
+        return v
+
+    @field_serializer("inter_dir","pride_dir","catalog_path")
+    def _s_path(self,v):
+        return str(v)
+
+    @field_validator("inter_dir","pride_dir","catalog_path")
+    def _v_path(cls,v:str):
+        return Path(v)
+
+    def save_yaml(self,filepath:Path):
+        with open(filepath,"w") as f:
+            yaml.dump(self.model_dump(),f)
+
+    @classmethod
+    def load_yaml(cls,filepath:Path):
+        with open(filepath) as f:
+            data = yaml.load(f)
+        return cls(**data)
+
 class SV3Pipeline:
-    def __init__(self,catalog:Catalog):
+    def __init__(self,catalog:Catalog=None,config:SV3PipelineConfig=None):
         self.catalog = catalog
+        self.config = config
+        if self.catalog is None:
+            self.catalog = Catalog(self.config.catalog_path)
 
     def process_novatel(
-        self, network:str,station:str,survey:str,writedir:Path,override: bool = False, show_details: bool = False
-    ) -> List[AssetEntry]:
+        self
+    ) -> None:
 
-        print(f"Processing Novatel 770 data for {network} {station} {survey}")
+        print(f"Processing Novatel 770 data for {self.config.network} {self.config.station} {self.config.survey}")
         novatel_770_entries: List[AssetEntry] = self.catalog.get_assets(
-            network=network,
-            station=station,
-            survey=survey,
+            network=self.config.network,
+            station=self.config.station,
+            survey=self.config.survey,
             type=AssetType.NOVATEL770,
         )
 
@@ -49,11 +128,11 @@ class SV3Pipeline:
             "child_type": AssetType.RINEX.value,
             "parent_ids": [x.id for x in novatel_770_entries],
         }
-        if override or not self.catalog.is_merge_complete(**merge_signature):
+        if self.config.novatel_config.override or not self.catalog.is_merge_complete(**merge_signature):
             rinex_entries: List[AssetEntry] = gnss_ops.novatel_to_rinex_batch(
                 source=novatel_770_entries,
-                writedir =writedir,
-                show_details=show_details,
+                writedir =self.config.inter_dir,
+                show_details=self.config.novatel_config.show_details,
             )
             uploadCount = 0
             for rinex_entry in rinex_entries:
@@ -62,18 +141,11 @@ class SV3Pipeline:
             self.catalog.add_merge_job(**merge_signature)
             response = f"Added {uploadCount} out of {len(rinex_entries)} Rinex Entries to the catalog"
             logger.info(response)
-            if show_details:
+            if self.config.novatel_config.show_details:
                 print(response)
 
     def process_rinex(
-        self,
-        network: str,
-        station: str,
-        survey: str,
-        inter_dir: Path,
-        pride_dir: Path,
-        override: bool = False,
-        show_details: bool = False,
+        self
     ) -> None:
         """
         Process Rinex Data.
@@ -85,55 +157,57 @@ class SV3Pipeline:
         """
 
         response = (
-            f"Processing Rinex Data for {network} {station} {survey}"
+            f"Processing Rinex Data for {self.config.network} {self.config.station} {self.config.survey}"
         )
         logger.info(response)
-        if show_details:
+        if self.config.rinex_config.show_details:
             print(response)
 
         rinex_entries: List[AssetEntry] = (
             self.catalog.get_single_entries_to_process(
-                network=network,
-                station=station,
-                survey=survey,
+                network=self.config.network,
+                station=self.config.station,
+                survey=self.config.survey,
                 parent_type=AssetType.RINEX,
                 child_type=AssetType.KIN,
-                override=override,
+                override=self.config.rinex_config.override,
             )
         )
         if not rinex_entries:
-            response = f"No Rinex Files Found to Process for {network} {station} {survey}"
+            response = f"No Rinex Files Found to Process for {self.config.network} {self.config.station} {self.config.survey}"
             logger.error(response)
-            if show_details:
+            if self.config.rinex_config.show_details:
                 print(response)
             warnings.warn(response)
             return []
 
         response = f"Found {len(rinex_entries)} Rinex Files to Process"
         logger.info(response)
-        if show_details:
+        if self.config.rinex_config.show_details:
             print(response)
-        
+
         for rinex_entry in tqdm(rinex_entries,total=len(rinex_entries),desc="Getting nav/obs files for Processing Rinex Files"):
-            nav_file: Path = get_nav_file(rinex_path=rinex_entry.local_path, override=override)
-            product_status: dict = get_gnss_products(rinex_path=rinex_entry.local_path, pride_dir=pride_dir, override=override)
-            if show_details:
+            nav_file: Path = get_nav_file(rinex_path=rinex_entry.local_path, override=self.config.rinex_config.override_products_download)
+            product_status: dict = get_gnss_products(rinex_path=rinex_entry.local_path, pride_dir=self.config.pride_dir, override=self.config.rinex_config.override_products_download)
+            if self.config.rinex_config.show_details:
                 print(f"\nProduct Status: {product_status}\n")
                 print(f"\nNav File: {str(nav_file)}\n")
 
+
         process_rinex_partial = partial(
-            gnss_ops.rinex_to_kin,
-            writedir=inter_dir,
-            pridedir=pride_dir,
-            show_details=show_details,
+            rinex_to_kin,
+            writedir=self.config.inter_dir,
+            pridedir=self.config.pride_dir,
+            show_details=self.config.rinex_config.show_details,
+            pride_config=self.config.rinex_config.pride_config,
         )
         kin_entries = []
         resfile_entries = []
         count = 0
         uploadCount = 0
-        
-        with multiprocessing.Pool() as pool:
-            
+
+        with multiprocessing.Pool(processes=self.config.rinex_config.n_processes) as pool:
+
             try:
                 results = pool.imap(process_rinex_partial, rinex_entries)
                 for idx, (kinfile, resfile) in enumerate(tqdm(
@@ -154,40 +228,38 @@ class SV3Pipeline:
             except KeyboardInterrupt:
                 pool.terminate()
                 pool.join()
-    
-                   
+
         response = f"Generated {count} Kin Files From {len(rinex_entries)} Rinex Files, Added {uploadCount} to the Catalog"
         logger.info(response)
-        if show_details:
+        if self.config.rinex_config.show_details:
             print(response)
 
-    def process_kin(self, network:str,station:str,survey:str,gnss_tdb: TDBGNSSArray,override: bool = False, show_details: bool = False):
+    def process_kin(self):
         kin_entries: List[AssetEntry] = self.catalog.get_single_entries_to_process(
-            network=network,
-            station=station,
-            survey=survey,
+            network=self.config.network,
+            station=self.config.station,
+            survey=self.config.survey,
             parent_type=AssetType.KIN,
-            override=override,
+            override=self.config.rinex_config.override,
         )
         res_entries: List[AssetEntry] = self.catalog.get_single_entries_to_process(
-            network=network,
-            station=station,
-            survey=survey,
+            network=self.config.network,
+            station=self.config.station,
+            survey=self.config.survey,
             parent_type=AssetType.KINRESIDUALS,
-            override=override,
+            override=self.config.rinex_config.override,
         )
         if not kin_entries:
-            response = f"No Kin Files Found to Process for {network} {station} {survey}"
+            response = f"No Kin Files Found to Process for {self.config.network} {self.config.station} {self.config.survey}"
             logger.error(response)
-            if show_details:
+            if self.config.rinex_config.show_details:
                 print(response)
             warnings.warn(response)
             return
 
-        
         response = f"Found {len(kin_entries)} Kin Files to Process"
         logger.info(response)
-        if show_details:
+        if self.config.rinex_config.show_details:
             print(response)
 
         count = 0
@@ -202,37 +274,36 @@ class SV3Pipeline:
                 kin_entry.is_processed = True
                 self.catalog.add_or_update(kin_entry)
 
-                gnss_tdb.write_df(gnss_df)           
+                self.config.gnss_data_dest.write_df(gnss_df)           
 
         response = f"Generated {count} GNSS Dataframes From {len(kin_entries)} Kin Files, Added {uploadCount} to the Catalog"
         logger.info(response)
-        if show_details:
+        if self.config.rinex_config.show_details:
             print(response)
 
     def process_dfop00(
-        self, network:str,station:str,survey:str,shotdatadest:TDBShotDataArray, override: bool = False, show_details: bool = False
+        self
     ) -> None:
-        
 
-        #TODO need a way to mark the dfopoo files as processed
+        # TODO need a way to mark the dfopoo files as processed
         dfop00_entries: List[AssetEntry] = self.catalog.get_single_entries_to_process(
-            network=network,
-            station=station,
-            survey=survey,
+            network=self.config.network,
+            station=self.config.station,
+            survey=self.config.survey,
             parent_type=AssetType.DFOP00,
-            override=override,
+            override=self.config.dfop00_config.override,
         )
         if not dfop00_entries:
-            response = f"No DFOP00 Files Found to Process for {network} {station} {survey}"
+            response = f"No DFOP00 Files Found to Process for {self.config.network} {self.config.station} {self.config.survey}"
             logger.error(response)
-            if show_details:
+            if self.config.dfop00_config.show_details:
                 print(response)
             warnings.warn(response)
             return
 
         response = f"Found {len(dfop00_entries)} DFOP00 Files to Process"
         logger.info(response)
-        if show_details:
+        if self.config.dfop00_config.show_details:
             print(response)
 
         count = 0
@@ -243,23 +314,23 @@ class SV3Pipeline:
                 zip(results,dfop00_entries), total=len(dfop00_entries), desc="Processing DFOP00 Files"
             ):
                 if shotdata_df is not None:
-                    shotdatadest.write_df(shotdata_df)
+                    self.config.shot_data_dest.write_df(shotdata_df)
                     count += 1
                     dfo_entry.is_processed = True
                     self.catalog.add_or_update(dfo_entry)
 
         response = f"Generated {count} ShotData dataframes From {len(dfop00_entries)} DFOP00 Files"
         logger.info(response)
-        if show_details:
+        if self.config.dfop00_config.show_details:
             print(response)
 
-    def update_shotdata(self,shotdatasource:TDBShotDataArray,gnssdatasource:TDBGNSSArray, plot: bool = False,override:bool=False):
+    def update_shotdata(self):
         print("Updating shotdata with interpolated gnss data")
         # TODO Need to only update positions for a single shot and not each transponder
         # For each shotdata multiasset entry, update the shotdata position with gnss data
         try:
             merge_signature, dates = get_merge_signature_shotdata(
-                shotdatasource, gnssdatasource
+                self.config.shot_data_dest, self.config.gnss_data_dest
             )
         except Exception as e:
             print(e)
@@ -269,9 +340,51 @@ class SV3Pipeline:
             "child_type": AssetType.SHOTDATA.value,
             "parent_ids": merge_signature,
         }
-        if not self.catalog.is_merge_complete(**merge_job) or override:
+        if not self.catalog.is_merge_complete(**merge_job) or self.config.position_update_config.override:
             dates.append(dates[-1]+datetime.timedelta(days=1))
             merge_shotdata_gnss(
-                shotdata=shotdatasource, gnss=gnssdatasource, dates=dates, plot=plot
+                shotdata=self.config.shot_data_dest, gnss=self.config.gnss_data_dest, dates=dates, plot=self.config.position_update_config.plot
             )
             self.catalog.add_merge_job(**merge_job)
+
+
+class SV2Pipeline:
+    def __init__(self,catalog:Catalog=None,config:SV3PipelineConfig=None):
+        self.catalog = catalog
+        self.config = config
+        if self.catalog is None:
+            self.catalog = Catalog(self.config.catalog_path)
+
+    def process_novatel(
+        self
+    ) -> None:
+
+        print(f"Processing Novatel data for {self.config.network} {self.config.station} {self.config.survey}")
+        novatel_entries: List[AssetEntry] = self.catalog.get_assets(
+            network=self.config.network,
+            station=self.config.station,
+            survey=self.config.survey,
+            type=AssetType.NOVATEL,
+        )
+
+        merge_signature = {
+            "parent_type": AssetType.NOVATEL.value,
+            "child_type": AssetType.RINEX.value,
+            "parent_ids": [x.id for x in novatel_entries],
+        }
+        if self.config.novatel_config.override or not self.catalog.is_merge_complete(**merge_signature):
+            rinex_entries: List[AssetEntry] = gnss_ops.novatel_to_rinex_batch(
+                source=novatel_770_entries,
+                writedir =self.config.inter_dir,
+                show_details=self.config.novatel_config.show_details,
+            )
+            uploadCount = 0
+            for rinex_entry in rinex_entries:
+                if self.catalog.add_entry(rinex_entry):
+                    uploadCount += 1
+            self.catalog.add_merge_job(**merge_signature)
+            response = f"Added {uploadCount} out of {len(rinex_entries)} Rinex Entries to the catalog"
+            logger.info(response)
+            if self.config.novatel_config.show_details:
+                print(response)
+
