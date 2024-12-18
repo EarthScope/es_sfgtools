@@ -18,16 +18,15 @@ from ..assets.logmodels import SV3InterrogationData,SV3ReplyData,get_traveltime,
 logger = logging.getLogger(os.path.basename(__file__))
 
 
-
-
-
 @pa.check_types
 def check_df(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty:
+        return df
     df = check_sequence_overlap(df)
     return df
 
 
-def dev_dfop00_to_shotdata(source: Union[AssetEntry,str,Path]) -> DataFrame[ShotDataFrame]:
+def dev_dfop00_to_shotdata(source: Union[AssetEntry,str,Path]) -> DataFrame[ShotDataFrame] | None:
     if isinstance(source,AssetEntry):
         assert source.type == AssetType.DFOP00
     
@@ -47,6 +46,8 @@ def dev_dfop00_to_shotdata(source: Union[AssetEntry,str,Path]) -> DataFrame[Shot
                 range_data = SV3ReplyData.from_DFOP00_line(data)
                 if range_data is not None:
                     processed.append((dict(interrogation) | dict(range_data)))
+    if not processed:
+        return None
     df = pd.DataFrame(processed)
     return check_df(df)
 
@@ -77,3 +78,4 @@ def dev_qcpin_to_shotdata(source: Union[AssetEntry,str,Path]) -> DataFrame[ShotD
     if df.empty:
         return None
     return check_df(df)
+

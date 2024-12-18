@@ -56,11 +56,28 @@ RINEX_BIN_PATH_BINARY = {
     "linux_arm64": RINEX_BINARIES / "novb2rnxo-linux-arm64",
 }
 
-TEQC_BIN_PATH = {
-    "darwin_amd64": RINEX_BINARIES / "teqc_OSX",
-    "darwin_arm64": RINEX_BINARIES / "teqc_OSX",
-    "linux_amd64": RINEX_BINARIES / "teqc_x86",
-    "linux_arm64": RINEX_BINARIES / "teqc_x86",
+NOVA2TILE_BIN_PATH = {
+    "darwin_arm64": RINEX_BINARIES / "nova2tile-darwin-arm64",
+    "linux_amd64": RINEX_BINARIES / "nova2tile-linux-amd64",
+    "linux_arm64": RINEX_BINARIES / "nova2tile-linux-arm64",
+}
+
+NOVB2TILE_BIN_PATH = {
+    "darwin_arm64": RINEX_BINARIES / "novab2tile-darwin-arm64",
+    "linux_amd64": RINEX_BINARIES / "novab2tile-linux-amd64",
+    "linux_arm64": RINEX_BINARIES / "novab2tile-linux-arm64",
+}
+
+NOV0002TILE_BIN_PATH = {
+    "darwin_arm64": RINEX_BINARIES / "nov0002tile-darwin-arm64",
+    "linux_amd64": RINEX_BINARIES / "nov0002tile-linux-amd64",
+    "linux_arm64": RINEX_BINARIES / "nov0002tile-linux-arm64",
+}
+
+TILE2RINEX_BIN_PATH = {
+    "darwin_arm64": RINEX_BINARIES / "tdb2rnx-darwin-arm64",
+    "linux_amd64": RINEX_BINARIES / "tdb2rnx-linux-amd64",
+    "linux_arm64": RINEX_BINARIES / "tdb2rnx-linux-arm64",
 }
 
 class PridePPP(BaseModel):
@@ -207,7 +224,6 @@ class PridePdpConfig(BaseModel):
             if char not in Tides._value2member_map_:
                 Tides.print_options()
                 raise ValueError(f"Invalid tide character: {char}")
-  
 
     def generate_pdp_command(self, site: str, local_file_path: str) -> List[str]:
         """
@@ -257,6 +273,37 @@ class PridePdpConfig(BaseModel):
         command.append(str(local_file_path))
 
         return command
+
+
+def get_metadatav2(
+    site: str,
+    serialNumber: str = "XXXXXXXXXX",
+    antennaPosition: list = [0, 0, 0],
+    antennaeOffsetHEN: list = [0, 0, 0],
+) -> dict:
+    # TODO: these are placeholder values, need to use real metadata
+
+    return {
+        "rinex_version": 2.11,
+        "rinex_type": "O",
+        "rinex_system": "G",
+        "marker_name": site,
+        "marker_number": "0001",
+        "markerType": "GEODETIC",
+        "observer": "EarthScope",
+        "agency": "EarthScope",
+        "program": "gnsstools",
+        "run_by": "",
+        "date": "",
+        "receiver_model": "NOV",
+        "receiver_serial": serialNumber,
+        "receiver_firmware": "0.0.0",
+        "antenna_model": "TRM59800.00 SCIT",
+        "antenna_serial": "987654321",
+        "antenna_position": antennaPosition,
+        "antenna_offsetHEN": antennaeOffsetHEN,
+    }
+
 
 def get_metadata(site: str, serialNumber: str = "XXXXXXXXXX") -> dict:
     # TODO: these are placeholder values, need to use real metadata
@@ -775,133 +822,6 @@ def qcpin_to_novatelpin(source: AssetEntry, writedir: Path) -> AssetEntry:
     return novatel_pin
 
 
-# def dev_merge_rinex(sources: List[AssetEntry],working_dir:Path) -> List[MultiAssetEntry]:
-#     """
-#     Merge multiple RINEX files into a single RINEX file
-
-#     Parameters:
-#         sources (List[AssetEntry]): A list of AssetEntry instances
-#         working_dir (Path): The working directory
-
-#     Returns:
-#         merged_files (List[MultiAssetEntry]): A list of MultiAssetEntry instances containing the merged RINEX files
-
-#     Raises:
-#         ValueError: If no merged files are found/created or if the binary is not found
-#     """
-
-#     # get system platform and architecture
-#     system = platform.system().lower()
-#     arch = platform.machine().lower()
-#     if arch == "x86_64":
-#         arch = "amd64"
-#     if system not in ["darwin", "linux"]:
-#         raise ValueError(f"Unsupported platform: {system}")
-#     if arch not in ["amd64", "arm64"]:
-#         raise ValueError(f"Unsupported architecture: {arch}")
-
-#     binary_path = TEQC_BIN_PATH[f"{system}_{arch}"]
-#     assert os.path.exists(binary_path), f"Binary not found: {binary_path}"
-
-#     # Gen rinex metadata
-#     #sources = [rinex_get_meta(source) for source in sources if source.timestamp_data_start is None else source]
-#     sources = sorted(sources, key=lambda x: x.timestamp_data_start)
-#     doy_filemap = {}
-#     for source in sources:
-#         doy_filemap.setdefault(source.timestamp_data_start.timetuple().tm_yday, []).append(
-#             str(source.id) if source.id is not None else str(source.parent_id)
-#         )
-#     survey = sources[0].station
-
-#     cmd = [
-#         str(binary_path),
-#         "+obs",
-#         "+",
-#         "-tbin",
-#         "1d", # Time binning interval
-#         survey,
-#     ] + [str(source.local_path) for source in sources]
-
-
-#     result = subprocess.run(" ".join(cmd), shell=True,cwd=str(working_dir))
-#     if result.stderr:
-#         logger.error(result.stderr)
-#         return None
-#     # get all merged rinex files
-#     # merged_files = list(Path(tempdir).rglob(f"{survey}*"))
-#     merged_files = []
-#     for doy,source_id_str in doy_filemap.items():
-#         merged_file = list(Path(working_dir).rglob(f"{survey}{doy:03d}0*"))
-#         if not merged_file:
-#             continue
-#         assert len(merged_file) == 1, f"Expected 1 merged file, got {len(merged_file)}"
-#         merged_file:Path = merged_file[0]
-#         new_merged_rinex_name = "-".join(source_id_str) + "_" + merged_file.name
-#         merged_file = merged_file.rename(working_dir / new_merged_rinex_name)
-#         merged_asset = MultiAssetEntry(
-#             parent_id=source_id_str,
-#             local_path=merged_file,
-#             type=AssetType.RINEX,
-#             network=sources[0].network,
-#             station=sources[0].station,
-#             survey=sources[0].survey,
-#             timestamp_created=datetime.now(),
-#         )
-#         merged_files.append(merged_asset)
-#     if not merged_files:
-#         raise ValueError("No merged files found")
-#     return merged_files
-
-# def dev_merge_rinex_multiasset(source:MultiAssetPre,working_dir:Path) -> MultiAssetEntry:
-
-#     # get system platform and architecture
-#     system = platform.system().lower()
-#     arch = platform.machine().lower()
-#     if arch == "x86_64":
-#         arch = "amd64"
-#     if system not in ["darwin", "linux"]:
-#         raise ValueError(f"Unsupported platform: {system}")
-#     if arch not in ["amd64", "arm64"]:
-#         raise ValueError(f"Unsupported architecture: {arch}")
-
-#     binary_path = TEQC_BIN_PATH[f"{system}_{arch}"]
-#     assert os.path.exists(binary_path), f"Binary not found: {binary_path}"
-
-#     doy = source.timestamp_data_start.timetuple().tm_yday
-#     survey = source.station
-#     cmd = [
-#         str(binary_path),
-#         "+obs",
-#         "+",
-#         "-tbin",
-#         "1d", # Time binning interval
-#         survey,
-#     ] + [str(x) for x in source.source_paths]
-#     result = subprocess.run(" ".join(cmd), shell=True, cwd=str(working_dir))
-#     if result.stderr:
-#         logger.error(result.stderr)
-#         return None
-
-#     merged_file = list(Path(working_dir).rglob(f"*{survey}{doy}0*"))
-#     if not merged_file:
-#         raise ValueError("No merged files found")
-
-#     merged_file = merged_file[0]
-#     parent_id_str = "-".join([str(x) for x in source.parent_id])
-#     new_merged_rinex_name = parent_id_str + "_" + merged_file.name
-#     merged_file = merged_file.rename(working_dir / new_merged_rinex_name)
-#     merged_asset = MultiAssetEntry(
-#         parent_id=source.parent_id,
-#         local_path=merged_file,
-#         type=AssetType.RINEX,
-#         network=source.network,
-#         station=source.station,
-#         survey=source.survey,
-#         timestamp_created=datetime.now(),
-#     )
-#     return rinex_get_meta(merged_asset)
-
-
 def read_kin_data(kin_path):
     with open(kin_path, "r") as kin_file:
         for i, line in enumerate(kin_file):
@@ -1041,3 +961,159 @@ def plot_kin_results_wrms(kin_df, title=None, save_as=None):
     if save_as is not None:
         plt.savefig(save_as)
     plt.close()
+
+
+def nov0002tile(files:List[AssetEntry],rangea_tdb:Path,n_procs:int=10) -> None:
+    """Given a list of NOV000.bin files, get all the rangea logs and add them to a single tdb array
+
+    Args:
+        files (List[AssetEntry]):  List of asset entries to process
+        rangea_tdb (Path): Path to the rangea tiledb array
+        n_procs (int, optional): _description_. Defaults to 10.
+    """
+
+    system = platform.system().lower()
+    arch = platform.machine().lower()
+    if arch == "x86_64":
+        arch = "amd64"
+    if system not in ["darwin", "linux"]:
+        raise ValueError(f"Unsupported platform: {system}")
+    if arch not in ["amd64", "arm64"]:
+        raise ValueError(f"Unsupported architecture: {arch}")
+
+    binary_path = NOV0002TILE_BIN_PATH.get(f"{system}_{arch}")
+    if not binary_path:
+        raise FileNotFoundError(f"NOV0002TILE binary not found for {system} {arch}")
+
+    cmd = [str(binary_path), "-tdb", str(rangea_tdb),"-procs",str(n_procs)]
+    for file in files:
+        cmd.append(str(file.local_path))
+    result = subprocess.run(cmd, check=True, capture_output=True)
+
+    if result.stderr:
+        result_message = result.stderr.decode("utf-8").split("msg=")
+        for log_line in result_message:
+            message = log_line.split("\n")[0]
+            if "Processing" in message or "Created" in message:
+                logger.info(message)
+    
+
+def nova2tile(files:List[AssetEntry],rangea_tdb:Path,n_procs:int=10) -> None:
+    """Given a list of novatel ascii files, get all the rangea logs and add them to a single tdb array
+
+    Args:
+        files (List[AssetEntry]):  List of asset entries to process
+        rangea_tdb (Path): Path to the rangea tiledb array
+        n_procs (int, optional): _description_. Defaults to 10.
+    """
+
+    system = platform.system().lower()
+    arch = platform.machine().lower()
+    if arch == "x86_64":
+        arch = "amd64"
+    if system not in ["darwin", "linux"]:
+        raise ValueError(f"Unsupported platform: {system}")
+    if arch not in ["amd64", "arm64"]:
+        raise ValueError(f"Unsupported architecture: {arch}")
+
+    binary_path = NOVA2TILE_BIN_PATH.get(f"{system}_{arch}")
+    if not binary_path:
+        raise FileNotFoundError(f"NOVA2TILE binary not found for {system} {arch}")
+
+    cmd = [str(binary_path), "-tdb", str(rangea_tdb),"-procs",str(n_procs)]
+    for file in files:
+        cmd.append(str(file.local_path))
+    result = subprocess.run(cmd, check=True, capture_output=True)
+
+    if result.stderr:
+        result_message = result.stderr.decode("utf-8").split("msg=")
+        for log_line in result_message:
+            message = log_line.split("\n")[0]
+            if "Processing" in message or "Created" in message:
+                logger.info(message)
+    
+def novb2tile(files:List[AssetEntry],rangea_tdb:Path,n_procs:int=10) -> None:
+    """Given a list of novatel binary files, get all the rangea logs and add them to a single tdb array
+
+    Args:
+        files (List[AssetEntry]):  List of asset entries to process
+        rangea_tdb (Path): Path to the rangea tiledb array
+        n_procs (int, optional): _description_. Defaults to 10.
+    """
+
+    system = platform.system().lower()
+    arch = platform.machine().lower()
+    if arch == "x86_64":
+        arch = "amd64"
+    if system not in ["darwin", "linux"]:
+        raise ValueError(f"Unsupported platform: {system}")
+    if arch not in ["amd64", "arm64"]:
+        raise ValueError(f"Unsupported architecture: {arch}")
+
+    binary_path = NOVB2TILE_BIN_PATH.get(f"{system}_{arch}")
+    if not binary_path:
+        raise FileNotFoundError(f"NOVAB2TILE binary not found for {system} {arch}")
+
+    cmd = [str(binary_path), "-tdb", str(rangea_tdb),"-procs",str(n_procs)]
+    for file in files:
+        cmd.append(str(file.local_path))
+    result = subprocess.run(cmd, check=True, capture_output=True)
+
+    if result.stderr:
+        result_message = result.stderr.decode("utf-8").split("msg=")
+        for log_line in result_message:
+            message = log_line.split("\n")[0]
+            if "Processing" in message or "Created" in message:
+                logger.info(message)
+
+def tile2rinex(rangea_tdb:Path,settings:Path,writedir:Path,n_procs:int=10) -> List[AssetEntry]:
+    """Given a tdb file, convert it to rinex files
+
+    Args:
+        rangea_tdb (Path): Path to the rangea tiledb array
+        settings (Path): _description_
+        writedir (Path): _description_
+        n_procs (int, optional): _description_. Defaults to 10.
+
+    Returns:
+        List[AssetEntry]: _description_
+    """
+    system = platform.system().lower()
+    arch = platform.machine().lower()
+    if arch == "x86_64":
+        arch = "amd64"
+    if system not in ["darwin", "linux"]:
+        raise ValueError(f"Unsupported platform: {system}")
+    if arch not in ["amd64", "arm64"]:
+        raise ValueError(f"Unsupported architecture: {arch}")
+
+    binary_path = TILE2RINEX_BIN_PATH.get(f"{system}_{arch}")
+    if not binary_path:
+        raise FileNotFoundError(f"TILE2RINEX binary not found for {system} {arch}")
+
+    with tempfile.TemporaryDirectory(dir="/tmp/") as workdir:
+        # Use a temp dir so as to only return newly created rinex files
+        cmd = [str(binary_path), "-tdb", str(rangea_tdb),"-settings",str(settings),"-procs",str(n_procs)]
+        result = subprocess.run(cmd, check=True, capture_output=True,cwd=workdir)
+
+        if result.stderr:
+            result_message = result.stderr.decode("utf-8").split("msg=")
+            for log_line in result_message:
+                message = log_line.split("\n")[0]
+                if "Processing" in message or "Created" in message:
+                    logger.info(message)
+        
+        rinex_files = list(Path(workdir).rglob("*"))
+        rinex_assets = []
+        for rinex_file_path in rinex_files:
+            new_rinex_path = writedir / rinex_file_path.name
+            shutil.move(src=rinex_file_path, dst=new_rinex_path)
+            rinex_asset = AssetEntry(
+                local_path=new_rinex_path,
+                type=AssetType.RINEX,
+                timestamp_created=datetime.now(),
+            )
+            rinex_asset = rinex_get_meta(rinex_asset)
+            rinex_assets.append(rinex_asset)
+
+    return rinex_assets

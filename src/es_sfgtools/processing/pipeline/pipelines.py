@@ -4,7 +4,7 @@ from multiprocessing import Pool, cpu_count
 import warnings
 from functools import partial
 import pandas as pd
-from typing import List
+from typing import List, Optional
 from pathlib import Path
 import multiprocessing
 import datetime
@@ -34,6 +34,7 @@ logger = logging.getLogger(__name__)
 class NovatelConfig(BaseModel):
     override: bool = Field(False, title="Flag to Override Existing Data")
     show_details: bool = Field(False, title="Flag to Show Processing Details")
+    n_processes: int = Field(default_factory=cpu_count, title="Number of Processes to Use")
 
 class RinexConfig(BaseModel):
     override: bool = Field(False, title="Flag to Override Existing Data")
@@ -41,6 +42,15 @@ class RinexConfig(BaseModel):
     pride_config: PridePdpConfig = Field(default_factory=PridePdpConfig, title="Pride Configuration")
     override_products_download: bool = Field(False, title="Flag to Override Existing Products Download")
     n_processes: int = Field(default_factory=cpu_count, title="Number of Processes to Use")
+    settings_path: Optional[Path] = Field("", title="Settings Path")
+    class Config:
+        arbitrary_types_allowed = True
+    @field_serializer("settings_path")
+    def _s_path(self,v):
+        return str(v)
+    @field_validator("settings_path")
+    def _v_path(cls,v:str):
+        return Path(v)
 
 class DFOP00Config(BaseModel):
     override: bool = Field(False, title="Flag to Override Existing Data")
@@ -64,6 +74,8 @@ class SV3PipelineConfig(BaseModel):
     position_update_config: PositionUpdateConfig = PositionUpdateConfig()
     shot_data_dest: TDBShotDataArray = None
     gnss_data_dest: TDBGNSSArray = None
+    rangea_data_dest: Path = None
+
     class Config:
         title = "SV3 Pipeline Configuration"
         arbitrary_types_allowed = True
@@ -86,11 +98,11 @@ class SV3PipelineConfig(BaseModel):
             return TDBGNSSArray(Path(v))
         return v
 
-    @field_serializer("inter_dir","pride_dir","catalog_path")
+    @field_serializer("inter_dir","pride_dir","catalog_path","rangea_data_dest")
     def _s_path(self,v):
         return str(v)
 
-    @field_validator("inter_dir","pride_dir","catalog_path")
+    @field_validator("inter_dir","pride_dir","catalog_path","rangea_data_dest")
     def _v_path(cls,v:str):
         return Path(v)
 
@@ -111,7 +123,7 @@ class SV3Pipeline:
         if self.catalog is None:
             self.catalog = Catalog(self.config.catalog_path)
 
-    def process_novatel(
+    def pre_process_novatel(
         self
     ) -> None:
 
@@ -122,27 +134,82 @@ class SV3Pipeline:
             survey=self.config.survey,
             type=AssetType.NOVATEL770,
         )
+        if novatel_770_entries:
 
+            merge_signature = {
+                "parent_type": AssetType.NOVATEL770.value,
+                "child_type": AssetType.RANGEATDB.value,
+                "parent_ids": [x.id for x in novatel_770_entries],
+            }
+            if self.config.novatel_config.override or not self.catalog.is_merge_complete(**merge_signature):
+                gnss_ops.novb2tile(files=novatel_770_entries,rangea_tdb=self.config.rangea_data_dest,n_procs=self.config.novatel_config.n_processes)
+
+                self.catalog.add_merge_job(**merge_signature)
+                response = f"Added {len(novatel_770_entries)} Novatel 770 Entries to the catalog"
+                logger.info(response)
+                if self.config.novatel_config.show_details:
+                    print(response)
+        else:
+            response = f"No Novatel 770 Files Found to Process for {self.config.network} {self.config.station} {self.config.survey}"
+            logger.info(response)
+            print(response)
+
+        print(f"Processing Novatel 000 data for {self.config.network} {self.config.station} {self.config.survey}")
+        novatel_000_entries: List[AssetEntry] = self.catalog.get_assets(
+            network=self.config.network,
+            station=self.config.station,
+            survey=self.config.survey,
+            type=AssetType.NOVATEL000,
+        )
+        if novatel_000_entries:
+
+            merge_signature = {
+                "parent_type": AssetType.NOVATEL000.value,
+                "child_type": AssetType.RANGEATDB.value,
+                "parent_ids": [x.id for x in novatel_000_entries],
+            }
+            if self.config.novatel_config.override or not self.catalog.is_merge_complete(**merge_signature):
+                gnss_ops.nov0002tile(files=novatel_000_entries,rangea_tdb=self.config.rangea_data_dest,n_procs=self.config.novatel_config.n_processes)
+
+                self.catalog.add_merge_job(**merge_signature)
+                response = f"Added {len(novatel_000_entries)} Novatel 000 Entries to the catalog"
+                logger.info(response)
+                if self.config.novatel_config.show_details:
+                    print(response)
+        else:
+            response = f"No Novatel 000 Files Found to Process for {self.config.network} {self.config.station} {self.config.survey}"
+            logger.info(response)
+            print(response)
+            return
+
+    def get_rinex_files(self):
         merge_signature = {
-            "parent_type": AssetType.NOVATEL770.value,
+            "parent_type": AssetType.RANGEATDB.value,
             "child_type": AssetType.RINEX.value,
-            "parent_ids": [x.id for x in novatel_770_entries],
+            "parent_ids": [self.config.rangea_data_dest],
         }
-        if self.config.novatel_config.override or not self.catalog.is_merge_complete(**merge_signature):
-            rinex_entries: List[AssetEntry] = gnss_ops.novatel_to_rinex_batch(
-                source=novatel_770_entries,
-                writedir =self.config.inter_dir,
-                show_details=self.config.novatel_config.show_details,
+
+        if self.config.rinex_config.override or not self.catalog.is_merge_complete(**merge_signature):
+            rinex_entries: List[AssetEntry] = gnss_ops.tile2rinex(
+                rangea_tdb=self.config.rangea_data_dest,
+                settings=self.config.rinex_config.settings_path,
+                writedir=self.config.inter_dir,
+                n_procs=self.config.rinex_config.n_processes,
             )
+            if len(rinex_entries) == 0:
+                response = f"No Rinex Files Found to Process for {self.config.network} {self.config.station} {self.config.survey}"
+                logger.error(response)
+                return
+            self.catalog.add_merge_job(**merge_signature)
+            logger.info(f"Generated {len(rinex_entries)} Rinex Entries spanning {rinex_entries[0].timestamp_data_start} to {rinex_entries[-1].timestamp_data_end}")
             uploadCount = 0
             for rinex_entry in rinex_entries:
+                rinex_entry.network = self.config.network
+                rinex_entry.station = self.config.station
+                rinex_entry.survey = self.config.survey
                 if self.catalog.add_entry(rinex_entry):
                     uploadCount += 1
-            self.catalog.add_merge_job(**merge_signature)
-            response = f"Added {uploadCount} out of {len(rinex_entries)} Rinex Entries to the catalog"
-            logger.info(response)
-            if self.config.novatel_config.show_details:
-                print(response)
+            logger.info(f"Added {uploadCount} out of {len(rinex_entries)} Rinex Entries to the catalog")
 
     def process_rinex(
         self
@@ -192,7 +259,6 @@ class SV3Pipeline:
             if self.config.rinex_config.show_details:
                 print(f"\nProduct Status: {product_status}\n")
                 print(f"\nNav File: {str(nav_file)}\n")
-
 
         process_rinex_partial = partial(
             rinex_to_kin,
@@ -347,6 +413,13 @@ class SV3Pipeline:
             )
             self.catalog.add_merge_job(**merge_job)
 
+    def run_pipeline(self):
+        self.pre_process_novatel()
+        self.get_rinex_files()
+        self.process_rinex()
+        self.process_kin()
+        self.process_dfop00()
+        self.update_shotdata()
 
 class SV2Pipeline:
     def __init__(self,catalog:Catalog=None,config:SV3PipelineConfig=None):
@@ -387,4 +460,3 @@ class SV2Pipeline:
             logger.info(response)
             if self.config.novatel_config.show_details:
                 print(response)
-

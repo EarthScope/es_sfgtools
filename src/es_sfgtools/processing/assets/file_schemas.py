@@ -65,6 +65,7 @@ class BaseObservable(BaseModel):
 class AssetType(Enum):
     NOVATEL = "novatel"
     NOVATEL770 = "novatel770"
+    NOVATEL000 = "novatel000"
     DFOP00 = "dfop00"
     SONARDYNE = "sonardyne"
     RINEX = "rinex"
@@ -83,6 +84,7 @@ class AssetType(Enum):
     SHOTDATA = "shotdata"
     POSITION = "position"
     KINRESIDUALS = "kinresiduals"
+    RANGEATDB = "rangeatdb"
 
     _ = "default"
 

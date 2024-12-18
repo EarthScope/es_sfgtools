@@ -12,6 +12,7 @@ from functools import partial
 import concurrent.futures
 import threading
 from functools import wraps
+import json
 
 import seaborn 
 seaborn.set_theme(style="whitegrid")
@@ -21,6 +22,7 @@ from es_sfgtools.processing.assets.file_schemas import AssetEntry, AssetType
 from es_sfgtools.processing.assets.tiledb_temp import TDBAcousticArray,TDBGNSSArray,TDBPositionArray,TDBShotDataArray
 from es_sfgtools.processing.pipeline.catalog import Catalog
 from es_sfgtools.processing.pipeline.pipelines import SV3Pipeline, SV3PipelineConfig
+from es_sfgtools.processing.operations.gnss_ops import get_metadata,get_metadatav2
 from es_sfgtools.processing.pipeline.constants import REMOTE_TYPE, FILE_TYPES
 from es_sfgtools.processing.pipeline.datadiscovery import scrape_directory_local, get_file_type_local, get_file_type_remote
 
@@ -142,7 +144,25 @@ class DataHandler:
         self.gnss_tdb = TDBGNSSArray(self.tileb_dir/"gnss_db.tdb")
         self.position_tdb = TDBPositionArray(self.tileb_dir/"position_db.tdb")
         self.shotdata_tdb = TDBShotDataArray(self.tileb_dir/"shotdata_db.tdb")
-    
+        self.rangea_tdb = self.tileb_dir/"rangea_db.tdb" # golang binaries will be used to interact with this array
+
+    def _build_rinex_meta(self) -> None:
+        """
+        Build the RINEX metadata for a station.
+        Args:
+            station_dir (Path): The station directory to build the RINEX metadata for.
+        """
+        # Get the RINEX metadata
+        self.rinex_metav2 = self.station_dir / "rinex_metav2.json"
+        self.rinex_metav1 = self.station_dir / "rinex_metav1.json"
+        if not self.rinex_metav2.exists():
+            with open(self.rinex_metav2, "w") as f:
+                json.dump(get_metadatav2(site=self.station), f)
+
+        if not self.rinex_metav1.exists():
+            with open(self.rinex_metav1, "w") as f:
+                json.dump(get_metadata(site=self.station), f)
+
     def change_working_station(self, network: str, station: str, survey: str = None):
         """
         Change the working station.
@@ -165,6 +185,7 @@ class DataHandler:
         # Build the directory structure and TileDB arrays
         self._build_station_dir_structure(network, station,survey)
         self._build_tileDB_arrays()
+        self._build_rinex_meta()
 
         self.logger.info(f"Changed working station to {network} {station}")
 
@@ -512,7 +533,9 @@ class DataHandler:
                                  pride_dir=self.pride_dir,
                                  shot_data_dest=self.shotdata_tdb,
                                  gnss_data_dest=self.gnss_tdb,
+                                 rangea_data_dest=self.rangea_tdb,
                                  catalog_path=self.db_path)
+        config.rinex_config.settings_path = self.rinex_metav2
         pipeline = SV3Pipeline(catalog=self.catalog, config=config)
 
         return pipeline, config
