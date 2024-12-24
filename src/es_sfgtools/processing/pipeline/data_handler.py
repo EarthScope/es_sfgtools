@@ -256,7 +256,7 @@ class DataHandler:
 
         self.logger.info(f"Added {uploadCount} out of {count} files to the catalog")
 
-
+    @check_network_station_survey
     def add_data_remote(self, 
                         remote_filepaths: List[str],
                         remote_type:Union[REMOTE_TYPE,str] = REMOTE_TYPE.HTTP

@@ -388,7 +388,9 @@ def CTDfile_to_svp(source: Union[AssetEntry,str,Path]) -> DataFrame[SoundVelocit
     else:
         local_path = source
 
-    df = pd.read_csv(local_path, usecols=[0, 1], names=["depth", "speed"], sep=" ")
+    df = pd.read_csv(
+        local_path, usecols=[0, 1], names=["depth", "speed"], sep="        "
+    )
     df.depth = df.depth * -1
 
     return df

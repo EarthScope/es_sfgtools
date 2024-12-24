@@ -358,6 +358,7 @@ def rinex_get_meta(source:AssetEntry) ->AssetEntry:
                     source.timestamp_data_start = start_time
                     source.timestamp_data_end = start_time
                     year = str(source.timestamp_data_start.year)[2:]
+                    break
             
         
             if source.timestamp_data_start is not None:
@@ -628,7 +629,7 @@ def rinex_to_kin(
 
     source = rinex_get_meta(source)
     #get_nav_file(rinex_path=source.local_path)
-    get_gnss_products(rinex_path=source.local_path,pride_dir=pridedir)
+    #get_gnss_products(rinex_path=source.local_path,pride_dir=pridedir)
     if source.station is not None:
         site = source.station
     

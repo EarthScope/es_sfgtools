@@ -1032,9 +1032,9 @@ class GarposHandler:
         """
 
         delta_center_position: List[float] = (
-            self.site_config.delta_center_position.get_position()
-            + self.site_config.delta_center_position.get_std_dev()
-            + [0.0, 0.0, 0.0]
+            self.inversion_params.delta_center_position.get_position()
+            + self.inversion_params.delta_center_position.get_std_dev()
+            + np.diag(self.inversion_params.delta_center_position.get_covariance()).tolist()
         )
         atd_offset = self.site_config.atd_offset.get_offset() + [0.0, 0.0, 0.0] * 2
         date_mjd = julian.to_jd(self.site_config.date, fmt="mjd")

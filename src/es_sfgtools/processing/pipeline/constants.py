@@ -21,6 +21,7 @@ class FILE_TYPE(Enum):
     OFFLOAD = "offload"
     QCPIN = "pin"
     NOVATELPIN = "novatelpin"
+    NOVATEL000 = "novatel000"
     CTD = "ctd"
     @classmethod
     def to_schema(cls):

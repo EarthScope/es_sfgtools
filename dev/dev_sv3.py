@@ -20,13 +20,35 @@ if __name__ == "__main__":
     network = 'cascadia-gorda'
     station = 'NCC1'
     survey = '2024_A_1126'
+    
     dh.change_working_station(network=network,station=station,survey=survey)
-    dh.discover_data_and_add_files(dh.station_dir)
-    pipeline,config = dh.get_pipeline_sv3()
-    config.rinex_config.override = True
-    pipeline.get_rinex_files()
-    pipeline.process_rinex()
-    pipeline.process_kin()
+    
+    # survey_files = list_survey_files(network=network, station=station, survey=survey, show_details=True)
+    # dh.add_data_remote(survey_files)
+    # dh.download_data()
+    # #dh.discover_data_and_add_files(dh.station_dir)
+    # pipeline,config = dh.get_pipeline_sv3()
+    # config.rinex_config.override = False
+    # config.rinex_config.override_products_download = False
+    # config.rinex_config.pride_config.sample_frequency = .25
+    # pipeline.config = config
+    # pipeline.run_pipeline()
+
+    ncc1_2024_config = dh.station_dir / "NCC1_2024_config.yaml"
+    svp_path = dh.station_dir / "NCC1_CTD_2021_fit"
+    svp_path_processed = dh.station_dir / "svp.csv"
+    if not svp_path_processed.exists():
+        svp_df = CTDfile_to_svp(svp_path)
+        svp_df.to_csv(svp_path_processed)
+       
+    config = SiteConfig.from_config(ncc1_2024_config)
+    config.sound_speed_data = svp_path_processed
+    gp_handler_ncc1= dh.get_garpos_handler(site_config=config)
+    
+    gp_handler_ncc1.prep_shotdata()
+    update_dict = {"rejectcriteria": 2.5}
+    gp_handler_ncc1.set_inversion_params(update_dict)   
+    gp_handler_ncc1.run_garpos()
 
     # station = "NFL1"
     # survey = "2023"

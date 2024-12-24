@@ -11,6 +11,7 @@ import datetime
 import signal
 from pydantic import BaseModel, Field, ValidationError,model_serializer,field_serializer,field_validator,validator
 import yaml
+import concurrent.futures
 
 from es_sfgtools.processing.pipeline.catalog import Catalog
 from es_sfgtools.processing.assets.file_schemas import AssetEntry,AssetType
@@ -253,17 +254,28 @@ class SV3Pipeline:
         if self.config.rinex_config.show_details:
             print(response)
 
-        for rinex_entry in tqdm(rinex_entries,total=len(rinex_entries),desc="Getting nav/obs files for Processing Rinex Files"):
-            nav_file: Path = get_nav_file(rinex_path=rinex_entry.local_path, override=self.config.rinex_config.override_products_download)
-            product_status: dict = get_gnss_products(rinex_path=rinex_entry.local_path, pride_dir=self.config.pride_dir, override=self.config.rinex_config.override_products_download)
-            if self.config.rinex_config.show_details:
-                print(f"\nProduct Status: {product_status}\n")
-                print(f"\nNav File: {str(nav_file)}\n")
+        get_nav_file_partial = partial(
+            get_nav_file, override=self.config.rinex_config.override_products_download
+        )
+        get_gnss_products_partial = partial(
+            get_gnss_products, pride_dir=self.config.pride_dir, override=self.config.rinex_config.override_products_download
+        )
 
+        rinex_paths = [x.local_path for x in rinex_entries]
+      
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+
+            #for rinex_entry in tqdm(rinex_entries,total=len(rinex_entries),desc="Getting nav/obs files for Processing Rinex Files"):
+            nav_files = [x for x in executor.map(get_nav_file_partial, rinex_paths)]
+            gnss_products = [x for x in executor.map(get_gnss_products_partial, rinex_paths)]
+
+        #print(gnss_products)
+            
         process_rinex_partial = partial(
             rinex_to_kin,
             writedir=self.config.inter_dir,
             pridedir=self.config.pride_dir,
+            site = self.config.station,
             show_details=self.config.rinex_config.show_details,
             pride_config=self.config.rinex_config.pride_config,
         )
@@ -274,26 +286,31 @@ class SV3Pipeline:
 
         with multiprocessing.Pool(processes=self.config.rinex_config.n_processes) as pool:
 
-            try:
-                results = pool.imap(process_rinex_partial, rinex_entries)
-                for idx, (kinfile, resfile) in enumerate(tqdm(
-                    results, total=len(rinex_entries), desc="Processing Rinex Files"
-                )):
-                    if kinfile is not None:
-                        count += 1
-                    if self.catalog.add_or_update(kinfile):
-                        uploadCount += 1
+            results = pool.map(process_rinex_partial, rinex_entries)
+    
+
+            for idx, (kinfile, resfile) in enumerate(tqdm(
+                results, total=len(rinex_entries), desc="Processing Rinex Files",mininterval=0.5
+            )):
+                if kinfile is not None:
                     kin_entries.append(kinfile)
                     if resfile is not None:
-                        count += 1
-                        if self.catalog.add_or_update(resfile):
-                            uploadCount += 1
-                            resfile_entries.append(resfile)
-                    rinex_entries[idx].is_processed = True
-                    self.catalog.add_or_update(rinex_entries[idx])
-            except KeyboardInterrupt:
-                pool.terminate()
-                pool.join()
+                        resfile_entries.append(resfile)
+
+        for idx, (kinfile, resfile) in enumerate(zip(kin_entries, resfile_entries)):
+            if kinfile is not None:
+                count += 1
+            if self.catalog.add_or_update(kinfile):
+                uploadCount += 1
+            
+            if resfile is not None:
+                count += 1
+                if self.catalog.add_or_update(resfile):
+                    uploadCount += 1
+                    resfile_entries.append(resfile)
+            rinex_entries[idx].is_processed = True
+            self.catalog.add_or_update(rinex_entries[idx])
+            
 
         response = f"Generated {count} Kin Files From {len(rinex_entries)} Rinex Files, Added {uploadCount} to the Catalog"
         logger.info(response)

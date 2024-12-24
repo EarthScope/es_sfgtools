@@ -31,7 +31,7 @@ class PositionENU(BaseModel):
         return [self.east_sigma, self.north_sigma, self.up_sigma]
 
     def get_covariance(self) -> np.ndarray:
-        cov_mat = np.diag([self.east.sigma**2, self.north.sigma**2, self.up.sigma**2])
+        cov_mat = np.diag([self.east_sigma**2, self.north_sigma**2, self.up_sigma**2])
         cov_mat[0, 1] = cov_mat[1, 0] = self.cov_en**2
         cov_mat[0, 2] = cov_mat[2, 0] = self.cov_ue**2
         cov_mat[1, 2] = cov_mat[2, 1] = self.cov_nu**2
@@ -74,7 +74,7 @@ class SiteConfig(BaseModel):
         campaign = config["campaign"]
         date = config["time_origin"]
         array_center = config["array_center"]
-        height = config["solver"]["geoid_undulation"]
+        height = -1*config["solver"]["geoid_undulation"]
         position_llh = PositionLLH(latitude=array_center["lat"], longitude=array_center["lon"], height=height)
         transponder_set = []
         for transponder in config["transponders"]:
