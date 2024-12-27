@@ -11,6 +11,7 @@ The notebook logger is used for the notebook module and prints to the console wi
 import logging
 import os
 from functools import wraps
+from pathlib import Path
 
 BASIC_FORMAT = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(filename)s - %(funcName)s - %(message)s')
 MINIMAL_NOTEBOOK_FORMAT = logging.Formatter('%(message)s')
@@ -18,6 +19,64 @@ MINIMAL_NOTEBOOK_FORMAT = logging.Formatter('%(message)s')
 BASE_LOG_FILE_NAME = 'es_sfg_tools.log'
 PRIDE_LOG_FILE_NAME = 'pride.log'
 RINEX_LOG_FILE_NAME = 'rinex.log'
+
+
+class BaseLogger:
+    dir = Path.home() / ".es_sfg_tools"
+    dir.mkdir(exist_ok=True)
+    name = "es_sfg_tools.log"
+    path = str(dir / BASE_LOG_FILE_NAME)
+    format = BASIC_FORMAT
+    level = logging.INFO
+
+    logger:logging.Logger = logging.getLogger(cls.path)
+    base_handler = logging.FileHandler(path)
+    base_handler.setFormatter(BASIC_FORMAT)
+    logger.setLevel(level)
+    logger.addHandler(base_handler)
+    handlers = {'base': base_handler}
+
+    @staticmethod
+    def reset_base_handler(cls):
+        cls.logger.removeHandler(cls.handlers['base'])
+        cls.base_handler = logging.FileHandler(cls.path)
+        cls.base_handler.setFormatter(cls.format)
+        cls.logger.addHandler(cls.base_handler)
+        cls.handlers['base'] = cls.base_handler
+
+    @staticmethod
+    def set_dir(cls, dir: Path):
+        cls.dir = dir
+        cls.path = str(dir /cls.name)
+        cls.reset_base_handler()
+
+    @staticmethod
+    def set_format_minimal(cls):
+        cls.format = MINIMAL_NOTEBOOK_FORMAT
+        cls.reset_base_handler()
+
+    @staticmethod
+    def set_format_basic(cls):
+        cls.format = BASIC_FORMAT
+        cls.handlers['base'].setFormatter(cls.format)
+
+    @staticmethod
+    def set_base_level(cls, level):
+        cls.level = level
+        cls.logger.setLevel(level)
+
+    @staticmethod
+    def route_to_console(cls):
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(cls.format)
+        cls.logger.addHandler(console_handler)
+        cls.handlers['console'] = console_handler
+
+    @staticmethod
+    def remove_console(cls):
+        cls.logger.removeHandler(cls.handlers['console'])
+        del cls.handlers['console']
+
 
 def ensure_directory_exists(func):
     @wraps(func)

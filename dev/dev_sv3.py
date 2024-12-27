@@ -48,7 +48,7 @@ if __name__ == "__main__":
     gp_handler_ncc1.prep_shotdata()
     update_dict = {"rejectcriteria": 2.5}
     gp_handler_ncc1.set_inversion_params(update_dict)   
-    gp_handler_ncc1.run_garpos()
+    gp_handler_ncc1.run_garpos(-1)
 
     # station = "NFL1"
     # survey = "2023"
