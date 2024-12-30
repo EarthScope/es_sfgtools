@@ -23,7 +23,7 @@ if __name__ == "__main__":
     survey = '2024_A_1126'
     
     dh.change_working_station(network=network,station=station,survey=survey)
-    dh.logger.route_to_console()
+    
     survey_files = list_survey_files(network=network, station=station, survey=survey, show_details=True)
     dh.add_data_remote(survey_files)
     dh.download_data()

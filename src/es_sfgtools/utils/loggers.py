@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Literal
 
 BASIC_FORMAT = logging.Formatter(
-    "%(asctime)s - %(pathname)s:%(lineno)d - %(name)s - %(levelname)s - %(message)s "
+    "%(asctime)s - %(filename)s:%(lineno)d - %(levelname)s - %(message)s "
 )
 MINIMAL_NOTEBOOK_FORMAT = logging.Formatter('%(message)s')
 
