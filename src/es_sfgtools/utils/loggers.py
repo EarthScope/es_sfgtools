@@ -13,69 +13,127 @@ import os
 from functools import wraps
 from pathlib import Path
 
-BASIC_FORMAT = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(filename)s - %(funcName)s - %(message)s')
+BASIC_FORMAT = logging.Formatter(
+    "%(asctime)s - %(pathname)s:%(lineno)d - %(name)s - %(levelname)s - %(message)s "
+)
 MINIMAL_NOTEBOOK_FORMAT = logging.Formatter('%(message)s')
 
 BASE_LOG_FILE_NAME = 'es_sfg_tools.log'
 PRIDE_LOG_FILE_NAME = 'pride.log'
 RINEX_LOG_FILE_NAME = 'rinex.log'
 
+class _BaseLogger:
+    name = "base_logger"
+    def __init__(self,dir:Path=Path.home()/".sfgtools",file_name:str=BASE_LOG_FILE_NAME, format:logging.Formatter = BASIC_FORMAT, level=logging.INFO):
+        self.dir = dir
+        self.dir.mkdir(exist_ok=True)
+        self.file_name = file_name
+        self.path = str(dir / self.file_name)
+        self.format = format
+        self.level = level
+        self.logger = logging.getLogger(self.name)
+        self.logger.setLevel(level)
+        self.file_handler = logging.FileHandler(self.path)
+        self.file_handler.setFormatter(format)
+        self.logger.addHandler(self.file_handler)
+  
+    def info(self, info:str) -> None:
+        self.logger.info(info)
+    
+    def reset_file_handler(self):
+        self.logger.removeHandler(self.file_handler)
+        self.file_handler = logging.FileHandler(self.file_name)
+        self.file_handler.setFormatter(self.format)
+        self.logger.addHandler(self.file_handler)
 
-class BaseLogger:
-    dir = Path.home() / ".es_sfg_tools"
-    dir.mkdir(exist_ok=True)
-    name = "es_sfg_tools.log"
-    path = str(dir / BASE_LOG_FILE_NAME)
-    format = BASIC_FORMAT
-    level = logging.INFO
+    def set_dir(self, dir: Path):
+        self.dir = dir
+        self.path = str(dir / self.file_name)
+        self.reset_file_handler()
+    
+    def set_format_minimal(self):
+        self.format = MINIMAL_NOTEBOOK_FORMAT
+        self.reset_file_handler()
+    
+    def set_format_basic(self):
+        self.format = BASIC_FORMAT
+        self.file_handler.setFormatter(self.format)
 
-    logger:logging.Logger = logging.getLogger(cls.path)
-    base_handler = logging.FileHandler(path)
-    base_handler.setFormatter(BASIC_FORMAT)
-    logger.setLevel(level)
-    logger.addHandler(base_handler)
-    handlers = {'base': base_handler}
+    def set_level(self, level):
+        self.level = level
+        self.logger.setLevel(level)
+    
+    def route_to_console(self):
+        self.console_handler = logging.StreamHandler()
+        self.console_handler.setFormatter(self.format)
+        self.logger.addHandler(self.console_handler)
+    
+    def remove_console(self):
+        self.logger.removeHandler(self.console_handler)
 
-    @staticmethod
-    def reset_base_handler(cls):
-        cls.logger.removeHandler(cls.handlers['base'])
-        cls.base_handler = logging.FileHandler(cls.path)
-        cls.base_handler.setFormatter(cls.format)
-        cls.logger.addHandler(cls.base_handler)
-        cls.handlers['base'] = cls.base_handler
 
-    @staticmethod
-    def set_dir(cls, dir: Path):
-        cls.dir = dir
-        cls.path = str(dir /cls.name)
-        cls.reset_base_handler()
+BaseLogger = _BaseLogger()
 
-    @staticmethod
-    def set_format_minimal(cls):
-        cls.format = MINIMAL_NOTEBOOK_FORMAT
-        cls.reset_base_handler()
 
-    @staticmethod
-    def set_format_basic(cls):
-        cls.format = BASIC_FORMAT
-        cls.handlers['base'].setFormatter(cls.format)
+# class BaseLogger:
+#     dir = Path.home() / ".es_sfg_tools"
+#     dir.mkdir(exist_ok=True)
+#     name = BASE_LOG_FILE_NAME
+#     path = str(dir / name)
+#     format = BASIC_FORMAT
+#     level = logging.INFO
 
-    @staticmethod
-    def set_base_level(cls, level):
-        cls.level = level
-        cls.logger.setLevel(level)
+#     logger:logging.Logger = logging.getLogger(path)
+#     base_handler = logging.FileHandler(path)
+#     base_handler.setFormatter(BASIC_FORMAT)
+#     logger.setLevel(level)
+#     logger.addHandler(base_handler)
+#     handlers = {'base': base_handler}
 
-    @staticmethod
-    def route_to_console(cls):
-        console_handler = logging.StreamHandler()
-        console_handler.setFormatter(cls.format)
-        cls.logger.addHandler(console_handler)
-        cls.handlers['console'] = console_handler
+#     @staticmethod
+#     def info(info:str) -> None:
+#         BaseLogger.logger.info(info)
 
-    @staticmethod
-    def remove_console(cls):
-        cls.logger.removeHandler(cls.handlers['console'])
-        del cls.handlers['console']
+#     @staticmethod
+#     def reset_base_handler():
+#         BaseLogger.logger.removeHandler(BaseLogger.handlers["base"])
+#         BaseLogger.base_handler = logging.FileHandler(BaseLogger.path)
+#         BaseLogger.base_handler.setFormatter(BaseLogger.format)
+#         BaseLogger.logger.addHandler(BaseLogger.base_handler)
+#         BaseLogger.handlers["base"] = BaseLogger.base_handler
+
+#     @staticmethod
+#     def set_dir(dir: Path):
+#         BaseLogger.dir = dir
+#         BaseLogger.path = str(dir / BaseLogger.name)
+#         BaseLogger.reset_base_handler()
+
+#     @staticmethod
+#     def set_format_minimal(cls):
+#         BaseLogger.format = MINIMAL_NOTEBOOK_FORMAT
+#         BaseLogger.reset_base_handler()
+
+#     @staticmethod
+#     def set_format_basic():
+#         BaseLogger.format = BASIC_FORMAT
+#         BaseLogger.handlers["base"].setFormatter(BaseLogger.format)
+
+#     @staticmethod
+#     def set_base_level(level):
+#         BaseLogger.level = level
+#         BaseLogger.logger.setLevel(level)
+
+#     @staticmethod
+#     def route_to_console():
+#         console_handler = logging.StreamHandler()
+#         console_handler.setFormatter(BaseLogger.format)
+#         BaseLogger.logger.addHandler(console_handler)
+#         BaseLogger.handlers["console"] = console_handler
+
+#     @staticmethod
+#     def remove_console(cls):
+#         BaseLogger.logger.removeHandler(BaseLogger.handlers["console"])
+#         del BaseLogger.handlers["console"]
 
 
 def ensure_directory_exists(func):
