@@ -3,7 +3,8 @@
 This repo contains a python library `es_sfgtools` designed to enable users to preprocess raw GNSS-A data from SV2 and SV3 wavegliders, as well as run GNSS-A processing using [GARPOS](https://github.com/s-watanabe-jhod/garpos)
 
 
-Due to a dependency of GARPOS, the library currently is only installable via conda.
+Due to a dependency of GARPOS, the library currently is only installable via conda.  Also GARPOS installation requires gfortran, which (if you dont already have it) can be installed on a mac with the command
+> brew install gfortran
 
 Conda Install Instructions
 
