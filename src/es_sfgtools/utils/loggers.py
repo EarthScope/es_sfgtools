@@ -23,8 +23,9 @@ PRIDE_LOG_FILE_NAME = 'pride.log'
 RINEX_LOG_FILE_NAME = 'rinex.log'
 
 class _BaseLogger:
-    name = "base_logger"
-    def __init__(self,dir:Path=Path.home()/".sfgtools",file_name:str=BASE_LOG_FILE_NAME, format:logging.Formatter = BASIC_FORMAT, level=logging.INFO):
+
+    def __init__(self,name:str= "base_logger",dir:Path=Path.home()/".sfgtools",file_name:str=BASE_LOG_FILE_NAME, format:logging.Formatter = BASIC_FORMAT, level=logging.INFO):
+        self.name = name
         self.dir = dir
         self.dir.mkdir(exist_ok=True)
         self.file_name = file_name
@@ -74,6 +75,14 @@ class _BaseLogger:
 
 BaseLogger = _BaseLogger()
 
+GNSSLogger = _BaseLogger(
+    name="gnss_logger",
+    file_name="gnss.log",
+)
+ProcessLogger = _BaseLogger(
+    name="processing_logger",
+    file_name="processing.log",
+)
 
 # class BaseLogger:
 #     dir = Path.home() / ".es_sfg_tools"

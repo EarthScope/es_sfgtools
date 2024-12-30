@@ -15,8 +15,8 @@ from ..assets.file_schemas import AssetEntry,AssetType
 
 from ..assets.constants import TRIGGER_DELAY_SV3
 from ..assets.logmodels import SV3InterrogationData,SV3ReplyData,get_traveltime,get_triggertime,check_sequence_overlap
-logger = logging.getLogger(os.path.basename(__file__))
 
+from es_sfgtools.utils.loggers import ProcessLogger as logger
 
 @pa.check_types
 def check_df(df: pd.DataFrame) -> pd.DataFrame:
@@ -64,7 +64,7 @@ def dev_qcpin_to_shotdata(source: Union[AssetEntry,str,Path]) -> DataFrame[ShotD
         try:
             data = json.load(f)
         except json.decoder.JSONDecodeError as e:
-            logger.error(f"Error reading {source.local_path} {e}")
+            logger.logger.error(f"Error reading {source.local_path} {e}")
             return None
         for key, value in data.items():
             if key == "interrogation":

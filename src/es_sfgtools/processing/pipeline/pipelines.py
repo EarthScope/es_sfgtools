@@ -30,7 +30,7 @@ from es_sfgtools.processing.operations.utils import (
     merge_shotdata_gnss,
 )
 
-logger = logging.getLogger(__name__)
+from es_sfgtools.utils.loggers import ProcessLogger as logger
 
 class NovatelConfig(BaseModel):
     override: bool = Field(False, title="Flag to Override Existing Data")
@@ -147,12 +147,12 @@ class SV3Pipeline:
 
                 self.catalog.add_merge_job(**merge_signature)
                 response = f"Added {len(novatel_770_entries)} Novatel 770 Entries to the catalog"
-                logger.info(response)
+                logger.logger.info(response)
                 if self.config.novatel_config.show_details:
                     print(response)
         else:
             response = f"No Novatel 770 Files Found to Process for {self.config.network} {self.config.station} {self.config.survey}"
-            logger.info(response)
+            logger.logger.info(response)
             print(response)
 
         print(f"Processing Novatel 000 data for {self.config.network} {self.config.station} {self.config.survey}")
@@ -174,12 +174,12 @@ class SV3Pipeline:
 
                 self.catalog.add_merge_job(**merge_signature)
                 response = f"Added {len(novatel_000_entries)} Novatel 000 Entries to the catalog"
-                logger.info(response)
+                logger.logger.info(response)
                 if self.config.novatel_config.show_details:
                     print(response)
         else:
             response = f"No Novatel 000 Files Found to Process for {self.config.network} {self.config.station} {self.config.survey}"
-            logger.info(response)
+            logger.logger.info(response)
             print(response)
             return
 
@@ -199,10 +199,10 @@ class SV3Pipeline:
             )
             if len(rinex_entries) == 0:
                 response = f"No Rinex Files Found to Process for {self.config.network} {self.config.station} {self.config.survey}"
-                logger.error(response)
+                logger.logger.error(response)
                 return
             self.catalog.add_merge_job(**merge_signature)
-            logger.info(f"Generated {len(rinex_entries)} Rinex Entries spanning {rinex_entries[0].timestamp_data_start} to {rinex_entries[-1].timestamp_data_end}")
+            logger.logger.info(f"Generated {len(rinex_entries)} Rinex Entries spanning {rinex_entries[0].timestamp_data_start} to {rinex_entries[-1].timestamp_data_end}")
             uploadCount = 0
             for rinex_entry in rinex_entries:
                 rinex_entry.network = self.config.network
@@ -210,7 +210,7 @@ class SV3Pipeline:
                 rinex_entry.survey = self.config.survey
                 if self.catalog.add_entry(rinex_entry):
                     uploadCount += 1
-            logger.info(f"Added {uploadCount} out of {len(rinex_entries)} Rinex Entries to the catalog")
+            logger.logger.info(f"Added {uploadCount} out of {len(rinex_entries)} Rinex Entries to the catalog")
 
     def process_rinex(
         self
@@ -227,7 +227,7 @@ class SV3Pipeline:
         response = (
             f"Processing Rinex Data for {self.config.network} {self.config.station} {self.config.survey}"
         )
-        logger.info(response)
+        logger.logger.info(response)
         if self.config.rinex_config.show_details:
             print(response)
 
@@ -243,14 +243,14 @@ class SV3Pipeline:
         )
         if not rinex_entries:
             response = f"No Rinex Files Found to Process for {self.config.network} {self.config.station} {self.config.survey}"
-            logger.error(response)
+            logger.logger.error(response)
             if self.config.rinex_config.show_details:
                 print(response)
             warnings.warn(response)
             return []
 
         response = f"Found {len(rinex_entries)} Rinex Files to Process"
-        logger.info(response)
+        logger.logger.info(response)
         if self.config.rinex_config.show_details:
             print(response)
 
@@ -313,7 +313,7 @@ class SV3Pipeline:
             
 
         response = f"Generated {count} Kin Files From {len(rinex_entries)} Rinex Files, Added {uploadCount} to the Catalog"
-        logger.info(response)
+        logger.logger.info(response)
         if self.config.rinex_config.show_details:
             print(response)
 
@@ -334,14 +334,14 @@ class SV3Pipeline:
         )
         if not kin_entries:
             response = f"No Kin Files Found to Process for {self.config.network} {self.config.station} {self.config.survey}"
-            logger.error(response)
+            logger.logger.error(response)
             if self.config.rinex_config.show_details:
                 print(response)
             warnings.warn(response)
             return
 
         response = f"Found {len(kin_entries)} Kin Files to Process"
-        logger.info(response)
+        logger.logger.info(response)
         if self.config.rinex_config.show_details:
             print(response)
 
@@ -360,7 +360,7 @@ class SV3Pipeline:
                 self.config.gnss_data_dest.write_df(gnss_df)           
 
         response = f"Generated {count} GNSS Dataframes From {len(kin_entries)} Kin Files, Added {uploadCount} to the Catalog"
-        logger.info(response)
+        logger.logger.info(response)
         if self.config.rinex_config.show_details:
             print(response)
 
@@ -378,14 +378,14 @@ class SV3Pipeline:
         )
         if not dfop00_entries:
             response = f"No DFOP00 Files Found to Process for {self.config.network} {self.config.station} {self.config.survey}"
-            logger.error(response)
+            logger.logger.error(response)
             if self.config.dfop00_config.show_details:
                 print(response)
             warnings.warn(response)
             return
 
         response = f"Found {len(dfop00_entries)} DFOP00 Files to Process"
-        logger.info(response)
+        logger.logger.info(response)
         if self.config.dfop00_config.show_details:
             print(response)
 
@@ -403,7 +403,7 @@ class SV3Pipeline:
                     self.catalog.add_or_update(dfo_entry)
 
         response = f"Generated {count} ShotData dataframes From {len(dfop00_entries)} DFOP00 Files"
-        logger.info(response)
+        logger.logger.info(response)
         if self.config.dfop00_config.show_details:
             print(response)
 
@@ -474,6 +474,6 @@ class SV2Pipeline:
                     uploadCount += 1
             self.catalog.add_merge_job(**merge_signature)
             response = f"Added {uploadCount} out of {len(rinex_entries)} Rinex Entries to the catalog"
-            logger.info(response)
+            logger.logger.info(response)
             if self.config.novatel_config.show_details:
                 print(response)

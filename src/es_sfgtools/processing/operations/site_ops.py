@@ -12,7 +12,7 @@ from ..assets.file_schemas import AssetEntry,AssetType
 from ..assets.siteconfig import SiteConfig,Transponder,ATDOffset,PositionLLH
 from ..assets.observables import SoundVelocityDataFrame
 
-logger = logging.getLogger(os.path.basename(__file__))
+from es_sfgtools.utils.loggers import ProcessLogger as logger
 
 @pa.check_types
 def ctd_to_soundvelocity(source: Union[AssetEntry,str,Path]) -> DataFrame[SoundVelocityDataFrame]:
@@ -74,7 +74,7 @@ def seabird_to_soundvelocity(
             if data_start.match(line):
                 break
         if not lines:
-            logger.error(
+            logger.logger.error(
                 f"No data found in the sound speed profile file {source.local_path}"
             )
             return None
@@ -91,7 +91,7 @@ def seabird_to_soundvelocity(
         df = pd.DataFrame(data)
         response = f"Found SS data down to max depth of {df['depth'].max()} m\n"
         response += f"SS ranges from {df['speed'].min()} to {df['speed'].max()} m/s"
-        logger.info(response)
+        logger.logger.info(response)
         if show_details:
             print(response)
     return df
@@ -121,10 +121,8 @@ def show_site_config(site_config: SiteConfig):
 
         else:
             response += f"{item[0]}: {item[1]}\n"
-    logger.info(response)
-    print(response)
-
-
+    logger.logger.info(response)
+  
 def build_site(
     config_source: Union[AssetEntry, Path, str],
     svp_source: Union[AssetEntry, Path, str],
@@ -174,7 +172,7 @@ def build_site(
     loginfo = (
         f"Populating List[Transponder] and Site data from {config_source.local_path}"
     )
-    logger.info(loginfo)
+    logger.logger.info(loginfo)
     transponders = []
 
     lat_lon_line = re.compile(r"Latitude/Longitude array center")
@@ -223,13 +221,13 @@ def build_site(
             break
 
     if not center_llh:
-        logger.error("Latitude/Longitude array center not found in masterfile")
+        logger.logger.error("Latitude/Longitude array center not found in masterfile")
         return
     if not transponders:
-        logger.error("No transponders found in masterfile")
+        logger.logger.error("No transponders found in masterfile")
         return
     if geoid_undulation is None:
-        logger.error("Geoid undulation not found in masterfile")
+        logger.logger.error("Geoid undulation not found in masterfile")
         return
 
     # subtract geoid undulation from transponder height
@@ -271,8 +269,8 @@ def masterfile_to_siteconfig(
         raise FileNotFoundError(f"File {source.local_path} not found")
 
     loginfo = f"Populating List[Transponder] and Site data from {source.local_path}"
-    logger.info(loginfo)
-    print(loginfo)
+    logger.logger.info(loginfo)
+   
     transponders = []
 
     lat_lon_line = re.compile(r"Latitude/Longitude array center")
@@ -322,13 +320,13 @@ def masterfile_to_siteconfig(
                 break
 
     if not center_llh:
-        logger.error("Latitude/Longitude array center not found in masterfile")
+        logger.logger.error("Latitude/Longitude array center not found in masterfile")
         return
     if not transponders:
-        logger.error("No transponders found in masterfile")
+        logger.logger.error("No transponders found in masterfile")
         return
     if geoid_undulation is None:
-        logger.error("Geoid undulation not found in masterfile")
+        logger.logger.error("Geoid undulation not found in masterfile")
         return
 
     # subtract geoid undulation from transponder height
@@ -373,9 +371,8 @@ def leverarmfile_to_atdoffset(
     response = (
         f"ATD offset (forward, rightward, downward): {forward}, {rightward}, {downward}"
     )
-    logger.info(response)
-    if show_details:
-        print(response)
+    logger.logger.info(response)
+
     return ATDOffset(forward=forward, rightward=rightward, downward=downward)
 
 @pa.check_types(lazy=True)
