@@ -43,7 +43,7 @@ class _BaseLogger:
     
     def reset_file_handler(self):
         self.logger.removeHandler(self.file_handler)
-        self.file_handler = logging.FileHandler(self.file_name)
+        self.file_handler = logging.FileHandler(self.path)
         self.file_handler.setFormatter(self.format)
         self.logger.addHandler(self.file_handler)
 

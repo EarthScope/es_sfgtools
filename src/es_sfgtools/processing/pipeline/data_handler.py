@@ -28,7 +28,7 @@ from es_sfgtools.processing.pipeline.datadiscovery import scrape_directory_local
 
 from es_sfgtools.modeling.garpos_tools.functions import GarposHandler
 from es_sfgtools.processing.assets.siteconfig import SiteConfig
-from es_sfgtools.utils.loggers import setup_notebook_logger,BaseLogger
+from es_sfgtools.utils.loggers import setup_notebook_logger,BaseLogger,GNSSLogger,ProcessLogger
 
 
 
@@ -53,13 +53,14 @@ class DataHandler:
     """
     A class to handle data operations such as searching for, adding, downloading and processing data.
     """
-
+    logger = BaseLogger
+    gnss_logger = GNSSLogger
+    process_logger = ProcessLogger
     def __init__(self,
                  directory: Path | str,
                  network: str = None,
                  station: str = None,
                  survey: str = None,
-                 show_logs: bool = False
                  ) -> None:
         """
         Initialize the DataHandler object.
@@ -74,8 +75,7 @@ class DataHandler:
         self.network = network
         self.station = station
         self.survey = survey
-        self.logger = BaseLogger
-  
+     
         # Create the directory structures
         self.main_directory = Path(directory)
         self.logger.set_dir(self.main_directory)
@@ -116,6 +116,8 @@ class DataHandler:
 
         self.station_log_dir = self.main_directory / network / "logs"
         self.station_log_dir.mkdir(parents=True,exist_ok=True)
+        ProcessLogger.set_dir(self.station_log_dir)
+        GNSSLogger.set_dir(self.station_log_dir)
         # Create the network/station directory structure
         self.station_dir = self.main_directory / network / station
         self.station_dir.mkdir(parents=True, exist_ok=True)
@@ -560,3 +562,17 @@ class DataHandler:
                              site_config=site_config,
                              working_dir=self.station_dir/'GARPOS')
     
+    def print_logs(self,log:Literal['base','gnss','process']):
+        """
+        Print logs to console.
+        Args:
+            log (Literal['base','gnss','process']): The type of log to print.
+        """
+        if log == 'base':
+            self.logger.route_to_console()
+        elif log == 'gnss':
+            self.gnss_logger.route_to_console()
+        elif log == 'process':
+            self.process_logger.route_to_console()
+        else:
+            raise ValueError(f"Log type {log} not recognized. Must be one of ['base','gnss','process']")

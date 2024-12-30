@@ -24,16 +24,17 @@ if __name__ == "__main__":
     
     dh.change_working_station(network=network,station=station,survey=survey)
     dh.logger.route_to_console()
-    # survey_files = list_survey_files(network=network, station=station, survey=survey, show_details=True)
-    # dh.add_data_remote(survey_files)
-    # dh.download_data()
-    # #dh.discover_data_and_add_files(dh.station_dir)
-    # pipeline,config = dh.get_pipeline_sv3()
-    # config.rinex_config.override = False
-    # config.rinex_config.override_products_download = False
-    # config.rinex_config.pride_config.sample_frequency = .25
-    # pipeline.config = config
-    # pipeline.run_pipeline()
+    survey_files = list_survey_files(network=network, station=station, survey=survey, show_details=True)
+    dh.add_data_remote(survey_files)
+    dh.download_data()
+    dh.discover_data_and_add_files(dh.station_dir)
+    pipeline,config = dh.get_pipeline_sv3()
+    config.novatel_config.override = True
+    config.rinex_config.override = False
+    config.rinex_config.override_products_download = False
+    config.rinex_config.pride_config.sample_frequency = .25
+    pipeline.config = config
+    pipeline.run_pipeline()
 
     # ncc1_2024_config = dh.station_dir / "NCC1_2024_config.yaml"
     # svp_path = dh.station_dir / "NCC1_CTD_2021_fit"
