@@ -171,7 +171,12 @@ class _BaseLogger:
 
         self.logger.removeHandler(self.console_handler)
 
+    def loginfo(self,message) -> None:
+        self.logger.info(message,stacklevel=2)
 
+    def logerr(self,message) -> None:
+        self.logger.error(message,stacklevel=2)
+        
 BaseLogger = _BaseLogger()
 
 GNSSLogger = _BaseLogger(

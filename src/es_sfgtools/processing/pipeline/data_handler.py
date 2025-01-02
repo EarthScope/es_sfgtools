@@ -112,7 +112,7 @@ class DataHandler:
 
                 - Pride/ 
         """
-        self.logger.logger.info(f"Building directory structure for {network} {station} {survey}")
+        self.logger.loginfo(f"Building directory structure for {network} {station} {survey}")
 
         self.station_log_dir = self.main_directory / network / "logs"
         self.station_log_dir.mkdir(parents=True,exist_ok=True)
@@ -144,7 +144,7 @@ class DataHandler:
         """
         Build the TileDB arrays for the current station. TileDB directory is /network/station/TileDB.
         """
-        self.logger.logger.info(f"Building TileDB arrays for {self.station}")
+        self.logger.loginfo(f"Building TileDB arrays for {self.station}")
         self.acoustic_tdb = TDBAcousticArray(self.tileb_dir/"acoustic_db.tdb")
         self.gnss_tdb = TDBGNSSArray(self.tileb_dir/"gnss_db.tdb")
         self.position_tdb = TDBPositionArray(self.tileb_dir/"position_db.tdb")
@@ -192,7 +192,7 @@ class DataHandler:
         self._build_tileDB_arrays()
         self._build_rinex_meta()
 
-        self.logger.logger.info(f"Changed working station to {network} {station}")
+        self.logger.loginfo(f"Changed working station to {network} {station}")
 
 
     @check_network_station_survey
@@ -220,10 +220,10 @@ class DataHandler:
 
         files:List[Path] = scrape_directory_local(directory_path)
         if len(files) == 0:
-            self.logger.logger.error(f"No files found in {directory_path}, ensure the directory is correct.")
+            self.logger.logerr(f"No files found in {directory_path}, ensure the directory is correct.")
             return
         
-        self.logger.logger.info(f"Found {len(files)} files in {directory_path}")
+        self.logger.loginfo(f"Found {len(files)} files in {directory_path}")
 
         self.add_data_to_catalog(files)
 
@@ -239,7 +239,7 @@ class DataHandler:
         file_data_list = []
         for file_path in local_filepaths:
             if not file_path.exists():
-                self.logger.logger.error(f"File {str(file_path)} does not exist")
+                self.logger.logerr(f"File {str(file_path)} does not exist")
                 continue
             file_type, _size = get_file_type_local(file_path)
             if file_type is not None:
@@ -259,7 +259,7 @@ class DataHandler:
             if self.catalog.add_entry(file_assest):
                 uploadCount += 1
 
-        self.logger.logger.info(f"Added {uploadCount} out of {count} files to the catalog")
+        self.logger.loginfo(f"Added {uploadCount} out of {count} files to the catalog")
 
     @check_network_station_survey
     def add_data_remote(self, 
@@ -308,7 +308,7 @@ class DataHandler:
                 )
                 file_data_list.append(file_data)
             else:
-                self.logger.logger.info(f"File {file} already exists in the catalog")
+                self.logger.loginfo(f"File {file} already exists in the catalog")
 
         # Add each file (AssetEntry) to the catalog
         count = len(file_data_list)
@@ -317,7 +317,7 @@ class DataHandler:
             if self.catalog.add_entry(file_assest):
                 uploadCount += 1
 
-        self.logger.logger.info(f"Added {uploadCount} out of {count} files to the catalog")
+        self.logger.loginfo(f"Added {uploadCount} out of {count} files to the catalog")
 
     def download_data(self, file_types: List[AssetType] | List[str] | str = FILE_TYPES, override: bool=False):
         """
@@ -349,7 +349,7 @@ class DataHandler:
                                             type=type)
 
             if len(assets) == 0:
-                self.logger.logger.error(f"No matching data found in catalog")
+                self.logger.logerr(f"No matching data found in catalog")
                 continue
             
             # Find files that we need to download based on the catalog output. If override is True, download all files.
@@ -366,7 +366,7 @@ class DataHandler:
                             assets_to_download.append(file_asset)
 
             if len(assets_to_download) == 0:
-                self.logger.logger.info(f"No new files to download")
+                self.logger.loginfo(f"No new files to download")
             
             # split the entries into s3 and http
             s3_assets = [file for file in assets_to_download if file.remote_type == REMOTE_TYPE.S3.value]
@@ -428,14 +428,14 @@ class DataHandler:
         local_path = self.raw_dir / Path(prefix).name
 
         try:
-            self.logger.logger.info(f"Downloading {prefix} to {local_path}")
+            self.logger.loginfo(f"Downloading {prefix} to {local_path}")
             client.download_file(Bucket=bucket, 
                                  Key=str(prefix), 
                                  Filename=str(local_path))
-            self.logger.logger.info(f"Downloaded {str(prefix)} to {str(local_path)}")
+            self.logger.loginfo(f"Downloaded {str(prefix)} to {str(local_path)}")
 
         except Exception as e:
-            self.logger.logger.error(f"Error downloading {prefix} from {bucket }\n {e} \n HINT: $ aws sso login")
+            self.logger.logerr(f"Error downloading {prefix} from {bucket }\n {e} \n HINT: $ aws sso login")
             local_path = None
 
         finally:
@@ -480,10 +480,10 @@ class DataHandler:
             if not local_path.exists(): 
                 raise Exception
 
-            self.logger.logger.info(f"Downloaded {str(remote_url)} to {str(local_path)}")
+            self.logger.loginfo(f"Downloaded {str(remote_url)} to {str(local_path)}")
 
         except Exception as e:
-            self.logger.logger.error(f"Error downloading {str(remote_url)} \n {e}" + "\n HINT: Check authentication credentials")
+            self.logger.logerr(f"Error downloading {str(remote_url)} \n {e}" + "\n HINT: Check authentication credentials")
             local_path = None
 
         finally:
