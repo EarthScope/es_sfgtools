@@ -66,9 +66,7 @@ def check_sequence_overlap(df: pd.DataFrame) -> pd.DataFrame:
     filter_1 = df.pingTime < 0
 
     filter_main = filter_0 | filter_1
-    if filter_main.any():
-        warnings.warn(DateOverlapWarning)
-        logger.warning(DateOverlapWarning.message)
+
     found_bad = df[filter_main]
     logger.info(f"Found {found_bad.shape[0]} overlapping ping-reply sequences")
     return df[~filter_main]
@@ -233,9 +231,39 @@ class PositionData(BaseModel):
     @classmethod
     def from_sv3_novins_gnss(cls, novins: dict, gnss: dict) -> "PositionData":
         positiondata = PositionData.from_sv3_novins(novins)
-        positiondata.update(gnss)
+        if isinstance(gnss,dict):
+            positiondata.update(gnss)
         return positiondata
 
+    @classmethod
+    def from_sv3_gnss_ahrs(cls, gnss: dict, ahrs: dict) -> "PositionData":
+        latitude = gnss.get("latitude", 0)
+        longitude = gnss.get("longitude", 0)
+        height = gnss.get("hae", 0)
+        sdx = gnss.get("sdx", 0)
+        sdy = gnss.get("sdy", 0)
+        sdz = gnss.get("sdz", 0)
+        time = datetime.fromtimestamp(gnss.get("time").get("common"))
+        east, north, up = pm.geodetic2ecef(latitude, longitude, height)
+        pitch = ahrs.get("p", 0)
+        roll = ahrs.get("r", 0)
+        head = ahrs.get("h", 0)
+        return cls(
+            time=time,
+            latitude=latitude,
+            longitude=longitude,
+            height=height,
+            east=east,
+            north=north,
+            up=up,
+            roll=roll,
+            pitch=pitch,
+            head=head,
+            sdx=sdx,
+            sdy=sdy,
+            sdz=sdz,
+        )
+      
 class SV3InterrogationData(BaseModel):
     head0: float
     pitch0: float
@@ -269,7 +297,10 @@ class SV3InterrogationData(BaseModel):
     def from_DFOP00_line(cls, line) -> "SV3InterrogationData":
         nov_ins = line.get("observations").get("NOV_INS")
         gnss = line.get("observations").get("GNSS")
+        
         if nov_ins is None:
+            if gnss is None or gnss == "ERR3":
+                return None
             position_data = PositionData.from_sv3_novins(gnss)
         else:
             position_data = PositionData.from_sv3_novins_gnss(
@@ -343,9 +374,20 @@ class SV3ReplyData(BaseModel):
 
     @classmethod
     def from_DFOP00_line(cls, line) -> "RangeData":
-        positionData = PositionData.from_sv3_novins_gnss(
-            line.get("observations").get("NOV_INS"), line.get("observations").get("GNSS")
-        )
+        NOV_INS = line.get("observations").get("NOV_INS")
+        GNSS = line.get("observations").get("GNSS")
+        AHRS = line.get("observations").get("AHRS")
+        if NOV_INS is None:
+
+            if GNSS is None or GNSS == "ERR3":
+                return None
+            if AHRS is None or AHRS == "ERR3":
+                return None
+            positionData = PositionData.from_sv3_gnss_ahrs(GNSS, AHRS)
+        else:
+            positionData = PositionData.from_sv3_novins_gnss(
+                NOV_INS, GNSS
+            )
         rangeData = RangeData.from_sv3(
             line.get("range"), line.get("time").get("common")
         )

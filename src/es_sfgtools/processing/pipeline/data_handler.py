@@ -12,6 +12,7 @@ from functools import partial
 import concurrent.futures
 import threading
 from functools import wraps
+import json
 
 import seaborn 
 seaborn.set_theme(style="whitegrid")
@@ -21,13 +22,13 @@ from es_sfgtools.processing.assets.file_schemas import AssetEntry, AssetType
 from es_sfgtools.processing.assets.tiledb_temp import TDBAcousticArray,TDBGNSSArray,TDBPositionArray,TDBShotDataArray
 from es_sfgtools.processing.pipeline.catalog import Catalog
 from es_sfgtools.processing.pipeline.pipelines import SV3Pipeline, SV3PipelineConfig
+from es_sfgtools.processing.operations.gnss_ops import get_metadata,get_metadatav2
 from es_sfgtools.processing.pipeline.constants import REMOTE_TYPE, FILE_TYPES
 from es_sfgtools.processing.pipeline.datadiscovery import scrape_directory_local, get_file_type_local, get_file_type_remote
 
 from es_sfgtools.modeling.garpos_tools.functions import GarposHandler
 from es_sfgtools.processing.assets.siteconfig import SiteConfig
-
-from es_sfgtools.utils.loggers import setup_notebook_logger
+from es_sfgtools.utils.loggers import setup_notebook_logger,BaseLogger,GNSSLogger,ProcessLogger
 
 
 
@@ -52,40 +53,30 @@ class DataHandler:
     """
     A class to handle data operations such as searching for, adding, downloading and processing data.
     """
-
+    logger = BaseLogger
+    gnss_logger = GNSSLogger
+    process_logger = ProcessLogger
     def __init__(self,
                  directory: Path | str,
-                 network: str = None,
-                 station: str = None,
-                 survey: str = None,
-                 show_logs: bool = False
                  ) -> None:
         """
         Initialize the DataHandler object.
 
         Args:
             directory (Path | str): The directory path to store files under.
-            network (str, optional): The network name.
-            station (str, optional): The station name.
-            survey (str, optional): The survey name.
+ 
         """
 
-        self.network = network
-        self.station = station
-        self.survey = survey
-        self.logger = setup_notebook_logger() if show_logs else logging.getLogger('base_logger')
-
+        self.network = None
+        self.station = None
+        self.survey = None
+     
         # Create the directory structures
         self.main_directory = Path(directory)
+        self.logger.set_dir(self.main_directory)
         # Create the main and pride directory
         self.pride_dir = self.main_directory / "Pride"
         self.pride_dir.mkdir(exist_ok=True, parents=True)
-
-        if self.network is not None and self.station is not None and self.survey is not None:
-            # Create the network/station directory structure
-            self.build_station_dir_structure(self.network, self.station, self.survey)
-            # Create the TileDB arrays
-            self.build_tileDB_arrays()
 
         # Create the catalog
         self.db_path = self.main_directory / "catalog.sqlite"
@@ -93,6 +84,7 @@ class DataHandler:
             self.db_path.touch()
         self.catalog = Catalog(self.db_path)
 
+       
 
     def _build_station_dir_structure(self, network: str, station: str, survey: str):
 
@@ -110,7 +102,12 @@ class DataHandler:
 
                 - Pride/ 
         """
-        self.logger.info(f"Building directory structure for {network} {station} {survey}")
+        self.logger.loginfo(f"Building directory structure for {network} {station} {survey}")
+
+        self.station_log_dir = self.main_directory / network / "logs"
+        self.station_log_dir.mkdir(parents=True,exist_ok=True)
+        ProcessLogger.set_dir(self.station_log_dir)
+        GNSSLogger.set_dir(self.station_log_dir)
         # Create the network/station directory structure
         self.station_dir = self.main_directory / network / station
         self.station_dir.mkdir(parents=True, exist_ok=True)
@@ -137,12 +134,30 @@ class DataHandler:
         """
         Build the TileDB arrays for the current station. TileDB directory is /network/station/TileDB.
         """
-        self.logger.info(f"Building TileDB arrays for {self.station}")
+        self.logger.loginfo(f"Building TileDB arrays for {self.station}")
         self.acoustic_tdb = TDBAcousticArray(self.tileb_dir/"acoustic_db.tdb")
         self.gnss_tdb = TDBGNSSArray(self.tileb_dir/"gnss_db.tdb")
         self.position_tdb = TDBPositionArray(self.tileb_dir/"position_db.tdb")
         self.shotdata_tdb = TDBShotDataArray(self.tileb_dir/"shotdata_db.tdb")
-    
+        self.rangea_tdb = self.tileb_dir/"rangea_db.tdb" # golang binaries will be used to interact with this array
+
+    def _build_rinex_meta(self) -> None:
+        """
+        Build the RINEX metadata for a station.
+        Args:
+            station_dir (Path): The station directory to build the RINEX metadata for.
+        """
+        # Get the RINEX metadata
+        self.rinex_metav2 = self.station_dir / "rinex_metav2.json"
+        self.rinex_metav1 = self.station_dir / "rinex_metav1.json"
+        if not self.rinex_metav2.exists():
+            with open(self.rinex_metav2, "w") as f:
+                json.dump(get_metadatav2(site=self.station), f)
+
+        if not self.rinex_metav1.exists():
+            with open(self.rinex_metav1, "w") as f:
+                json.dump(get_metadata(site=self.station), f)
+
     def change_working_station(self, network: str, station: str, survey: str = None):
         """
         Change the working station.
@@ -165,8 +180,9 @@ class DataHandler:
         # Build the directory structure and TileDB arrays
         self._build_station_dir_structure(network, station,survey)
         self._build_tileDB_arrays()
+        self._build_rinex_meta()
 
-        self.logger.info(f"Changed working station to {network} {station}")
+        self.logger.loginfo(f"Changed working station to {network} {station}")
 
 
     @check_network_station_survey
@@ -194,10 +210,10 @@ class DataHandler:
 
         files:List[Path] = scrape_directory_local(directory_path)
         if len(files) == 0:
-            self.logger.error(f"No files found in {directory_path}, ensure the directory is correct.")
+            self.logger.logerr(f"No files found in {directory_path}, ensure the directory is correct.")
             return
         
-        self.logger.info(f"Found {len(files)} files in {directory_path}")
+        self.logger.loginfo(f"Found {len(files)} files in {directory_path}")
 
         self.add_data_to_catalog(files)
 
@@ -213,7 +229,7 @@ class DataHandler:
         file_data_list = []
         for file_path in local_filepaths:
             if not file_path.exists():
-                self.logger.error(f"File {str(file_path)} does not exist")
+                self.logger.logerr(f"File {str(file_path)} does not exist")
                 continue
             file_type, _size = get_file_type_local(file_path)
             if file_type is not None:
@@ -233,9 +249,9 @@ class DataHandler:
             if self.catalog.add_entry(file_assest):
                 uploadCount += 1
 
-        self.logger.info(f"Added {uploadCount} out of {count} files to the catalog")
+        self.logger.loginfo(f"Added {uploadCount} out of {count} files to the catalog")
 
-
+    @check_network_station_survey
     def add_data_remote(self, 
                         remote_filepaths: List[str],
                         remote_type:Union[REMOTE_TYPE,str] = REMOTE_TYPE.HTTP
@@ -263,7 +279,7 @@ class DataHandler:
             file_type = get_file_type_remote(file)
 
             if file_type is None: # If the file type is not recognized, skip it
-                self.logger.warning(f"File type not recognized for {file}")
+                self.logger.logger.warning(f"File type not recognized for {file}")
                 continue
 
             if not self.catalog.remote_file_exist(network=self.network,
@@ -282,7 +298,7 @@ class DataHandler:
                 )
                 file_data_list.append(file_data)
             else:
-                self.logger.info(f"File {file} already exists in the catalog")
+                self.logger.loginfo(f"File {file} already exists in the catalog")
 
         # Add each file (AssetEntry) to the catalog
         count = len(file_data_list)
@@ -291,7 +307,7 @@ class DataHandler:
             if self.catalog.add_entry(file_assest):
                 uploadCount += 1
 
-        self.logger.info(f"Added {uploadCount} out of {count} files to the catalog")
+        self.logger.loginfo(f"Added {uploadCount} out of {count} files to the catalog")
 
     def download_data(self, file_types: List[AssetType] | List[str] | str = FILE_TYPES, override: bool=False):
         """
@@ -323,7 +339,7 @@ class DataHandler:
                                             type=type)
 
             if len(assets) == 0:
-                self.logger.error(f"No matching data found in catalog")
+                self.logger.logerr(f"No matching data found in catalog")
                 continue
             
             # Find files that we need to download based on the catalog output. If override is True, download all files.
@@ -340,7 +356,7 @@ class DataHandler:
                             assets_to_download.append(file_asset)
 
             if len(assets_to_download) == 0:
-                self.logger.info(f"No new files to download")
+                self.logger.loginfo(f"No new files to download")
             
             # split the entries into s3 and http
             s3_assets = [file for file in assets_to_download if file.remote_type == REMOTE_TYPE.S3.value]
@@ -402,14 +418,14 @@ class DataHandler:
         local_path = self.raw_dir / Path(prefix).name
 
         try:
-            self.logger.info(f"Downloading {prefix} to {local_path}")
+            self.logger.loginfo(f"Downloading {prefix} to {local_path}")
             client.download_file(Bucket=bucket, 
                                  Key=str(prefix), 
                                  Filename=str(local_path))
-            self.logger.info(f"Downloaded {str(prefix)} to {str(local_path)}")
+            self.logger.loginfo(f"Downloaded {str(prefix)} to {str(local_path)}")
 
         except Exception as e:
-            self.logger.error(f"Error downloading {prefix} from {bucket }\n {e} \n HINT: $ aws sso login")
+            self.logger.logerr(f"Error downloading {prefix} from {bucket }\n {e} \n HINT: $ aws sso login")
             local_path = None
 
         finally:
@@ -454,10 +470,10 @@ class DataHandler:
             if not local_path.exists(): 
                 raise Exception
 
-            self.logger.info(f"Downloaded {str(remote_url)} to {str(local_path)}")
+            self.logger.loginfo(f"Downloaded {str(remote_url)} to {str(local_path)}")
 
         except Exception as e:
-            self.logger.error(f"Error downloading {str(remote_url)} \n {e}" + "\n HINT: Check authentication credentials")
+            self.logger.logerr(f"Error downloading {str(remote_url)} \n {e}" + "\n HINT: Check authentication credentials")
             local_path = None
 
         finally:
@@ -512,7 +528,9 @@ class DataHandler:
                                  pride_dir=self.pride_dir,
                                  shot_data_dest=self.shotdata_tdb,
                                  gnss_data_dest=self.gnss_tdb,
+                                 rangea_data_dest=self.rangea_tdb,
                                  catalog_path=self.db_path)
+        config.rinex_config.settings_path = self.rinex_metav2
         pipeline = SV3Pipeline(catalog=self.catalog, config=config)
 
         return pipeline, config
@@ -534,3 +552,17 @@ class DataHandler:
                              site_config=site_config,
                              working_dir=self.station_dir/'GARPOS')
     
+    def print_logs(self,log:Literal['base','gnss','process']):
+        """
+        Print logs to console.
+        Args:
+            log (Literal['base','gnss','process']): The type of log to print.
+        """
+        if log == 'base':
+            self.logger.route_to_console()
+        elif log == 'gnss':
+            self.gnss_logger.route_to_console()
+        elif log == 'process':
+            self.process_logger.route_to_console()
+        else:
+            raise ValueError(f"Log type {log} not recognized. Must be one of ['base','gnss','process']")

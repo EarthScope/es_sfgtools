@@ -4,13 +4,14 @@ from multiprocessing import Pool, cpu_count
 import warnings
 from functools import partial
 import pandas as pd
-from typing import List
+from typing import List, Optional
 from pathlib import Path
 import multiprocessing
 import datetime
 import signal
 from pydantic import BaseModel, Field, ValidationError,model_serializer,field_serializer,field_validator,validator
 import yaml
+import concurrent.futures
 
 from es_sfgtools.processing.pipeline.catalog import Catalog
 from es_sfgtools.processing.assets.file_schemas import AssetEntry,AssetType
@@ -29,11 +30,12 @@ from es_sfgtools.processing.operations.utils import (
     merge_shotdata_gnss,
 )
 
-logger = logging.getLogger(__name__)
+from es_sfgtools.utils.loggers import ProcessLogger as logger
 
 class NovatelConfig(BaseModel):
     override: bool = Field(False, title="Flag to Override Existing Data")
     show_details: bool = Field(False, title="Flag to Show Processing Details")
+    n_processes: int = Field(default_factory=cpu_count, title="Number of Processes to Use")
 
 class RinexConfig(BaseModel):
     override: bool = Field(False, title="Flag to Override Existing Data")
@@ -41,6 +43,15 @@ class RinexConfig(BaseModel):
     pride_config: PridePdpConfig = Field(default_factory=PridePdpConfig, title="Pride Configuration")
     override_products_download: bool = Field(False, title="Flag to Override Existing Products Download")
     n_processes: int = Field(default_factory=cpu_count, title="Number of Processes to Use")
+    settings_path: Optional[Path] = Field("", title="Settings Path")
+    class Config:
+        arbitrary_types_allowed = True
+    @field_serializer("settings_path")
+    def _s_path(self,v):
+        return str(v)
+    @field_validator("settings_path")
+    def _v_path(cls,v:str):
+        return Path(v)
 
 class DFOP00Config(BaseModel):
     override: bool = Field(False, title="Flag to Override Existing Data")
@@ -64,6 +75,8 @@ class SV3PipelineConfig(BaseModel):
     position_update_config: PositionUpdateConfig = PositionUpdateConfig()
     shot_data_dest: TDBShotDataArray = None
     gnss_data_dest: TDBGNSSArray = None
+    rangea_data_dest: Path = None
+
     class Config:
         title = "SV3 Pipeline Configuration"
         arbitrary_types_allowed = True
@@ -86,11 +99,11 @@ class SV3PipelineConfig(BaseModel):
             return TDBGNSSArray(Path(v))
         return v
 
-    @field_serializer("inter_dir","pride_dir","catalog_path")
+    @field_serializer("inter_dir","pride_dir","catalog_path","rangea_data_dest")
     def _s_path(self,v):
         return str(v)
 
-    @field_validator("inter_dir","pride_dir","catalog_path")
+    @field_validator("inter_dir","pride_dir","catalog_path","rangea_data_dest")
     def _v_path(cls,v:str):
         return Path(v)
 
@@ -111,7 +124,7 @@ class SV3Pipeline:
         if self.catalog is None:
             self.catalog = Catalog(self.config.catalog_path)
 
-    def process_novatel(
+    def pre_process_novatel(
         self
     ) -> None:
 
@@ -122,27 +135,82 @@ class SV3Pipeline:
             survey=self.config.survey,
             type=AssetType.NOVATEL770,
         )
+        if novatel_770_entries:
 
+            merge_signature = {
+                "parent_type": AssetType.NOVATEL770.value,
+                "child_type": AssetType.RANGEATDB.value,
+                "parent_ids": [x.id for x in novatel_770_entries],
+            }
+            if self.config.novatel_config.override or not self.catalog.is_merge_complete(**merge_signature):
+                gnss_ops.novb2tile(files=novatel_770_entries,rangea_tdb=self.config.rangea_data_dest,n_procs=self.config.novatel_config.n_processes)
+
+                self.catalog.add_merge_job(**merge_signature)
+                response = f"Added {len(novatel_770_entries)} Novatel 770 Entries to the catalog"
+                logger.logger.info(response)
+                if self.config.novatel_config.show_details:
+                    print(response)
+        else:
+            response = f"No Novatel 770 Files Found to Process for {self.config.network} {self.config.station} {self.config.survey}"
+            logger.logger.info(response)
+            print(response)
+
+        print(f"Processing Novatel 000 data for {self.config.network} {self.config.station} {self.config.survey}")
+        novatel_000_entries: List[AssetEntry] = self.catalog.get_assets(
+            network=self.config.network,
+            station=self.config.station,
+            survey=self.config.survey,
+            type=AssetType.NOVATEL000,
+        )
+        if novatel_000_entries:
+
+            merge_signature = {
+                "parent_type": AssetType.NOVATEL000.value,
+                "child_type": AssetType.RANGEATDB.value,
+                "parent_ids": [x.id for x in novatel_000_entries],
+            }
+            if self.config.novatel_config.override or not self.catalog.is_merge_complete(**merge_signature):
+                gnss_ops.nov0002tile(files=novatel_000_entries,rangea_tdb=self.config.rangea_data_dest,n_procs=self.config.novatel_config.n_processes)
+
+                self.catalog.add_merge_job(**merge_signature)
+                response = f"Added {len(novatel_000_entries)} Novatel 000 Entries to the catalog"
+                logger.logger.info(response)
+                if self.config.novatel_config.show_details:
+                    print(response)
+        else:
+            response = f"No Novatel 000 Files Found to Process for {self.config.network} {self.config.station} {self.config.survey}"
+            logger.logger.info(response)
+            print(response)
+            return
+
+    def get_rinex_files(self):
         merge_signature = {
-            "parent_type": AssetType.NOVATEL770.value,
+            "parent_type": AssetType.RANGEATDB.value,
             "child_type": AssetType.RINEX.value,
-            "parent_ids": [x.id for x in novatel_770_entries],
+            "parent_ids": [self.config.rangea_data_dest],
         }
-        if self.config.novatel_config.override or not self.catalog.is_merge_complete(**merge_signature):
-            rinex_entries: List[AssetEntry] = gnss_ops.novatel_to_rinex_batch(
-                source=novatel_770_entries,
-                writedir =self.config.inter_dir,
-                show_details=self.config.novatel_config.show_details,
+
+        if self.config.rinex_config.override or not self.catalog.is_merge_complete(**merge_signature):
+            rinex_entries: List[AssetEntry] = gnss_ops.tile2rinex(
+                rangea_tdb=self.config.rangea_data_dest,
+                settings=self.config.rinex_config.settings_path,
+                writedir=self.config.inter_dir,
+                n_procs=self.config.rinex_config.n_processes,
             )
+            if len(rinex_entries) == 0:
+                response = f"No Rinex Files Found to Process for {self.config.network} {self.config.station} {self.config.survey}"
+                logger.logger.error(response)
+                return
+            self.catalog.add_merge_job(**merge_signature)
+            logger.logger.info(f"Generated {len(rinex_entries)} Rinex Entries spanning {rinex_entries[0].timestamp_data_start} to {rinex_entries[-1].timestamp_data_end}")
             uploadCount = 0
             for rinex_entry in rinex_entries:
+                rinex_entry.network = self.config.network
+                rinex_entry.station = self.config.station
+                rinex_entry.survey = self.config.survey
                 if self.catalog.add_entry(rinex_entry):
                     uploadCount += 1
-            self.catalog.add_merge_job(**merge_signature)
-            response = f"Added {uploadCount} out of {len(rinex_entries)} Rinex Entries to the catalog"
-            logger.info(response)
-            if self.config.novatel_config.show_details:
-                print(response)
+            logger.logger.info(f"Added {uploadCount} out of {len(rinex_entries)} Rinex Entries to the catalog")
 
     def process_rinex(
         self
@@ -159,7 +227,7 @@ class SV3Pipeline:
         response = (
             f"Processing Rinex Data for {self.config.network} {self.config.station} {self.config.survey}"
         )
-        logger.info(response)
+        logger.logger.info(response)
         if self.config.rinex_config.show_details:
             print(response)
 
@@ -175,29 +243,39 @@ class SV3Pipeline:
         )
         if not rinex_entries:
             response = f"No Rinex Files Found to Process for {self.config.network} {self.config.station} {self.config.survey}"
-            logger.error(response)
+            logger.logger.error(response)
             if self.config.rinex_config.show_details:
                 print(response)
             warnings.warn(response)
             return []
 
         response = f"Found {len(rinex_entries)} Rinex Files to Process"
-        logger.info(response)
+        logger.logger.info(response)
         if self.config.rinex_config.show_details:
             print(response)
 
-        for rinex_entry in tqdm(rinex_entries,total=len(rinex_entries),desc="Getting nav/obs files for Processing Rinex Files"):
-            nav_file: Path = get_nav_file(rinex_path=rinex_entry.local_path, override=self.config.rinex_config.override_products_download)
-            product_status: dict = get_gnss_products(rinex_path=rinex_entry.local_path, pride_dir=self.config.pride_dir, override=self.config.rinex_config.override_products_download)
-            if self.config.rinex_config.show_details:
-                print(f"\nProduct Status: {product_status}\n")
-                print(f"\nNav File: {str(nav_file)}\n")
+        get_nav_file_partial = partial(
+            get_nav_file, override=self.config.rinex_config.override_products_download
+        )
+        get_gnss_products_partial = partial(
+            get_gnss_products, pride_dir=self.config.pride_dir, override=self.config.rinex_config.override_products_download
+        )
 
+        rinex_paths = [x.local_path for x in rinex_entries]
+      
+        with concurrent.futures.ThreadPoolExecutor() as executor:
 
+            #for rinex_entry in tqdm(rinex_entries,total=len(rinex_entries),desc="Getting nav/obs files for Processing Rinex Files"):
+            nav_files = [x for x in executor.map(get_nav_file_partial, rinex_paths)]
+            gnss_products = [x for x in executor.map(get_gnss_products_partial, rinex_paths)]
+
+        #print(gnss_products)
+            
         process_rinex_partial = partial(
             rinex_to_kin,
             writedir=self.config.inter_dir,
             pridedir=self.config.pride_dir,
+            site = self.config.station,
             show_details=self.config.rinex_config.show_details,
             pride_config=self.config.rinex_config.pride_config,
         )
@@ -208,29 +286,34 @@ class SV3Pipeline:
 
         with multiprocessing.Pool(processes=self.config.rinex_config.n_processes) as pool:
 
-            try:
-                results = pool.imap(process_rinex_partial, rinex_entries)
-                for idx, (kinfile, resfile) in enumerate(tqdm(
-                    results, total=len(rinex_entries), desc="Processing Rinex Files"
-                )):
-                    if kinfile is not None:
-                        count += 1
-                    if self.catalog.add_or_update(kinfile):
-                        uploadCount += 1
+            results = pool.map(process_rinex_partial, rinex_entries)
+    
+
+            for idx, (kinfile, resfile) in enumerate(tqdm(
+                results, total=len(rinex_entries), desc="Processing Rinex Files",mininterval=0.5
+            )):
+                if kinfile is not None:
                     kin_entries.append(kinfile)
                     if resfile is not None:
-                        count += 1
-                        if self.catalog.add_or_update(resfile):
-                            uploadCount += 1
-                            resfile_entries.append(resfile)
-                    rinex_entries[idx].is_processed = True
-                    self.catalog.add_or_update(rinex_entries[idx])
-            except KeyboardInterrupt:
-                pool.terminate()
-                pool.join()
+                        resfile_entries.append(resfile)
+
+        for idx, (kinfile, resfile) in enumerate(zip(kin_entries, resfile_entries)):
+            if kinfile is not None:
+                count += 1
+            if self.catalog.add_or_update(kinfile):
+                uploadCount += 1
+            
+            if resfile is not None:
+                count += 1
+                if self.catalog.add_or_update(resfile):
+                    uploadCount += 1
+                    resfile_entries.append(resfile)
+            rinex_entries[idx].is_processed = True
+            self.catalog.add_or_update(rinex_entries[idx])
+            
 
         response = f"Generated {count} Kin Files From {len(rinex_entries)} Rinex Files, Added {uploadCount} to the Catalog"
-        logger.info(response)
+        logger.logger.info(response)
         if self.config.rinex_config.show_details:
             print(response)
 
@@ -251,14 +334,14 @@ class SV3Pipeline:
         )
         if not kin_entries:
             response = f"No Kin Files Found to Process for {self.config.network} {self.config.station} {self.config.survey}"
-            logger.error(response)
+            logger.logger.error(response)
             if self.config.rinex_config.show_details:
                 print(response)
             warnings.warn(response)
             return
 
         response = f"Found {len(kin_entries)} Kin Files to Process"
-        logger.info(response)
+        logger.logger.info(response)
         if self.config.rinex_config.show_details:
             print(response)
 
@@ -277,7 +360,7 @@ class SV3Pipeline:
                 self.config.gnss_data_dest.write_df(gnss_df)           
 
         response = f"Generated {count} GNSS Dataframes From {len(kin_entries)} Kin Files, Added {uploadCount} to the Catalog"
-        logger.info(response)
+        logger.logger.info(response)
         if self.config.rinex_config.show_details:
             print(response)
 
@@ -295,14 +378,14 @@ class SV3Pipeline:
         )
         if not dfop00_entries:
             response = f"No DFOP00 Files Found to Process for {self.config.network} {self.config.station} {self.config.survey}"
-            logger.error(response)
+            logger.logger.error(response)
             if self.config.dfop00_config.show_details:
                 print(response)
             warnings.warn(response)
             return
 
         response = f"Found {len(dfop00_entries)} DFOP00 Files to Process"
-        logger.info(response)
+        logger.logger.info(response)
         if self.config.dfop00_config.show_details:
             print(response)
 
@@ -320,7 +403,7 @@ class SV3Pipeline:
                     self.catalog.add_or_update(dfo_entry)
 
         response = f"Generated {count} ShotData dataframes From {len(dfop00_entries)} DFOP00 Files"
-        logger.info(response)
+        logger.logger.info(response)
         if self.config.dfop00_config.show_details:
             print(response)
 
@@ -347,6 +430,13 @@ class SV3Pipeline:
             )
             self.catalog.add_merge_job(**merge_job)
 
+    def run_pipeline(self):
+        self.pre_process_novatel()
+        self.get_rinex_files()
+        self.process_rinex()
+        self.process_kin()
+        self.process_dfop00()
+        self.update_shotdata()
 
 class SV2Pipeline:
     def __init__(self,catalog:Catalog=None,config:SV3PipelineConfig=None):
@@ -384,7 +474,6 @@ class SV2Pipeline:
                     uploadCount += 1
             self.catalog.add_merge_job(**merge_signature)
             response = f"Added {uploadCount} out of {len(rinex_entries)} Rinex Entries to the catalog"
-            logger.info(response)
+            logger.logger.info(response)
             if self.config.novatel_config.show_details:
                 print(response)
-

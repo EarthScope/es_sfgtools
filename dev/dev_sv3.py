@@ -8,17 +8,50 @@ from es_sfgtools.processing.operations.site_ops import CTDfile_to_svp,masterfile
 import os
 from es_sfgtools.processing.assets import AssetEntry, AssetType
 from es_sfgtools.utils.archive_pull import list_survey_files
-data_dir = (
-    Path().home()
-    / "Project/SeaFloorGeodesy/Data/Cascadia2023/NFL1"
-)
+from es_sfgtools.utils.loggers import BaseLogger
 pride_path = Path.home() / ".PRIDE_PPPAR_BIN"
-catalog_path = data_dir/"catalog.sqlite"
-# add to path
 os.environ["PATH"] += os.pathsep + str(pride_path)
+
 if __name__ == "__main__":
 
-    # network = "Cascadia"
+    main_dir = Path("/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain")
+    BaseLogger.route_to_console()
+    dh = DataHandler(main_dir)
+
+    network = 'cascadia-gorda'
+    station = 'NCC1'
+    survey = '2024_A_1126'
+    
+    dh.change_working_station(network=network,station=station,survey=survey)
+    
+    survey_files = list_survey_files(network=network, station=station, survey=survey, show_details=True)
+    dh.add_data_remote(survey_files)
+    dh.download_data()
+    dh.discover_data_and_add_files(dh.station_dir)
+    pipeline,config = dh.get_pipeline_sv3()
+    config.novatel_config.override = True
+    config.rinex_config.override = False
+    config.rinex_config.override_products_download = False
+    config.rinex_config.pride_config.sample_frequency = .25
+    pipeline.config = config
+    pipeline.run_pipeline()
+
+    # ncc1_2024_config = dh.station_dir / "NCC1_2024_config.yaml"
+    # svp_path = dh.station_dir / "NCC1_CTD_2021_fit"
+    # svp_path_processed = dh.station_dir / "svp.csv"
+    # if not svp_path_processed.exists():
+    #     svp_df = CTDfile_to_svp(svp_path)
+    #     svp_df.to_csv(svp_path_processed)
+       
+    # config = SiteConfig.from_config(ncc1_2024_config)
+    # config.sound_speed_data = svp_path_processed
+    # gp_handler_ncc1= dh.get_garpos_handler(site_config=config)
+    
+    # gp_handler_ncc1.prep_shotdata()
+    # update_dict = {"rejectcriteria": 2.5}
+    # gp_handler_ncc1.set_inversion_params(update_dict)   
+    # gp_handler_ncc1.run_garpos(-1)
+
     # station = "NFL1"
     # survey = "2023"
     # main_dir = Path("/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/Cascadia2023/SFGTools")
@@ -57,18 +90,17 @@ if __name__ == "__main__":
     # gp_handler = dh.get_garpos_handler(site_config=config)
     # gp_handler.prep_shotdata()
     # gp_handler.run_garpos()
-    network='alaska-shumagins'
-    site='IVB1'
-    surveys = ['2018_A_SFG1','2022_A_1049']
+    # network='alaska-shumagins'
+    # site='IVB1'
+    # surveys = ['2018_A_SFG1','2022_A_1049']
 
-    
-    dh = DataHandler(Path("/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain"))
-    for survey in surveys:
-        dh.change_working_station(network=network,station=site,survey=survey)
-        remote_filepaths = list_survey_files(network=network, station=site, survey=survey, show_details=True)
+    # dh = DataHandler(Path("/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain"))
+    # for survey in surveys:
+    #     dh.change_working_station(network=network,station=site,survey=survey)
+    #     remote_filepaths = list_survey_files(network=network, station=site, survey=survey, show_details=True)
 
-        dh.add_data_remote(remote_filepaths)
-        dh.download_data()
+    #     dh.add_data_remote(remote_filepaths)
+    #     dh.download_data()
     # print(dh.get_dtype_counts())
     # pipeline,config = dh.get_pipeline_sv3()
     # pipeline.process_novatel()
@@ -76,7 +108,7 @@ if __name__ == "__main__":
     # pipeline.process_kin()
     # pipeline.process_dfop00()
     # pipeline.update_shotdata()
-    
+
     # config_path = dh.station_dir / "NCC1_2024_config.yaml"
     # svp_path = dh.station_dir / "NCC1_CTD_2021_fit"
 

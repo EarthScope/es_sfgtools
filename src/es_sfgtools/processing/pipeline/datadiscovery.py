@@ -10,6 +10,7 @@ pattern_map = {
     re.compile(r"^(?=.*novatel)(?!.*pin).*$", re.IGNORECASE): AssetType.NOVATELPIN,
     re.compile(f"novatel"): AssetType.NOVATEL,
     re.compile("kin"): AssetType.KIN,
+    re.compile("NOV000") : AssetType.NOVATEL000,
     # re.compile("rinex"): AssetType.RINEX,
     re.compile(r"\.\d{2}o$"): AssetType.RINEX,
     re.compile("NOV770"): AssetType.NOVATEL770,

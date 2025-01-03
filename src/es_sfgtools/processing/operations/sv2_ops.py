@@ -140,7 +140,6 @@ def sonardyne_to_acousticdf(source: SonardyneFile) -> DataFrame[AcousticDataFram
                     simultaneous_interrogation_set.extend(range_data)
                 except ValidationError as e:
                     response = f"Error parsing into SimultaneousInterrogation from line {line_number} in {source}\n "
-                    response += f"Line: {next_line}"
                     logger.error(response)
                     pass
                 
