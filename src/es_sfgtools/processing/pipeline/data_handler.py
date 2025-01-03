@@ -58,23 +58,18 @@ class DataHandler:
     process_logger = ProcessLogger
     def __init__(self,
                  directory: Path | str,
-                 network: str = None,
-                 station: str = None,
-                 survey: str = None,
                  ) -> None:
         """
         Initialize the DataHandler object.
 
         Args:
             directory (Path | str): The directory path to store files under.
-            network (str, optional): The network name.
-            station (str, optional): The station name.
-            survey (str, optional): The survey name.
+ 
         """
 
-        self.network = network
-        self.station = station
-        self.survey = survey
+        self.network = None
+        self.station = None
+        self.survey = None
      
         # Create the directory structures
         self.main_directory = Path(directory)
@@ -83,18 +78,13 @@ class DataHandler:
         self.pride_dir = self.main_directory / "Pride"
         self.pride_dir.mkdir(exist_ok=True, parents=True)
 
-        if self.network is not None and self.station is not None and self.survey is not None:
-            # Create the network/station directory structure
-            self.build_station_dir_structure(self.network, self.station, self.survey)
-            # Create the TileDB arrays
-            self.build_tileDB_arrays()
-
         # Create the catalog
         self.db_path = self.main_directory / "catalog.sqlite"
         if not self.db_path.exists():
             self.db_path.touch()
         self.catalog = Catalog(self.db_path)
 
+       
 
     def _build_station_dir_structure(self, network: str, station: str, survey: str):
 
