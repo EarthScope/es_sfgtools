@@ -52,7 +52,34 @@ class Catalog:
                     Assets.network == network,
                     Assets.station == station,
                     Assets.survey == survey,
+                    Assets.type == type.value
+                )
+            )
+            result = conn.execute(query).fetchall()
+            out = []
+            for row in result:
+                try:
+                    out.append(AssetEntry(**row._mapping))
+                except Exception as e:
+                    print("Unable to add row, error: {}".format(e))
+            return out
+    
+    def get_local_assets(self,
+                   network: str,
+                   station: str,
+                   survey: str,
+                   type: AssetType) -> List[AssetEntry]:
+
+        print(f"Getting local assets for {network} {station} {survey} {str(type)}")
+
+        with self.engine.connect() as conn:
+            query = sa.select(Assets).where(
+                sa.and_(
+                    Assets.network == network,
+                    Assets.station == station,
+                    Assets.survey == survey,
                     Assets.type == type.value,
+                    Assets.local_path.isnot(None)
                 )
             )
             result = conn.execute(query).fetchall()

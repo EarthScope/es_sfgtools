@@ -200,7 +200,7 @@ class PridePdpConfig(BaseModel):
             Returns:
                 List[str]: The command to run pdp3 with the specified configuration.
     '''
-    sample_frequency: float = 5
+    sample_frequency: float = 1
     system: str = "GREC23J"
     frequency: list = ["G12", "R12", "E15", "C26", "J12"]
     loose_edit: bool = True 
@@ -622,7 +622,7 @@ def rinex_to_kin(
     logger.logger.info(f"Converting RINEX file {source.local_path} to kin file")
 
     if not source.local_path.exists():
-        logger.error(f"RINEX file {source.local_path} not found")
+        logger.logger.error(f"RINEX file {source.local_path} not found")
         raise FileNotFoundError(f"RINEX file {source.local_path} not found")
 
     source = rinex_get_meta(source)
@@ -650,9 +650,9 @@ def rinex_to_kin(
         stderr = result.stderr.decode("utf-8").split("\n")
         for line in stderr:
             if "warning" in line.lower():
-                logger.warning(line)
+                logger.logger.warning(line)
             if "error" in line.lower():
-                logger.error(line)
+                logger.logger.error(line)
     stdout = result.stdout.decode("utf-8")
     stdout = re.sub(pattern_error, "ERROR ", stdout)
     stdout = re.sub(pattern_warning, "WARNING ", stdout)

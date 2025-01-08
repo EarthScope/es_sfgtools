@@ -104,7 +104,7 @@ class DataHandler:
         """
         self.logger.loginfo(f"Building directory structure for {network} {station} {survey}")
 
-        self.station_log_dir = self.main_directory / network / "logs"
+        self.station_log_dir = self.main_directory / network / station/ "logs"
         self.station_log_dir.mkdir(parents=True,exist_ok=True)
         ProcessLogger.set_dir(self.station_log_dir)
         GNSSLogger.set_dir(self.station_log_dir)
