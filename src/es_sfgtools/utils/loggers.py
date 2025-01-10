@@ -63,13 +63,19 @@ class _BaseLogger:
         remove_console():
             Removes the console handler from the logger.
     '''
-    def __init__(self,name:str= "base_logger",dir:Path=Path.home()/".sfgtools",file_name:str=BASE_LOG_FILE_NAME, format:logging.Formatter = BASIC_FORMAT, level=logging.INFO):
+    def __init__(self,name:str= "base_logger",
+                 dir:Path=Path.home()/".sfgtools",
+                 file_name:str=BASE_LOG_FILE_NAME, 
+                 format:logging.Formatter = BASIC_FORMAT,
+                 console_format:logging.Formatter = MINIMAL_NOTEBOOK_FORMAT, 
+                 level=logging.INFO):
         self.name = name
         self.dir = dir
         self.dir.mkdir(exist_ok=True)
         self.file_name = file_name
         self.path = str(dir / self.file_name)
         self.format = format
+        self.console_format = console_format
         self.level = level
         self.logger = logging.getLogger(self.name)
         self.logger.setLevel(level)
@@ -121,6 +127,7 @@ class _BaseLogger:
 
         self.format = MINIMAL_NOTEBOOK_FORMAT
         self._reset_file_handler()
+        
     
     def set_format_basic(self):
         """
@@ -157,10 +164,12 @@ class _BaseLogger:
         Attributes:
             console_handler (logging.StreamHandler): The handler for routing log messages to the console.
         """
-        
-        self.console_handler = logging.StreamHandler()
-        self.console_handler.setFormatter(self.format)
-        self.logger.addHandler(self.console_handler)
+        if not hasattr(self,'console_handler'):
+            self.console_handler = logging.StreamHandler()
+            self.console_handler.setFormatter(self.console_format)
+            self.logger.addHandler(self.console_handler)
+    
+
     
     def remove_console(self):
         """
@@ -168,8 +177,8 @@ class _BaseLogger:
         This method detaches the console handler from the logger instance,
         effectively stopping the logger from outputting logs to the console.
         """
-
-        self.logger.removeHandler(self.console_handler)
+        if hasattr(self,'console_handler'):
+            self.logger.removeHandler(self.console_handler)
 
     def loginfo(self,message) -> None:
         self.logger.info(message,stacklevel=2)

@@ -129,7 +129,7 @@ class SV3Pipeline:
     ) -> None:
 
         print(f"Processing Novatel 770 data for {self.config.network} {self.config.station} {self.config.survey}")
-        novatel_770_entries: List[AssetEntry] = self.catalog.get_assets(
+        novatel_770_entries: List[AssetEntry] = self.catalog.get_local_assets(
             network=self.config.network,
             station=self.config.station,
             survey=self.config.survey,
@@ -156,7 +156,7 @@ class SV3Pipeline:
             print(response)
 
         print(f"Processing Novatel 000 data for {self.config.network} {self.config.station} {self.config.survey}")
-        novatel_000_entries: List[AssetEntry] = self.catalog.get_assets(
+        novatel_000_entries: List[AssetEntry] = self.catalog.get_local_assets(
             network=self.config.network,
             station=self.config.station,
             survey=self.config.survey,
@@ -401,6 +401,7 @@ class SV3Pipeline:
                     count += 1
                     dfo_entry.is_processed = True
                     self.catalog.add_or_update(dfo_entry)
+
 
         response = f"Generated {count} ShotData dataframes From {len(dfop00_entries)} DFOP00 Files"
         logger.logger.info(response)
