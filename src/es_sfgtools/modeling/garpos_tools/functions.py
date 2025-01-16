@@ -5,7 +5,7 @@ from typing import List, Tuple, Union
 import pandas as pd
 from configparser import ConfigParser
 import matplotlib.pyplot as plt
-from datetime import datetime
+from datetime import datetime,timedelta
 import numpy as np
 import sys
 import os
@@ -18,6 +18,11 @@ from sklearn.ensemble import RandomForestRegressor
 from scipy.interpolate import RBFInterpolator, CubicSpline
 from functools import partial
 import json
+from matplotlib.colors import Normalize
+import seaborn as sns
+sns.set_theme()
+
+import matplotlib.gridspec as gridspec
 
 from es_sfgtools.processing.assets.observables import (
 
@@ -30,6 +35,7 @@ from es_sfgtools.processing.assets.siteconfig import (
     Transponder,
     PositionLLH,
     SiteConfig,
+    Site
 )
 from es_sfgtools.modeling.garpos_tools.schemas import (
     GarposInput,
@@ -48,7 +54,18 @@ from garpos import drive_garpos
 
 logger = logging.getLogger(__name__)
 
-
+colors = [
+    "blue",
+    "green",
+    "red",
+    "cyan",
+    "magenta",
+    "yellow",
+    "black",
+    "brown",
+    "orange",
+    "pink",
+]
 def xyz2enu(x, y, z, lat0, lon0, hgt0, inv=1, **kwargs):
     """
     Rotates the vector of positions XYZ and covariance to
@@ -860,7 +877,7 @@ class GarposHandler:
         self.results_dir = working_dir / "results"
         self.results_dir.mkdir(exist_ok=True, parents=True)
         self.inversion_params = InversionParams()
-        self.dates = self.shotdata.get_unique_dates().tolist()
+        # self.dates = self.shotdata.get_unique_dates().tolist()
 
         self.coord_transformer = CoordTransformer(site_config.position_llh)
 
@@ -954,43 +971,93 @@ class GarposHandler:
         ]
         return ObservationData.validate(shot_data, lazy=True).sort_values("triggerTime")
 
+    def load_campaign_data(self,path:Path):
+        self.site = Site.from_json(path)
+
+    def set_campaign(self,name:str):
+        for campaign in self.site.campaigns:
+            if campaign.name == name:
+                self.campaign = campaign
+                return 
+        raise ValueError(f"campaign {name} not found")
+
+    # def prep_shotdata(self, overwrite: bool = False):
+    #     """
+    #     A method to prepare and save shot data for each date in the object's date list using the following steps:
+
+    #     1. Check if the shot data file exists for each date within self.shotdata_dir.
+    #     2. If the file does not exist or if the `overwrite` flag is set to True, read, rectify, validate, and save the shot data to a CSV file.
+    #     3. Query the shot data for the date from the TDBShotDataArray
+    #     4. Rectify the shot data using the `_rectify_shotdata` method
+    #     5. Validate the rectified shot data
+    #     6. Save the rectified shot data to a CSV file
+
+    #     Args:
+    #         overwrite (bool): If True, existing shot data files will be overwritten.
+    #                   Defaults to False.
+    #     Raises:
+    #         ValueError: If the shot data fails validation.
+    #     """
+
+    #     for date in self.dates:
+    #         year, doy = date.year, date.timetuple().tm_yday
+    #         shot_data_path = self.shotdata_dir / f"{str(year)}_{str(doy)}.csv"
+    #         if not shot_data_path.exists() or overwrite:
+    #             shot_data_queried: pd.DataFrame = self.shotdata.read_df(date)
+    #             shot_data_rectified = self._rectify_shotdata(shot_data_queried)
+    #             try:
+    #                 shot_data_rectified = ShotDataFrame.validate(
+    #                     shot_data_rectified, lazy=True
+    #                 )
+    #                 shot_data_rectified.MT = shot_data_rectified.MT.apply(
+    #                     lambda x: "M" + str(x) if str(x)[0].isdigit() else str(x)
+    #                 )
+    #                 shot_data_path = self.shotdata_dir / f"{str(year)}_{str(doy)}.csv"
+    #                 shot_data_rectified.to_csv(shot_data_path)
+    #             except Exception as e:
+    #                 raise ValueError(
+    #                     f"Shot data for {str(year)}_{str(doy)} failed validation."
+    #                 ) from e
+
     def prep_shotdata(self, overwrite: bool = False):
-        """
-        A method to prepare and save shot data for each date in the object's date list using the following steps:
-
-        1. Check if the shot data file exists for each date within self.shotdata_dir.
-        2. If the file does not exist or if the `overwrite` flag is set to True, read, rectify, validate, and save the shot data to a CSV file.
-        3. Query the shot data for the date from the TDBShotDataArray
-        4. Rectify the shot data using the `_rectify_shotdata` method
-        5. Validate the rectified shot data
-        6. Save the rectified shot data to a CSV file
-
-        Args:
-            overwrite (bool): If True, existing shot data files will be overwritten.
-                      Defaults to False.
-        Raises:
-            ValueError: If the shot data fails validation.
-        """
-
-        for date in self.dates:
-            year, doy = date.year, date.timetuple().tm_yday
-            shot_data_path = self.shotdata_dir / f"{str(year)}_{str(doy)}.csv"
+        for survey in self.campaign.surveys.values():
+            benchmarks = []
+            for benchmark in self.site.benchmarks:
+                if benchmark.name in survey.benchmarkIDs:
+                    benchmarks.append(benchmark)
+            transponders = []
+            for benchmark in benchmarks:
+                [transponders.append(transponder.id) for transponder in benchmark.transponders]
+            if len(transponders) == 0:
+                print(f"No transponders found for survey {survey.id}")
+                continue
+            survey_type = survey.type.replace(" ","")
+            start_doy = survey.start.timetuple().tm_yday
+            end_doy = survey.end.timetuple().tm_yday
+            shot_data_path = self.shotdata_dir / f"{survey.id}_{survey_type}_{start_doy}_{end_doy}.csv"
             if not shot_data_path.exists() or overwrite:
-                shot_data_queried: pd.DataFrame = self.shotdata.read_df(date)
+                shot_data_queried: pd.DataFrame = self.shotdata.read_df(start=survey.start,end=survey.end)
+
+                if shot_data_queried.empty:
+                    print(f"No shot data found for survey {survey.id} {survey_type} {start_doy} {end_doy}")
+                    continue
                 shot_data_rectified = self._rectify_shotdata(shot_data_queried)
                 try:
                     shot_data_rectified = ShotDataFrame.validate(
                         shot_data_rectified, lazy=True
                     )
+                    # Only use shotdata for transponders in the survey
+                    shot_data_rectified = shot_data_rectified[shot_data_rectified.MT.isin(transponders)]
+
                     shot_data_rectified.MT = shot_data_rectified.MT.apply(
                         lambda x: "M" + str(x) if str(x)[0].isdigit() else str(x)
                     )
-                    shot_data_path = self.shotdata_dir / f"{str(year)}_{str(doy)}.csv"
-                    shot_data_rectified.to_csv(shot_data_path)
+                    shot_data_rectified.to_csv(str(shot_data_path))
                 except Exception as e:
                     raise ValueError(
-                        f"Shot data for {str(year)}_{str(doy)} failed validation."
+                        f"Shot data for {survey.id} {survey_type} {start_doy} {end_doy} failed validation."
                     ) from e
+            self.campaign.surveys[survey.id].shot_data_path = shot_data_path
 
     def set_inversion_params(self, parameters: dict | InversionParams):
         """
@@ -1030,6 +1097,8 @@ class GarposHandler:
         The generated file includes sections for observation parameters, data file information,
         site parameters, and model parameters. It also includes transponder data.
         """
+        shot_data_df = pd.read_csv(shot_data)
+        mts = [x for x in shot_data_df.MT.unique()]
 
         delta_center_position: List[float] = (
             self.inversion_params.delta_center_position.get_position()
@@ -1057,7 +1126,7 @@ class GarposHandler:
         Latitude0   = {self.avg_transponder_llh.latitude}
         Longitude0  = {self.avg_transponder_llh.longitude}
         Height0     = {self.avg_transponder_llh.height}
-        Stations    = {' '.join([transponder.id for transponder in self.site_config.transponders])}
+        Stations    = {' '.join([transponder.id for transponder in self.site_config.transponders if transponder.id in mts])}
         Center_ENU  = {position_enu[0]} {position_enu[1]} {position_enu[2]}
 
     [Model-parameter]
@@ -1066,6 +1135,8 @@ class GarposHandler:
 
         # Add the transponder data to the string
         for transponder in self.site_config.transponders:
+            if transponder.id not in mts:
+                continue
             position = (
                 transponder.position_enu.get_position()
                 + transponder.position_enu.get_std_dev()
@@ -1148,8 +1219,8 @@ class GarposHandler:
         with open(path, "w") as f:
             f.write(fixed_str)
 
-    def _run_garpos(self, date: datetime,run_id:int|str=0) -> GarposResults:
-        
+    def _run_garpos(self, results_dir:Path,shot_data_path:Path,run_id:int|str=0) -> GarposResults:
+
         """
         Run the GARPOS model for a given date and run ID.
 
@@ -1175,27 +1246,24 @@ class GarposHandler:
         9. Saves the results DataFrame to a CSV file.
         """
 
-
-        year, doy = date.year, date.timetuple().tm_yday
-        shot_data_path = self.shotdata_dir / f"{str(year)}_{str(doy)}.csv"
         assert (
             shot_data_path.exists()
-        ), f"Shot data not found at {shot_data_path} for {date}"
+        ), f"Shot data not found at {shot_data_path}"
 
         shot_data = pd.read_csv(shot_data_path)
         n_shot = len(shot_data)
-        year_doy_results_dir = self.results_dir / f"{str(year)}_{str(doy)}"
-        year_doy_results_dir.mkdir(exist_ok=True, parents=True)
 
-        input_path = self.results_dir / f"_{run_id}_observation.ini"
-        fixed_path = self.results_dir / f"_{run_id}_settings.ini"
+        results_dir.mkdir(exist_ok=True, parents=True)
+
+        input_path = results_dir / f"_{run_id}_observation.ini"
+        fixed_path = results_dir / f"_{run_id}_settings.ini"
         self._input_to_datafile(shot_data_path, input_path, n_shot)
         self._garposfixed_to_datafile(self.inversion_params, fixed_path)
 
         rf = drive_garpos(
             str(input_path),
             str(fixed_path),
-            str(year_doy_results_dir) + "/",
+            str(results_dir) + "/",
             self.site_config.campaign+f"_{run_id}",
             13,
         )
@@ -1203,13 +1271,28 @@ class GarposHandler:
         results = datafile_to_garposinput(rf)
         proc_results, results_df = process_garpos_results(results)
 
-        results_path = year_doy_results_dir / f"_{run_id}_results.json"
-        results_df_path: Path = year_doy_results_dir / f"_{run_id}_results_df.csv"
+        results_path = results_dir / f"_{run_id}_results.json"
+        results_df_path: Path = results_dir / f"_{run_id}_results_df.csv"
         results_df.to_csv(results_df_path, index=False)
         with open(results_path, "w") as f:
             json.dump(proc_results.model_dump(), f, indent=4)
 
-    def run_garpos(self, date_index: int = None,run_id:int|str=0) -> None:
+    def _run_garpos_survey(self, survey_id:str,run_id:int|str=0) -> None:
+        try:
+            survey = self.campaign.surveys[survey_id]
+        except KeyError:
+            raise ValueError(f"Survey {survey_id} not found")
+
+        results_dir = self.results_dir / survey_id
+        results_dir.mkdir(exist_ok=True, parents=True)
+        shot_data_path = survey.shot_data_path
+        if shot_data_path is None:
+            return
+        with open(results_dir / "survey_meta.json","w") as f:
+            json.dump(survey.model_dump(),f,indent=4)
+        self._run_garpos(results_dir,shot_data_path,run_id)
+
+    def run_garpos(self, survey_id:str=None,run_id:int|str=0) -> None:
         """
         Run the GARPOS model for a specific date or for all dates.
         Args:
@@ -1220,8 +1303,118 @@ class GarposHandler:
             None
         """
 
-        if date_index is None:
-            for date in self.dates:
-                self._run_garpos(date,run_id=run_id)
+        if survey_id is None:
+            for survey_id in self.campaign.surveys.keys():
+                self._run_garpos_survey(survey_id,run_id)
         else:
-            self._run_garpos(self.dates[date_index],run_id=run_id)
+            self._run_garpos_survey(survey_id,run_id)
+
+    def plot_ts_results(self,survey_id:str,run_id:int|str=0) -> None:
+        survey = self.campaign.surveys[survey_id]
+        start_year,month,day = survey.start.year,survey.start.month,survey.start.day
+        start_date = datetime(start_year,month,day,0,0,0)
+        results_dir = self.results_dir / survey.id
+        results_path = results_dir / f"_{run_id}_results.json"
+        with open(results_path,"r") as f:
+            results = json.load(f)
+        transponders = []
+        arrayinfo = PositionENU.model_validate(
+            results["delta_center_position"]
+        )
+        for transponder in results["transponders"]:
+            _transponder_ = Transponder.model_validate(transponder)
+            transponders.append(_transponder_)
+        results_df_raw = pd.read_csv(results_dir / f"_{run_id}_results_df.csv")
+        results_df_raw = ShotDataFrame.validate(results_df_raw,lazy=True)
+
+        st = results_df_raw["ST"].to_numpy()
+        start_st = st[0]
+        st -= start_st
+        st[st < 0] += 24*3600
+        st += start_st
+        results_df_raw["time"] = [start_date + timedelta(seconds=x) for x in st.tolist()]
+
+
+        df_filter_1 = results_df_raw["ResiRange"].abs() < 2
+        df_filter_2 = results_df_raw["ResiTT"].abs() < 0.5
+        df_filter = df_filter_1 & df_filter_2
+        results_df = results_df_raw[df_filter]
+  
+        unique_ids = results_df["MT"].unique()
+        plt.figsize=(32,18)
+        plt.suptitle(f"Survey {survey.id} Results")
+
+        gs = gridspec.GridSpec(8,8)
+        ax1 = plt.subplot(gs[:3,:])
+     
+
+        ax1.set_xlabel("Time - Month / Day / Hour")
+        ax1.set_ylabel("Residuals - Range (M)")
+        ax1.xaxis.set_label_position("top")
+        ax1.xaxis.set_ticks_position("top")
+
+        for i, unique_id in enumerate(unique_ids):
+            df = results_df[results_df["MT"] == unique_id]
+            ax1.scatter(
+                df["time"],
+                df["ResiRange"],
+                label=f"{unique_id}",
+                color=colors[i],
+                alpha=0.2,
+                s=0.25,
+            )
+      
+
+        ax1.legend(bbox_to_anchor=(1, 1), frameon=False)
+        
+        ax2 = plt.subplot(gs[3:,6:])
+        ax2.set_facecolor('white')
+        ax2.axis('off')
+        figure_text = "Delta Center Position\n"
+
+        dpos = arrayinfo.get_position()
+        figure_text += f"Array :  East {dpos[0]:.3f} m, North {dpos[1]:.3f} m, Up {dpos[2]:.3f} m \n"
+        for id, transponder in enumerate(transponders):
+            dpos = transponder.delta_center_position.get_position()
+            figure_text += f"Transponder {transponder.id} : East {dpos[0]:.3f} m, North {dpos[1]:.3f} m, Up {dpos[2]:.3f} m \n"
+
+        ax2.text(0.5, 0.5, figure_text, horizontalalignment='center',verticalalignment='center', transform=ax2.transAxes,fontsize=12)
+
+        ax3 = plt.subplot(gs[3:,:5])
+        #ax3.set_aspect('equal', 'box')
+
+        ax3.set_xlabel("East (m)")
+        ax3.set_ylabel("North (m)")
+        ax3.scatter(0, 0, label="Origin", color="magenta", s=100)
+
+        for idx, transponder in enumerate(transponders):
+            ax3.scatter(
+                transponder.position_enu.east,
+                transponder.position_enu.north,
+                label=f"{transponder.id}",
+                color=colors[idx],
+                s=100,
+            )
+
+        colormap_times = (
+            results_df_raw["time"].apply(lambda x: x.timestamp()).to_numpy()
+        )
+        colormap_times_scaled = (colormap_times - colormap_times.min()) / 3600
+        norm = Normalize(
+            vmin=0,
+            vmax=(colormap_times.max() - colormap_times.min()) / 3600,
+        )
+        sc = ax3.scatter(
+            results_df_raw["ant_e0"],
+            results_df_raw["ant_n0"],
+            c=colormap_times_scaled,
+            cmap="viridis",
+            label="Antenna Position",
+            norm=norm,
+            alpha=0.25,
+        )
+
+        cbar = plt.colorbar(sc, label="Time (hr)", norm=norm)
+        ax3.legend()
+
+        plt.show()

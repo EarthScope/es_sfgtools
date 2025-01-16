@@ -14,7 +14,7 @@ from matplotlib.ticker import FuncFormatter
 sns.set_theme()
 
 from es_sfgtools.modeling.garpos_tools.model_io import PositionENU, Transponder
-
+from es_sfgtools.processing.assets.siteconfig import SiteConfig, Site
 
 class DOYResult:
     def __init__(self, year: int, doy: int, df_path: Path, results_path: Path):
