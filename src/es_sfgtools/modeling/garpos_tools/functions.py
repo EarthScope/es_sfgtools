@@ -35,7 +35,8 @@ from es_sfgtools.processing.assets.siteconfig import (
     Transponder,
     PositionLLH,
     SiteConfig,
-    Site
+    Site,
+    Survey
 )
 from es_sfgtools.modeling.garpos_tools.schemas import (
     GarposInput,
@@ -1219,7 +1220,7 @@ class GarposHandler:
         with open(path, "w") as f:
             f.write(fixed_str)
 
-    def _run_garpos(self, results_dir:Path,shot_data_path:Path,run_id:int|str=0) -> GarposResults:
+    def _run_garpos(self, results_dir:Path,shot_data_path:Path,run_id:int|str=0,override:bool=False) -> GarposResults:
 
         """
         Run the GARPOS model for a given date and run ID.
@@ -1249,6 +1250,12 @@ class GarposHandler:
         assert (
             shot_data_path.exists()
         ), f"Shot data not found at {shot_data_path}"
+        results_path = results_dir / f"_{run_id}_results.json"
+        results_df_path: Path = results_dir / f"_{run_id}_results_df.csv"
+
+        if results_path.exists() and not override:
+            print(f"Results already exist for {str(results_path)}")
+            return
 
         shot_data = pd.read_csv(shot_data_path)
         n_shot = len(shot_data)
@@ -1260,6 +1267,7 @@ class GarposHandler:
         self._input_to_datafile(shot_data_path, input_path, n_shot)
         self._garposfixed_to_datafile(self.inversion_params, fixed_path)
 
+        print("Running GARPOS for",shot_data_path)
         rf = drive_garpos(
             str(input_path),
             str(fixed_path),
@@ -1271,13 +1279,11 @@ class GarposHandler:
         results = datafile_to_garposinput(rf)
         proc_results, results_df = process_garpos_results(results)
 
-        results_path = results_dir / f"_{run_id}_results.json"
-        results_df_path: Path = results_dir / f"_{run_id}_results_df.csv"
         results_df.to_csv(results_df_path, index=False)
         with open(results_path, "w") as f:
             json.dump(proc_results.model_dump(), f, indent=4)
 
-    def _run_garpos_survey(self, survey_id:str,run_id:int|str=0) -> None:
+    def _run_garpos_survey(self, survey_id:str,run_id:int|str=0,override:bool=False) -> None:
         try:
             survey = self.campaign.surveys[survey_id]
         except KeyError:
@@ -1287,12 +1293,13 @@ class GarposHandler:
         results_dir.mkdir(exist_ok=True, parents=True)
         shot_data_path = survey.shot_data_path
         if shot_data_path is None:
+            print(f"No shot data found for survey {survey_id}")
             return
         with open(results_dir / "survey_meta.json","w") as f:
             json.dump(survey.model_dump(),f,indent=4)
-        self._run_garpos(results_dir,shot_data_path,run_id)
+        self._run_garpos(results_dir,shot_data_path,run_id,override=override)
 
-    def run_garpos(self, survey_id:str=None,run_id:int|str=0) -> None:
+    def run_garpos(self, survey_id:str=None,run_id:int|str=0,override:bool=False) -> None:
         """
         Run the GARPOS model for a specific date or for all dates.
         Args:
@@ -1305,12 +1312,13 @@ class GarposHandler:
 
         if survey_id is None:
             for survey_id in self.campaign.surveys.keys():
-                self._run_garpos_survey(survey_id,run_id)
+                self._run_garpos_survey(survey_id,run_id,override=override)
         else:
-            self._run_garpos_survey(survey_id,run_id)
+            self._run_garpos_survey(survey_id,run_id,override=override)
 
     def plot_ts_results(self,survey_id:str,run_id:int|str=0) -> None:
-        survey = self.campaign.surveys[survey_id]
+        print("Plotting results for survey ",survey_id)
+        survey = Survey(**dict(self.campaign.surveys[survey_id]))
         start_year,month,day = survey.start.year,survey.start.month,survey.start.day
         start_date = datetime(start_year,month,day,0,0,0)
         results_dir = self.results_dir / survey.id
@@ -1334,19 +1342,17 @@ class GarposHandler:
         st += start_st
         results_df_raw["time"] = [start_date + timedelta(seconds=x) for x in st.tolist()]
 
-
         df_filter_1 = results_df_raw["ResiRange"].abs() < 2
         df_filter_2 = results_df_raw["ResiTT"].abs() < 0.5
         df_filter = df_filter_1 & df_filter_2
         results_df = results_df_raw[df_filter]
-  
+
         unique_ids = results_df["MT"].unique()
-        plt.figsize=(32,18)
+        plt.figsize=(32,32)
         plt.suptitle(f"Survey {survey.id} Results")
 
-        gs = gridspec.GridSpec(8,8)
-        ax1 = plt.subplot(gs[:3,:])
-     
+        gs = gridspec.GridSpec(12,16)
+        ax1 = plt.subplot(gs[1:5,:])
 
         ax1.set_xlabel("Time - Month / Day / Hour")
         ax1.set_ylabel("Residuals - Range (M)")
@@ -1360,41 +1366,28 @@ class GarposHandler:
                 df["ResiRange"],
                 label=f"{unique_id}",
                 color=colors[i],
-                alpha=0.2,
-                s=0.25,
+                alpha=0.5,
+                s=0.5,
             )
-      
 
-        ax1.legend(bbox_to_anchor=(1, 1), frameon=False)
-        
-        ax2 = plt.subplot(gs[3:,6:])
-        ax2.set_facecolor('white')
-        ax2.axis('off')
+        ax1.legend()
+
         figure_text = "Delta Center Position\n"
 
         dpos = arrayinfo.get_position()
         figure_text += f"Array :  East {dpos[0]:.3f} m, North {dpos[1]:.3f} m, Up {dpos[2]:.3f} m \n"
         for id, transponder in enumerate(transponders):
             dpos = transponder.delta_center_position.get_position()
-            figure_text += f"Transponder {transponder.id} : East {dpos[0]:.3f} m, North {dpos[1]:.3f} m, Up {dpos[2]:.3f} m \n"
+            figure_text += f"TSP {transponder.id} : East {dpos[0]:.3f} m, North {dpos[1]:.3f} m, Up {dpos[2]:.3f} m \n"
 
-        ax2.text(0.5, 0.5, figure_text, horizontalalignment='center',verticalalignment='center', transform=ax2.transAxes,fontsize=12)
-
-        ax3 = plt.subplot(gs[3:,:5])
-        #ax3.set_aspect('equal', 'box')
+        # ax2.text(0.1,0.6, figure_text, fontsize=7,verticalalignment='center', horizontalalignment='left',)
+        print(figure_text)
+        ax3 = plt.subplot(gs[6:,:])
+        ax3.set_aspect('equal', 'box')
 
         ax3.set_xlabel("East (m)")
         ax3.set_ylabel("North (m)")
         ax3.scatter(0, 0, label="Origin", color="magenta", s=100)
-
-        for idx, transponder in enumerate(transponders):
-            ax3.scatter(
-                transponder.position_enu.east,
-                transponder.position_enu.north,
-                label=f"{transponder.id}",
-                color=colors[idx],
-                s=100,
-            )
 
         colormap_times = (
             results_df_raw["time"].apply(lambda x: x.timestamp()).to_numpy()
@@ -1413,7 +1406,14 @@ class GarposHandler:
             norm=norm,
             alpha=0.25,
         )
-
+        for idx, transponder in enumerate(transponders):
+            ax3.scatter(
+                transponder.position_enu.east,
+                transponder.position_enu.north,
+                label=f"{transponder.id}",
+                color=colors[idx],
+                s=100,
+            )
         cbar = plt.colorbar(sc, label="Time (hr)", norm=norm)
         ax3.legend()
 

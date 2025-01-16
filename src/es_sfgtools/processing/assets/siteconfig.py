@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field,model_validator,model_serializer,AliasChoices
+from pydantic import BaseModel, Field,model_validator,model_serializer,AliasChoices,field_validator
 from typing import Optional,List,Union,Dict
 from pathlib import Path
 import numpy as np
@@ -139,17 +139,34 @@ class Survey(BaseModel):
     type: str = None 
     vesselName: str = None
     benchmarkIDs: List[str] = []
-    start: datetime.datetime = None
-    end: datetime.datetime = None
+    start: datetime.datetime
+    end: datetime.datetime
     shot_data_path: str = None
 
     @model_serializer
     def to_dict(self):
         dict_ = self.__dict__
-        dict_["start"] = self.start.isoformat() 
-        dict_["end"] = self.end.isoformat()
+        if isinstance(self.start,datetime.datetime):
+            dict_["start"] = self.start.isoformat() 
+        if isinstance(self.end,datetime.datetime):
+            dict_["end"] = self.end.isoformat()
         dict_["shot_data_path"] = str(self.shot_data_path)
         return dict_
+
+    @field_validator("start","end",mode='before')
+    def validate_times(cls,v):
+        
+        if isinstance(v,str):
+            return datetime.datetime.strptime(v, "%Y-%m-%dT%H:%M:%S")
+        return v
+
+    class Config:
+        allow_arbitraty_types = True
+    # @model_validator(mode='after')
+    # def load_times(self):
+    #     self.start = datetime.datetime.fromisoformat(self.start)
+    #     self.end = datetime.datetime.fromisoformat(self.end)
+    #     return self
 
 
 class Campaign(BaseModel):
@@ -166,7 +183,11 @@ class Campaign(BaseModel):
         if isinstance(self.surveys,list):
             self.surveys = {survey.id:survey for survey in self.surveys}
         return self
-
+    @field_validator("surveys")
+    def validate_surveys_pre(cls,v):
+        if isinstance(v,list):
+            return [survey for survey in v]
+        return v
 class Site(BaseModel):
     name: str = "Site"
     networks: str = "Networks"
