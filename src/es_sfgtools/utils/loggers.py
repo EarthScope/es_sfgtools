@@ -202,17 +202,23 @@ BaseLogger = _BaseLogger()
 
 # Create loggers for specific modules
 GNSSLogger = _BaseLogger(
-    name="gnss_logger",
+    name="base_logger.gnss_logger",
     file_name="gnss.log",
 )
+# Propagate the log messages to the base logger as well
+GNSSLogger.propagate= True
+
 ProcessLogger = _BaseLogger(
-    name="processing_logger",
+    name="base_logger.processing_logger",
     file_name="processing.log",
 )
+ProcessLogger.propagate= True
+
 GarposLogger = _BaseLogger(
-    name="garpos_logger",
+    name="base_logger.garpos_logger",
     file_name="garpos.log",
 )
+GarposLogger.propagate= True
 
 # def initialize_loggers(log_dir: Path):
 #     gnss_logger = _BaseLogger(
