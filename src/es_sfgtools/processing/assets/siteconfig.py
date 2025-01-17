@@ -145,7 +145,7 @@ class Survey(BaseModel):
 
     @model_serializer
     def to_dict(self):
-        dict_ = self.__dict__
+        dict_ = self.__dict__.copy()
         if isinstance(self.start,datetime.datetime):
             dict_["start"] = self.start.isoformat() 
         if isinstance(self.end,datetime.datetime):
