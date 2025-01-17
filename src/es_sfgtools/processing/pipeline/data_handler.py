@@ -179,9 +179,12 @@ class DataHandler:
             self.survey = survey
 
         # Build the directory structure and TileDB arrays
-        self._build_station_dir_structure(network, station,survey)
+        self._build_station_dir_structure(network, station, survey)
         self._build_tileDB_arrays()
         self._build_rinex_meta()
+
+        # Change the logger directory
+        self.logger.set_dir(self.station_log_dir)
 
         self.logger.loginfo(f"Changed working station to {network} {station}")
 
