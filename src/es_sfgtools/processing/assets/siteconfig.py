@@ -141,7 +141,7 @@ class Survey(BaseModel):
     benchmarkIDs: List[str] = []
     start: datetime.datetime
     end: datetime.datetime
-    shot_data_path: str = None
+    shot_data_path: str|Path = None
 
     @model_serializer
     def to_dict(self):

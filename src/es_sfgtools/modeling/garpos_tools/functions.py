@@ -19,6 +19,8 @@ from scipy.interpolate import RBFInterpolator, CubicSpline
 from functools import partial
 import json
 from matplotlib.colors import Normalize
+from matplotlib.collections import LineCollection
+import matplotlib.dates as mdates
 import seaborn as sns
 sns.set_theme()
 
@@ -1352,25 +1354,6 @@ class GarposHandler:
         plt.suptitle(f"Survey {survey.id} Results")
 
         gs = gridspec.GridSpec(12,16)
-        ax1 = plt.subplot(gs[1:5,:])
-
-        ax1.set_xlabel("Time - Month / Day / Hour")
-        ax1.set_ylabel("Residuals - Range (M)")
-        ax1.xaxis.set_label_position("top")
-        ax1.xaxis.set_ticks_position("top")
-
-        for i, unique_id in enumerate(unique_ids):
-            df = results_df[results_df["MT"] == unique_id]
-            ax1.scatter(
-                df["time"],
-                df["ResiRange"],
-                label=f"{unique_id}",
-                color=colors[i],
-                alpha=0.5,
-                s=0.5,
-            )
-
-        ax1.legend()
 
         figure_text = "Delta Center Position\n"
 
@@ -1387,7 +1370,6 @@ class GarposHandler:
 
         ax3.set_xlabel("East (m)")
         ax3.set_ylabel("North (m)")
-        ax3.scatter(0, 0, label="Origin", color="magenta", s=100)
 
         colormap_times = (
             results_df_raw["time"].apply(lambda x: x.timestamp()).to_numpy()
@@ -1406,7 +1388,45 @@ class GarposHandler:
             norm=norm,
             alpha=0.25,
         )
-        for idx, transponder in enumerate(transponders):
+        ax3.scatter(0, 0, label="Origin", color="magenta", s=100)
+
+        ax1 = plt.subplot(gs[1:5, :])
+
+        # Overlay the antennae position on the time series plot for reference
+        points = np.array(
+            [
+                mdates.date2num(results_df_raw["time"]),
+                np.zeros(len(results_df_raw["time"])),
+            ]
+        ).T.reshape(-1, 1, 2)
+        segments = np.concatenate([points[:-1], points[1:]], axis=1)
+        lc = LineCollection(
+            segments, cmap="viridis", norm=norm, linewidth=5,zorder=10
+        )
+        lc.set_array(colormap_times_scaled)
+        ax1.add_collection(lc)
+
+        for i, unique_id in enumerate(unique_ids):
+            df = results_df[results_df["MT"] == unique_id].sort_values("time")
+            ax1.plot(
+                df["time"],
+                df["ResiRange"],
+                label=f"{unique_id}",
+                color=colors[i],
+                linewidth=1,
+                zorder=i,
+                alpha=0.75
+            )
+
+        ax1.set_xlabel("Time - Month / Day / Hour")
+        ax1.set_ylabel("Residuals - Range (M)")
+
+        ax1.xaxis.set_label_position("top")
+        ax1.xaxis.set_ticks_position("top")
+        ax1.legend()
+
+        for transponder in transponders:
+            idx = unique_ids.tolist().index(transponder.id)
             ax3.scatter(
                 transponder.position_enu.east,
                 transponder.position_enu.north,
