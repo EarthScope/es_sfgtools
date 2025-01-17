@@ -18,7 +18,8 @@ BASIC_FORMAT = logging.Formatter("%(asctime)s - %(filename)s:%(lineno)d - %(leve
 MINIMAL_NOTEBOOK_FORMAT = logging.Formatter('%(message)s')
 
 BASE_LOG_FILE_NAME = 'es_sfg_tools.log'
-LOG_FILE_PATH = os.getenv('LOG_FILE_PATH', 'Path=Path.home()/".sfgtools"')
+DEFAULT_PATH = os.path.join(Path.home(), ".sfgtools")
+LOG_FILE_PATH = os.getenv('LOG_FILE_PATH', DEFAULT_PATH)
 
 class _BaseLogger:
     '''
@@ -73,7 +74,7 @@ class _BaseLogger:
         # Create the full path if it does not exist
         os.makedirs(self.dir, exist_ok=True) 
         self.file_name = file_name
-        self.path = str(dir / self.file_name)
+        self.path = os.path.join(dir, self.file_name)
         self.format = format
         self.console_format = console_format
         self.level = level

@@ -11,8 +11,6 @@ from earthscope_sdk.auth.device_code_flow import DeviceCodeFlowSimple
 from earthscope_sdk.auth.auth_flow import NoTokensError
 from es_sfgtools.utils.loggers import GNSSLogger as logger
 
-logger.route_to_console()
-
 def retrieve_token(token_path="."):
     """
     Retrieve or generate a token for the public archive using the EarthScope SDK.
