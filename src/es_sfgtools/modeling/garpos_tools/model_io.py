@@ -12,7 +12,6 @@ import os
 import pandas as pd
 from configparser import ConfigParser
 import matplotlib.pyplot as plt
-import logging
 
 from  garpos import LIB_DIRECTORY,LIB_RAYTRACE
 # Local Imports
@@ -21,8 +20,8 @@ from ...processing.assets.siteconfig import PositionENU, PositionLLH, Transponde
 
 from .hyper_params import InversionParams, InversionType
 from .schemas import GarposObservation,GarposSite,ObservationData,GarposResults
-logger = logging.getLogger(__name__)
 
+from es_sfgtools.utils.loggers import GarposLogger as logger
 
 
 class GarposInput(BaseModel):
@@ -44,7 +43,7 @@ class GarposInput(BaseModel):
         #     #self.observation.shot_data.at[row.Index, "RT"] -= offsets.get(row.MT,0.0)
      
         # self.observation.correct_for_site(self.site)
-        logger.info(f"GarposSite Data: {self.site.center_llh}")
+        logger.loginfo(f"GarposSite Data: {self.site.center_llh}")
 
     def plot_enu_llh_side_by_side(self):
         # Create a figure with two subplots
@@ -130,6 +129,15 @@ class GarposInput(BaseModel):
         plt.show()
 
     def to_dat_file(self, dir_path: str, file_path: str) -> None:
+        """ 
+        Write garpos input, shot and sound speed data to a file 
+        
+        Args:
+            dir_path (str): Directory path to write the file
+            file_path (str): File path to write the file
+        """
+
+        logger.loginfo("Writing garpos input, shot and sound speed data to file")
         os.makedirs(dir_path, exist_ok=True)
         if not self.shot_data_file:
             self.shot_data_file = os.path.join(
@@ -189,15 +197,15 @@ class GarposInput(BaseModel):
 
         with open(os.path.join(dir_path, os.path.basename(file_path)), "w") as f:
             f.write(obs_str)
-            logger.info(f"GarposInput written to {file_path}")
+            logger.loginfo(f"GarposInput written to {file_path}")
         self.observation.shot_data.MT = self.observation.shot_data.MT.apply(
             lambda x: "M" + str(x) if x[0].isdigit() else x
         )
         self.observation.shot_data.to_csv(self.shot_data_file)
         self.observation.sound_speed_data.to_csv(self.sound_speed_file, index=False)
 
-        logger.info(f"Shot data written to {self.shot_data_file}")
-        logger.info(f"Sound speed data written to {self.sound_speed_file}")
+        logger.loginfo(f"Shot data written to {self.shot_data_file}")
+        logger.loginfo(f"Sound speed data written to {self.sound_speed_file}")
 
     @classmethod
     def from_dat_file(cls, file_path: str) -> "GarposInput":
@@ -296,6 +304,14 @@ class GarposFixed(BaseModel):
     inversion_params: InversionParams = InversionParams()
 
     def to_dat_file(self, dir_path: str, file_path: str) -> None:
+        """ 
+        Write garpos fixed parameters to a file
+        
+        Args:
+            dir_path (str): Directory path to write the file
+            file_path (str): File path to write the file
+        """
+        logger.loginfo("Writing garpos fixed parameters to file")
         fixed_str = f"""[HyperParameters]
 # Hyperparameters
 #  When setting multiple values, ABIC-minimum HP will be searched.
@@ -351,8 +367,18 @@ deltab = {self.inversion_params.deltab}"""
         with open(os.path.join(dir_path, os.path.basename(file_path)), "w") as f:
             f.write(fixed_str)
 
+        logger.loginfo(f"GarposFixed written to {file_path}")
+
     @classmethod
     def from_dat_file(cls, file_path: str) -> "GarposFixed":
+        """ 
+        Parse the fixed parameters from a file
+
+        Args:
+            file_path (str): file path to the file
+        """
+
+        logger.loginfo("Parsing fixed parameters from file")
         config = ConfigParser()
         config.read(file_path)
 
@@ -413,6 +439,8 @@ class GarposResults(BaseModel):
                 Returns:
                     GarposResults: _description_
         """
+
+        logger.loginfo("Parsing Garpos results from file")
         with open(file_path, "r") as f:
             lines = f.readlines()
             for line in lines:
@@ -425,8 +453,6 @@ class GarposResults(BaseModel):
                     results = [x for x in results.replace(","," ").split(" ") if x != '']
                     rms = float(results[0])
                     used_shot = float(results[3])
-
-
 
         return cls(rms=rms, used_shot=used_shot)
     

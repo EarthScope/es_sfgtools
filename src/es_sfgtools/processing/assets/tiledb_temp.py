@@ -11,6 +11,8 @@ import matplotlib.pyplot as plt
 
 from .observables import AcousticDataFrame,GNSSDataFrame,PositionDataFrame,ShotDataFrame
 
+from es_sfgtools.utils.loggers import ProcessLogger as logger
+
 filters = tiledb.FilterList([tiledb.ZstdFilter(7)])
 TimeDomain = tiledb.Dim(name="time", dtype="datetime64[ms]")
 TransponderDomain = tiledb.Dim(name="transponderID",dtype="ascii")
@@ -147,12 +149,31 @@ class TBDArray:
             tiledb.Array.create(str(uri),self.array_schema)
 
     def write_df(self,df:pd.DataFrame,validate:bool=True):
+        """
+        Write a dataframe to the array
+        
+        Args:
+            df (pd.DataFrame): The dataframe to write
+            validate (bool, optional): Whether to validate the dataframe. Defaults to True.
+        """
+        logger.logdebug(f"Writing dataframe to {self.uri}")
         if validate:
             df = self.dataframe_schema.validate(df,lazy=True)
         tiledb.from_pandas(str(self.uri),df,mode='append')
 
     def read_df(self,start:datetime.datetime,end:datetime.datetime=None,validate:bool=True,**kwargs)->pd.DataFrame:
+        """
+        Read a dataframe from the array between the start and end dates
+        
+        Args:
+            start (datetime.datetime): The start date
+            end (datetime.datetime, optional): The end date. Defaults to None.
+            validate (bool, optional): Whether to validate the dataframe. Defaults to True.
 
+        Returns:
+            pd.DataFrame: dataframe
+        """
+        logger.logdebug(f"Reading dataframe from {self.uri}")
         # TODO slice array by start and end and return the dataframe
         if end is None:
             end = start + datetime.timedelta(days=1)
@@ -251,7 +272,18 @@ class TDBShotDataArray(TBDArray):
         return super().get_unique_dates(field)
 
     def read_df(self, start: datetime, end: datetime = None, **kwargs) -> pd.DataFrame:
+        """ 
+        Read a dataframe from the array between the start and end dates 
+        
+        Args:
+            start (datetime.datetime): The start date
+            end (datetime.datetime, optional): The end date. Defaults to None.
+        
+        Returns:
+            pd.DataFrame: dataframe
+        """ 
 
+        logger.logdebug(f"Reading dataframe from {self.uri} for {start} to {end}")
         # TODO slice array by start and end and return the dataframe
         if end is None:
             end = start + datetime.timedelta(days=1)
@@ -265,6 +297,14 @@ class TDBShotDataArray(TBDArray):
         return df
 
     def write_df(self, df: pd.DataFrame, validate: bool = True):
+        """ 
+        Write a dataframe to the array
+
+        Args:
+            df (pd.DataFrame): The dataframe to write
+            validate (bool, optional): Whether to validate the dataframe. Defaults to True.
+        """
+        logger.logdebug(f"Writing dataframe to {self.uri}")
         if validate:
             df = self.dataframe_schema.validate(df, lazy=True)
         df.triggerTime = df.triggerTime.astype("datetime64[ns]")

@@ -42,14 +42,14 @@ def update_source(source:RemoteResource) -> RemoteResource:
             ftp.cwd("/" + source.directory)
             dir_list = ftp.nlst()
     except Exception as e:
-        logger.logger.error(f"Failed to list directory {source.directory} on {source.ftpserver} | {e}")
+        logger.logerr(f"Failed to list directory {source.directory} on {source.ftpserver} | {e}")
         return source
 
     remote_query = source.remote_query
     
     dir_match = [d for d in dir_list if remote_query.pattern.search(d)]
     if len(dir_match) == 0:
-        logger.logger.error(f"No match found for {remote_query.pattern}")
+        logger.logerr(f"No match found for {remote_query.pattern}")
         return source
     
     sorted_match = []
@@ -60,7 +60,7 @@ def update_source(source:RemoteResource) -> RemoteResource:
                     sorted_match.append(dir_match.pop(idx))
     sorted_match.extend(dir_match)
     source.file_name = sorted_match[0]
-    logger.logger.info(f"Match found for {remote_query.pattern} : {source.file_name}")
+    logger.loginfo(f"Match found for {remote_query.pattern} : {source.file_name}")
     return source 
 
 
@@ -86,14 +86,14 @@ def download(source:RemoteResource,dest:Path) ->Path:
         True
     """
 
-    logger.logger.info(f"\nAttempting Download of {str(source)} to {str(dest)}\n")
+    logger.loginfo(f"\nAttempting Download of {str(source)} to {str(dest)}\n")
     with FTP(source.ftpserver.replace("ftp://",""),timeout=60) as ftp:
         ftp.set_pasv(True)
         ftp.login()
         ftp.cwd("/" + source.directory)
         with open(dest,"wb") as f:
             ftp.retrbinary(f"RETR {source.file_name}",f.write)
-    logger.logger.info(f"\nDownloaded {str(source)} to {str(dest)}\n")
+    logger.loginfo(f"\nDownloaded {str(source)} to {str(dest)}\n")
     return dest
 
 def uncompressed_file(file_path:Path) ->Path:
@@ -246,7 +246,7 @@ def merge_broadcast_files(brdn:Path, brdg:Path, output_folder:Path) ->Path:
         >>> merged_brdm
         Path("data/brdm1500.21p")
     """
-    logger.logger.info(f"Merging {brdn} and {brdg} into a single BRDM file.")
+    logger.loginfo(f"Merging {brdn} and {brdg} into a single BRDM file.")
 
     def write_brdn(file:Path, prefix:str, fm:IO):
         """
@@ -408,9 +408,9 @@ def merge_broadcast_files(brdn:Path, brdg:Path, output_folder:Path) ->Path:
     fm.close()
 
     if brdm.exists():
-        logger.logger.info(f"Files merged into {str(brdm)}")
+        logger.loginfo(f"Files merged into {str(brdm)}")
         return brdm
-    logger.logger.error(f"Failed to merge files into {str(brdm)}")
+    logger.logerr(f"Failed to merge files into {str(brdm)}")
     return None
 
 
@@ -436,7 +436,7 @@ def get_nav_file(rinex_path:Path,override:bool=False) -> Path:
     """
   
     response = f"\nAttempting to build nav file for {str(rinex_path)}"
-    logger.logger.info(response)
+    logger.loginfo(response)
 
     start_date = None
     with open(rinex_path) as f:
@@ -451,7 +451,7 @@ def get_nav_file(rinex_path:Path,override:bool=False) -> Path:
                 break
     if start_date is None:
         response = "No TIME OF FIRST OBS found in RINEX file."
-        logger.logger.error(response)
+        logger.logerr(response)
 
         return
     year = str(start_date.year)
@@ -464,7 +464,7 @@ def get_nav_file(rinex_path:Path,override:bool=False) -> Path:
     for nav_file in found_nav_files:
         if nav_file.stat().st_size > 0 and not override:
             response = f"{nav_file} already exists."
-            logger.logger.info(response)
+            logger.loginfo(response)
             return nav_file
 
     remote_resource_dict: Dict[str,RemoteResource] = get_daily_rinex_url(start_date)
@@ -475,21 +475,20 @@ def get_nav_file(rinex_path:Path,override:bool=False) -> Path:
             continue
 
         response = f"Attemping to download {source} - {str(remote_resource)}"
-        logger.logger.info(response)
+        logger.loginfo(response)
 
         local_path = rinex_path.parent /remote_resource.file_name
         try:
             download(remote_resource,local_path)
         except Exception as e:
-            logger.logger.error(f"Failed to download {str(remote_resource)} | {e}")
+            logger.logerr(f"Failed to download {str(remote_resource)} | {e}")
 
             continue
         if local_path.exists():
-
-            logger.logger.info(
+            logger.loginfo(
                 f"Succesfully downloaded {str(remote_resource)} to {str(local_path)}"
             )
-            logger.logger.info(f"Successfully built {str(local_path)} From {str(remote_resource)}")
+            logger.loginfo(f"Successfully built {str(local_path)} From {str(remote_resource)}")
             return local_path
 
     with tempfile.TemporaryDirectory() as tempdir:
@@ -509,7 +508,7 @@ def get_nav_file(rinex_path:Path,override:bool=False) -> Path:
             gps_dl_path = Path(tempdir)/gps_local_name
             glonass_dl_path = Path(tempdir)/glonass_local_name
 
-            logger.logger.info(f"Attemping to download {source} From {str(gps_url)}")
+            logger.loginfo(f"Attemping to download {source} From {str(gps_url)}")
 
             try:
 
@@ -519,7 +518,7 @@ def get_nav_file(rinex_path:Path,override:bool=False) -> Path:
 
             except Exception as e:
 
-                logger.logger.error(
+                logger.logerr(
                     f"Failed to download {str(gps_url)} To {str(gps_dl_path.name)} or {str(glonass_url)} To {str(glonass_dl_path.name)} | {e}"
                 )
 
@@ -529,15 +528,15 @@ def get_nav_file(rinex_path:Path,override:bool=False) -> Path:
                 glonass_dl_path = uncompressed_file(glonass_dl_path)
                 if (brdm_path := merge_broadcast_files(gps_dl_path,glonass_dl_path,rinex_path.parent)) is not None:
 
-                    logger.logger.info(f"Successfully built {brdm_path}")
+                    logger.loginfo(f"Successfully built {brdm_path}")
 
                     return brdm_path
             else:
                 response = f"Failed to download {str(gps_url)} or {str(glonass_url)}"
-                logger.logger.error(response)
+                logger.logerr(response)
                 print(response)
     response = f"Failed to build or locate {brdm_path}"
-    logger.logger.error(response)
+    logger.logerr(response)
     warnings.warn(response)
 
 
@@ -585,7 +584,7 @@ def get_gnss_products(
                 )
                 break
     if start_date is None:
-        logger.logger.error("No TIME OF FIRST OBS found in RINEX file.")
+        logger.logerr("No TIME OF FIRST OBS found in RINEX file.")
         return
     year = str(start_date.year)
     common_product_dir = pride_dir/year/"product"/"common"
@@ -596,7 +595,7 @@ def get_gnss_products(
     product_status = {}
 
     for product_type,sources in remote_resource_dict.items():
-        logger.logger.info(f"Attempting to download {product_type} products")
+        logger.loginfo(f"Attempting to download {product_type} products")
         if product_type not in product_status:
             product_status[product_type] = 'False'
 
@@ -606,7 +605,7 @@ def get_gnss_products(
             # check if file already exists
             found_files = [f for f in cp_dir_list if remote_resource.remote_query.pattern.match(f.name)]
             if found_files and not override:
-                logger.logger.info(f"Found {found_files[0]} for product {product_type}")
+                logger.loginfo(f"Found {found_files[0]} for product {product_type}")
                 product_status[product_type] = str(found_files[0])
                 break
 
@@ -617,21 +616,21 @@ def get_gnss_products(
             local_path = common_product_dir/remote_resource.file_name
             if local_path.exists() and local_path.stat().st_size > 0 and not override:
                 product_status[product_type] = str(local_path)
-                logger.logger.info(f"Found {str(local_path)} for product {product_type}")
+                logger.loginfo(f"Found {str(local_path)} for product {product_type}")
                 break
             try:
-                logger.logger.info(f"Attempting to download {product_type} product from {str(remote_resource)}")
+                logger.loginfo(f"Attempting to download {product_type} product from {str(remote_resource)}")
                 download(remote_resource,local_path)
-                logger.logger.info(f"\n Succesfully downloaded {product_type} FROM {str(remote_resource)} TO {str(local_path)}\n")
+                logger.loginfo(f"\n Succesfully downloaded {product_type} FROM {str(remote_resource)} TO {str(local_path)}\n")
                 product_status[product_type] = str(local_path)
                 break
             except Exception as e:
-                logger.logger.error(f"Failed to download {str(remote_resource)} | {e}")
+                logger.logerr(f"Failed to download {str(remote_resource)} | {e}")
                 if local_path.exists() and local_path.stat().st_size == 0:
                     local_path.unlink()
                 continue
 
     for product_type,product_path in product_status.items():
-        logger.logger.info(f"{product_type} : {product_path}")
+        logger.loginfo(f"{product_type} : {product_path}")
 
     return product_status

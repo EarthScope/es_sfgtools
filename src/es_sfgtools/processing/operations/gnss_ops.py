@@ -437,7 +437,7 @@ def _novatel_to_rinex(
 
     metadata = get_metadata(site, serialNumber=uuid.uuid4().hex[:10])
 
-    logger.logger.info(f"Converting and merging {len(source_list)} files of type {source_type.value} to RINEX")
+    logger.loginfo(f"Converting and merging {len(source_list)} files of type {source_type.value} to RINEX")
     with tempfile.TemporaryDirectory(dir="/tmp/") as workdir:
         metadata_path = Path(workdir) / "metadata.json"
         with open(metadata_path, "w") as f:
@@ -456,17 +456,17 @@ def _novatel_to_rinex(
             for log_line in result_message:
                 message = log_line.split("\n")[0]
                 if "Processing" in message or "Created" in message:
-                    logger.logger.info(message)
+                    logger.loginfo(message)
 
         rnx_files = list(Path(workdir).rglob(f"*{site}*"))
-        logger.logger.info(
+        logger.loginfo(
             f"Converted {len(source_list)} files of type {source_type.value} to {len(rnx_files)} Daily RINEX files"
         )
         rinex_files = []
         for rinex_file_path in rnx_files:
             new_rinex_path = writedir / rinex_file_path.name
             shutil.move(src=rinex_file_path, dst=new_rinex_path)
-            logger.logger.info(f"Generated Daily RINEX file {str(new_rinex_path)}")
+            logger.loginfo(f"Generated Daily RINEX file {str(new_rinex_path)}")
             rinex_files.append(new_rinex_path)
     return rinex_files
 
@@ -619,10 +619,10 @@ def rinex_to_kin(
         source = AssetEntry(local_path=source,type=AssetType.RINEX)
     assert source.type == AssetType.RINEX, "Invalid source file type"
 
-    logger.logger.info(f"Converting RINEX file {source.local_path} to kin file")
+    logger.loginfo(f"Converting RINEX file {source.local_path} to kin file")
 
     if not source.local_path.exists():
-        logger.logger.error(f"RINEX file {source.local_path} not found")
+        logger.logerr(f"RINEX file {source.local_path} not found")
         raise FileNotFoundError(f"RINEX file {source.local_path} not found")
 
     source = rinex_get_meta(source)
@@ -650,9 +650,9 @@ def rinex_to_kin(
         stderr = result.stderr.decode("utf-8").split("\n")
         for line in stderr:
             if "warning" in line.lower():
-                logger.logger.warning(line)
+                logger.logwarn(line)
             if "error" in line.lower():
-                logger.logger.error(line)
+                logger.logerr(line)
     stdout = result.stdout.decode("utf-8")
     stdout = re.sub(pattern_error, "ERROR ", stdout)
     stdout = re.sub(pattern_warning, "WARNING ", stdout)
@@ -660,13 +660,13 @@ def rinex_to_kin(
     stdout = stdout.split("\n")
     for line in stdout:
         if "failed" in line.lower():
-            logger.logger.error(line)
+            logger.logerr(line)
         if "please" in line.lower():
-            logger.logger.error(line)
+            logger.logerr(line)
         if "warning" in line.lower():
-            logger.logger.warning(line)
+            logger.logwarn(line)
         if "error" in line.lower():
-            logger.logger.error(line)
+            logger.logerr(line)
 
     
     year, doy = (
@@ -694,8 +694,7 @@ def rinex_to_kin(
             station=source.station,
             survey=source.survey,
         )
-        response = f"Converted RINEX file {source.local_path} to kin file {kin_file.local_path}"
-        logger.logger.info(response)
+        logger.loginfo(f"Converted RINEX file {source.local_path} to kin file {kin_file.local_path}")
 
     if res_file_path.exists():
         res_file_new = writedir / (res_file_path.name + ".res")
@@ -711,13 +710,12 @@ def rinex_to_kin(
             station=source.station,
             survey=source.survey,
         )
-        response = f"Found PRIDE res file {res_file.local_path}"
-        logger.logger.info(response)
+        logger.loginfo(f"Found PRIDE res file {res_file.local_path}")
   
 
     if not kin_file:
         response = f"No kin file generated from RINEX {source.local_path}"
-        logger.logger.error(response)
+        logger.logerr(response)
         warn(response)
         return None,None
 
@@ -747,8 +745,7 @@ def kin_to_gnssdf(source:AssetEntry) -> Union[DataFrame[GNSSDataFrame], None]:
     # Read data from lines after the end of the header
     data = []
     if end_header_index is None:
-        error_msg = f"GNSS: No header found in FILE {source.local_path}"
-        logger.logger.error(error_msg)
+        logger.logerr(f"GNSS: No header found in FILE {source.local_path}")
         return None
     for idx, line in enumerate(lines[end_header_index + 2 :]):
         split_line = line.strip().split()
@@ -765,18 +762,14 @@ def kin_to_gnssdf(source:AssetEntry) -> Union[DataFrame[GNSSDataFrame], None]:
 
     # Check if data is empty
     if not data:
-        error_msg = f"GNSS: No data found in FILE {source.local_path}"
-        logger.logger.error(error_msg)
+        logger.logerr(f"GNSS: No data found in FILE {source.local_path}")
         return None
     
     # TODO convert lat/long to ecef
     dataframe = pd.DataFrame([dict(pride_ppp) for pride_ppp in data])
     # dataframe.drop(columns=["modified_julian_date", "second_of_day"], inplace=True)
 
-    log_response = (
-        f"GNSS Parser: {dataframe.shape[0]} shots from FILE {source.local_path}"
-    )
-    logger.logger.info(log_response)
+    logger.loginfo(f"GNSS Parser: {dataframe.shape[0]} shots from FILE {source.local_path}")
     dataframe["time"] = dataframe["time"].dt.tz_localize("UTC")
     return dataframe.drop(columns=["modified_julian_date", "second_of_day"])
 
@@ -991,7 +984,7 @@ def nov0002tile(files:List[AssetEntry],rangea_tdb:Path,n_procs:int=10) -> None:
         for log_line in result_message:
             message = log_line.split("\n")[0]
             if "Processing" in message or "Created" in message:
-                logger.logger.info(message)
+                logger.loginfo(message)
 
 
 def nova2tile(files:List[AssetEntry],rangea_tdb:Path,n_procs:int=10) -> None:
@@ -1026,7 +1019,7 @@ def nova2tile(files:List[AssetEntry],rangea_tdb:Path,n_procs:int=10) -> None:
         for log_line in result_message:
             message = log_line.split("\n")[0]
             if "Processing" in message or "Created" in message:
-                logger.logger.info(message)
+                logger.loginfo(message)
 
 def novb2tile(files:List[AssetEntry],rangea_tdb:Path,n_procs:int=10) -> None:
     """Given a list of novatel binary files, get all the rangea logs and add them to a single tdb array
@@ -1060,7 +1053,7 @@ def novb2tile(files:List[AssetEntry],rangea_tdb:Path,n_procs:int=10) -> None:
         for log_line in result_message:
             message = log_line.split("\n")[0]
             if "Processing" in message or "Created" in message:
-                logger.logger.info(message)
+                logger.loginfo(message)
 
 def tile2rinex(rangea_tdb:Path,settings:Path,writedir:Path,n_procs:int=10) -> List[AssetEntry]:
     """Given a tdb file, convert it to rinex files
@@ -1097,7 +1090,7 @@ def tile2rinex(rangea_tdb:Path,settings:Path,writedir:Path,n_procs:int=10) -> Li
             for log_line in result_message:
                 message = log_line.split("\n")[0]
                 if "Processing" in message or "Created" in message:
-                    logger.logger.info(message)
+                    logger.loginfo(message)
         
         rinex_files = list(Path(workdir).rglob("*"))
         rinex_assets = []

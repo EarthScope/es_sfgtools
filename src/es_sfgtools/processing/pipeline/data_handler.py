@@ -28,8 +28,7 @@ from es_sfgtools.processing.pipeline.datadiscovery import scrape_directory_local
 
 from es_sfgtools.modeling.garpos_tools.functions import GarposHandler
 from es_sfgtools.processing.assets.siteconfig import SiteConfig
-from es_sfgtools.utils.loggers import setup_notebook_logger,BaseLogger,GNSSLogger,ProcessLogger
-
+from es_sfgtools.utils.loggers import BaseLogger, GNSSLogger, ProcessLogger
 
 
 def check_network_station_survey(func: Callable):
@@ -53,9 +52,11 @@ class DataHandler:
     """
     A class to handle data operations such as searching for, adding, downloading and processing data.
     """
+
     logger = BaseLogger
     gnss_logger = GNSSLogger
     process_logger = ProcessLogger
+
     def __init__(self,
                  directory: Path | str,
                  ) -> None:
@@ -84,8 +85,6 @@ class DataHandler:
             self.db_path.touch()
         self.catalog = Catalog(self.db_path)
 
-       
-
     def _build_station_dir_structure(self, network: str, station: str, survey: str):
 
         """
@@ -102,12 +101,14 @@ class DataHandler:
 
                 - Pride/ 
         """
-        self.logger.loginfo(f"Building directory structure for {network} {station} {survey}")
 
-        self.station_log_dir = self.main_directory / network / station/ "logs"
-        self.station_log_dir.mkdir(parents=True,exist_ok=True)
+        # Set up loggers under the station directory
+        self.logger.loginfo(f"Building directory structure for {network} {station} {survey}")
+        self.station_log_dir = self.main_directory / network / station / "logs"
+        self.station_log_dir.mkdir(parents=True, exist_ok=True)
         ProcessLogger.set_dir(self.station_log_dir)
         GNSSLogger.set_dir(self.station_log_dir)
+
         # Create the network/station directory structure
         self.station_dir = self.main_directory / network / station
         self.station_dir.mkdir(parents=True, exist_ok=True)
@@ -274,12 +275,14 @@ class DataHandler:
         
         # Create an AssetEntry for each file and append to a list
         file_data_list = []
+        not_recognized = []
         for file in remote_filepaths:
             # Get the file type, If the file type is not recognized, it returns None
             file_type = get_file_type_remote(file)
 
             if file_type is None: # If the file type is not recognized, skip it
-                self.logger.logger.warning(f"File type not recognized for {file}")
+                self.logger.logger.debug(f"File type not recognized for {file}")
+                not_recognized.append(file)
                 continue
 
             if not self.catalog.remote_file_exist(network=self.network,
@@ -298,7 +301,7 @@ class DataHandler:
                 )
                 file_data_list.append(file_data)
             else:
-                self.logger.loginfo(f"File {file} already exists in the catalog")
+                self.logger.logdebug(f"File {file} already exists in the catalog")
 
         # Add each file (AssetEntry) to the catalog
         count = len(file_data_list)
@@ -307,6 +310,7 @@ class DataHandler:
             if self.catalog.add_entry(file_assest):
                 uploadCount += 1
 
+        self.logger.loginfo(f"{len(not_recognized)} files not recognized and skipped")
         self.logger.loginfo(f"Added {uploadCount} out of {count} files to the catalog")
 
     def download_data(self, file_types: List[AssetType] | List[str] | str = FILE_TYPES, override: bool=False):
@@ -418,11 +422,11 @@ class DataHandler:
         local_path = self.raw_dir / Path(prefix).name
 
         try:
-            self.logger.loginfo(f"Downloading {prefix} to {local_path}")
+            self.logger.logdebug(f"Downloading {prefix} to {local_path}")
             client.download_file(Bucket=bucket, 
                                  Key=str(prefix), 
                                  Filename=str(local_path))
-            self.logger.loginfo(f"Downloaded {str(prefix)} to {str(local_path)}")
+            self.logger.logdebug(f"Downloaded {str(prefix)} to {str(local_path)}")
 
         except Exception as e:
             self.logger.logerr(f"Error downloading {prefix} from {bucket }\n {e} \n HINT: $ aws sso login")
@@ -470,7 +474,7 @@ class DataHandler:
             if not local_path.exists(): 
                 raise Exception
 
-            self.logger.loginfo(f"Downloaded {str(remote_url)} to {str(local_path)}")
+            self.logger.logdebug(f"Downloaded {str(remote_url)} to {str(local_path)}")
 
         except Exception as e:
             self.logger.logerr(f"Error downloading {str(remote_url)} \n {e}" + "\n HINT: Check authentication credentials")

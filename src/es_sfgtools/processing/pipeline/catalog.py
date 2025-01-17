@@ -8,7 +8,7 @@ import pandas as pd
 from es_sfgtools.processing.assets.file_schemas import AssetEntry, AssetType
 from .database import Base, Assets, ModelResults, MergeJobs
 
-logger = logging.getLogger(__name__)
+from es_sfgtools.utils.loggers import ProcessLogger as logger
 
 
 class Catalog:
@@ -135,7 +135,7 @@ class Catalog:
             local_path (str): The new local path.
         """
         try:
-            logger.info(f"Updating local path in catalog for id {id} to {local_path}")
+            logger.loginfo(f"Updating local path in catalog for id {id} to {local_path}")
             with self.engine.begin() as conn:
                 conn.execute(
                     sa.update(Assets)
@@ -143,7 +143,7 @@ class Catalog:
                     .values(local_path=local_path)
                 )
         except Exception as e:
-            logger.error(f"Error updating local path for id {id}: {e}")
+            logger.logerr(f"Error updating local path for id {id}: {e}")
 
     def remote_file_exist(self, network: str, station: str, survey: str, type: AssetType, remote_path: str) -> bool:
         """
@@ -179,17 +179,15 @@ class Catalog:
 
     def add_or_update(self, entry: AssetEntry ) -> bool:
         if entry is None:
-            logger.warning("No entry to add or update")
+            logger.logwarn("No entry to add or update")
             return
 
         with self.engine.begin() as conn:
-
             try:
                 conn.execute(
                     sa.insert(Assets).values(entry.model_dump()))
                 return True
             except Exception as e:
-                # print(e)
                 try:
 
                     conn.execute(
@@ -199,8 +197,7 @@ class Catalog:
                     )
                     return True
                 except Exception as e:
-
-                    logger.error(f"Error adding or updating entry {entry}")
+                    logger.logerr(f"Error adding or updating entry {entry} to catalog: {e}")
                     pass
         return False
     
@@ -222,6 +219,8 @@ class Catalog:
             return False
 
     def delete_entry(self, entry:AssetEntry) -> bool:
+
+        logger.loginfo(f"Deleting entry {entry} from catalog")
         with self.engine.begin() as conn:
             try:
                 conn.execute(sa.delete(Assets).where(
