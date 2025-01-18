@@ -147,7 +147,7 @@ class _BaseLogger:
         self.format = BASIC_FORMAT
         self.file_handler.setFormatter(self.format)
 
-    def set_level(self, level:Literal[logging.DEBUG,logging.INFO,logging.WARNING,logging.ERROR,logging.CRITICAL]) -> None:
+    def set_level(self, level:Literal[logging.DEBUG,logging.INFO,logging.WARNING,logging.ERROR,logging.CRITICAL]) -> None: # type: ignore
         """
         Set the logging level for the logger.
 
@@ -197,7 +197,29 @@ class _BaseLogger:
     def logwarn(self, message) -> None:
         """ Log a warning message with stacklevel=2 (logging module goes up the stack to get the calling function) """
         self.logger.warning(message, stacklevel=2)
-        
+
+def route_all_loggers_to_console():
+    GNSSLogger.route_to_console()
+    ProcessLogger.route_to_console()
+    GarposLogger.route_to_console()
+
+def remove_all_loggers_from_console():
+    GNSSLogger.remove_console()
+    ProcessLogger.remove_console()
+    GarposLogger.remove_console()
+
+def set_all_logger_levels(level: Literal[logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL]): # type: ignore
+    GNSSLogger.set_level(level)
+    ProcessLogger.set_level(level)
+    GarposLogger.set_level(level)
+
+def change_all_logger_dirs(dir: Path):
+    GNSSLogger.set_dir(dir)
+    ProcessLogger.set_dir(dir)
+    GarposLogger.set_dir(dir)
+
+
+# Create the base logger
 BaseLogger = _BaseLogger()
 
 # Create loggers for specific modules & set them to propagate to the base logger
@@ -205,7 +227,6 @@ GNSSLogger = _BaseLogger(
     name="base_logger.gnss_logger",
     file_name="gnss.log",
 )
-# Propagate the log messages to the base logger as well
 GNSSLogger.propagate= True
 
 ProcessLogger = _BaseLogger(
@@ -221,26 +242,9 @@ GarposLogger = _BaseLogger(
 GarposLogger.propagate= True
 
 
-def route_all_loggers_to_console():
-    GNSSLogger.route_to_console()
-    ProcessLogger.route_to_console()
-    GarposLogger.route_to_console()
 
-def remove_all_loggers_from_console():
-    GNSSLogger.remove_console()
-    ProcessLogger.remove_console()
-    GarposLogger.remove_console()
 
-def set_all_logger_levels(level: Literal[logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL]):
-    GNSSLogger.set_level(level)
-    ProcessLogger.set_level(level)
-    GarposLogger.set_level(level)
-
-def change_all_logger_dirs(dir: Path):
-    GNSSLogger.set_dir(dir)
-    ProcessLogger.set_dir(dir)
-    GarposLogger.set_dir(dir)
-
+############################################################################################################
 # class BaseLogger:
 #     dir = Path.home() / ".es_sfg_tools"
 #     dir.mkdir(exist_ok=True)
