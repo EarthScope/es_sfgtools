@@ -200,7 +200,7 @@ class _BaseLogger:
         
 BaseLogger = _BaseLogger()
 
-# Create loggers for specific modules
+# Create loggers for specific modules & set them to propagate to the base logger
 GNSSLogger = _BaseLogger(
     name="base_logger.gnss_logger",
     file_name="gnss.log",
@@ -220,23 +220,21 @@ GarposLogger = _BaseLogger(
 )
 GarposLogger.propagate= True
 
-# def initialize_loggers(log_dir: Path):
-#     gnss_logger = _BaseLogger(
-#         name="gnss_logger",
-#         dir=log_dir,
-#         file_name="gnss.log",
-#     )
-#     process_logger = _BaseLogger(
-#         name="processing_logger",
-#         dir=log_dir,
-#         file_name="processing.log",
-#     )
-#     garpos_logger = _BaseLogger(
-#         name="garpos_logger",
-#         dir=log_dir,
-#         file_name="garpos.log",
-#     )
-#     return gnss_logger, process_logger, garpos_logger
+
+def route_all_loggers_to_console():
+    GNSSLogger.route_to_console()
+    ProcessLogger.route_to_console()
+    GarposLogger.route_to_console()
+
+def remove_all_loggers_from_console():
+    GNSSLogger.remove_console()
+    ProcessLogger.remove_console()
+    GarposLogger.remove_console()
+
+def set_all_logger_levels(level: Literal[logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL]):
+    GNSSLogger.set_level(level)
+    ProcessLogger.set_level(level)
+    GarposLogger.set_level(level)
 
 # class BaseLogger:
 #     dir = Path.home() / ".es_sfg_tools"
