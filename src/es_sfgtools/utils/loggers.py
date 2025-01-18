@@ -236,6 +236,11 @@ def set_all_logger_levels(level: Literal[logging.DEBUG, logging.INFO, logging.WA
     ProcessLogger.set_level(level)
     GarposLogger.set_level(level)
 
+def change_all_logger_dirs(dir: Path):
+    GNSSLogger.set_dir(dir)
+    ProcessLogger.set_dir(dir)
+    GarposLogger.set_dir(dir)
+
 # class BaseLogger:
 #     dir = Path.home() / ".es_sfg_tools"
 #     dir.mkdir(exist_ok=True)
