@@ -5,7 +5,7 @@ from typing import List, Tuple, Union
 import pandas as pd
 from configparser import ConfigParser
 import matplotlib.pyplot as plt
-from datetime import datetime,timedelta
+from datetime import datetime, timedelta
 import numpy as np
 import sys
 import os
@@ -20,12 +20,12 @@ from matplotlib.colors import Normalize
 from matplotlib.collections import LineCollection
 import matplotlib.dates as mdates
 import seaborn as sns
+
 sns.set_theme()
 
 import matplotlib.gridspec as gridspec
 
 from es_sfgtools.processing.assets.observables import (
-
     ShotDataFrame,
     SoundVelocityDataFrame,
 )
@@ -36,7 +36,7 @@ from es_sfgtools.processing.assets.siteconfig import (
     PositionLLH,
     SiteConfig,
     Site,
-    Survey
+    Survey,
 )
 from es_sfgtools.modeling.garpos_tools.schemas import (
     GarposInput,
@@ -67,6 +67,8 @@ colors = [
     "orange",
     "pink",
 ]
+
+
 def xyz2enu(x, y, z, lat0, lon0, hgt0, inv=1, **kwargs):
     """
     Rotates the vector of positions XYZ and covariance to
@@ -156,7 +158,6 @@ class CoordTransformer:
                                       or an instance of PositionLLH class.
         """
 
-
         if isinstance(pos_llh, list):
             self.lat0 = pos_llh[0]
             self.lon0 = pos_llh[1]
@@ -168,7 +169,7 @@ class CoordTransformer:
 
         self.X0, self.Y0, self.Z0 = pm.geodetic2ecef(self.lat0, self.lon0, self.hgt0)
 
-    def XYZ2ENU(self, X:float, Y:float, Z:float) -> Tuple[float, float, float]:
+    def XYZ2ENU(self, X: float, Y: float, Z: float) -> Tuple[float, float, float]:
         """
         Convert Cartesian coordinates (X, Y, Z) to East-North-Up (ENU) coordinates.
 
@@ -195,10 +196,10 @@ class CoordTransformer:
 
         return e, n, u
 
-    def LLH2ENU(self, lat:float, lon:float, hgt:float) -> Tuple[float, float, float]:
+    def LLH2ENU(self, lat: float, lon: float, hgt: float) -> Tuple[float, float, float]:
         """
         Convert latitude, longitude, and height (LLH) to East, North, Up (ENU) coordinates.
-        This function converts geodetic coordinates (latitude, longitude, height) to local 
+        This function converts geodetic coordinates (latitude, longitude, height) to local
         tangent plane coordinates (East, North, Up) relative to a reference point.
 
         Args:
@@ -227,7 +228,6 @@ class CoordTransformer:
     def LLH2ENU_vec(
         self, lat: np.ndarray, lon: np.ndarray, hgt: np.ndarray
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-
         """
         Convert latitude, longitude, and height (LLH) coordinates to East-North-Up (ENU) coordinates.
 
@@ -241,7 +241,7 @@ class CoordTransformer:
         Returns:
             Tuple[np.ndarray, np.ndarray, np.ndarray]
                 Tuple containing arrays of East, North, and Up coordinates in meters.
-        """   
+        """
 
         X, Y, Z = pm.geodetic2ecef(lat, lon, hgt)
         dX, dY, dZ = X - self.X0, Y - self.Y0, Z - self.Z0
@@ -548,7 +548,7 @@ def avg_transponder_position(
 
     Args:
         transponders (List[Transponder]): A list of transponders.
-    
+
     Returns:
         Tuple[PositionENU, PositionLLH]: A tuple containing the average position in ENU and LLH coordinates.
     """
@@ -657,7 +657,6 @@ def plot_enu_llh_side_by_side(garpos_input: GarposInput):
 def rectify_shotdata_site(
     site_config: SiteConfig, shot_data: DataFrame[ObservationData]
 ) -> Tuple[SiteConfig, DataFrame[ShotDataFrame]]:
-
     """
     Rectifies shot data for a given site configuration.
     This function transforms the shot data coordinates from ECEF to ENU, renames
@@ -763,18 +762,17 @@ def rectify_shotdata_site(
 def process_garpos_results(results: GarposInput) -> Tuple[GarposResults, pd.DataFrame]:
     """
     Process garpos results to compute delta x, y, z and relevant fields.
-    This function processes the garpos results to calculate the delta x, y, z 
-    for each transponder and other relevant fields. It also converts the 
-    residual travel time (ResiTT) to meters using the harmonic mean of the 
+    This function processes the garpos results to calculate the delta x, y, z
+    for each transponder and other relevant fields. It also converts the
+    residual travel time (ResiTT) to meters using the harmonic mean of the
     sound speed data.
 
     Args:
         results (GarposInput): The input data containing observations and site information.
     Returns:
-        Tuple[GarposResults, pd.DataFrame]: A tuple containing the processed garpos results 
+        Tuple[GarposResults, pd.DataFrame]: A tuple containing the processed garpos results
         and a DataFrame with the shot data including the calculated residual ranges.
     """
-
 
     # Process garpos results to get delta x,y,z and relevant fields
 
@@ -819,10 +817,11 @@ def process_garpos_results(results: GarposInput) -> Tuple[GarposResults, pd.Data
 
 from ...processing.assets.tiledb_temp import TDBShotDataArray
 
+
 class GarposHandler:
-    '''
-    GarposHandler is a class that handles the processing and preparation of shot data for the GARPOS model. 
-    It includes methods for rectifying shot data, preparing shot data files, setting inversion parameters, 
+    """
+    GarposHandler is a class that handles the processing and preparation of shot data for the GARPOS model.
+    It includes methods for rectifying shot data, preparing shot data files, setting inversion parameters,
     generating observation parameter files, generating data files with fixed parameters, and running the GARPOS model.
 
     Note:
@@ -854,12 +853,11 @@ class GarposHandler:
             Runs the GARPOS model for a given date and run ID.
         run_garpos(self, date_index: int = None, run_id: int | str = 0) -> None:
             Runs the GARPOS model for a specific date or for all dates.
-    '''
+    """
 
     def __init__(
         self, shotdata: TDBShotDataArray, site_config: SiteConfig, working_dir: Path
     ):
-
         """
         Initializes the class with shot data, site configuration, and working directory.
         Args:
@@ -913,10 +911,10 @@ class GarposHandler:
         6. Validates and sorts the DataFrame by "triggerTime".
 
         Args:
-            shot_data (pd.DataFrame): The input DataFrame containing shot data with columns 
-                                      "east0", "north0", "up0", "east1", "north1", "up1", 
-                                      "trigger_time", "hae0", "pingTime", "returnTime", 
-                                      "tt", "transponderID", "head0", "pitch0", "roll0", 
+            shot_data (pd.DataFrame): The input DataFrame containing shot data with columns
+                                      "east0", "north0", "up0", "east1", "north1", "up1",
+                                      "trigger_time", "hae0", "pingTime", "returnTime",
+                                      "tt", "transponderID", "head0", "pitch0", "roll0",
                                       "head1", "pitch1", and "roll1".
         Returns:
             pd.DataFrame: The rectified and validated DataFrame sorted by "triggerTime".
@@ -972,14 +970,14 @@ class GarposHandler:
         ]
         return ObservationData.validate(shot_data, lazy=True).sort_values("triggerTime")
 
-    def load_campaign_data(self,path:Path):
+    def load_campaign_data(self, path: Path):
         self.site = Site.from_json(path)
 
-    def set_campaign(self,name:str):
+    def set_campaign(self, name: str):
         for campaign in self.site.campaigns:
             if campaign.name == name:
                 self.campaign = campaign
-                return 
+                return
         raise ValueError(f"campaign {name} not found")
 
     # def prep_shotdata(self, overwrite: bool = False):
@@ -1028,19 +1026,29 @@ class GarposHandler:
                     benchmarks.append(benchmark)
             transponders = []
             for benchmark in benchmarks:
-                [transponders.append(transponder.id) for transponder in benchmark.transponders]
+                [
+                    transponders.append(transponder.id)
+                    for transponder in benchmark.transponders
+                ]
             if len(transponders) == 0:
                 print(f"No transponders found for survey {survey.id}")
                 continue
-            survey_type = survey.type.replace(" ","")
+            survey_type = survey.type.replace(" ", "")
             start_doy = survey.start.timetuple().tm_yday
             end_doy = survey.end.timetuple().tm_yday
-            shot_data_path = self.shotdata_dir / f"{survey.id}_{survey_type}_{start_doy}_{end_doy}.csv"
+            shot_data_path = (
+                self.shotdata_dir
+                / f"{survey.id}_{survey_type}_{start_doy}_{end_doy}.csv"
+            )
             if not shot_data_path.exists() or overwrite:
-                shot_data_queried: pd.DataFrame = self.shotdata.read_df(start=survey.start,end=survey.end)
+                shot_data_queried: pd.DataFrame = self.shotdata.read_df(
+                    start=survey.start, end=survey.end
+                )
 
                 if shot_data_queried.empty:
-                    print(f"No shot data found for survey {survey.id} {survey_type} {start_doy} {end_doy}")
+                    print(
+                        f"No shot data found for survey {survey.id} {survey_type} {start_doy} {end_doy}"
+                    )
                     continue
                 shot_data_rectified = self._rectify_shotdata(shot_data_queried)
                 try:
@@ -1048,7 +1056,9 @@ class GarposHandler:
                         shot_data_rectified, lazy=True
                     )
                     # Only use shotdata for transponders in the survey
-                    shot_data_rectified = shot_data_rectified[shot_data_rectified.MT.isin(transponders)]
+                    shot_data_rectified = shot_data_rectified[
+                        shot_data_rectified.MT.isin(transponders)
+                    ]
 
                     shot_data_rectified.MT = shot_data_rectified.MT.apply(
                         lambda x: "M" + str(x) if str(x)[0].isdigit() else str(x)
@@ -1069,7 +1079,7 @@ class GarposHandler:
 
         Args:
             parameters (dict | InversionParams): A dictionary containing key-value pairs to update the inversion parameters or an InversionParams object.
-        
+
         """
 
         if isinstance(parameters, InversionParams):
@@ -1084,7 +1094,6 @@ class GarposHandler:
         path: Path,
         n_shot: int,
     ) -> None:
-
         """
         Generates an observation parameter file from the provided shot data and site configuration.
         Args:
@@ -1152,7 +1161,6 @@ class GarposHandler:
     def _garposfixed_to_datafile(
         self, inversion_params: InversionParams, path: Path
     ) -> None:
-
         """
         Generates a data file with fixed parameters for the inversion process.
         This method creates a configuration file with hyperparameters and inversion parameters
@@ -1220,8 +1228,13 @@ class GarposHandler:
         with open(path, "w") as f:
             f.write(fixed_str)
 
-    def _run_garpos(self, results_dir:Path,shot_data_path:Path,run_id:int|str=0,override:bool=False) -> GarposResults:
-
+    def _run_garpos(
+        self,
+        results_dir: Path,
+        shot_data_path: Path,
+        run_id: int | str = 0,
+        override: bool = False,
+    ) -> GarposResults:
         """
         Run the GARPOS model for a given date and run ID.
 
@@ -1247,9 +1260,7 @@ class GarposHandler:
         9. Saves the results DataFrame to a CSV file.
         """
 
-        assert (
-            shot_data_path.exists()
-        ), f"Shot data not found at {shot_data_path}"
+        assert shot_data_path.exists(), f"Shot data not found at {shot_data_path}"
         results_path = results_dir / f"_{run_id}_results.json"
         results_df_path: Path = results_dir / f"_{run_id}_results_df.csv"
 
@@ -1267,12 +1278,12 @@ class GarposHandler:
         self._input_to_datafile(shot_data_path, input_path, n_shot)
         self._garposfixed_to_datafile(self.inversion_params, fixed_path)
 
-        print("Running GARPOS for",shot_data_path)
+        print("Running GARPOS for", shot_data_path)
         rf = drive_garpos(
             str(input_path),
             str(fixed_path),
             str(results_dir) + "/",
-            self.site_config.campaign+f"_{run_id}",
+            self.site_config.campaign + f"_{run_id}",
             13,
         )
 
@@ -1283,7 +1294,9 @@ class GarposHandler:
         with open(results_path, "w") as f:
             json.dump(proc_results.model_dump(), f, indent=4)
 
-    def _run_garpos_survey(self, survey_id:str,run_id:int|str=0,override:bool=False) -> None:
+    def _run_garpos_survey(
+        self, survey_id: str, run_id: int | str = 0, override: bool = False
+    ) -> None:
         try:
             survey = self.campaign.surveys[survey_id]
         except KeyError:
@@ -1295,15 +1308,17 @@ class GarposHandler:
         if shot_data_path is None:
             print(f"No shot data found for survey {survey_id}")
             return
-        with open(results_dir / "survey_meta.json","w") as f:
-            json.dump(survey.model_dump(),f,indent=4)
-        self._run_garpos(results_dir,shot_data_path,run_id,override=override)
+        with open(results_dir / "survey_meta.json", "w") as f:
+            json.dump(survey.model_dump(), f, indent=4)
+        self._run_garpos(results_dir, shot_data_path, run_id, override=override)
 
-    def run_garpos(self, survey_id:str=None,run_id:int|str=0,override:bool=False) -> None:
+    def run_garpos(
+        self, survey_id: str = None, run_id: int | str = 0, override: bool = False
+    ) -> None:
         """
         Run the GARPOS model for a specific date or for all dates.
         Args:
-            date_index (int, optional): The index of the date in the self.dates list to run the model for. 
+            date_index (int, optional): The index of the date in the self.dates list to run the model for.
                                         If None, the model will be run for all dates. Defaults to None.
             run_id (int or str, optional): An identifier for the run. Defaults to 0.
         Returns:
@@ -1312,61 +1327,76 @@ class GarposHandler:
 
         if survey_id is None:
             for survey_id in self.campaign.surveys.keys():
-                self._run_garpos_survey(survey_id,run_id,override=override)
+                self._run_garpos_survey(survey_id, run_id, override=override)
         else:
-            self._run_garpos_survey(survey_id,run_id,override=override)
+            self._run_garpos_survey(survey_id, run_id, override=override)
 
-    def plot_ts_results(self,survey_id:str,run_id:int|str=0) -> None:
-        print("Plotting results for survey ",survey_id)
-        survey = Survey(**dict(self.campaign.surveys[survey_id]))
-        start_year,month,day = survey.start.year,survey.start.month,survey.start.day
-        start_date = datetime(start_year,month,day,0,0,0)
+    def plot_ts_results(
+        self, survey_id: str, run_id: int | str = 0, res_filter: float = 10
+    ) -> None:
+        
+        """
+        Plots the time series results for a given survey.
+        Parameters:
+        -----------
+        survey_id : str
+            The ID of the survey to plot results for.
+        run_id : int or str, optional
+            The run ID of the survey results to plot. Default is 0.
+        res_filter : float, optional
+            The residual filter value to filter outrageous values (m). Default is 10.
+        Returns:
+        --------
+        None
+
+        Notes:
+        ------
+        - The function reads survey results from a JSON file and a CSV file.
+        - It filters the results based on the residual range.
+        - It generates multiple plots including scatter plots, line plots, box plots, and histograms.
+        - The plots include information about the delta center position and transponder positions.
+        """
+
+        print("Plotting results for survey ", survey_id)
+        try:
+            survey = Survey(**dict(self.campaign.surveys[survey_id]))
+        except KeyError:
+            raise ValueError(f"Survey {survey_id} not found")
+        
         results_dir = self.results_dir / survey.id
         results_path = results_dir / f"_{run_id}_results.json"
-        with open(results_path,"r") as f:
+        with open(results_path, "r") as f:
             results = json.load(f)
         transponders = []
-        arrayinfo = PositionENU.model_validate(
-            results["delta_center_position"]
-        )
+        arrayinfo = PositionENU.model_validate(results["delta_center_position"])
         for transponder in results["transponders"]:
             _transponder_ = Transponder.model_validate(transponder)
             transponders.append(_transponder_)
         results_df_raw = pd.read_csv(results_dir / f"_{run_id}_results_df.csv")
-        results_df_raw = ShotDataFrame.validate(results_df_raw,lazy=True)
-
-        results_df_raw["time"] = results_df_raw.ST.apply(lambda x: datetime.fromtimestamp(x))
-
-        df_filter_1 = results_df_raw["ResiRange"].abs() < 2
-        df_filter_2 = results_df_raw["ResiTT"].abs() < 0.5
-        df_filter = df_filter_1 & df_filter_2
+        results_df_raw = ShotDataFrame.validate(results_df_raw, lazy=True)
+        results_df_raw["time"] = results_df_raw.ST.apply(
+            lambda x: datetime.fromtimestamp(x)
+        )
+        df_filter = results_df_raw["ResiRange"].abs() < res_filter
         results_df = results_df_raw[df_filter]
-
         unique_ids = results_df["MT"].unique()
-        plt.figsize=(32,32)
+
+        plt.figsize = (32, 32)
         plt.suptitle(f"Survey {survey.id} Results")
-
-        gs = gridspec.GridSpec(12,16)
-
+        gs = gridspec.GridSpec(13, 16)
         figure_text = "Delta Center Position\n"
-
         dpos = arrayinfo.get_position()
         figure_text += f"Array :  East {dpos[0]:.3f} m, North {dpos[1]:.3f} m, Up {dpos[2]:.3f} m \n"
         for id, transponder in enumerate(transponders):
             dpos = transponder.delta_center_position.get_position()
             figure_text += f"TSP {transponder.id} : East {dpos[0]:.3f} m, North {dpos[1]:.3f} m, Up {dpos[2]:.3f} m \n"
 
-        # ax2.text(0.1,0.6, figure_text, fontsize=7,verticalalignment='center', horizontalalignment='left',)
         print(figure_text)
-        ax3 = plt.subplot(gs[6:,8:])
-        ax3.set_aspect('equal', 'box')
-
+        ax3 = plt.subplot(gs[6:, 8:])
+        ax3.set_aspect("equal", "box")
         ax3.set_xlabel("East (m)")
-        ax3.set_ylabel("North (m)")
-
-        colormap_times = (
-            results_df_raw.ST.to_numpy()
-        )
+        ax3.set_ylabel("North (m)", labelpad=-1)
+        colormap_times = results_df_raw.ST.to_numpy()
         colormap_times_scaled = (colormap_times - colormap_times.min()) / 3600
         norm = Normalize(
             vmin=0,
@@ -1382,23 +1412,17 @@ class GarposHandler:
             alpha=0.25,
         )
         ax3.scatter(0, 0, label="Origin", color="magenta", s=100)
-
         ax1 = plt.subplot(gs[1:5, :])
-
-        # Overlay the antennae position on the time series plot for reference
         points = np.array(
             [
-                mdates.date2num(results_df_raw["time"]),
-                np.zeros(len(results_df_raw["time"])),
+                mdates.date2num(results_df["time"]),
+                np.zeros(len(results_df["time"])),
             ]
         ).T.reshape(-1, 1, 2)
         segments = np.concatenate([points[:-1], points[1:]], axis=1)
-        lc = LineCollection(
-            segments, cmap="viridis", norm=norm, linewidth=5,zorder=10
-        )
+        lc = LineCollection(segments, cmap="viridis", norm=norm, linewidth=5, zorder=10)
         lc.set_array(colormap_times_scaled)
         ax1.add_collection(lc)
-
         for i, unique_id in enumerate(unique_ids):
             df = results_df[results_df["MT"] == unique_id].sort_values("time")
             ax1.plot(
@@ -1408,16 +1432,13 @@ class GarposHandler:
                 color=colors[i],
                 linewidth=1,
                 zorder=i,
-                alpha=0.75
+                alpha=0.75,
             )
-
         ax1.set_xlabel("Time - Month / Day / Hour")
-        ax1.set_ylabel("Residuals - Range (M)")
-
+        ax1.set_ylabel("Residuals - Range (M)", labelpad=-1)
         ax1.xaxis.set_label_position("top")
         ax1.xaxis.set_ticks_position("top")
         ax1.legend()
-
         for transponder in transponders:
             idx = unique_ids.tolist().index(transponder.id)
             ax3.scatter(
@@ -1429,16 +1450,17 @@ class GarposHandler:
             )
         cbar = plt.colorbar(sc, label="Time (hr)", norm=norm)
         ax3.legend()
-
         ax2 = plt.subplot(gs[6:9, :7])
-
+        resiRange = results_df_raw["ResiRange"]
+        resiRange_np = resiRange.to_numpy()
+        resiRange_filter = np.abs(resiRange_np) < 50
+        resiRange = resiRange[resiRange_filter]
         flier_props = dict(marker=".", markerfacecolor="r", markersize=5, alpha=0.25)
-        ax2.boxplot(results_df_raw["ResiRange"].to_numpy(),vert=False,flierprops=flier_props)
-
-        median = results_df_raw["ResiRange"].median()
+        ax2.boxplot(resiRange.to_numpy(), vert=False, flierprops=flier_props)
+        median = resiRange.median()
         # Get the 1st and 2nd interquartile range
-        q1 = results_df_raw["ResiRange"].quantile(0.25)
-        q3 = results_df_raw["ResiRange"].quantile(0.75)
+        q1 = resiRange.quantile(0.25)
+        q3 = resiRange.quantile(0.75)
         ax2.text(
             0.5,
             1.2,
@@ -1447,28 +1469,20 @@ class GarposHandler:
             verticalalignment="center",
             horizontalalignment="center",
         )
-
-        mu = results_df_raw["ResiRange"].mean()
-        sigma = results_df_raw["ResiRange"].std()
-        xaxis = np.linspace(results_df_raw["ResiRange"].min(), results_df_raw["ResiRange"].max(), 1000)
-       
-
-        bins = np.arange(mu - 3 * sigma, mu + 3 * sigma, 0.1)
-        inds = np.digitize(results_df_raw["ResiRange"].to_numpy(), bins[:-1], right=True)
-        counts = np.bincount(inds)
-        counts = counts / counts.sum()
-        
-        ax4 = plt.subplot(gs[9:,:7])
+        ax2.set_xlabel("Residual Range (m)", labelpad=-1)
+        # Place ax2 x ticks on top
+        ax2.yaxis.set_visible(False)
+        ax2.set_title("Box Plot of Residual Range Values")
+        bins = np.arange(-res_filter, res_filter, 0.05)
+        counts, bins = np.histogram(resiRange_np, bins=bins, density=True)
+        ax4 = plt.subplot(gs[10:, :7])
         ax4.sharex(ax2)
-        ax4.hist(x=bins,bins=bins,weights=counts, edgecolor='black')
-        ax4.plot(
-            xaxis,
-            normal_dist.pdf(xaxis, mu, sigma),
-            color="red",
-            label="Normal Distribution",
-            linewidth=2
+        ax4.hist(bins[:-1], bins, weights=counts, edgecolor="black")
+        ax4.axvline(median, color="blue", linestyle="-", label=f"Median: {median:.3f}")
+        ax4.set_xlabel("Residual Range (m)", labelpad=-1)
+        ax4.set_ylabel("Frequency")
+        ax4.set_title(
+            f"Histogram of Residual Range Values, within {res_filter:.1f} meters and sorted in .05m bins"
         )
-        ax4.axvline(mu, color="blue", linestyle="-", label=f"Mean: {mu:.2f}")
         ax4.legend()
-
         plt.show()
