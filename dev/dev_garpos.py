@@ -25,6 +25,13 @@ if __name__ == "__main__":
 
     dh.change_working_station(network=network, station=station, survey=survey)
 
+    #
+    # sv3_pipeline,config = dh.get_pipeline_sv3()
+    # config.novatel_config.override = False
+    # config.dfop00_config.override = True
+    # sv3_pipeline.config = config
+    # sv3_pipeline.run_pipeline()
+
     ncc1_2024_config = dh.station_dir / "NCC1_2024_config.yaml"
     svp_path = dh.station_dir / "NCC1_CTD_2021_fit"
     svp_path_processed = dh.station_dir / "svp.csv"
@@ -33,9 +40,9 @@ if __name__ == "__main__":
         svp_df.to_csv(svp_path_processed)
 
     config = SiteConfig.from_config(ncc1_2024_config)
- 
+
     config.sound_speed_data = svp_path_processed
-    #config.position_llh.height *= -1
+    # config.position_llh.height *= -1
     gp_handler_ncc1= dh.get_garpos_handler(site_config=config)
 
     site_path = Path(
@@ -45,10 +52,9 @@ if __name__ == "__main__":
     gp_handler_ncc1.load_campaign_data(site_path)
     gp_handler_ncc1.set_campaign("2024_A_1126")
 
-
     gp_handler_ncc1.prep_shotdata()
     update_dict = {"rejectcriteria": 2.5}
     gp_handler_ncc1.set_inversion_params(update_dict)
-    #gp_handler_ncc1.run_garpos()
-    gp_handler_ncc1.plot_ts_results("2024_A_1126_1")
+    #gp_handler_ncc1.run_garpos(survey_id="2024_A_1126_1",run_id=1,override=True)
+    gp_handler_ncc1.plot_ts_results("2024_A_1126_1",1)
     print("Done")

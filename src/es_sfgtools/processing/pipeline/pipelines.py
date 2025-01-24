@@ -396,7 +396,7 @@ class SV3Pipeline:
             for shotdata_df,dfo_entry in tqdm(
                 zip(results,dfop00_entries), total=len(dfop00_entries), desc="Processing DFOP00 Files"
             ):
-                if shotdata_df is not None:
+                if shotdata_df is not None and not shotdata_df.empty:
                     self.config.shot_data_dest.write_df(shotdata_df)
                     count += 1
                     dfo_entry.is_processed = True

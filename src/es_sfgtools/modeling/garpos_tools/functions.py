@@ -14,9 +14,7 @@ import math
 import julian
 import logging
 from scipy.stats import hmean as harmonic_mean
-from sklearn.ensemble import RandomForestRegressor
-from scipy.interpolate import RBFInterpolator, CubicSpline
-from functools import partial
+from scipy.stats import norm as normal_dist
 import json
 from matplotlib.colors import Normalize
 from matplotlib.collections import LineCollection
@@ -1337,12 +1335,7 @@ class GarposHandler:
         results_df_raw = pd.read_csv(results_dir / f"_{run_id}_results_df.csv")
         results_df_raw = ShotDataFrame.validate(results_df_raw,lazy=True)
 
-        st = results_df_raw["ST"].to_numpy()
-        start_st = st[0]
-        st -= start_st
-        st[st < 0] += 24*3600
-        st += start_st
-        results_df_raw["time"] = [start_date + timedelta(seconds=x) for x in st.tolist()]
+        results_df_raw["time"] = results_df_raw.ST.apply(lambda x: datetime.fromtimestamp(x))
 
         df_filter_1 = results_df_raw["ResiRange"].abs() < 2
         df_filter_2 = results_df_raw["ResiTT"].abs() < 0.5
@@ -1365,14 +1358,14 @@ class GarposHandler:
 
         # ax2.text(0.1,0.6, figure_text, fontsize=7,verticalalignment='center', horizontalalignment='left',)
         print(figure_text)
-        ax3 = plt.subplot(gs[6:,:])
+        ax3 = plt.subplot(gs[6:,8:])
         ax3.set_aspect('equal', 'box')
 
         ax3.set_xlabel("East (m)")
         ax3.set_ylabel("North (m)")
 
         colormap_times = (
-            results_df_raw["time"].apply(lambda x: x.timestamp()).to_numpy()
+            results_df_raw.ST.to_numpy()
         )
         colormap_times_scaled = (colormap_times - colormap_times.min()) / 3600
         norm = Normalize(
@@ -1384,7 +1377,7 @@ class GarposHandler:
             results_df_raw["ant_n0"],
             c=colormap_times_scaled,
             cmap="viridis",
-            label="Antenna Position",
+            label="Vessel",
             norm=norm,
             alpha=0.25,
         )
@@ -1436,5 +1429,46 @@ class GarposHandler:
             )
         cbar = plt.colorbar(sc, label="Time (hr)", norm=norm)
         ax3.legend()
+
+        ax2 = plt.subplot(gs[6:9, :7])
+
+        flier_props = dict(marker=".", markerfacecolor="r", markersize=5, alpha=0.25)
+        ax2.boxplot(results_df_raw["ResiRange"].to_numpy(),vert=False,flierprops=flier_props)
+
+        median = results_df_raw["ResiRange"].median()
+        # Get the 1st and 2nd interquartile range
+        q1 = results_df_raw["ResiRange"].quantile(0.25)
+        q3 = results_df_raw["ResiRange"].quantile(0.75)
+        ax2.text(
+            0.5,
+            1.2,
+            f"Median: {median:.2f} , IQR 1: {q1:.2f}, IQR 3: {q3:.2f}",
+            fontsize=10,
+            verticalalignment="center",
+            horizontalalignment="center",
+        )
+
+        mu = results_df_raw["ResiRange"].mean()
+        sigma = results_df_raw["ResiRange"].std()
+        xaxis = np.linspace(results_df_raw["ResiRange"].min(), results_df_raw["ResiRange"].max(), 1000)
+       
+
+        bins = np.arange(mu - 3 * sigma, mu + 3 * sigma, 0.1)
+        inds = np.digitize(results_df_raw["ResiRange"].to_numpy(), bins[:-1], right=True)
+        counts = np.bincount(inds)
+        counts = counts / counts.sum()
+        
+        ax4 = plt.subplot(gs[9:,:7])
+        ax4.sharex(ax2)
+        ax4.hist(x=bins,bins=bins,weights=counts, edgecolor='black')
+        ax4.plot(
+            xaxis,
+            normal_dist.pdf(xaxis, mu, sigma),
+            color="red",
+            label="Normal Distribution",
+            linewidth=2
+        )
+        ax4.axvline(mu, color="blue", linestyle="-", label=f"Mean: {mu:.2f}")
+        ax4.legend()
 
         plt.show()

@@ -29,7 +29,8 @@ if __name__ == "__main__":
     dh.download_data()
      
     pipeline,config = dh.get_pipeline_sv3()
-    config.novatel_config.override = True
+    config.novatel_config.override = False
+    config.dfop00_config.override = True
     config.rinex_config.override = False
     config.rinex_config.override_products_download = False
     config.rinex_config.pride_config.sample_frequency = .25

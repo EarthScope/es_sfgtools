@@ -24,8 +24,8 @@ attribute_dict: Dict[str,tiledb.Attr] = {
     "latitude": tiledb.Attr(name="latitude", dtype=np.float32),
     "longitude": tiledb.Attr(name="longitude", dtype=np.float32),
     "height": tiledb.Attr(name="height", dtype=np.float32),
-    "pingTime":tiledb.Attr(name="pingTime", dtype=np.float32),
-    "returnTime":tiledb.Attr(name="returnTime",dtype=np.float32),
+    "pingTime":tiledb.Attr(name="pingTime", dtype=np.float64),
+    "returnTime":tiledb.Attr(name="returnTime",dtype=np.float64),
     "tt":tiledb.Attr(name="tt",dtype=np.float32),
     "dbv":tiledb.Attr(name="dbv",dtype=np.uint8),
     "xc":tiledb.Attr(name="xc",dtype=np.uint8),
@@ -148,8 +148,8 @@ class TBDArray:
 
     def write_df(self,df:pd.DataFrame,validate:bool=True):
         if validate:
-            df = self.dataframe_schema.validate(df,lazy=True)
-        tiledb.from_pandas(str(self.uri),df,mode='append')
+            df_val = self.dataframe_schema.validate(df,lazy=True)
+        tiledb.from_pandas(str(self.uri),df_val,mode='append')
 
     def read_df(self,start:datetime.datetime,end:datetime.datetime=None,validate:bool=True,**kwargs)->pd.DataFrame:
 
@@ -266,6 +266,6 @@ class TDBShotDataArray(TBDArray):
 
     def write_df(self, df: pd.DataFrame, validate: bool = True):
         if validate:
-            df = self.dataframe_schema.validate(df, lazy=True)
-        df.triggerTime = df.triggerTime.astype("datetime64[ns]")
-        tiledb.from_pandas(str(self.uri), df, mode="append")
+            df_val = self.dataframe_schema.validate(df, lazy=True)
+        df_val.triggerTime = df_val.triggerTime.astype("datetime64[ns]")
+        tiledb.from_pandas(str(self.uri), df_val, mode="append")
