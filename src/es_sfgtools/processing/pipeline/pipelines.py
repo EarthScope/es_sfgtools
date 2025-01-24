@@ -34,12 +34,10 @@ from es_sfgtools.utils.loggers import ProcessLogger as logger
 
 class NovatelConfig(BaseModel):
     override: bool = Field(False, title="Flag to Override Existing Data")
-    show_details: bool = Field(False, title="Flag to Show Processing Details")
     n_processes: int = Field(default_factory=cpu_count, title="Number of Processes to Use")
 
 class RinexConfig(BaseModel):
     override: bool = Field(False, title="Flag to Override Existing Data")
-    show_details: bool = Field(False, title="Flag to Show Processing Details")
     pride_config: PridePdpConfig = Field(default_factory=PridePdpConfig, title="Pride Configuration")
     override_products_download: bool = Field(False, title="Flag to Override Existing Products Download")
     n_processes: int = Field(default_factory=cpu_count, title="Number of Processes to Use")
@@ -55,7 +53,6 @@ class RinexConfig(BaseModel):
 
 class DFOP00Config(BaseModel):
     override: bool = Field(False, title="Flag to Override Existing Data")
-    show_details: bool = Field(False, title="Flag to Show Processing Details")
 
 class PositionUpdateConfig(BaseModel):
     plot: bool = Field(False, title="Flag to Plot Data")
@@ -118,6 +115,8 @@ class SV3PipelineConfig(BaseModel):
         return cls(**data)
 
 class SV3Pipeline:
+    logger = logger
+
     def __init__(self,catalog:Catalog=None,config:SV3PipelineConfig=None):
         self.catalog = catalog
         self.config = config
@@ -128,7 +127,6 @@ class SV3Pipeline:
         self
     ) -> None:
 
-        logger.loginfo(f"Processing Novatel 770 data for {self.config.network} {self.config.station} {self.config.survey}")
         novatel_770_entries: List[AssetEntry] = self.catalog.get_local_assets(
             network=self.config.network,
             station=self.config.station,
@@ -136,7 +134,7 @@ class SV3Pipeline:
             type=AssetType.NOVATEL770,
         )
         if novatel_770_entries:
-
+            self.logger.loginfo(f"Processing {len(novatel_770_entries)} Novatel 770 files for {self.config.network} {self.config.station} {self.config.survey}. This may take a few minutes...")
             merge_signature = {
                 "parent_type": AssetType.NOVATEL770.value,
                 "child_type": AssetType.RANGEATDB.value,
@@ -147,13 +145,16 @@ class SV3Pipeline:
 
                 self.catalog.add_merge_job(**merge_signature)
                 response = f"Added {len(novatel_770_entries)} Novatel 770 Entries to the catalog"
-                logger.loginfo(response)
-                if self.config.novatel_config.show_details:
-                    print(response)
+                self.logger.loginfo(response)
+                # if self.config.novatel_config.show_details:
+                #     print(response)
+            else:
+                response = f"Novatel 770 Data Already Processed for {self.config.network} {self.config.station} {self.config.survey}"
+                self.logger.loginfo(response)
         else:
-            logger.loginfo(f"No Novatel 770 Files Found to Process for {self.config.network} {self.config.station} {self.config.survey}")
+            self.logger.loginfo(f"No Novatel 770 Files Found to Process for {self.config.network} {self.config.station} {self.config.survey}")
 
-        logger.loginfo(f"Processing Novatel 000 data for {self.config.network} {self.config.station} {self.config.survey}")
+        self.logger.loginfo(f"Processing Novatel 000 data for {self.config.network} {self.config.station} {self.config.survey}")
         novatel_000_entries: List[AssetEntry] = self.catalog.get_local_assets(
             network=self.config.network,
             station=self.config.station,
@@ -171,16 +172,16 @@ class SV3Pipeline:
                 gnss_ops.nov0002tile(files=novatel_000_entries,rangea_tdb=self.config.rangea_data_dest,n_procs=self.config.novatel_config.n_processes)
 
                 self.catalog.add_merge_job(**merge_signature)
-                logger.loginfo(f"Added {len(novatel_000_entries)} Novatel 000 Entries to the catalog")
-                if self.config.novatel_config.show_details:
-                    print(response) # TODO: should the logger handle this?
+                self.logger.loginfo(f"Added {len(novatel_000_entries)} Novatel 000 Entries to the catalog")
+                # if self.config.novatel_config.show_details:
+                #     print(response) # TODO: should the logger handle this?
         else:
-            logger.loginfo(f"No Novatel 000 Files Found to Process for {self.config.network} {self.config.station} {self.config.survey}")
+            self.logger.loginfo(f"No Novatel 000 Files Found to Process for {self.config.network} {self.config.station} {self.config.survey}")                             
             return
 
     def get_rinex_files(self) -> None:
 
-        logger.loginfo(f"Gathering Rinex Files for {self.config.network} {self.config.station} {self.config.survey}")
+        self.logger.loginfo(f"Gathering Rinex Files for {self.config.network} {self.config.station} {self.config.survey}. This may take a few minutes...")
         merge_signature = {
             "parent_type": AssetType.RANGEATDB.value,
             "child_type": AssetType.RINEX.value,
@@ -196,11 +197,13 @@ class SV3Pipeline:
             )
 
             if len(rinex_entries) == 0:
-                logger.loginfo(f"No Rinex Files Found to Process for {self.config.network} {self.config.station} {self.config.survey}")
+                self.logger.loginfo(f"No Rinex Files Found to Process for {self.config.network} {self.config.station} {self.config.survey}")
                 return
             
             self.catalog.add_merge_job(**merge_signature)
-            logger.loginfo(f"Generated {len(rinex_entries)} Rinex Entries spanning {rinex_entries[0].timestamp_data_start} to {rinex_entries[-1].timestamp_data_end}")
+            #TODO: Sort the rinex entries by date so span log is correct
+            #currently gave "Generated 29 Rinex Entries spanning 2024-10-03 15:06:07 to 2024-09-30 15:53:07"
+            self.logger.loginfo(f"Generated {len(rinex_entries)} Rinex Entries spanning {rinex_entries[0].timestamp_data_start} to {rinex_entries[-1].timestamp_data_end}")
             uploadCount = 0
             for rinex_entry in rinex_entries:
                 rinex_entry.network = self.config.network
@@ -208,7 +211,11 @@ class SV3Pipeline:
                 rinex_entry.survey = self.config.survey
                 if self.catalog.add_entry(rinex_entry):
                     uploadCount += 1
-            logger.loginfo(f"Added {uploadCount} out of {len(rinex_entries)} Rinex Entries to the catalog")
+            self.logger.loginfo(f"Added {uploadCount} out of {len(rinex_entries)} Rinex Entries to the catalog")
+        else:
+            rinex_entries = self.catalog.get_local_assets(self.config.network,self.config.station,self.config.survey,AssetType.RINEX)
+            num_rinex_entries = len(rinex_entries)
+            self.logger.loginfo(f"Rinex Files Already Processed for {self.config.network} {self.config.station} {self.config.survey}, Found {num_rinex_entries} Entries")
 
     def process_rinex(self) -> None:
         """
@@ -219,9 +226,9 @@ class SV3Pipeline:
         """
 
         response = (f"Processing Rinex Data for {self.config.network} {self.config.station} {self.config.survey}")
-        logger.loginfo(response)
-        if self.config.rinex_config.show_details:
-            print(response)
+        self.logger.loginfo(response)
+        # if self.config.rinex_config.show_details:
+        #     print(response)
 
         rinex_entries: List[AssetEntry] = (
             self.catalog.get_single_entries_to_process(
@@ -235,16 +242,16 @@ class SV3Pipeline:
         )
         if not rinex_entries:
             response = f"No Rinex Files Found to Process for {self.config.network} {self.config.station} {self.config.survey}"
-            logger.logerr(response)
-            if self.config.rinex_config.show_details:
-                print(response)
+            self.logger.logerr(response)
+            # if self.config.rinex_config.show_details:
+            #     print(response)
             warnings.warn(response)
             return [] #TODO why return empty list? should it be None? Or should it raise an exception?
 
         response = f"Found {len(rinex_entries)} Rinex Files to Process"
-        logger.loginfo(response)
-        if self.config.rinex_config.show_details:
-            print(response)
+        self.logger.loginfo(response)
+        # if self.config.rinex_config.show_details:
+        #     print(response)
 
         get_nav_file_partial = partial(
             get_nav_file, override=self.config.rinex_config.override_products_download
@@ -305,12 +312,12 @@ class SV3Pipeline:
             
 
         response = f"Generated {count} Kin Files From {len(rinex_entries)} Rinex Files, Added {uploadCount} to the Catalog"
-        logger.loginfo(response)
-        if self.config.rinex_config.show_details:
-            print(response)
+        self.logger.loginfo(response)
+        # if self.config.rinex_config.show_details:
+        #     print(response)
 
     def process_kin(self):
-        logger.loginfo(f"Looing for Kin Files to Process for {self.config.network} {self.config.station} {self.config.survey}")
+        self.logger.loginfo(f"Looing for Kin Files to Process for {self.config.network} {self.config.station} {self.config.survey}")
         kin_entries: List[AssetEntry] = self.catalog.get_single_entries_to_process(
             network=self.config.network,
             station=self.config.station,
@@ -327,16 +334,16 @@ class SV3Pipeline:
         )
         if not kin_entries:
             response = f"No Kin Files Found to Process for {self.config.network} {self.config.station} {self.config.survey}"
-            logger.logerr(response)
-            if self.config.rinex_config.show_details:
-                print(response)
+            self.logger.logerr(response)
+            # if self.config.rinex_config.show_details:
+            #     print(response)
             warnings.warn(response)
             return
 
         response = f"Found {len(kin_entries)} Kin Files to Process: processing"
-        logger.loginfo(response)
-        if self.config.rinex_config.show_details:
-            print(response)
+        self.logger.loginfo(response)
+        # if self.config.rinex_config.show_details:
+        #     print(response)
 
         count = 0
         uploadCount = 0
@@ -353,9 +360,9 @@ class SV3Pipeline:
                 self.config.gnss_data_dest.write_df(gnss_df)           
 
         response = f"Generated {count} GNSS Dataframes From {len(kin_entries)} Kin Files, Added {uploadCount} to the Catalog"
-        logger.loginfo(response)
-        if self.config.rinex_config.show_details:
-            print(response)
+        self.logger.loginfo(response)
+        # if self.config.rinex_config.show_details:
+        #     print(response)
 
     def process_dfop00(self) -> None:
 
@@ -369,16 +376,16 @@ class SV3Pipeline:
         )
         if not dfop00_entries:
             response = f"No DFOP00 Files Found to Process for {self.config.network} {self.config.station} {self.config.survey}"
-            logger.logerr(response)
-            if self.config.dfop00_config.show_details:
-                print(response)
+            self.logger.logerr(response)
+            # if self.config.dfop00_config.show_details:
+            #     print(response)
             warnings.warn(response)
             return
 
         response = f"Found {len(dfop00_entries)} DFOP00 Files to Process"
-        logger.loginfo(response)
-        if self.config.dfop00_config.show_details:
-            print(response)
+        self.logger.loginfo(response)
+        # if self.config.dfop00_config.show_details:
+        #     print(response)
 
         count = 0
 
@@ -392,15 +399,18 @@ class SV3Pipeline:
                     count += 1
                     dfo_entry.is_processed = True
                     self.catalog.add_or_update(dfo_entry)
+                    self.logger.logdebug(f"Processed {dfo_entry.local_path}")
+                else:
+                    self.logger.logerr(f"Failed to Process {dfo_entry.local_path}")
 
 
         response = f"Generated {count} ShotData dataframes From {len(dfop00_entries)} DFOP00 Files"
-        logger.loginfo(response)
-        if self.config.dfop00_config.show_details:
-            print(response)
+        self.logger.loginfo(response)
+        # if self.config.dfop00_config.show_details:
+        #     print(response)
 
     def update_shotdata(self):
-        print("Updating shotdata with interpolated gnss data")
+        self.logger.loginfo("Updating shotdata with interpolated gnss data")
         # TODO Need to only update positions for a single shot and not each transponder
         # For each shotdata multiasset entry, update the shotdata position with gnss data
         try:
@@ -408,7 +418,7 @@ class SV3Pipeline:
                 self.config.shot_data_dest, self.config.gnss_data_dest
             )
         except Exception as e:
-            print(e)
+            self.logger.logerr(e)
             return
         merge_job = {
             "parent_type": AssetType.GNSS.value,
@@ -431,6 +441,8 @@ class SV3Pipeline:
         self.update_shotdata()
 
 class SV2Pipeline:
+    #TODO this doesnt not work yet
+    logger = logger
     def __init__(self,catalog:Catalog=None,config:SV3PipelineConfig=None):
         self.catalog = catalog
         self.config = config
@@ -439,7 +451,7 @@ class SV2Pipeline:
 
     def process_novatel(self) -> None:
 
-        print(f"Processing Novatel data for {self.config.network} {self.config.station} {self.config.survey}")
+        self.logger.loginfo(f"Processing Novatel data for {self.config.network} {self.config.station} {self.config.survey}")
         novatel_entries: List[AssetEntry] = self.catalog.get_assets(
             network=self.config.network,
             station=self.config.station,
@@ -464,6 +476,6 @@ class SV2Pipeline:
                     uploadCount += 1
             self.catalog.add_merge_job(**merge_signature)
             response = f"Added {uploadCount} out of {len(rinex_entries)} Rinex Entries to the catalog"
-            logger.loginfo(response)
-            if self.config.novatel_config.show_details:
-                print(response)
+            self.logger.loginfo(response)
+            # if self.config.novatel_config.show_details:
+            #     print(response)

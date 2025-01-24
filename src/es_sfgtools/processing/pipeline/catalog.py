@@ -44,7 +44,7 @@ class Catalog:
                    survey: str,
                    type: AssetType) -> List[AssetEntry]:
 
-        print(f"Getting assets for {network} {station} {survey} {str(type)}")
+        logger.logdebug(f"Getting assets for {network} {station} {survey} {str(type)}")
 
         with self.engine.connect() as conn:
             query = sa.select(Assets).where(
@@ -61,7 +61,7 @@ class Catalog:
                 try:
                     out.append(AssetEntry(**row._mapping))
                 except Exception as e:
-                    print("Unable to add row, error: {}".format(e))
+                    logger.logerr("Unable to add row, error: {}".format(e))
             return out
     
     def get_local_assets(self,
@@ -70,7 +70,7 @@ class Catalog:
                    survey: str,
                    type: AssetType) -> List[AssetEntry]:
 
-        print(f"Getting local assets for {network} {station} {survey} {str(type)}")
+        logger.logdebug(f"Getting local assets for {network} {station} {survey} {str(type)}")
 
         with self.engine.connect() as conn:
             query = sa.select(Assets).where(
@@ -88,7 +88,7 @@ class Catalog:
                 try:
                     out.append(AssetEntry(**row._mapping))
                 except Exception as e:
-                    print("Unable to add row, error: {}".format(e))
+                    logger.logerr("Unable to add row, error: {}".format(e))
             return out
 
     def get_single_entries_to_process(self,

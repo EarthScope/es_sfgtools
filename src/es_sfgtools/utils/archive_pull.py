@@ -9,7 +9,7 @@ ssl._create_default_https_context = ssl._create_stdlib_context
 
 from earthscope_sdk.auth.device_code_flow import DeviceCodeFlowSimple
 from earthscope_sdk.auth.auth_flow import NoTokensError
-from es_sfgtools.utils.loggers import GNSSLogger as logger
+from es_sfgtools.utils.loggers import ProcessLogger as logger
 
 def retrieve_token(token_path="."):
     """
