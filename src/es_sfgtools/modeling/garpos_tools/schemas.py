@@ -7,14 +7,14 @@ from pydantic import BaseModel, Field, model_validator,field_serializer,field_va
 from pathlib import Path
 import pandas as pd
 from datetime import datetime
-import logging
 
 from ...processing.assets.observables import SoundVelocityDataFrame
 from ...processing.assets.siteconfig import ATDOffset, PositionENU, PositionLLH, Transponder
+from es_sfgtools.utils.loggers import GarposLogger as logger
+
 
 from garpos import LIB_DIRECTORY,LIB_RAYTRACE
 
-logger = logging.getLogger(__name__)
 class ObservationData(pa.DataFrameModel):
     """Observation data file schema
 
@@ -263,13 +263,13 @@ class InversionParams(BaseModel):
         match values.inversiontype:
             case InversionType.gammas:
                 if any([x <= 0 for x in values.positionalOffset]):
-                    logger.error(
+                    logger.logerr(
                         "positionalOffset is required for InversionType.positions"
                     )
             case [InversionType.positions, InversionType.both]:
                 if any([x > 0 for x in values.positionalOffset]):
                     values.positionalOffset = [0.0, 0.0, 0.0]
-                    logger.error(
+                    logger.logerr(
                         "positionalOffset is not required for InversionType.gammas"
                     )
 
@@ -304,6 +304,7 @@ class GarposObservation(BaseModel):
 
             return ObservationData.validate(value, lazy=True)
         except ValidationError as e:
+            logger.logerr(f"Invalid shot data: {e}")
             raise ValueError(f"Invalid shot data: {e}")
 
     @field_validator("sound_speed_data", mode="before")
@@ -313,6 +314,7 @@ class GarposObservation(BaseModel):
                 value = pd.read_json(value)
             return SoundVelocityDataFrame.validate(value, lazy=True)
         except SchemaErrors as err:
+            logger.logerr(f"Invalid sound speed data: {err.data}")
             raise ValueError(f"Invalid sound speed data: {err.data}")
 
     @field_validator("date_utc", mode="before")
@@ -321,6 +323,7 @@ class GarposObservation(BaseModel):
             try:
                 return datetime.fromisoformat(value)
             except ValueError as e:
+                logger.logerr(f"Invalid date format: {e}")
                 raise ValueError(f"Invalid date format: {e}")
         return value
     class Config:

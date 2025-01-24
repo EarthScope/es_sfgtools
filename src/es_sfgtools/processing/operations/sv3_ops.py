@@ -29,7 +29,7 @@ def check_df(df: pd.DataFrame) -> pd.DataFrame:
 def dev_dfop00_to_shotdata(source: Union[AssetEntry,str,Path]) -> DataFrame[ShotDataFrame] | None:
     if isinstance(source,AssetEntry):
         assert source.type == AssetType.DFOP00
-    
+
     else:
         source = AssetEntry(local_path=source,type=AssetType.DFOP00)
 
@@ -64,7 +64,7 @@ def dev_qcpin_to_shotdata(source: Union[AssetEntry,str,Path]) -> DataFrame[ShotD
         try:
             data = json.load(f)
         except json.decoder.JSONDecodeError as e:
-            logger.logger.error(f"Error reading {source.local_path} {e}")
+            logger.logerr(f"Error reading {source.local_path} {e}")
             return None
         for key, value in data.items():
             if key == "interrogation":
