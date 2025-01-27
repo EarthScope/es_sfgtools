@@ -977,8 +977,8 @@ def nov0002tile(files:List[AssetEntry],rangea_tdb:Path,n_procs:int=10) -> None:
     cmd = [str(binary_path), "-tdb", str(rangea_tdb),"-procs",str(n_procs)]
     for file in files:
         cmd.append(str(file.local_path))
+    logger.loginfo(f"Running NOV0002TILE on {len(files)} files")
     result = subprocess.run(cmd, check=True, capture_output=True)
-
     if result.stderr:
         result_message = result.stderr.decode("utf-8").split("msg=")
         for log_line in result_message:
@@ -1012,8 +1012,10 @@ def nova2tile(files:List[AssetEntry],rangea_tdb:Path,n_procs:int=10) -> None:
     cmd = [str(binary_path), "-tdb", str(rangea_tdb),"-procs",str(n_procs)]
     for file in files:
         cmd.append(str(file.local_path))
+    logger.loginfo(f"Running NOVA2TILE on {len(files)} files")
     result = subprocess.run(cmd, check=True, capture_output=True)
-
+    logger.logdebug(result.stdout.decode("utf-8"))
+    logger.logdebug(result.stderr.decode("utf-8"))
     if result.stderr:
         result_message = result.stderr.decode("utf-8").split("msg=")
         for log_line in result_message:
@@ -1046,7 +1048,17 @@ def novb2tile(files:List[AssetEntry],rangea_tdb:Path,n_procs:int=10) -> None:
     cmd = [str(binary_path), "-tdb", str(rangea_tdb),"-procs",str(n_procs)]
     for file in files:
         cmd.append(str(file.local_path))
+    logger.loginfo(f"Running NOVB2TILE on {len(files)} files")
     result = subprocess.run(cmd, check=True, capture_output=True)
+
+    #logger.loginfo(result.stdout.decode("utf-8"))
+    #logger.loginfo(result.stderr.decode("utf-8"))
+    if result.stdout:
+        result_message = result.stdout.decode("utf-8").split("msg=")
+        for log_line in result_message:
+            message = log_line.split("\n")[0]
+            if "Processed" in message or "Created" in message:
+                logger.loginfo(message)
 
     if result.stderr:
         result_message = result.stderr.decode("utf-8").split("msg=")

@@ -363,7 +363,7 @@ class DataHandler:
                             assets_to_download.append(file_asset)
 
             if len(assets_to_download) == 0:
-                self.logger.loginfo(f"No new files to download")
+                self.logger.loginfo(f"No new {type} files to download")
             
             # split the entries into s3 and http
             s3_assets = [file for file in assets_to_download if file.remote_type == REMOTE_TYPE.S3.value]

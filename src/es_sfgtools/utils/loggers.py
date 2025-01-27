@@ -173,6 +173,8 @@ class _BaseLogger:
             self.console_handler.setFormatter(self.console_format)
             self.logger.addHandler(self.console_handler)
     
+
+    
     def remove_console(self):
         """
         Removes the console handler from the logger.
