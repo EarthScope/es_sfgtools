@@ -62,7 +62,7 @@ class _BaseLogger:
             Removes the console handler from the logger.
     '''
     def __init__(self, 
-                 name:str= "base_logger",
+                 name: str= "base_logger",
                  dir: Path= LOG_FILE_PATH, #Path=Path.home()/".sfgtools",
                  file_name:str=BASE_LOG_FILE_NAME, 
                  format:logging.Formatter = BASIC_FORMAT,
@@ -80,8 +80,11 @@ class _BaseLogger:
         self.level = level
         self.logger = logging.getLogger(self.name)
         self.logger.setLevel(level)
+        
+        # Create a file handler for the logger and always set to DEBUG
         self.file_handler = logging.FileHandler(self.path)
         self.file_handler.setFormatter(format)
+        self.file_handler.setLevel(logging.DEBUG)
         self.logger.addHandler(self.file_handler)
   
     def _reset_file_handler(self) -> None:
@@ -103,6 +106,7 @@ class _BaseLogger:
         try:
             self.file_handler = logging.FileHandler(self.path)
             self.file_handler.setFormatter(self.format)
+            self.file_handler.setLevel(logging.DEBUG)
             self.logger.addHandler(self.file_handler)
         except Exception as e:
             self.logger.error(f"Failed to set file handler: {e}")
@@ -173,8 +177,6 @@ class _BaseLogger:
             self.console_handler.setFormatter(self.console_format)
             self.logger.addHandler(self.console_handler)
     
-
-    
     def remove_console(self):
         """
         Removes the console handler from the logger.
@@ -216,6 +218,7 @@ def set_all_logger_levels(level: Literal[logging.DEBUG, logging.INFO, logging.WA
     GarposLogger.set_level(level)
 
 def change_all_logger_dirs(dir: Path):
+    BaseLogger.set_dir(dir)
     GNSSLogger.set_dir(dir)
     ProcessLogger.set_dir(dir)
     GarposLogger.set_dir(dir)
@@ -242,6 +245,9 @@ GarposLogger = _BaseLogger(
     file_name="garpos.log",
 )
 GarposLogger.propagate= True
+
+# Route all loggers to the console
+route_all_loggers_to_console()
 
 
 
