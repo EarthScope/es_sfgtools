@@ -451,7 +451,12 @@ def _novatel_to_rinex(
         ] + [str(x) for x in source_list]
 
         result = subprocess.run(cmd, check=True, capture_output=True, cwd=workdir)
+
+        if result.stdout:
+            logger.logdebug(result.stdout.decode("utf-8"))
+
         if result.stderr:
+            logger.logdebug(result.stderr.decode("utf-8"))
             result_message = result.stderr.decode("utf-8").split("msg=")
             for log_line in result_message:
                 message = log_line.split("\n")[0]
@@ -647,13 +652,16 @@ def rinex_to_kin(
     pattern_error = r":\d+,\d+, merror:0m"
     pattern_warning = r":\d+,\d+, mwarning:0m"
     if result.stderr:
+        logger.logdebug(result.stderr.decode("utf-8"))
         stderr = result.stderr.decode("utf-8").split("\n")
         for line in stderr:
             if "warning" in line.lower():
                 logger.logwarn(line)
             if "error" in line.lower():
                 logger.logerr(line)
+
     stdout = result.stdout.decode("utf-8")
+    logger.logdebug(stdout)
     stdout = re.sub(pattern_error, "ERROR ", stdout)
     stdout = re.sub(pattern_warning, "WARNING ", stdout)
     stdout = stdout.replace("\x1b[", "")
@@ -977,9 +985,15 @@ def nov0002tile(files:List[AssetEntry],rangea_tdb:Path,n_procs:int=10) -> None:
     cmd = [str(binary_path), "-tdb", str(rangea_tdb),"-procs",str(n_procs)]
     for file in files:
         cmd.append(str(file.local_path))
+
     logger.loginfo(f"Running NOV0002TILE on {len(files)} files")
     result = subprocess.run(cmd, check=True, capture_output=True)
+
+    if result.stdout:
+        logger.logdebug(result.stdout.decode("utf-8"))
+
     if result.stderr:
+        logger.logdebug(result.stderr.decode("utf-8"))
         result_message = result.stderr.decode("utf-8").split("msg=")
         for log_line in result_message:
             message = log_line.split("\n")[0]
@@ -1012,11 +1026,15 @@ def nova2tile(files:List[AssetEntry],rangea_tdb:Path,n_procs:int=10) -> None:
     cmd = [str(binary_path), "-tdb", str(rangea_tdb),"-procs",str(n_procs)]
     for file in files:
         cmd.append(str(file.local_path))
+
     logger.loginfo(f"Running NOVA2TILE on {len(files)} files")
     result = subprocess.run(cmd, check=True, capture_output=True)
-    logger.logdebug(result.stdout.decode("utf-8"))
-    logger.logdebug(result.stderr.decode("utf-8"))
+
+    if result.stdout:
+        logger.logdebug(result.stdout.decode("utf-8"))
+
     if result.stderr:
+        logger.logdebug(result.stderr.decode("utf-8"))
         result_message = result.stderr.decode("utf-8").split("msg=")
         for log_line in result_message:
             message = log_line.split("\n")[0]
@@ -1051,9 +1069,8 @@ def novb2tile(files:List[AssetEntry],rangea_tdb:Path,n_procs:int=10) -> None:
     logger.loginfo(f"Running NOVB2TILE on {len(files)} files")
     result = subprocess.run(cmd, check=True, capture_output=True)
 
-    #logger.loginfo(result.stdout.decode("utf-8"))
-    #logger.loginfo(result.stderr.decode("utf-8"))
     if result.stdout:
+        logger.logdebug(result.stdout.decode("utf-8"))
         result_message = result.stdout.decode("utf-8").split("msg=")
         for log_line in result_message:
             message = log_line.split("\n")[0]
@@ -1061,6 +1078,7 @@ def novb2tile(files:List[AssetEntry],rangea_tdb:Path,n_procs:int=10) -> None:
                 logger.loginfo(message)
 
     if result.stderr:
+        logger.logdebug(result.stderr.decode("utf-8"))
         result_message = result.stderr.decode("utf-8").split("msg=")
         for log_line in result_message:
             message = log_line.split("\n")[0]
@@ -1097,7 +1115,11 @@ def tile2rinex(rangea_tdb:Path,settings:Path,writedir:Path,n_procs:int=10) -> Li
         cmd = [str(binary_path), "-tdb", str(rangea_tdb),"-settings",str(settings),"-procs",str(n_procs)]
         result = subprocess.run(cmd, check=True, capture_output=True,cwd=workdir)
 
+        if result.stdout:
+            logger.logdebug(result.stdout.decode("utf-8"))
+
         if result.stderr:
+            logger.logdebug(result.stderr.decode("utf-8"))
             result_message = result.stderr.decode("utf-8").split("msg=")
             for log_line in result_message:
                 message = log_line.split("\n")[0]
