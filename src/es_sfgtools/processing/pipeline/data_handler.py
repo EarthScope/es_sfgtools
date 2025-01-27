@@ -28,7 +28,7 @@ from es_sfgtools.processing.pipeline.datadiscovery import scrape_directory_local
 
 from es_sfgtools.modeling.garpos_tools.functions import GarposHandler
 from es_sfgtools.processing.assets.siteconfig import SiteConfig
-from es_sfgtools.utils.loggers import BaseLogger, GNSSLogger, ProcessLogger
+from es_sfgtools.utils.loggers import GNSSLogger as logger, ProcessLogger, change_all_logger_dirs
 
 
 def check_network_station_survey(func: Callable):
@@ -53,10 +53,6 @@ class DataHandler:
     A class to handle data operations such as searching for, adding, downloading and processing data.
     """
 
-    logger = BaseLogger
-    gnss_logger = GNSSLogger
-    process_logger = ProcessLogger
-
     def __init__(self,
                  directory: Path | str,
                  ) -> None:
@@ -74,7 +70,8 @@ class DataHandler:
      
         # Create the directory structures
         self.main_directory = Path(directory)
-        self.logger.set_dir(self.main_directory)
+        logger.set_dir(self.main_directory)
+
         # Create the main and pride directory
         self.pride_dir = self.main_directory / "Pride"
         self.pride_dir.mkdir(exist_ok=True, parents=True)
@@ -103,11 +100,11 @@ class DataHandler:
         """
 
         # Set up loggers under the station directory
-        self.logger.loginfo(f"Building directory structure for {network} {station} {survey}")
+        logger.loginfo(f"Building directory structure for {network} {station} {survey}")
         self.station_log_dir = self.main_directory / network / station / "logs"
         self.station_log_dir.mkdir(parents=True, exist_ok=True)
-        ProcessLogger.set_dir(self.station_log_dir)
-        GNSSLogger.set_dir(self.station_log_dir)
+
+        change_all_logger_dirs(self.station_log_dir)
 
         # Create the network/station directory structure
         self.station_dir = self.main_directory / network / station
@@ -135,7 +132,7 @@ class DataHandler:
         """
         Build the TileDB arrays for the current station. TileDB directory is /network/station/TileDB.
         """
-        self.logger.loginfo(f"Building TileDB arrays for {self.station}")
+        logger.loginfo(f"Building TileDB arrays for {self.station}")
         self.acoustic_tdb = TDBAcousticArray(self.tileb_dir/"acoustic_db.tdb")
         self.gnss_tdb = TDBGNSSArray(self.tileb_dir/"gnss_db.tdb")
         self.position_tdb = TDBPositionArray(self.tileb_dir/"position_db.tdb")
@@ -184,9 +181,9 @@ class DataHandler:
         self._build_rinex_meta()
 
         # Change the logger directory
-        self.logger.set_dir(self.station_log_dir)
+        change_all_logger_dirs(self.station_log_dir)
 
-        self.logger.loginfo(f"Changed working station to {network} {station}")
+        logger.loginfo(f"Changed working station to {network} {station}")
 
 
     @check_network_station_survey
@@ -214,10 +211,10 @@ class DataHandler:
 
         files:List[Path] = scrape_directory_local(directory_path)
         if len(files) == 0:
-            self.logger.logerr(f"No files found in {directory_path}, ensure the directory is correct.")
+            logger.logerr(f"No files found in {directory_path}, ensure the directory is correct.")
             return
         
-        self.logger.loginfo(f"Found {len(files)} files in {directory_path}")
+        logger.loginfo(f"Found {len(files)} files in {directory_path}")
 
         self.add_data_to_catalog(files)
 
@@ -233,7 +230,7 @@ class DataHandler:
         file_data_list = []
         for file_path in local_filepaths:
             if not file_path.exists():
-                self.logger.logerr(f"File {str(file_path)} does not exist")
+                logger.logerr(f"File {str(file_path)} does not exist")
                 continue
             file_type, _size = get_file_type_local(file_path)
             if file_type is not None:
@@ -253,7 +250,7 @@ class DataHandler:
             if self.catalog.add_entry(file_assest):
                 uploadCount += 1
 
-        self.logger.loginfo(f"Added {uploadCount} out of {count} files to the catalog")
+        logger.loginfo(f"Added {uploadCount} out of {count} files to the catalog")
 
     @check_network_station_survey
     def add_data_remote(self, 
@@ -284,7 +281,7 @@ class DataHandler:
             file_type = get_file_type_remote(file)
 
             if file_type is None: # If the file type is not recognized, skip it
-                self.logger.logger.debug(f"File type not recognized for {file}")
+                logger.logdebug(f"File type not recognized for {file}")
                 not_recognized.append(file)
                 continue
 
@@ -304,7 +301,7 @@ class DataHandler:
                 )
                 file_data_list.append(file_data)
             else:
-                self.logger.logdebug(f"File {file} already exists in the catalog")
+                logger.logdebug(f"File {file} already exists in the catalog")
 
         # Add each file (AssetEntry) to the catalog
         count = len(file_data_list)
@@ -313,8 +310,8 @@ class DataHandler:
             if self.catalog.add_entry(file_assest):
                 uploadCount += 1
 
-        self.logger.loginfo(f"{len(not_recognized)} files not recognized and skipped")
-        self.logger.loginfo(f"Added {uploadCount} out of {count} files to the catalog")
+        logger.loginfo(f"{len(not_recognized)} files not recognized and skipped")
+        logger.loginfo(f"Added {uploadCount} out of {count} files to the catalog")
 
     def download_data(self, file_types: List[AssetType] | List[str] | str = FILE_TYPES, override: bool=False):
         """
@@ -346,7 +343,7 @@ class DataHandler:
                                             type=type)
 
             if len(assets) == 0:
-                self.logger.logerr(f"No matching data found in catalog")
+                logger.logerr(f"No matching data found in catalog")
                 continue
             
             # Find files that we need to download based on the catalog output. If override is True, download all files.
@@ -363,7 +360,7 @@ class DataHandler:
                             assets_to_download.append(file_asset)
 
             if len(assets_to_download) == 0:
-                self.logger.loginfo(f"No new {type} files to download")
+                logger.loginfo(f"No new {type} files to download")
             
             # split the entries into s3 and http
             s3_assets = [file for file in assets_to_download if file.remote_type == REMOTE_TYPE.S3.value]
@@ -425,14 +422,14 @@ class DataHandler:
         local_path = self.raw_dir / Path(prefix).name
 
         try:
-            self.logger.logdebug(f"Downloading {prefix} to {local_path}")
+            logger.logdebug(f"Downloading {prefix} to {local_path}")
             client.download_file(Bucket=bucket, 
                                  Key=str(prefix), 
                                  Filename=str(local_path))
-            self.logger.logdebug(f"Downloaded {str(prefix)} to {str(local_path)}")
+            logger.logdebug(f"Downloaded {str(prefix)} to {str(local_path)}")
 
         except Exception as e:
-            self.logger.logerr(f"Error downloading {prefix} from {bucket }\n {e} \n HINT: $ aws sso login")
+            logger.logerr(f"Error downloading {prefix} from {bucket }\n {e} \n HINT: $ aws sso login")
             local_path = None
 
         finally:
@@ -477,10 +474,10 @@ class DataHandler:
             if not local_path.exists(): 
                 raise Exception
 
-            self.logger.logdebug(f"Downloaded {str(remote_url)} to {str(local_path)}")
+            logger.logdebug(f"Downloaded {str(remote_url)} to {str(local_path)}")
 
         except Exception as e:
-            self.logger.logerr(f"Error downloading {str(remote_url)} \n {e}" + "\n HINT: Check authentication credentials")
+            logger.logerr(f"Error downloading {str(remote_url)} \n {e}" + "\n HINT: Check authentication credentials")
             local_path = None
 
         finally:
@@ -566,7 +563,7 @@ class DataHandler:
             log (Literal['base','gnss','process']): The type of log to print.
         """
         if log == 'base':
-            self.logger.route_to_console()
+            logger.route_to_console()
         elif log == 'gnss':
             self.gnss_logger.route_to_console()
         elif log == 'process':
