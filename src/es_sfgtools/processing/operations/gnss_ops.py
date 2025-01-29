@@ -1064,6 +1064,7 @@ def novb2tile(files:List[AssetEntry],rangea_tdb:Path,n_procs:int=10) -> None:
         raise FileNotFoundError(f"NOVAB2TILE binary not found for {system} {arch}")
 
     cmd = [str(binary_path), "-tdb", str(rangea_tdb),"-procs",str(n_procs)]
+    logger.logdebug(f"Running {cmd}")
     for file in files:
         cmd.append(str(file.local_path))
     logger.loginfo(f"Running NOVB2TILE on {len(files)} files")
@@ -1117,13 +1118,18 @@ def tile2rinex(rangea_tdb:Path,settings:Path,writedir:Path,n_procs:int=10) -> Li
 
         if result.stdout:
             logger.logdebug(result.stdout.decode("utf-8"))
+            result_message = result.stdout.decode("utf-8").split("msg=")
+            for log_line in result_message:
+                message = log_line.split("\n")[0]
+                if "Generating" in message or "Found" in message:
+                    logger.loginfo(message)
 
         if result.stderr:
             logger.logdebug(result.stderr.decode("utf-8"))
             result_message = result.stderr.decode("utf-8").split("msg=")
             for log_line in result_message:
                 message = log_line.split("\n")[0]
-                if "Processing" in message or "Created" in message:
+                if "Generating" in message or "Found" in message:
                     logger.loginfo(message)
         
         rinex_files = list(Path(workdir).rglob("*"))

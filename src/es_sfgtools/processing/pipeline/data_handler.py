@@ -28,7 +28,7 @@ from es_sfgtools.processing.pipeline.datadiscovery import scrape_directory_local
 
 from es_sfgtools.modeling.garpos_tools.functions import GarposHandler
 from es_sfgtools.processing.assets.siteconfig import SiteConfig
-from es_sfgtools.utils.loggers import GNSSLogger as logger, ProcessLogger, change_all_logger_dirs
+from es_sfgtools.utils.loggers import ProcessLogger as logger, change_all_logger_dirs
 
 
 def check_network_station_survey(func: Callable):

@@ -67,7 +67,7 @@ class _BaseLogger:
                  file_name:str=BASE_LOG_FILE_NAME, 
                  format:logging.Formatter = BASIC_FORMAT,
                  console_format:logging.Formatter = MINIMAL_NOTEBOOK_FORMAT, 
-                 level=logging.INFO):
+                 level=logging.DEBUG):
         
         self.name = name
         self.dir = dir
@@ -175,6 +175,7 @@ class _BaseLogger:
         if not hasattr(self,'console_handler'):
             self.console_handler = logging.StreamHandler()
             self.console_handler.setFormatter(self.console_format)
+            self.console_handler.setLevel(logging.INFO)
             self.logger.addHandler(self.console_handler)
     
 
