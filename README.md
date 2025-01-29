@@ -6,7 +6,7 @@ This repo contains a python library `es_sfgtools` designed to enable users to pr
 Due to a dependency of GARPOS, the library currently is only installable via conda.  Also GARPOS installation requires gfortran, which (if you dont already have it) can be installed on a mac with the command
 > brew install gfortran
 
-Conda Install Instructions
+### Conda Install Instructions
 
 clone the library and enter the repo
 > git clone https://github.com/EarthScope/es_sfgtools.git
@@ -17,6 +17,10 @@ create and activate conda environment
 > conda env create -f environment.yml
 
 > conda activate seafloor_geodesy
+
+In order to run parts of the library dependent on TileDB, you will also need to set the following environmental variable (use the correct path to your conda environment lib folder)
+
+> export DYLD_LIBRARY_PATH=/Users/gottlieb/miniconda3/envs/seafloor_geodesy/lib
 
 ## In development... [ReadTheDocs](https://es-sfgtools.readthedocs.io/en/latest/)
 

@@ -14,14 +14,12 @@ from functools import wraps
 from pathlib import Path
 from typing import Literal
 
-BASIC_FORMAT = logging.Formatter(
-    "%(asctime)s - %(filename)s:%(lineno)d - %(levelname)s - %(message)s "
-)
+BASIC_FORMAT = logging.Formatter("%(asctime)s - %(filename)s:%(lineno)d - %(levelname)s - %(message)s")
 MINIMAL_NOTEBOOK_FORMAT = logging.Formatter('%(message)s')
 
 BASE_LOG_FILE_NAME = 'es_sfg_tools.log'
-PRIDE_LOG_FILE_NAME = 'pride.log'
-RINEX_LOG_FILE_NAME = 'rinex.log'
+DEFAULT_PATH = os.path.join(Path.home(), ".sfgtools")
+LOG_FILE_PATH = os.getenv('LOG_FILE_PATH', DEFAULT_PATH)
 
 class _BaseLogger:
     '''
@@ -63,18 +61,30 @@ class _BaseLogger:
         remove_console():
             Removes the console handler from the logger.
     '''
-    def __init__(self,name:str= "base_logger",dir:Path=Path.home()/".sfgtools",file_name:str=BASE_LOG_FILE_NAME, format:logging.Formatter = BASIC_FORMAT, level=logging.INFO):
+    def __init__(self, 
+                 name: str= "base_logger",
+                 dir: Path= LOG_FILE_PATH, #Path=Path.home()/".sfgtools",
+                 file_name:str=BASE_LOG_FILE_NAME, 
+                 format:logging.Formatter = BASIC_FORMAT,
+                 console_format:logging.Formatter = MINIMAL_NOTEBOOK_FORMAT, 
+                 level=logging.DEBUG):
+        
         self.name = name
         self.dir = dir
-        self.dir.mkdir(exist_ok=True)
+        # Create the full path if it does not exist
+        os.makedirs(self.dir, exist_ok=True) 
         self.file_name = file_name
-        self.path = str(dir / self.file_name)
+        self.path = os.path.join(dir, self.file_name)
         self.format = format
+        self.console_format = console_format
         self.level = level
         self.logger = logging.getLogger(self.name)
         self.logger.setLevel(level)
+        
+        # Create a file handler for the logger and always set to DEBUG
         self.file_handler = logging.FileHandler(self.path)
         self.file_handler.setFormatter(format)
+        self.file_handler.setLevel(logging.DEBUG)
         self.logger.addHandler(self.file_handler)
   
     def _reset_file_handler(self) -> None:
@@ -91,10 +101,15 @@ class _BaseLogger:
             self.format (logging.Formatter): The formatter to be set for the new file handler.
         """
 
-        self.logger.removeHandler(self.file_handler)
-        self.file_handler = logging.FileHandler(self.path)
-        self.file_handler.setFormatter(self.format)
-        self.logger.addHandler(self.file_handler)
+        if self.file_handler:
+            self.logger.removeHandler(self.file_handler)
+        try:
+            self.file_handler = logging.FileHandler(self.path)
+            self.file_handler.setFormatter(self.format)
+            self.file_handler.setLevel(logging.DEBUG)
+            self.logger.addHandler(self.file_handler)
+        except Exception as e:
+            self.logger.error(f"Failed to set file handler: {e}")
 
     def set_dir(self, dir: Path) -> None:
         """
@@ -120,7 +135,7 @@ class _BaseLogger:
         """
 
         self.format = MINIMAL_NOTEBOOK_FORMAT
-        self._reset_file_handler()
+        self._reset_file_handler()  
     
     def set_format_basic(self):
         """
@@ -136,7 +151,7 @@ class _BaseLogger:
         self.format = BASIC_FORMAT
         self.file_handler.setFormatter(self.format)
 
-    def set_level(self, level:Literal[logging.DEBUG,logging.INFO,logging.WARNING,logging.ERROR,logging.CRITICAL]) -> None:
+    def set_level(self, level:Literal[logging.DEBUG,logging.INFO,logging.WARNING,logging.ERROR,logging.CRITICAL]) -> None: # type: ignore
         """
         Set the logging level for the logger.
 
@@ -157,10 +172,13 @@ class _BaseLogger:
         Attributes:
             console_handler (logging.StreamHandler): The handler for routing log messages to the console.
         """
-        
-        self.console_handler = logging.StreamHandler()
-        self.console_handler.setFormatter(self.format)
-        self.logger.addHandler(self.console_handler)
+        if not hasattr(self,'console_handler'):
+            self.console_handler = logging.StreamHandler()
+            self.console_handler.setFormatter(self.console_format)
+            self.console_handler.setLevel(logging.INFO)
+            self.logger.addHandler(self.console_handler)
+    
+
     
     def remove_console(self):
         """
@@ -168,26 +186,76 @@ class _BaseLogger:
         This method detaches the console handler from the logger instance,
         effectively stopping the logger from outputting logs to the console.
         """
+        if hasattr(self,'console_handler'):
+            self.logger.removeHandler(self.console_handler)
 
-        self.logger.removeHandler(self.console_handler)
+    def logdebug(self, message) -> None:
+        """ Log a debug message with stacklevel=2 (logging module goes up the stack to get the calling function) """
+        self.logger.debug(message, stacklevel=2)
 
-    def loginfo(self,message) -> None:
-        self.logger.info(message,stacklevel=2)
+    def loginfo(self ,message) -> None:
+        """ Log an info message with stacklevel=2 (logging module goes up the stack to get the calling function) """
+        self.logger.info(message, stacklevel=2)
 
-    def logerr(self,message) -> None:
-        self.logger.error(message,stacklevel=2)
-        
+    def logerr(self, message) -> None:
+        """ Log an error message with stacklevel=2 (logging module goes up the stack to get the calling function)"""
+        self.logger.error(message, stacklevel=2)
+
+    def logwarn(self, message) -> None:
+        """ Log a warning message with stacklevel=2 (logging module goes up the stack to get the calling function) """
+        self.logger.warning(message, stacklevel=2)
+
+def route_all_loggers_to_console():
+    GNSSLogger.route_to_console()
+    ProcessLogger.route_to_console()
+    GarposLogger.route_to_console()
+
+def remove_all_loggers_from_console():
+    GNSSLogger.remove_console()
+    ProcessLogger.remove_console()
+    GarposLogger.remove_console()
+
+def set_all_logger_levels(level: Literal[logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL]): # type: ignore
+    GNSSLogger.set_level(level)
+    ProcessLogger.set_level(level)
+    GarposLogger.set_level(level)
+
+def change_all_logger_dirs(dir: Path):
+    BaseLogger.set_dir(dir)
+    GNSSLogger.set_dir(dir)
+    ProcessLogger.set_dir(dir)
+    GarposLogger.set_dir(dir)
+
+
+# Create the base logger
 BaseLogger = _BaseLogger()
 
+# Create loggers for specific modules & set them to propagate to the base logger
 GNSSLogger = _BaseLogger(
-    name="gnss_logger",
+    name="base_logger.gnss_logger",
     file_name="gnss.log",
 )
+GNSSLogger.propagate= True
+
 ProcessLogger = _BaseLogger(
-    name="processing_logger",
+    name="base_logger.processing_logger",
     file_name="processing.log",
 )
+ProcessLogger.propagate= True
 
+GarposLogger = _BaseLogger(
+    name="base_logger.garpos_logger",
+    file_name="garpos.log",
+)
+GarposLogger.propagate= True
+
+# Route all loggers to the console
+route_all_loggers_to_console()
+
+
+
+
+############################################################################################################
 # class BaseLogger:
 #     dir = Path.home() / ".es_sfg_tools"
 #     dir.mkdir(exist_ok=True)
@@ -249,139 +317,142 @@ ProcessLogger = _BaseLogger(
 #         del BaseLogger.handlers["console"]
 
 
-def ensure_directory_exists(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        directory_path = kwargs.get('directory_path', './logs')
-        if not os.path.exists(directory_path):
-            os.makedirs(directory_path)
-        return func(*args, **kwargs)
-    return wrapper
-
-@ensure_directory_exists
-def setup_base_logger(directory_path='./logs'):
-    """ 
-    This function sets up the base logger for the package. Multiple loggers can be created from this base logger. 
-    The base logger only logs to a file and is used to set up other loggers.
-    """
-
-    # Base logger
-    base_logger = logging.getLogger('base_logger')
-    base_logger.setLevel(logging.INFO)
-
-    # Create a file handler for the base logger
-    base_log_file = os.path.join(directory_path, BASE_LOG_FILE_NAME)
-    base_file_handler = logging.FileHandler(base_log_file)
-    base_file_handler.setLevel(logging.INFO)
-
-    # Create a formatter and set it for both handlers
-    base_file_handler.setFormatter(BASIC_FORMAT)
-
-    # Add the handlers to the base logger
-    base_logger.addHandler(base_file_handler)
-
-@ensure_directory_exists
-def setup_general_logger(directory_path='./logs'):
-    """ 
-    This function sets up a general logger for the package to import and use where another logger is not specified. 
-    It will log to the base log file and print to the console.
-    """
-
-    # Set up the base logger
-    setup_base_logger(directory_path=directory_path)
-
-    # Set up a general logger (child of base logger) for most of the package to use and print to console
-    logger = logging.getLogger('base_logger.logger')
-    logger.setLevel(logging.INFO)
-
-    # Create a console handler for the logger
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
-    console_handler.setFormatter(BASIC_FORMAT)
-    logger.addHandler(console_handler)
-
-    # Set the logger to propagate to the base logger
-    logger.propagate = True
-
-    return logger
-
-@ensure_directory_exists
-def setup_pride_logger(directory_path='./logs'):
-
-    """ This function sets up a logger for the pride module. It logs to the base log file and prints to the console. """
-
-    # Pride logger (child of base_logger)
-    pride_logger = logging.getLogger('base_logger.pride_logger')
-    pride_logger.setLevel(logging.INFO)
-    pride_log_file = os.path.join(directory_path, PRIDE_LOG_FILE_NAME) # TODO - change this to a subdirectory (should it be logs/pride.log?)
-
-    # Create a console handler for the pride logger
-    pride_console_handler = logging.StreamHandler()
-    pride_console_handler.setLevel(logging.INFO)
-    pride_console_handler.setFormatter(BASIC_FORMAT)
-    pride_logger.addHandler(pride_console_handler)
-
-    # Create a file handler for the pride logger
-    pride_file_handler = logging.FileHandler(pride_log_file)
-    pride_file_handler.setLevel(logging.INFO)
-    pride_file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-    pride_logger.addHandler(pride_file_handler)
-
-    # Set the logger to propagate to the base logger
-    pride_logger.propagate = True
-
-    return pride_logger
-
-@ensure_directory_exists
-def setup_rinex_logger(directory_path='./logs'):
-    """ 
-    This function sets up a logger for the rinex module. 
-    It logs to the base log file and prints to the console with only the message.
-    """
-    # Rinex logger (child of base_logger)
-    rinex_logger = logging.getLogger('base_logger.rinex_logger')
-    rinex_logger.setLevel(logging.INFO)
-    rinex_log_file = os.path.join(directory_path, RINEX_LOG_FILE_NAME)
-
-    # Set up the formatter for the rinex logger and the console handler
-    rinex_console_handler = logging.StreamHandler()
-    rinex_console_handler.setLevel(logging.INFO)
-    rinex_console_handler.setFormatter(BASIC_FORMAT)
-    rinex_logger.addHandler(rinex_console_handler)
-
-    # Create a file handler for the pride logger
-    rinex_file_handler = logging.FileHandler(rinex_log_file)
-    rinex_file_handler.setLevel(logging.INFO)
-    rinex_file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-    rinex_logger.addHandler(rinex_file_handler)
-
-    # Set the logger to propagate to the base logger
-    rinex_logger.propagate = True
-
-    return rinex_logger
+# def ensure_directory_exists(func):
+#     @wraps(func)
+#     def wrapper(*args, **kwargs):
+#         directory_path = kwargs.get('directory_path', './logs')
+#         if not os.path.exists(directory_path):
+#             os.makedirs(directory_path)
+#         return func(*args, **kwargs)
+#     return wrapper
 
 
-def setup_notebook_logger():
-    """ 
-    This function sets up a logger for the notebook module. 
-    It logs to the base log file and prints to the console with only the message.
-    """
-    # Notebook logger (child of base_logger)
-    notebook_logger = logging.getLogger('base_logger.notebook_logger')
-    notebook_logger.setLevel(logging.INFO)
+# PRIDE_LOG_FILE_NAME = 'pride.log'
+# RINEX_LOG_FILE_NAME = 'rinex.log'
+# @ensure_directory_exists
+# def setup_base_logger(directory_path='./logs'):
+#     """ 
+#     This function sets up the base logger for the package. Multiple loggers can be created from this base logger. 
+#     The base logger only logs to a file and is used to set up other loggers.
+#     """
 
-    # Set up the formatter for the notebook logger and the console handler
-    notebook_console_handler = logging.StreamHandler()
-    notebook_console_handler.setLevel(logging.INFO)
-    notebook_console_handler.setFormatter(MINIMAL_NOTEBOOK_FORMAT)
+#     # Base logger
+#     base_logger = logging.getLogger('base_logger')
+#     base_logger.setLevel(logging.INFO)
 
-    # Add the console handler to the notebook logger
-    notebook_logger.addHandler(notebook_console_handler)
+#     # Create a file handler for the base logger
+#     base_log_file = os.path.join(directory_path, BASE_LOG_FILE_NAME)
+#     base_file_handler = logging.FileHandler(base_log_file)
+#     base_file_handler.setLevel(logging.INFO)
 
-    # Set the logger to propagate to the base logger
-    notebook_logger.propagate = True
+#     # Create a formatter and set it for both handlers
+#     base_file_handler.setFormatter(BASIC_FORMAT)
 
-    return notebook_logger
+#     # Add the handlers to the base logger
+#     base_logger.addHandler(base_file_handler)
+
+# @ensure_directory_exists
+# def setup_general_logger(directory_path='./logs'):
+#     """ 
+#     This function sets up a general logger for the package to import and use where another logger is not specified. 
+#     It will log to the base log file and print to the console.
+#     """
+
+#     # Set up the base logger
+#     setup_base_logger(directory_path=directory_path)
+
+#     # Set up a general logger (child of base logger) for most of the package to use and print to console
+#     logger = logging.getLogger('base_logger.logger')
+#     logger.setLevel(logging.INFO)
+
+#     # Create a console handler for the logger
+#     console_handler = logging.StreamHandler()
+#     console_handler.setLevel(logging.INFO)
+#     console_handler.setFormatter(BASIC_FORMAT)
+#     logger.addHandler(console_handler)
+
+#     # Set the logger to propagate to the base logger
+#     logger.propagate = True
+
+#     return logger
+
+# @ensure_directory_exists
+# def setup_pride_logger(directory_path='./logs'):
+
+#     """ This function sets up a logger for the pride module. It logs to the base log file and prints to the console. """
+
+#     # Pride logger (child of base_logger)
+#     pride_logger = logging.getLogger('base_logger.pride_logger')
+#     pride_logger.setLevel(logging.INFO)
+#     pride_log_file = os.path.join(directory_path, PRIDE_LOG_FILE_NAME) # TODO - change this to a subdirectory (should it be logs/pride.log?)
+
+#     # Create a console handler for the pride logger
+#     pride_console_handler = logging.StreamHandler()
+#     pride_console_handler.setLevel(logging.INFO)
+#     pride_console_handler.setFormatter(BASIC_FORMAT)
+#     pride_logger.addHandler(pride_console_handler)
+
+#     # Create a file handler for the pride logger
+#     pride_file_handler = logging.FileHandler(pride_log_file)
+#     pride_file_handler.setLevel(logging.INFO)
+#     pride_file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+#     pride_logger.addHandler(pride_file_handler)
+
+#     # Set the logger to propagate to the base logger
+#     pride_logger.propagate = True
+
+#     return pride_logger
+
+# @ensure_directory_exists
+# def setup_rinex_logger(directory_path='./logs'):
+#     """ 
+#     This function sets up a logger for the rinex module. 
+#     It logs to the base log file and prints to the console with only the message.
+#     """
+#     # Rinex logger (child of base_logger)
+#     rinex_logger = logging.getLogger('base_logger.rinex_logger')
+#     rinex_logger.setLevel(logging.INFO)
+#     rinex_log_file = os.path.join(directory_path, RINEX_LOG_FILE_NAME)
+
+#     # Set up the formatter for the rinex logger and the console handler
+#     rinex_console_handler = logging.StreamHandler()
+#     rinex_console_handler.setLevel(logging.INFO)
+#     rinex_console_handler.setFormatter(BASIC_FORMAT)
+#     rinex_logger.addHandler(rinex_console_handler)
+
+#     # Create a file handler for the pride logger
+#     rinex_file_handler = logging.FileHandler(rinex_log_file)
+#     rinex_file_handler.setLevel(logging.INFO)
+#     rinex_file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+#     rinex_logger.addHandler(rinex_file_handler)
+
+#     # Set the logger to propagate to the base logger
+#     rinex_logger.propagate = True
+
+#     return rinex_logger
+
+
+# def setup_notebook_logger():
+#     """ 
+#     This function sets up a logger for the notebook module. 
+#     It logs to the base log file and prints to the console with only the message.
+#     """
+#     # Notebook logger (child of base_logger)
+#     notebook_logger = logging.getLogger('base_logger.notebook_logger')
+#     notebook_logger.setLevel(logging.INFO)
+
+#     # Set up the formatter for the notebook logger and the console handler
+#     notebook_console_handler = logging.StreamHandler()
+#     notebook_console_handler.setLevel(logging.INFO)
+#     notebook_console_handler.setFormatter(MINIMAL_NOTEBOOK_FORMAT)
+
+#     # Add the console handler to the notebook logger
+#     notebook_logger.addHandler(notebook_console_handler)
+
+#     # Set the logger to propagate to the base logger
+#     notebook_logger.propagate = True
+
+#     return notebook_logger
 
 
 # Set up the loggers

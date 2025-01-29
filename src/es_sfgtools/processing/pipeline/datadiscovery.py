@@ -52,7 +52,7 @@ def _rinex_get_meta(data:AssetType) -> AssetType:
 
 
 
-def get_file_type_local(file_path: Path) -> AssetType:
+def get_file_type_local(file_path: Path) -> Union[AssetType, int]:
     """
     Get the file type of a file.
 
@@ -82,7 +82,7 @@ def get_file_type_local(file_path: Path) -> AssetType:
     return file_type, size
 
 
-def get_file_type_remote(file_path: str):
+def get_file_type_remote(file_path: str) -> AssetType:
     """
     Get the file type of a file.
 
