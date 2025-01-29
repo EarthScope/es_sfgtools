@@ -706,7 +706,7 @@ def rectify_shotdata_site(
     shot_data["ant_e1"] = e1
     shot_data["ant_n1"] = n1
     shot_data["ant_u1"] = u1
-    shot_data["SET"] = "S01"
+    # shot_data["SET"] = "S01" now handled with self._subset_shots
     shot_data["LN"] = "L01"
     rename_dict = {
         "trigger_time": "triggertime",
@@ -936,7 +936,7 @@ class GarposHandler:
         shot_data["ant_e1"] = e1
         shot_data["ant_n1"] = n1
         shot_data["ant_u1"] = u1
-        shot_data["SET"] = "S01"
+        #shot_data["SET"] = "S01"
         shot_data["LN"] = "L01"
         rename_dict = {
             "trigger_time": "triggertime",
@@ -1018,6 +1018,32 @@ class GarposHandler:
     #                     f"Shot data for {str(year)}_{str(doy)} failed validation."
     #                 ) from e
 
+    def subset_shots(self,data:pd.DataFrame,dt_s:float=59) -> pd.DataFrame:
+        # Subset the shotdata by breaks in data
+        st = np.diff(data.ST.to_numpy())
+        breakpoints = np.where(st > dt_s)[0].tolist()
+        if not breakpoints:
+            return data
+        last = 0
+        data["SET"] = "S01"
+        last = 0
+        
+        for idx, breakpoint in enumerate(breakpoints):
+            setidx = idx + 1
+            setidx_str = f"S{setidx:02d}"  # Ensures leading zeros (e.g., "01", "02")
+
+            data.loc[last:breakpoint, "SET"] = setidx_str
+            last = breakpoint   # Move to the next segment
+    
+        # Handle the last segment after the last breakpoint
+        setidx += 1
+        setidx_str = f"S{setidx:02d}"
+        data.loc[last:, "SET"] = setidx_str
+        return data
+
+
+
+
     def prep_shotdata(self, overwrite: bool = False):
         for survey in self.campaign.surveys.values():
             benchmarks = []
@@ -1050,7 +1076,9 @@ class GarposHandler:
                         f"No shot data found for survey {survey.id} {survey_type} {start_doy} {end_doy}"
                     )
                     continue
+   
                 shot_data_rectified = self._rectify_shotdata(shot_data_queried)
+                shot_data_rectified = self.subset_shots(shot_data_rectified)
                 try:
                     shot_data_rectified = ShotDataFrame.validate(
                         shot_data_rectified, lazy=True
@@ -1063,6 +1091,7 @@ class GarposHandler:
                     shot_data_rectified.MT = shot_data_rectified.MT.apply(
                         lambda x: "M" + str(x) if str(x)[0].isdigit() else str(x)
                     )
+            
                     shot_data_rectified.to_csv(str(shot_data_path))
                 except Exception as e:
                     raise ValueError(

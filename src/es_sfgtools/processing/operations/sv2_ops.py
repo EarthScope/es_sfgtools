@@ -293,7 +293,7 @@ def dev_merge_to_shotdata(acoustic: DataFrame[AcousticDataFrame], position:DataF
     # lat_array,lon_array = pos_trigger[:,3],pos_trigger[:,4]
 
     output_df = output_df.loc[:, ~output_df.columns.str.contains("^unnamed")].drop(columns=["time"]).dropna().reset_index(drop=True)
-    output_df["SET"] = "S01"
+    #output_df["SET"] = "S01"
     output_df["LN"] = "L01"
     return ShotDataFrame.validate(output_df,lazy=True)
 
