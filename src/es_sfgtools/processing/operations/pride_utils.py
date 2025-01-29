@@ -436,7 +436,7 @@ def get_nav_file(rinex_path:Path,override:bool=False) -> Path:
     """
   
     response = f"\nAttempting to build nav file for {str(rinex_path)}"
-    logger.loginfo(response)
+    logger.logdebug(response)
 
     start_date = None
     with open(rinex_path) as f:
@@ -464,7 +464,7 @@ def get_nav_file(rinex_path:Path,override:bool=False) -> Path:
     for nav_file in found_nav_files:
         if nav_file.stat().st_size > 0 and not override:
             response = f"{nav_file} already exists."
-            logger.loginfo(response)
+            logger.logdebug(response)
             return nav_file
 
     remote_resource_dict: Dict[str,RemoteResource] = get_daily_rinex_url(start_date)
@@ -475,7 +475,7 @@ def get_nav_file(rinex_path:Path,override:bool=False) -> Path:
             continue
 
         response = f"Attemping to download {source} - {str(remote_resource)}"
-        logger.loginfo(response)
+        logger.logdebug(response)
 
         local_path = rinex_path.parent /remote_resource.file_name
         try:
@@ -485,10 +485,10 @@ def get_nav_file(rinex_path:Path,override:bool=False) -> Path:
 
             continue
         if local_path.exists():
-            logger.loginfo(
+            logger.logdebug(
                 f"Succesfully downloaded {str(remote_resource)} to {str(local_path)}"
             )
-            logger.loginfo(f"Successfully built {str(local_path)} From {str(remote_resource)}")
+            logger.logdebug(f"Successfully built {str(local_path)} From {str(remote_resource)}")
             return local_path
 
     with tempfile.TemporaryDirectory() as tempdir:
@@ -508,7 +508,7 @@ def get_nav_file(rinex_path:Path,override:bool=False) -> Path:
             gps_dl_path = Path(tempdir)/gps_local_name
             glonass_dl_path = Path(tempdir)/glonass_local_name
 
-            logger.loginfo(f"Attemping to download {source} From {str(gps_url)}")
+            logger.logdebug(f"Attemping to download {source} From {str(gps_url)}")
 
             try:
 
@@ -528,7 +528,7 @@ def get_nav_file(rinex_path:Path,override:bool=False) -> Path:
                 glonass_dl_path = uncompressed_file(glonass_dl_path)
                 if (brdm_path := merge_broadcast_files(gps_dl_path,glonass_dl_path,rinex_path.parent)) is not None:
 
-                    logger.loginfo(f"Successfully built {brdm_path}")
+                    logger.logdebug(f"Successfully built {brdm_path}")
 
                     return brdm_path
             else:
@@ -595,7 +595,7 @@ def get_gnss_products(
     product_status = {}
 
     for product_type,sources in remote_resource_dict.items():
-        logger.loginfo(f"Attempting to download {product_type} products")
+        logger.logdebug(f"Attempting to download {product_type} products")
         if product_type not in product_status:
             product_status[product_type] = 'False'
 
@@ -605,7 +605,7 @@ def get_gnss_products(
             # check if file already exists
             found_files = [f for f in cp_dir_list if remote_resource.remote_query.pattern.match(f.name)]
             if found_files and not override:
-                logger.loginfo(f"Found {found_files[0]} for product {product_type}")
+                logger.logdebug(f"Found {found_files[0]} for product {product_type}")
                 product_status[product_type] = str(found_files[0])
                 break
 
@@ -616,12 +616,12 @@ def get_gnss_products(
             local_path = common_product_dir/remote_resource.file_name
             if local_path.exists() and local_path.stat().st_size > 0 and not override:
                 product_status[product_type] = str(local_path)
-                logger.loginfo(f"Found {str(local_path)} for product {product_type}")
+                logger.logdebug(f"Found {str(local_path)} for product {product_type}")
                 break
             try:
-                logger.loginfo(f"Attempting to download {product_type} product from {str(remote_resource)}")
+                logger.logdebug(f"Attempting to download {product_type} product from {str(remote_resource)}")
                 download(remote_resource,local_path)
-                logger.loginfo(f"\n Succesfully downloaded {product_type} FROM {str(remote_resource)} TO {str(local_path)}\n")
+                logger.logdebug(f"\n Succesfully downloaded {product_type} FROM {str(remote_resource)} TO {str(local_path)}\n")
                 product_status[product_type] = str(local_path)
                 break
             except Exception as e:
@@ -631,6 +631,6 @@ def get_gnss_products(
                 continue
 
     for product_type,product_path in product_status.items():
-        logger.loginfo(f"{product_type} : {product_path}")
+        logger.logdebug(f"{product_type} : {product_path}")
 
     return product_status
