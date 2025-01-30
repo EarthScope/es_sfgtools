@@ -24,7 +24,7 @@ class Assets(Base):
     id = Column(Integer,primary_key=True,autoincrement=True)
     network = Column(String)
     station = Column(String)
-    survey = Column(String)
+    campaign = Column(String)
     remote_path = Column(String,nullable=True,unique=True)
     remote_type = Column(String,nullable=True)#Column(Enum("s3","http"),nullable=True)
     local_path = Column(String,nullable=True,unique=True)

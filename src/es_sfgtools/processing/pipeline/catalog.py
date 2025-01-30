@@ -19,7 +19,7 @@ class Catalog:
         )
         Base.metadata.create_all(self.engine)
 
-    def get_dtype_counts(self, network:str, station:str, survey:str, **kwargs) -> Dict[str,int]:
+    def get_dtype_counts(self, network:str, station:str, campaign:str, **kwargs) -> Dict[str,int]:
         with self.engine.begin() as conn:
             data_type_counts = [
                 dict(row._mapping)
@@ -28,7 +28,7 @@ class Catalog:
                     .where(
                         Assets.network.in_([network]),
                         Assets.station.in_([station]),
-                        Assets.survey.in_([survey]),
+                        Assets.campaign.in_([campaign]),
                         Assets.local_path.is_not(None),
                     )
                     .group_by(Assets.type)
@@ -41,17 +41,17 @@ class Catalog:
     def get_assets(self,
                    network: str,
                    station: str,
-                   survey: str,
+                   campaign: str,
                    type: AssetType) -> List[AssetEntry]:
 
-        logger.logdebug(f"Getting assets for {network} {station} {survey} {str(type)}")
+        logger.logdebug(f"Getting assets for {network} {station} {campaign} {str(type)}")
 
         with self.engine.connect() as conn:
             query = sa.select(Assets).where(
                 sa.and_(
                     Assets.network == network,
                     Assets.station == station,
-                    Assets.survey == survey,
+                    Assets.campaign == campaign,
                     Assets.type == type.value
                 )
             )
@@ -67,17 +67,17 @@ class Catalog:
     def get_local_assets(self,
                    network: str,
                    station: str,
-                   survey: str,
+                   campaign: str,
                    type: AssetType) -> List[AssetEntry]:
 
-        logger.logdebug(f"Getting local assets for {network} {station} {survey} {str(type)}")
+        logger.logdebug(f"Getting local assets for {network} {station} {campaign} {str(type)}")
 
         with self.engine.connect() as conn:
             query = sa.select(Assets).where(
                 sa.and_(
                     Assets.network == network,
                     Assets.station == station,
-                    Assets.survey == survey,
+                    Assets.campaign == campaign,
                     Assets.type == type.value,
                     Assets.local_path.isnot(None)
                 )
@@ -94,18 +94,18 @@ class Catalog:
     def get_single_entries_to_process(self,
                                network:str,
                                station:str,
-                               survey:str,
+                               campaign:str,
                                parent_type:AssetType,
                                child_type:AssetType = None,
                                override:bool=False) -> List[AssetEntry]:
 
-        parent_entries = self.get_assets(network,station,survey,parent_type)
+        parent_entries = self.get_assets(network,station,campaign,parent_type)
         if child_type is None:
             if override:
                 return parent_entries
             return [entry for entry in parent_entries if not entry.is_processed]
 
-        child_entries = self.get_assets(network,station,survey,child_type)
+        child_entries = self.get_assets(network,station,campaign,child_type)
         parent_id_map = {entry.id:entry for entry in parent_entries}
         if not override:
             [parent_id_map.pop(child_entry.parent_id) for child_entry in child_entries if child_entry.parent_id in parent_id_map]
@@ -120,7 +120,7 @@ class Catalog:
                 Assets.parent_id == ",".join([str(x) for x in entry.parent_id]),
                 Assets.network == entry.network,
                 Assets.station == entry.station,
-                Assets.survey == entry.survey,
+                Assets.campaign == entry.campaign,
                 Assets.type == entry.type.value)).fetchone()
             if results:
                 return AssetEntry(**results._mapping)
@@ -145,14 +145,14 @@ class Catalog:
         except Exception as e:
             logger.logerr(f"Error updating local path for id {id}: {e}")
 
-    def remote_file_exist(self, network: str, station: str, survey: str, type: AssetType, remote_path: str) -> bool:
+    def remote_file_exist(self, network: str, station: str, campaign: str, type: AssetType, remote_path: str) -> bool:
         """
         Check if a remote file name exists in the catalog already as a local file name.
         
         Args:
             network (str): The network.
             station (str): The station.
-            survey (str): The survey.
+            campaign (str): The campaign.
             type (AssetType): The asset type.
             remote_path (str): The remote path.
             
@@ -167,7 +167,7 @@ class Catalog:
                 sa.and_(
                 Assets.network == network,
                 Assets.station == station,
-                Assets.survey == survey,
+                Assets.campaign == campaign,
                 Assets.type == type.value,
                 Assets.local_path.like(f"%{remote_file_name}%")
             ))).fetchone()
