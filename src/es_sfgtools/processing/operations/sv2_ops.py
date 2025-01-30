@@ -18,7 +18,7 @@ from ..assets.file_schemas import SonardyneFile,NovatelFile,AssetType,AssetEntry
 from ..assets.observables import AcousticDataFrame, PositionDataFrame,ShotDataFrame
 from ..assets.logmodels import PositionData,RangeData,BestGNSSPOSDATA,get_traveltime,check_sequence_overlap,datetime_to_sod
 
-logger = logging.getLogger(__name__)
+from es_sfgtools.utils.loggers import ProcessLogger as logger
 
 def get_transponder_offsets(line: str) -> Dict[str, float]:
     """
@@ -102,7 +102,7 @@ def sonardyne_to_acousticdf(source: SonardyneFile) -> DataFrame[AcousticDataFram
     """
     if not os.path.exists(source.local_path):
         response = f"File {source.local_path} not found"
-        logger.error(response)
+        logger.logerr(response)
         raise FileNotFoundError(response)
 
     si_pattern = re.compile(">SI:")  # TODO take this out for now
@@ -125,8 +125,7 @@ def sonardyne_to_acousticdf(source: SonardyneFile) -> DataFrame[AcousticDataFram
                     break
                 found_ping = False
             except UnicodeDecodeError as e:
-                error_msg = f"Acoustic Parsing:{e} | Error parsing FILE {source} at LINE {line_number}"
-                logger.error(error_msg)
+                logger.logerr(f"Acoustic Parsing:{e} | Error parsing FILE {source} at LINE {line_number}")
                 pass
 
             # Update transponder time offsets if found
@@ -139,15 +138,13 @@ def sonardyne_to_acousticdf(source: SonardyneFile) -> DataFrame[AcousticDataFram
                     range_data: List[RangeData] = RangeData.from_sv2(line,main_offset_dict)
                     simultaneous_interrogation_set.extend(range_data)
                 except ValidationError as e:
-                    response = f"Error parsing into SimultaneousInterrogation from line {line_number} in {source}\n "
-                    logger.error(response)
+                    logger.logerr(f"Error parsing into SimultaneousInterrogation from line {line_number} in {source}\n ")
                     pass
                 
 
     # Check if any Simultaneous Interrogation data was found
     if not simultaneous_interrogation_set:
-        response = f"Acoustic: No Simultaneous Interrogation data in FILE {source}"
-        logger.error(response)
+        logger.logerr(rf"Acoustic: No Simultaneous Interrogation data in FILE {source}")
         return None
 
     df = pd.DataFrame([x.model_dump() for x in simultaneous_interrogation_set]) 
@@ -159,8 +156,7 @@ def sonardyne_to_acousticdf(source: SonardyneFile) -> DataFrame[AcousticDataFram
     )
     shot_count: int = int(acoustic_df.shape[0] / len(unique_transponders))
 
-    log_response = f"Acoustic Parser: {acoustic_df.shape[0]} shots from FILE {source.local_path} | {len(unique_transponders)} transponders | {shot_count} shots per transponder"
-    logger.info(log_response)
+    logger.loginfo(f"Acoustic Parser: {acoustic_df.shape[0]} shots from FILE {source.local_path} | {len(unique_transponders)} transponders | {shot_count} shots per transponder")
     
     acoustic_df = check_sequence_overlap(acoustic_df)
     return AcousticDataFrame.validate(acoustic_df, lazy=True)
@@ -195,14 +191,13 @@ def novatel_to_positiondf(source:NovatelFile) -> DataFrame[PositionDataFrame]:
                         position_data.sdx,position_data.sdy,position_data.sdz = gnssMeta.sdx,gnssMeta.sdy,gnssMeta.sdz
                         data_list.append(position_data.model_dump())
                     except Exception as e:
-                        error_msg = f"IMU Parsing: An error occurred while parsing INVSPA data from FILE {source} at LINE {line_number} \n"
-                        error_msg += f"Error: {line}"
-                        logger.error(error_msg)
+                        logger.logerr(f"IMU Parsing: An error occurred while parsing INVSPA data from FILE {source} at LINE {line_number} \n Error: {line}")
                         pass
+
             except UnicodeDecodeError as e:
-                error_msg = f"Position Parsing:{e} | Error parsing FILE {source.local_path} at LINE {line_number}"
-                logger.error(error_msg)
+                logger.logerr(f"Position Parsing:{e} | Error parsing FILE {source.local_path} at LINE {line_number}")
                 pass
+
     df = pd.DataFrame(data_list).rename(columns={
         "sdx":"east_std",
         "sdy":"north_std",
@@ -234,7 +229,7 @@ def dev_merge_to_shotdata(acoustic: DataFrame[AcousticDataFrame], position:DataF
     position = position[(position["time"] >= min_time) & (position["time"] <= max_time)]
 
     if acoustic.empty or position.empty:
-        logger.error("No data found in the time range")
+        logger.logerr("No data found in the time range")
         raise ValueError("No data found in the time range")
 
     # sort

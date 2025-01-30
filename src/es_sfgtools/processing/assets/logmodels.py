@@ -23,8 +23,7 @@ import warnings
 
 from .constants import GNSS_START_TIME,TRIGGER_DELAY_SV2,TRIGGER_DELAY_SV3,ADJ_LEAP,STATION_OFFSETS,MASTER_STATION_ID
 
-logger = logging.getLogger(__name__)
-
+from es_sfgtools.utils.loggers import ProcessLogger as logger
 
 class DateOverlapWarning(UserWarning):
     message = "Ping-Reply sequence has overlapping dates"
@@ -68,7 +67,7 @@ def check_sequence_overlap(df: pd.DataFrame) -> pd.DataFrame:
     filter_main = filter_0 | filter_1
 
     found_bad = df[filter_main]
-    logger.info(f"Found {found_bad.shape[0]} overlapping ping-reply sequences")
+    logger.loginfo(f"Found {found_bad.shape[0]} overlapping ping-reply sequences")
     return df[~filter_main]
 
 class BestGNSSPOSDATA(BaseModel):
@@ -164,6 +163,7 @@ class PositionData(BaseModel):
     sdz: Optional[float] = None
 
     def update(self,data:dict):
+        logger.logdebug(f"Updating Position Data")
         # update position,time, and standard deviation
         self.time = datetime.fromtimestamp(data.get("time").get("common"))
         self.latitude = data.get("latitude")

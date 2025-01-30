@@ -49,11 +49,12 @@ from es_sfgtools.modeling.garpos_tools.schemas import (
     GarposObservationOutput,
     GarposResults,
 )
+from es_sfgtools.utils.loggers import GarposLogger as logger
 
+from ...processing.assets.tiledb_temp import TDBShotDataArray
 
 from garpos import drive_garpos
 
-logger = logging.getLogger(__name__)
 
 colors = [
     "blue",
@@ -290,11 +291,19 @@ class CoordTransformer:
         return e, n, u
 
 
-def garposinput_to_datafile(garpos_input: GarposInput, path: Path):
+def garposinput_to_datafile(garpos_input: GarposInput, path: Path) -> None:
     """
     Write a GarposInput to a datafile
+
+    Args:
+        garpos_input (GarposInput): The GarposInput object
+        path (Path): The path to the datafile
+
+    Returns:
+        None
     """
 
+    logger.loginfo("Writing Garpos input to datafile")
     # Write the data file
     center_enu: List[float] = garpos_input.site.center_enu.get_position()
     delta_center_position: List[float] = (
@@ -342,11 +351,21 @@ def garposinput_to_datafile(garpos_input: GarposInput, path: Path):
     with open(path, "w") as f:
         f.write(obs_str)
 
+    logger.info(f"Garpos input written to {path}")
+
 
 def datafile_to_garposinput(path: Path) -> GarposInput:
     """
     Read a GarposInput from a datafile
+
+    Args:
+        path (Path): The path to the datafile
+
+    Returns:
+        GarposInput: The GarposInput object
     """
+
+    logger.loginfo("Reading Garpos input from datafile")
     config = ConfigParser()
     config.read(path)
 
@@ -411,6 +430,7 @@ def datafile_to_garposinput(path: Path) -> GarposInput:
     )
 
     # Now handle shot_data_file and sound_speed_file
+    logger.info(f"Reading shot and sound speed data")
     shot_data_file = data_section["datacsv"]
     sound_speed_file = observation_section["soundspeed"]
 
@@ -427,7 +447,7 @@ def datafile_to_garposinput(path: Path) -> GarposInput:
     )
 
     # Populate GarposObservation
-
+    logger.loginfo("Populating Garpos Observation")
     observation = GarposObservation(
         campaign=observation_section["campaign"],
         date_utc=(
@@ -439,6 +459,8 @@ def datafile_to_garposinput(path: Path) -> GarposInput:
         sound_speed_data=sound_speed_results,
     )
 
+    logger.loginfo("Garpos input read from datafile, returning GarposInput object")
+
     return GarposInput(
         site=site,
         observation=observation,
@@ -447,7 +469,19 @@ def datafile_to_garposinput(path: Path) -> GarposInput:
     )
 
 
-def garposfixed_to_datafile(garpos_fixed, path: Path) -> None:
+def garposfixed_to_datafile(garpos_fixed: GarposFixed, path: Path) -> None:
+    """
+    Write a GarposFixed to a datafile
+
+    Args:
+        garpos_fixed (GarposFixed): The GarposFixed object
+        path (Path): The path to the datafile
+
+    Returns:
+        None
+    """
+
+    logger.loginfo("Writing Garpos fixed parameters to datafile")
     fixed_str = f"""[HyperParameters]
 # Hyperparameters
 #  When setting multiple values, ABIC-minimum HP will be searched.
@@ -503,8 +537,21 @@ deltab = {garpos_fixed.inversion_params.deltab}"""
     with open(path, "w") as f:
         f.write(fixed_str)
 
+    logger.info(f"Garpos fixed parameters written to {path}") 
+
 
 def garposfixed_from_datafile(path: Path) -> GarposFixed:
+    """
+    Read a GarposFixed from a datafile
+    
+    Args:
+        path (Path): The path to the datafile
+        
+    Returns:
+        GarposFixed: The GarposFixed object
+    """
+
+    logger.loginfo("Reading Garpos fixed parameters from datafile {}".format(path))
     config = ConfigParser()
     config.read(path)
 
@@ -531,12 +578,12 @@ def garposfixed_from_datafile(path: Path) -> GarposFixed:
     )
 
     # Populate GarposFixed
-
     garpos_fixed = GarposFixed(
         lib_directory=inv_parameters["lib_directory"],
         lib_raytrace=inv_parameters["lib_raytrace"],
         inversion_params=inversion_params,
     )
+    logger.loginfo("Garpos fixed parameters read from datafile, returning GarposFixed object")
     return garpos_fixed
 
 
@@ -577,6 +624,13 @@ def avg_transponder_position(
 
 
 def plot_enu_llh_side_by_side(garpos_input: GarposInput):
+    """
+    Plot the transponder and antenna positions in ENU and LLH coordinates side by side.
+
+    Args:
+        garpos_input (GarposInput): The input data containing observations and site information.
+    """
+
     # Create a figure with two subplots
     fig, axs = plt.subplots(1, 2, figsize=(20, 10))
 
@@ -688,7 +742,7 @@ def rectify_shotdata_site(
         - roll1 (roll at time 1)
     """
 
-    site_config = site_config.copy()  # avoid aliasing
+    site_config = site_config.copy()  # avoid aliasing #TODO use model_copy instead?
     coord_transformer = CoordTransformer(site_config.position_llh)
     e0, n0, u0 = coord_transformer.ECEF2ENU_vec(
         shot_data.east0.to_numpy(),
@@ -775,6 +829,7 @@ def process_garpos_results(results: GarposInput) -> Tuple[GarposResults, pd.Data
     """
 
     # Process garpos results to get delta x,y,z and relevant fields
+    logger.loginfo("Processing GARPOS results")
 
     # Get the harmonic mean of the svp data, and use that to convert ResiTT to meters
     speed_mean = harmonic_mean(results.observation.sound_speed_data.speed.values)
@@ -783,8 +838,8 @@ def process_garpos_results(results: GarposInput) -> Tuple[GarposResults, pd.Data
     results_df = results.observation.shot_data
     results_df["ResiRange"] = range_residuals
     results_df = GarposObservationOutput.validate(results_df, lazy=True)
+    
     # For each transponder, get the delta x,y,and z respectively
-
     for transponder in results.site.transponders:
         id = transponder.id
         takeoff = np.deg2rad(
@@ -811,12 +866,8 @@ def process_garpos_results(results: GarposInput) -> Tuple[GarposResults, pd.Data
         transponders=results.site.transponders,
         shot_data=results_df,
     )
-
+    logger.loginfo("GARPOS results processed, returning results tuple")
     return results_out, results_df
-
-
-from ...processing.assets.tiledb_temp import TDBShotDataArray
-
 
 class GarposHandler:
     """
@@ -936,7 +987,7 @@ class GarposHandler:
         shot_data["ant_e1"] = e1
         shot_data["ant_n1"] = n1
         shot_data["ant_u1"] = u1
-        #shot_data["SET"] = "S01"
+        shot_data["SET"] = "S01"
         shot_data["LN"] = "L01"
         rename_dict = {
             "trigger_time": "triggertime",
@@ -980,43 +1031,43 @@ class GarposHandler:
                 return
         raise ValueError(f"campaign {name} not found")
 
-    # def prep_shotdata(self, overwrite: bool = False):
-    #     """
-    #     A method to prepare and save shot data for each date in the object's date list using the following steps:
+    def prep_shotdata(self, overwrite: bool = False):
+        """
+        A method to prepare and save shot data for each date in the object's date list using the following steps:
 
-    #     1. Check if the shot data file exists for each date within self.shotdata_dir.
-    #     2. If the file does not exist or if the `overwrite` flag is set to True, read, rectify, validate, and save the shot data to a CSV file.
-    #     3. Query the shot data for the date from the TDBShotDataArray
-    #     4. Rectify the shot data using the `_rectify_shotdata` method
-    #     5. Validate the rectified shot data
-    #     6. Save the rectified shot data to a CSV file
+        1. Check if the shot data file exists for each date within self.shotdata_dir.
+        2. If the file does not exist or if the `overwrite` flag is set to True, read, rectify, validate, and save the shot data to a CSV file.
+        3. Query the shot data for the date from the TDBShotDataArray
+        4. Rectify the shot data using the `_rectify_shotdata` method
+        5. Validate the rectified shot data
+        6. Save the rectified shot data to a CSV file
 
-    #     Args:
-    #         overwrite (bool): If True, existing shot data files will be overwritten.
-    #                   Defaults to False.
-    #     Raises:
-    #         ValueError: If the shot data fails validation.
-    #     """
+        Args:
+            overwrite (bool): If True, existing shot data files will be overwritten.
+                      Defaults to False.
+        Raises:
+            ValueError: If the shot data fails validation.
+        """
 
-    #     for date in self.dates:
-    #         year, doy = date.year, date.timetuple().tm_yday
-    #         shot_data_path = self.shotdata_dir / f"{str(year)}_{str(doy)}.csv"
-    #         if not shot_data_path.exists() or overwrite:
-    #             shot_data_queried: pd.DataFrame = self.shotdata.read_df(date)
-    #             shot_data_rectified = self._rectify_shotdata(shot_data_queried)
-    #             try:
-    #                 shot_data_rectified = ShotDataFrame.validate(
-    #                     shot_data_rectified, lazy=True
-    #                 )
-    #                 shot_data_rectified.MT = shot_data_rectified.MT.apply(
-    #                     lambda x: "M" + str(x) if str(x)[0].isdigit() else str(x)
-    #                 )
-    #                 shot_data_path = self.shotdata_dir / f"{str(year)}_{str(doy)}.csv"
-    #                 shot_data_rectified.to_csv(shot_data_path)
-    #             except Exception as e:
-    #                 raise ValueError(
-    #                     f"Shot data for {str(year)}_{str(doy)} failed validation."
-    #                 ) from e
+        for date in self.dates:
+            year, doy = date.year, date.timetuple().tm_yday
+            shot_data_path = self.shotdata_dir / f"{str(year)}_{str(doy)}.csv"
+            if not shot_data_path.exists() or overwrite:
+                shot_data_queried: pd.DataFrame = self.shotdata.read_df(date)
+                shot_data_rectified = self._rectify_shotdata(shot_data_queried)
+                try:
+                    shot_data_rectified = ShotDataFrame.validate(
+                        shot_data_rectified, lazy=True
+                    )
+                    shot_data_rectified.MT = shot_data_rectified.MT.apply(
+                        lambda x: "M" + str(x) if str(x)[0].isdigit() else str(x)
+                    )
+                    shot_data_path = self.shotdata_dir / f"{str(year)}_{str(doy)}.csv"
+                    shot_data_rectified.to_csv(shot_data_path)
+                except Exception as e:
+                    raise ValueError(
+                        f"Shot data for {str(year)}_{str(doy)} failed validation."
+                    ) from e
 
     def subset_shots(self,data:pd.DataFrame,dt_s:float=59) -> pd.DataFrame:
         # Subset the shotdata by breaks in data
@@ -1042,7 +1093,7 @@ class GarposHandler:
         return data
 
 
-
+\
 
     def prep_shotdata(self, overwrite: bool = False):
         for survey in self.campaign.surveys.values():
@@ -1066,6 +1117,11 @@ class GarposHandler:
                 self.shotdata_dir
                 / f"{survey.id}_{survey_type}_{start_doy}_{end_doy}.csv"
             )
+           
+        logger.loginfo("Preparing shot data")
+        for date in self.dates:
+            year, doy = date.year, date.timetuple().tm_yday
+            shot_data_path = self.shotdata_dir / f"{str(year)}_{str(doy)}.csv"
             if not shot_data_path.exists() or overwrite:
                 shot_data_queried: pd.DataFrame = self.shotdata.read_df(
                     start=survey.start, end=survey.end
@@ -1094,10 +1150,14 @@ class GarposHandler:
             
                     shot_data_rectified.to_csv(str(shot_data_path))
                 except Exception as e:
+                    logger.logerr(f"Shot data for {str(year)}_{str(doy)} failed validation. Error: {e}")
                     raise ValueError(
                         f"Shot data for {survey.id} {survey_type} {start_doy} {end_doy} failed validation."
                     ) from e
+                
             self.campaign.surveys[survey.id].shot_data_path = shot_data_path
+  
+        logger.loginfo(f"Shot data prepared and saved under {self.shotdata_dir}")  
 
     def set_inversion_params(self, parameters: dict | InversionParams):
         """
@@ -1139,6 +1199,7 @@ class GarposHandler:
         shot_data_df = pd.read_csv(shot_data)
         mts = [x for x in shot_data_df.MT.unique()]
 
+        logger.loginfo("Generating observation parameter file from shot data and site configuration")
         delta_center_position: List[float] = (
             self.inversion_params.delta_center_position.get_position()
             + self.inversion_params.delta_center_position.get_std_dev()
@@ -1187,6 +1248,8 @@ class GarposHandler:
         with open(path, "w") as f:
             f.write(obs_str)
 
+        logger.loginfo(f"Observation parameter file written to {path}")
+
     def _garposfixed_to_datafile(
         self, inversion_params: InversionParams, path: Path
     ) -> None:
@@ -1202,6 +1265,7 @@ class GarposHandler:
             None
         """
 
+        logger.loginfo("Writing fixed parameters to datafile for inversion process")
         fixed_str = f"""[HyperParameters]
     # Hyperparameters
     #  When setting multiple values, ABIC-minimum HP will be searched.
@@ -1256,6 +1320,8 @@ class GarposHandler:
 
         with open(path, "w") as f:
             f.write(fixed_str)
+        
+        logger.loginfo(f"Fixed parameters written to {path}")
 
     def _run_garpos(
         self,
@@ -1296,6 +1362,13 @@ class GarposHandler:
         if results_path.exists() and not override:
             print(f"Results already exist for {str(results_path)}")
             return
+
+        year, doy = date.year, date.timetuple().tm_yday
+        logger.loginfo(f"Running GARPOS model for {str(year)}_{str(doy)}. Run ID: {run_id}")
+        shot_data_path = self.shotdata_dir / f"{str(year)}_{str(doy)}.csv"
+        assert (
+            shot_data_path.exists()
+        ), f"Shot data not found at {shot_data_path} for {date}"
 
         shot_data = pd.read_csv(shot_data_path)
         n_shot = len(shot_data)
@@ -1344,6 +1417,9 @@ class GarposHandler:
     def run_garpos(
         self, survey_id: str = None, run_id: int | str = 0, override: bool = False
     ) -> None:
+
+        logger.loginfo(f"GARPOS model run completed for {str(year)}_{str(doy)}. Results saved at {results_path}")
+
         """
         Run the GARPOS model for a specific date or for all dates.
         Args:
@@ -1354,9 +1430,15 @@ class GarposHandler:
             None
         """
 
+
         if survey_id is None:
             for survey_id in self.campaign.surveys.keys():
                 self._run_garpos_survey(survey_id, run_id, override=override)
+
+        logger.loginfo(f"Running GARPOS model for date(s) provided. Run ID: {run_id}")
+        if date_index is None:
+            for date in self.dates:
+                self._run_garpos(date,run_id=run_id)
         else:
             self._run_garpos_survey(survey_id, run_id, override=override)
 
