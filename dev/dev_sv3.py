@@ -1,82 +1,126 @@
-import sys
 from pathlib import Path
-import json
-import es_sfgtools
 import logging
-logging.basicConfig(level=logging.INFO,filename="dev.log",filemode="w")
-from es_sfgtools.pipeline import DataHandler
-from es_sfgtools.modeling.garpos_tools import merge_to_shotdata
+logging.basicConfig(level=logging.WARNING,filename="dev.log",filemode="w")
+from es_sfgtools.processing.pipeline.data_handler import DataHandler
+from es_sfgtools.processing.pipeline.pipelines import SV3Pipeline,SV3PipelineConfig
+from es_sfgtools.processing.assets.siteconfig import SiteConfig
+from es_sfgtools.processing.operations.site_ops import CTDfile_to_svp,masterfile_to_siteconfig,leverarmfile_to_atdoffset
 import os
-import pandas as pd
-from collections import defaultdict
-
-data_dir = Path().home() / "Project/SeaFloorGeodesy/Data/NCB1/HR/"
-data_files = [str(x) for x in data_dir.glob("*.raw") if "DFOP00" in str(x)]
-qc_dir = Path().home() / "Project/SeaFloorGeodesy/Data/Sample_QC_UNI1"
-qc_files = [str(x) for x in qc_dir.glob("*.pin") if "pin" in str(x)]
-catalog_path = Path().home() / "Project/SeaFloorGeodesy/Data/TestSV3"
-catalog_path.mkdir(exist_ok=True)
+from es_sfgtools.processing.assets import AssetEntry, AssetType
+from es_sfgtools.utils.archive_pull import list_survey_files
+from es_sfgtools.utils.loggers import BaseLogger
 pride_path = Path.home() / ".PRIDE_PPPAR_BIN"
-# add to path
 os.environ["PATH"] += os.pathsep + str(pride_path)
+
 if __name__ == "__main__":
 
-    network = "NCB"
-    station = "NCB1"
-    survey = "TestSV3"
-    dh = DataHandler(data_dir=catalog_path,
-                     network=network,
-                     station=station,
-                     survey=survey,)
+    main_dir = Path("/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain")
+    BaseLogger.route_to_console()
+    dh = DataHandler(main_dir)
 
-    #dh.process_sv3_data()
-    # dh.add_data_local(qc_files)
-    # dh.add_data_local(data_files,discover_file_type=True)
-    # dh.process_sv3_data()
-    # dh.process_qc_data(override=False,show_details=True)
-    # dh.process_campaign_data(
-    #     override=True,
-    #     show_details=True
+    network = 'cascadia-gorda'
+    station = 'NCC1'
+    survey = '2024_A_1126'
+    
+    dh.change_working_station(network=network,station=station,survey=survey)
+    
+    survey_files = list_survey_files(network=network, station=station, survey=survey, show_details=True)
+    dh.add_data_remote(survey_files)
+    dh.download_data()
+    dh.discover_data_and_add_files(dh.station_dir)
+    pipeline,config = dh.get_pipeline_sv3()
+    config.novatel_config.override = True
+    config.rinex_config.override = False
+    config.rinex_config.override_products_download = False
+    config.rinex_config.pride_config.sample_frequency = .25
+    pipeline.config = config
+    pipeline.run_pipeline()
+
+    # ncc1_2024_config = dh.station_dir / "NCC1_2024_config.yaml"
+    # svp_path = dh.station_dir / "NCC1_CTD_2021_fit"
+    # svp_path_processed = dh.station_dir / "svp.csv"
+    # if not svp_path_processed.exists():
+    #     svp_df = CTDfile_to_svp(svp_path)
+    #     svp_df.to_csv(svp_path_processed)
+       
+    # config = SiteConfig.from_config(ncc1_2024_config)
+    # config.sound_speed_data = svp_path_processed
+    # gp_handler_ncc1= dh.get_garpos_handler(site_config=config)
+    
+    # gp_handler_ncc1.prep_shotdata()
+    # update_dict = {"rejectcriteria": 2.5}
+    # gp_handler_ncc1.set_inversion_params(update_dict)   
+    # gp_handler_ncc1.run_garpos(-1)
+
+    # station = "NFL1"
+    # survey = "2023"
+    # main_dir = Path("/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/Cascadia2023/SFGTools")
+
+    # dh = DataHandler(main_dir)
+
+    # NCL1 = main_dir.parent/"NCL1"
+    # NDP1 = main_dir.parent/"NDP1"
+    # NFL1 = main_dir.parent/"NFL1"
+
+    # dh.change_working_station(network=network,station="NCL1",survey="2023")
+    # dh.discover_data_and_add_files(
+    #     NCL1
     # )
-    print(dh.get_dtype_counts())
-    dh.dev_group_session_data(override=True)
 
-    # survey_entries = dh.query_catalog(
-    #     network=network,
-    #     station=station,
-    #     survey=survey,
-    #     type=["gnss", "acoustic", "imu"]
-    # )
+    # pipeline,config = dh.get_pipeline_sv3()
 
-    # entries_grouped = dh.group_observation_session_data(
-    #     data=survey_entries,
-    #     timespan="DAY"
-    # )
+    # print(config)
+    # pipeline.process_novatel()
+    # pipeline.process_rinex()
+    # pipeline.process_kin()
+    # pipeline.process_dfop00()
+    # pipeline.update_shotdata()
 
-    # processed = {}
-    # dtypes = ["gnss", "acoustic", "imu"]
-    # for key, value in entries_grouped.items():
-    #     merged = {}
-    #     for dtype in dtypes:
-    #         for x in value[dtype]:
-    #             try:
-    #                 merged[dtype] = pd.concat([merged.get(dtype,pd.DataFrame()), pd.read_csv(x)])
-    #             except:
-    #                 pass
-    #     if list(merged.keys()) == dtypes:
-    #         processed[key] = merged
+    # svp_path = dh.station_dir / "CTD_NCL1_Ch_Mi"
+    # svp_path_processed = dh.station_dir / "svp.csv"
+    # config_path = dh.station_dir / "NCL1_2023_config.yaml"
+    # if not svp_path_processed.exists():
+    #     svp_df = CTDfile_to_svp(svp_path)
+    #     svp_df.to_csv(svp_path_processed)
+    #     svp_asset = AssetEntry(type=AssetType.SVP, local_path=svp_path_processed)
+    #     dh.catalog.add_entry(svp_asset)
 
-    # path_dict = defaultdict(lambda: defaultdict(str))
-    # for ts,data in processed.items():
-    #     for dtype,df in data.items():
-    #         ts = ts.replace(":","-").replace(" ","-")
-    #         path_name = f"{ts}_{dtype}.csv"
-    #         path = dh.garpos_dir / path_name
-    #         df.to_csv(path)
-    #         path_dict[ts][dtype] = str(path)
+    # config = SiteConfig.from_config(config_path)
+    # config.sound_speed_data = svp_path_processed
+    # gp_handler = dh.get_garpos_handler(site_config=config)
+    # gp_handler.prep_shotdata()
+    # gp_handler.run_garpos()
+    # network='alaska-shumagins'
+    # site='IVB1'
+    # surveys = ['2018_A_SFG1','2022_A_1049']
 
-    # cat_path = dh.garpos_dir / "prep_NCB1_catalog.json"
-    # with open(cat_path, "w") as f:
-    #     json.dump(path_dict, f)
+    # dh = DataHandler(Path("/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain"))
+    # for survey in surveys:
+    #     dh.change_working_station(network=network,station=site,survey=survey)
+    #     remote_filepaths = list_survey_files(network=network, station=site, survey=survey, show_details=True)
 
-    # print(f"Data processed and saved to {str(cat_path)}")
+    #     dh.add_data_remote(remote_filepaths)
+    #     dh.download_data()
+    # print(dh.get_dtype_counts())
+    # pipeline,config = dh.get_pipeline_sv3()
+    # pipeline.process_novatel()
+    # pipeline.process_rinex()
+    # pipeline.process_kin()
+    # pipeline.process_dfop00()
+    # pipeline.update_shotdata()
+
+    # config_path = dh.station_dir / "NCC1_2024_config.yaml"
+    # svp_path = dh.station_dir / "NCC1_CTD_2021_fit"
+
+    # config = SiteConfig.from_config(config_path)
+
+    # svp_path_processed = dh.station_dir / "svp.csv"
+    # if not svp_path_processed.exists():
+    #     svp_df = CTDfile_to_svp(svp_path)
+    #     svp_df.to_csv(svp_path_processed)
+
+    # config.sound_speed_data = svp_path_processed
+
+    # gp_handler = dh.get_garpos_handler(site_config=config)
+    # gp_handler.prep_shotdata()
+    # gp_handler.run_garpos()

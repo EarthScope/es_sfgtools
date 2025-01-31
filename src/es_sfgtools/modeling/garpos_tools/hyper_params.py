@@ -8,8 +8,8 @@ Email: franklyn.dunbar@earthscope.org, franklyn.dunbar@umontana.edu
 from enum import Enum
 from typing import List, Optional
 from pydantic import BaseModel, Field, model_validator
-import logging
-logger = logging.getLogger(__name__)
+from es_sfgtools.utils.loggers import GarposLogger as logger
+
 
 class InversionType(Enum):
     positions = 0  # solve only positions
@@ -87,13 +87,13 @@ class InversionParams(BaseModel):
         match values.inversiontype:
             case InversionType.gammas:
                 if any([x <= 0 for x in values.positionalOffset]):
-                    logger.error(
+                    logger.logerr(
                         "positionalOffset is required for InversionType.positions"
                     )
             case [InversionType.positions, InversionType.both]:
                 if any([x > 0 for x in values.positionalOffset]):
                     values.positionalOffset = [0.0, 0.0, 0.0]
-                    logger.error(
+                    logger.logerr(
                         "positionalOffset is not required for InversionType.gammas"
                     )
 
@@ -123,6 +123,17 @@ class InversionResults(BaseModel):
 
     @classmethod
     def from_dat_file(cls, file_path: str) -> "InversionResults":
+        """
+        Parse the inversion results from a .dat file
+
+        Args:
+            file_path (str): Path to the .dat file
+
+        Returns:
+            InversionResults (obj): Inversion results
+        """
+
+        logger.loginfo(f"Reading inversion results from {file_path}")
         with open(file_path, "r") as f:
             lines = f.readlines()
             # Extract data from the file
@@ -168,6 +179,8 @@ class InversionResults(BaseModel):
                 if line.startswith("# mu_MT"):
                     parsed_line = line.split()
                     mu_mt = float(parsed_line[3])
+
+            logger.loginfo(f"Finished reading inversion results from {file_path}")
             return cls(
                 delta_center_position=delta_center_position,
                 ABIC=ABIC,

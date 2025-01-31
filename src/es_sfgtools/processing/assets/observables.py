@@ -8,7 +8,7 @@ import pandas as pd
 import pandera as pa
 from pandera.typing import Series
 import pandera.extensions as paext
-from typing import List, Dict
+from typing import List, Dict,Optional
 from .constants import (
     GNSS_START_TIME,
     GNSS_START_TIME_JULIAN,
@@ -91,7 +91,7 @@ class AcousticDataFrame(pa.DataFrameModel):
     class Config:
         coerce = True
         add_missing_columns = True
-        drop_invalid_rows = True
+        #drop_invalid_rows = True
         # check_travel_time = {
         #     "TT": "tt",
         #     "ST": "pingTime",
@@ -151,15 +151,15 @@ class GNSSDataFrame(pa.DataFrameModel):
         coerce=True,  # todo unsure of the full range, below 4 is great, 4-8 acceptable, above 8 is poor (should we throw these out?)
         description="Position Dilution of Precision",
     )
-    east_std: Series[float] = pa.Field(
+    east_std: Optional[Series[float]] = pa.Field(
         nullable=True,
         description="Standard deviation of the ECEF X coordinate [m]",
     )
-    north_std: Series[float] = pa.Field(
+    north_std: Optional[Series[float]] = pa.Field(
         nullable=True,
         description="Standard deviation of the ECEF Y coordinate [m]",
     )
-    up_std: Series[float] = pa.Field(
+    up_std: Optional[Series[float]] = pa.Field(
         nullable=True,
         description="Standard deviation of the ECEF Z coordinate [m]",
     )
@@ -167,6 +167,11 @@ class GNSSDataFrame(pa.DataFrameModel):
     @pa.parser("time")
     def parse_time(cls, series: pd.Series) -> pd.Series:
         return pd.to_datetime(series, unit="ms")
+    
+    class Config:
+        coerce = True
+        add_missing_columns = True
+
 
 class PositionDataFrame(pa.DataFrameModel):
     time: Series[pd.Timestamp] = pa.Field(
@@ -284,8 +289,9 @@ class ShotDataFrame(AcousticDataFrame):
 
     class Config:
         add_missing_columns = True
-        coerce = True
         drop_invalid_rows = True
+        coerce = True
+        
 
 class SoundVelocityDataFrame(pa.DataFrameModel):
 
@@ -295,3 +301,7 @@ class SoundVelocityDataFrame(pa.DataFrameModel):
     speed: Series[float] = pa.Field(unique=True,
         ge=0, le=3800, description="Spee of sound [m/s]", coerce=True
     )
+
+    class Config:
+        coerce = True
+        drop_invalid_rows = True

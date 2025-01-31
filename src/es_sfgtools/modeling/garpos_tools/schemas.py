@@ -2,19 +2,19 @@ import pandera as pa
 from pandera.typing import Series, DataFrame
 from pandera.errors import SchemaErrors
 from enum import Enum
-from typing import List, Optional
+from typing import List, Optional,Union
 from pydantic import BaseModel, Field, model_validator,field_serializer,field_validator,ValidationError
 from pathlib import Path
 import pandas as pd
 from datetime import datetime
-import logging
 
 from ...processing.assets.observables import SoundVelocityDataFrame
 from ...processing.assets.siteconfig import ATDOffset, PositionENU, PositionLLH, Transponder
+from es_sfgtools.utils.loggers import GarposLogger as logger
+
 
 from garpos import LIB_DIRECTORY,LIB_RAYTRACE
 
-logger = logging.getLogger(__name__)
 class ObservationData(pa.DataFrameModel):
     """Observation data file schema
 
@@ -263,13 +263,13 @@ class InversionParams(BaseModel):
         match values.inversiontype:
             case InversionType.gammas:
                 if any([x <= 0 for x in values.positionalOffset]):
-                    logger.error(
+                    logger.logerr(
                         "positionalOffset is required for InversionType.positions"
                     )
             case [InversionType.positions, InversionType.both]:
                 if any([x > 0 for x in values.positionalOffset]):
                     values.positionalOffset = [0.0, 0.0, 0.0]
-                    logger.error(
+                    logger.logerr(
                         "positionalOffset is not required for InversionType.gammas"
                     )
 
@@ -281,8 +281,8 @@ class GarposObservation(BaseModel):
     date_utc: datetime
     date_mjd: float
     ref_frame: str = "ITRF2014"
-    shot_data: DataFrame[ObservationData]
-    sound_speed_data: DataFrame[SoundVelocityDataFrame]
+    shot_data: pd.DataFrame
+    sound_speed_data: pd.DataFrame
 
     @field_serializer("date_utc")
     def serialize_date(self, value):
@@ -304,6 +304,7 @@ class GarposObservation(BaseModel):
 
             return ObservationData.validate(value, lazy=True)
         except ValidationError as e:
+            logger.logerr(f"Invalid shot data: {e}")
             raise ValueError(f"Invalid shot data: {e}")
 
     @field_validator("sound_speed_data", mode="before")
@@ -313,6 +314,7 @@ class GarposObservation(BaseModel):
                 value = pd.read_json(value)
             return SoundVelocityDataFrame.validate(value, lazy=True)
         except SchemaErrors as err:
+            logger.logerr(f"Invalid sound speed data: {err.data}")
             raise ValueError(f"Invalid sound speed data: {err.data}")
 
     @field_validator("date_utc", mode="before")
@@ -321,8 +323,11 @@ class GarposObservation(BaseModel):
             try:
                 return datetime.fromisoformat(value)
             except ValueError as e:
+                logger.logerr(f"Invalid date format: {e}")
                 raise ValueError(f"Invalid date format: {e}")
         return value
+    class Config:
+        arbitrary_types_allowed = True
 
 
 class GarposSite(BaseModel):
@@ -350,18 +355,20 @@ class GarposResults(BaseModel):
     center_llh: PositionLLH
     delta_center_position: PositionENU
     transponders: list[Transponder]
-    shot_data: DataFrame[GarposObservationOutput]
+    shot_data: Union[Path, pd.DataFrame]
 
     @field_serializer("shot_data")
     def serialize_shot_data(self, value):
-        return value.to_json(orient="records")
+        return str(value)
     
-    @field_validator("shot_data", mode="before")
-    def validate_shot_data(cls, value):
-        try:
-            if isinstance(value, str):
-                value = pd.read_json(value)
+    class Config:
+        arbitrary_types_allowed = True  
+    # @field_validator("shot_data", mode="before")
+    # def validate_shot_data(cls, value):
+    #     try:
+    #         if isinstance(value, str):
+    #             value = pd.read_json(value)
 
-            return GarposObservationOutput.validate(value, lazy=True)
-        except ValidationError as e:
-            raise ValueError(f"Invalid shot data: {e}")
+    #         return GarposObservationOutput.validate(value, lazy=True)
+    #     except ValidationError as e:
+    #         raise ValueError(f"Invalid shot data: {e}")

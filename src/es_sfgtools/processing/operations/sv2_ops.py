@@ -1,7 +1,7 @@
 import pandas as pd
 from pydantic import BaseModel, Field, ValidationError
 from datetime import datetime, timedelta
-from typing import Optional,Dict,Union,List
+from typing import Optional,Dict,Union,List,Annotated
 import os
 import logging
 import json
@@ -11,13 +11,14 @@ import pymap3d as pm
 from warnings import warn
 import numpy as np
 import re
+from pathlib import Path
 
 from ..assets.constants import STATION_OFFSETS, TRIGGER_DELAY_SV2
-from ..assets.file_schemas import SonardyneFile,NovatelFile
+from ..assets.file_schemas import SonardyneFile,NovatelFile,AssetType,AssetEntry
 from ..assets.observables import AcousticDataFrame, PositionDataFrame,ShotDataFrame
 from ..assets.logmodels import PositionData,RangeData,BestGNSSPOSDATA,get_traveltime,check_sequence_overlap,datetime_to_sod
 
-logger = logging.getLogger(__name__)
+from es_sfgtools.utils.loggers import ProcessLogger as logger
 
 def get_transponder_offsets(line: str) -> Dict[str, float]:
     """
@@ -101,7 +102,7 @@ def sonardyne_to_acousticdf(source: SonardyneFile) -> DataFrame[AcousticDataFram
     """
     if not os.path.exists(source.local_path):
         response = f"File {source.local_path} not found"
-        logger.error(response)
+        logger.logerr(response)
         raise FileNotFoundError(response)
 
     si_pattern = re.compile(">SI:")  # TODO take this out for now
@@ -124,8 +125,7 @@ def sonardyne_to_acousticdf(source: SonardyneFile) -> DataFrame[AcousticDataFram
                     break
                 found_ping = False
             except UnicodeDecodeError as e:
-                error_msg = f"Acoustic Parsing:{e} | Error parsing FILE {source} at LINE {line_number}"
-                logger.error(error_msg)
+                logger.logerr(f"Acoustic Parsing:{e} | Error parsing FILE {source} at LINE {line_number}")
                 pass
 
             # Update transponder time offsets if found
@@ -138,16 +138,13 @@ def sonardyne_to_acousticdf(source: SonardyneFile) -> DataFrame[AcousticDataFram
                     range_data: List[RangeData] = RangeData.from_sv2(line,main_offset_dict)
                     simultaneous_interrogation_set.extend(range_data)
                 except ValidationError as e:
-                    response = f"Error parsing into SimultaneousInterrogation from line {line_number} in {source}\n "
-                    response += f"Line: {next_line}"
-                    logger.error(response)
+                    logger.logerr(f"Error parsing into SimultaneousInterrogation from line {line_number} in {source}\n ")
                     pass
                 
 
     # Check if any Simultaneous Interrogation data was found
     if not simultaneous_interrogation_set:
-        response = f"Acoustic: No Simultaneous Interrogation data in FILE {source}"
-        logger.error(response)
+        logger.logerr(rf"Acoustic: No Simultaneous Interrogation data in FILE {source}")
         return None
 
     df = pd.DataFrame([x.model_dump() for x in simultaneous_interrogation_set]) 
@@ -159,8 +156,7 @@ def sonardyne_to_acousticdf(source: SonardyneFile) -> DataFrame[AcousticDataFram
     )
     shot_count: int = int(acoustic_df.shape[0] / len(unique_transponders))
 
-    log_response = f"Acoustic Parser: {acoustic_df.shape[0]} shots from FILE {source.local_path} | {len(unique_transponders)} transponders | {shot_count} shots per transponder"
-    logger.info(log_response)
+    logger.loginfo(f"Acoustic Parser: {acoustic_df.shape[0]} shots from FILE {source.local_path} | {len(unique_transponders)} transponders | {shot_count} shots per transponder")
     
     acoustic_df = check_sequence_overlap(acoustic_df)
     return AcousticDataFrame.validate(acoustic_df, lazy=True)
@@ -195,14 +191,13 @@ def novatel_to_positiondf(source:NovatelFile) -> DataFrame[PositionDataFrame]:
                         position_data.sdx,position_data.sdy,position_data.sdz = gnssMeta.sdx,gnssMeta.sdy,gnssMeta.sdz
                         data_list.append(position_data.model_dump())
                     except Exception as e:
-                        error_msg = f"IMU Parsing: An error occurred while parsing INVSPA data from FILE {source} at LINE {line_number} \n"
-                        error_msg += f"Error: {line}"
-                        logger.error(error_msg)
+                        logger.logerr(f"IMU Parsing: An error occurred while parsing INVSPA data from FILE {source} at LINE {line_number} \n Error: {line}")
                         pass
+
             except UnicodeDecodeError as e:
-                error_msg = f"Position Parsing:{e} | Error parsing FILE {source.local_path} at LINE {line_number}"
-                logger.error(error_msg)
+                logger.logerr(f"Position Parsing:{e} | Error parsing FILE {source.local_path} at LINE {line_number}")
                 pass
+
     df = pd.DataFrame(data_list).rename(columns={
         "sdx":"east_std",
         "sdy":"north_std",
@@ -210,7 +205,7 @@ def novatel_to_positiondf(source:NovatelFile) -> DataFrame[PositionDataFrame]:
         })
     return PositionDataFrame.validate(df, lazy=True)
 
-def dev_merge_to_shotdata(acoustic: DataFrame[AcousticDataFrame], position:DataFrame[PositionDataFrame]) -> DataFrame[ShotDataFrame]:
+def dev_merge_to_shotdata(acoustic: DataFrame[AcousticDataFrame], position:DataFrame[PositionDataFrame],**kwargs) -> DataFrame[ShotDataFrame]:
     """
     Merge acoustic, imu, and gnss data to create observation data.
     Args:
@@ -224,6 +219,18 @@ def dev_merge_to_shotdata(acoustic: DataFrame[AcousticDataFrame], position:DataF
 
     acoustic["time"] = acoustic["triggerTime"]
     
+    acoustic_min_time = acoustic["time"].min()
+    acoustic_max_time = acoustic["time"].max()
+    position_min_time = position["time"].min()
+    position_max_time = position["time"].max()
+    min_time = max(acoustic_min_time,position_min_time)
+    max_time = min(acoustic_max_time,position_max_time)
+    acoustic = acoustic[(acoustic["time"] >= min_time) & (acoustic["time"] <= max_time)]
+    position = position[(position["time"] >= min_time) & (position["time"] <= max_time)]
+
+    if acoustic.empty or position.empty:
+        logger.logerr("No data found in the time range")
+        raise ValueError("No data found in the time range")
 
     # sort
     acoustic.sort_values("triggerTime",inplace=True)
@@ -285,3 +292,60 @@ def dev_merge_to_shotdata(acoustic: DataFrame[AcousticDataFrame], position:DataF
     output_df["LN"] = "L01"
     return ShotDataFrame.validate(output_df,lazy=True)
 
+# def multiasset_to_shotdata(acoustic_assets:List[MultiAssetEntry],
+    #                        position_assets:List[MultiAssetEntry],
+    #                        working_dir:Path,
+    #                        **kwargs) -> List[MultiAssetEntry]:
+    # """
+    # Merge acoustic, imu, and gnss data to create observation data.
+    # Args:
+    #     acoustic (DataFrame[AcousticDataFrame]): Acoustic data frame.
+    #     imu (DataFrame[IMUDataFrame]): IMU data frame.
+    #     gnss (DataFrame[PositionDataFrame]): GNSS data frame.
+    # Returns:
+    #     DataFrame[ObservationData]: Merged observation data frame.
+    # """
+    # assert all([x.type == AssetType.ACOUSTIC for x in acoustic_assets]), "All assets must be acoustic"
+    # assert all([x.type == AssetType.POSITION for x in position_assets]), "All assets must be position"
+
+    # acoustic_doy_map = {}
+    # position_doy_map = {}
+    # merged_doy_map = {}
+    # for asset in acoustic_assets:
+    #     doy = asset.timestamp_data_start.timetuple().tm_yday
+    #     acoustic_doy_map[doy] = asset
+    # for asset in position_assets:
+    #     doy = asset.timestamp_data_start.timetuple().tm_yday
+    #     position_doy_map[doy] = asset
+
+    # output: List[MultiAssetEntry] = []
+    # for doy,acoustic_asset in acoustic_doy_map.items():
+    #     if doy in position_doy_map:
+    #         position_df = pd.read_csv(position_doy_map[doy].local_path)
+    #         acoustic_df = pd.read_csv(acoustic_asset.local_path)
+    #         try:
+    #             timestamp_data_start = None
+    #             timestamp_data_end = None
+    #             shot_df:DataFrame[ShotDataFrame] = dev_merge_to_shotdata(acoustic_df,position_df)
+    #             for col in shot_df.columns:
+    #                 if pd.api.types.is_datetime64_any_dtype(shot_df[col]):
+    #                     timestamp_data_start = shot_df[col].min()
+    #                     timestamp_data_end = shot_df[col].max()
+    #             local_path = working_dir / f"{acoustic_asset.network}_{acoustic_assets.station}_{acoustic_assets.survey}_shot_data_{doy}.csv"
+    #             shot_df.to_csv(local_path,index=False)
+    #             new_multi_asset = MultiAssetEntry(
+    #                 local_path = str(local_path),
+    #                 type = AssetType.SHOTDATA,
+    #                 network = acoustic_asset.network,
+    #                 station = acoustic_asset.station,
+    #                 survey = acoustic_asset.survey,
+    #                 timestamp_data_start = timestamp_data_start,
+    #                 timestamp_data_end = timestamp_data_end,
+    #                 parent_id = f"{acoustic_asset.id},{position_doy_map[doy].id}"
+    #             )
+    #             output.append(new_multi_asset)
+
+    #         except Exception as e:
+    #             logger.error(f"Error merging acoustic and position data for DOY {doy} {e}")
+    #             continue
+    # return output

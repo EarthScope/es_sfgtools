@@ -21,13 +21,14 @@ class FILE_TYPE(Enum):
     OFFLOAD = "offload"
     QCPIN = "pin"
     NOVATELPIN = "novatelpin"
+    NOVATEL000 = "novatel000"
     CTD = "ctd"
     @classmethod
     def to_schema(cls):
         return [x.name for x in cls]
 
 
-FILE_TYPES = [x.value for x in FILE_TYPE]
+FILE_TYPES = [x for x in FILE_TYPE]
 ALIAS_MAP = {"nov770": "novatel770"}
 ALIAS_MAP = ALIAS_MAP | {x: x for x in FILE_TYPES}
 

@@ -1,6 +1,7 @@
 name: seafloor_geodesy
 channels:
   - defaults
+  - conda-forge
 dependencies: 
   - python=3.11
   - pip
@@ -14,6 +15,7 @@ dependencies:
   - pandera
   - pyarrow
   - pydantic
+  - libtiff
   - pyproj
   - pymap3d
   - boto3
@@ -28,8 +30,11 @@ dependencies:
   - seaborn
   - folium
   - sqlalchemy
+  - tiledb
   - pip:
     - -e .
     - garpos @ git+https://github.com/EarthScope/garpos.git
     - earthscope-sdk
     - earthscope-cli
+    - multipledispatch
+    - multiprocessing_logging

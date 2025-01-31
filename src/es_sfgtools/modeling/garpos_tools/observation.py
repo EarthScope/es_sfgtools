@@ -31,11 +31,20 @@ from ..schemas import AcousticDataFrame, IMUDataFrame, PositionDataFrame
 from ..schemas.file_schemas import MasterFile,SeaBirdFile,NovatelFile,RinexFile,SonardyneFile,LeverArmFile,KinFile
 from ..utils import CoordTransformer
 
+from es_sfgtools.utils.loggers import GarposLogger as logger
+
+
 def avg_transponder_position(
     transponders: List[Transponder],
 ) -> Tuple[PositionENU, PositionLLH]:
     """
     Calculate the average position of the transponders
+
+    Args:
+        transponders: List of transponders
+
+    Returns:
+        Tuple[PositionENU, PositionLLH]: Average position in ENU and LLH
     """
     pos_array_llh = []
     pos_array_enu = []
@@ -66,6 +75,19 @@ def merge_to_shotdata(
     imu: DataFrame[IMUDataFrame],
     gnss: DataFrame[PositionDataFrame],
 ) -> pd.DataFrame:
+    """
+    Merge the acoustic, imu and gnss dataframes into a single dataframe
+
+    Args:
+    acoustic: AcousticDataFrame
+    imu: IMUDataFrame
+    gnss: PositionDataFrame
+
+    Returns:
+    pd.DataFrame: Merged dataframe
+    """
+
+    logger.loginfo("Merging acoustic, imu and gnss dataframes")
 
     acoustic = acoustic.reset_index()
     acoustic.columns = acoustic.columns.str.lower()
@@ -444,7 +466,22 @@ class GarposObservation(BaseModel):
         campaign: str = "Test",
     
     ) -> "GarposObservation":
+        """
+        Create a GarposObservation object from the provided data files
 
+        Args:
+            gnss_data: Union[KinFile,str,pd.DataFrame]
+            imu_data: Union[NovatelFile,str,pd.DataFrame]
+            acoustic_data: Union[SonardyneFile,str,pd.DataFrame]
+            svp_data: SeaBirdFile
+            master_file: MasterFile
+            campaign: str
+
+        Returns:
+            GarposObservation: GarposObservation object
+        """
+        
+        logger.loginfo("Creating GarposObservation object from provided data")
         gnss_df:DataFrame[PositionDataFrame] = PositionDataFrame.load(gnss_data)
 
         # Correct GNSS data for longitude reference (i.e. 200 -> 200-360 = -160)
@@ -501,6 +538,19 @@ class GarposSite(BaseModel):
     def from_file_schema(
         cls, master_file:MasterFile, lever_arm_file:LeverArmFile, name: str = "Test"
     ) -> "GarposSite":
+        """ 
+        Create a GarposSite object from a master file and lever arm file
+
+        Args:
+            master_file: MasterFile
+            lever_arm_file: LeverArmFile
+            name: str
+
+        Returns:
+            GarposSite: GarposSite object
+        """
+
+        logger.loginfo("Creating GarposSite object from master and lever arm files")
         transponder_list, center_llh = master_file.load()
 
         # Generate coord transformer from site center in llh
