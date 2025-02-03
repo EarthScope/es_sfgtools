@@ -32,6 +32,7 @@ dependencies:
   - sqlalchemy
   - tiledb
   - go
+  - go-cgo 
   - pip:
     - -e .
     - garpos @ git+https://github.com/EarthScope/garpos.git

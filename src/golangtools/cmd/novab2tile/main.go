@@ -8,7 +8,7 @@ import (
 	"os"
 
 	log "github.com/sirupsen/logrus"
-	"gitlab.com/earthscope/gnsstools/pkg/encoding/gnss/observation"
+	"gitlab.com/earthscope/gnsstools/pkg/common/gnss/observation"
 	novatelbinary "gitlab.com/earthscope/gnsstools/pkg/encoding/novatel/novatel_binary"
 	"gitlab.com/earthscope/gnsstools/pkg/encoding/tiledbgnss"
 )
