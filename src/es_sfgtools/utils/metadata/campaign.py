@@ -72,11 +72,31 @@ class Campaign(AttributeUpdater):
     end: str = ""
     surveys: List[Survey] = []
 
-    def __init__(self, name: str, additional_data: Dict[str, Any] = None):
+    def __init__(self, name: str = None, additional_data: Dict[str, Any] = None, existing_campaign: dict = None):
+        
+        if existing_campaign:
+            self.import_existing_campaign(existing_campaign)
+            return 
+        
         self.name = name
 
         if additional_data:
             self.update_attributes(additional_data)
+
+    def import_existing_campaign(self, existing_campaign: dict):
+        self.name = existing_campaign.get("name", "")
+        self.vesselCode = existing_campaign.get("vesselCode", "")
+        self.type = existing_campaign.get("type", "")
+        self.principalInvestigator = existing_campaign.get("principalInvestigator", "")
+        self.launchVesselName = existing_campaign.get("launchVesselName", "")
+        self.recoveryVesselName = existing_campaign.get("recoveryVesselName", "")
+        self.cruiseName = existing_campaign.get("cruiseName", "")
+        self.technicianName = existing_campaign.get("technicianName", "")
+        self.technicianContact = existing_campaign.get("technicianContact", "")
+        self.start = existing_campaign.get("start", "")
+        self.end = existing_campaign.get("end", "")
+        self.surveys = [Survey(survey_id=survey["id"], additional_data=survey) for survey in existing_campaign["surveys"]]
+
 
     def to_dict(self) -> Dict[str, Any]:
         """

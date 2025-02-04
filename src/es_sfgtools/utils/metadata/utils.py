@@ -70,10 +70,11 @@ class AttributeUpdater:
             additional_data (Dict[str, Any]): A dictionary of additional attributes to update.
         """
         for key, value in additional_data.items():
-            if hasattr(self, key):
-                setattr(self, key, value)
-            else:
-                print(f"Unknown attribute '{key}' provided in additional data")
+            if value:
+                if hasattr(self, key):
+                    setattr(self, key, value)
+                else:
+                    print(f"Unknown attribute '{key}' provided in additional data")
 
 
 # TODO: add this functionality to the site class in the future

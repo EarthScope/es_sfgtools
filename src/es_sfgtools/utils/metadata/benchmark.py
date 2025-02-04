@@ -4,7 +4,12 @@ from es_sfgtools.utils.metadata.utils import AttributeUpdater
 
 
 class Benchmark(AttributeUpdater):
-    def __init__(self, name: str, additional_data: Dict[str, Any] = None):
+    def __init__(self, name: str = None, additional_data: Dict[str, Any] = None, existing_benchmark: Dict[str, Any] = None):
+
+        if existing_benchmark:
+            self.import_exisiting_benchmark(existing_benchmark)
+            return
+        
         self.name = name
         self.benchmarkID = ""  
         self.dropPointLocation= {'latitude': "", 'longitude': "", 'elevation': ""}
@@ -15,6 +20,21 @@ class Benchmark(AttributeUpdater):
 
         if additional_data:
             self.update_attributes(additional_data)
+
+    def import_exisiting_benchmark(self, existing_benchmark: Dict[str, Any]):
+        """
+        Import an existing benchmark from a dictionary.
+
+        Args:
+            existing_benchmark (Dict[str, Any]): A dictionary containing the existing benchmark data.
+        """
+        self.name = existing_benchmark.get("name", "")
+        self.benchmarkID = existing_benchmark.get("benchmarkID", "")
+        self.dropPointLocation = existing_benchmark.get("dropPointLocation", {'latitude': "", 'longitude': "", 'elevation': ""})
+        self.aPrioriLocation = existing_benchmark.get("aPrioriLocation", {'latitude': "", 'longitude': "", 'elevation': ""})
+        self.start = existing_benchmark.get("start", "")
+        self.end = existing_benchmark.get("end", "")
+        self.transponders = [Transponder(address=transponder["address"], additional_data=transponder) for transponder in existing_benchmark["transponders"]]
 
     def to_dict(self) -> Dict[str, Any]:
         """

@@ -13,6 +13,7 @@ def import_site(filepath: str):
     with open(filepath, 'r') as file:
         return Site(existing_site=json.load(file))
     
+
 top_level_groups = ["referenceFrames", "benchmarks", "campaigns", "surveyVessels"]
 
 button_descriptions = {
@@ -31,7 +32,6 @@ button_descriptions = {
     "delete_benchmark": "Delete benchmark",
     "delete_transponder": "Delete transponder",
     "delete_survey": "Delete survey",
-
 }
 
 buttons = {key: widgets.Button(description=value, button_style='danger', layout=layout) for key, value in button_descriptions.items()}
@@ -58,7 +58,7 @@ class ReferenceFrame(AttributeUpdater):
 
 
 class Site:
-    def __init__(self, names: List[str], networks: List[str] = None, time_of_origin: datetime = None, 
+    def __init__(self, names: List[str] = None, networks: List[str] = None, time_of_origin: str = None, 
     local_geoid_height: float = None, array_center: Dict = None, existing_site: Dict = None) -> None:
         """
         Create a new site object.
@@ -71,15 +71,19 @@ class Site:
             existing_site: Existing site data to import.
         """
 
+        if existing_site:
+            self.import_existing_site(existing_site)
+            return
+
         if time_of_origin <= datetime(year=1990, month=1, day=1):
             print("Time of origin is not a valid date.. Not entering time of origin.")
             time_of_origin = None        
 
         self.names = names
         self.networks = networks if networks else []
-        self.timeOrigin = time_of_origin.strftime('%Y-%m-%dT%H:%M:%S') if time_of_origin else "",
-        self.localGeoidHeight = local_geoid_height
-        self.arrayCenter = array_center if array_center else {}
+        self.timeOrigin = time_of_origin.strftime('%Y-%m-%dT%H:%M:%S') if time_of_origin else " ",
+        self.localGeoidHeight = local_geoid_height if local_geoid_height else ""
+        self.arrayCenter = array_center if array_center else {'x': "", 'y': "", 'z': ""}  
         self.campaigns: List[Campaign] = []
         self.benchmarks: List[Benchmark] = []
         self.referenceFrames: List[ReferenceFrame] = []
@@ -97,7 +101,7 @@ class Site:
             "timeOrigin": self.timeOrigin,
             "localGeoidHeight": self.localGeoidHeight,
             "arrayCenter": self.arrayCenter,
-            "referenceFrames": self.referenceFrames,
+            "referenceFrames": [referenceFrame.to_dict() for referenceFrame in self.referenceFrames],
             "benchmarks": [benchmark.to_dict() for benchmark in self.benchmarks],
             "campaigns": [campaign.to_dict() for campaign in self.campaigns]
         }
@@ -105,12 +109,12 @@ class Site:
     def import_existing_site(self, existing_site: Dict):
         self.names = existing_site.get("names", [])
         self.networks = existing_site.get("networks", [])
-        self.time_of_origin = self.convert_to_datetime(existing_site.get("timeOrigin", ""))
-        self.local_geoid_height = existing_site.get("localGeoidHeight", None)
-        self.array_center = existing_site.get("arrayCenter", {})
-        self.campaigns = [Campaign(**campaign) for campaign in existing_site.get("campaigns", [])]
-        self.benchmarks = [Benchmark(**benchmark) for benchmark in existing_site.get("benchmarks", [])]
-        self.reference_frames = [ReferenceFrame(**rf) for rf in existing_site.get("referenceFrames", [])]
+        self.timeOrigin = existing_site.get("timeOrigin", "")
+        self.localGeoidHeight = existing_site.get("localGeoidHeight", "")
+        self.arrayCenter = existing_site.get("arrayCenter", {})
+        self.campaigns = [Campaign(existing_campaign=campaign) for campaign in existing_site.get("campaigns", [])]
+        self.benchmarks = [Benchmark(existing_benchmark=benchmark) for benchmark in existing_site.get("benchmarks", [])]
+        self.referenceFrames = [ReferenceFrame(name=rf["name"], additional_data=rf) for rf in existing_site.get("referenceFrames", [])]
 
     def new_benchmark(self, benchmark_name: str, benchmark_data: dict, output, event=None):
         """ Add a new benchmark to the site dictionary """
@@ -136,8 +140,6 @@ class Site:
                     benchmark.update_attributes(benchmark_data)
                     print(json.dumps(benchmark.to_dict(), indent=2))
                     return
-                
-            print("Benchmark not found..")
 
     def delete_benchmark(self, benchmark_name: str, output, event=None):
         """ Delete a benchmark from the site dictionary """
@@ -241,8 +243,9 @@ class Site:
                     campaign.update_attributes(campaign_data)
                     print(json.dumps(campaign.to_dict(), indent=2))
                     return
+            
+            print("Campaign not found..")
                 
-            print("Campaign not found..")     
 
     def delete_campaign(self, campaign_name: str, output, event=None):
         """ Delete a campaign from the site dictionary """
