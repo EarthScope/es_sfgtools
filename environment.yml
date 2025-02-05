@@ -30,7 +30,6 @@ dependencies:
   - seaborn
   - folium
   - sqlalchemy
-  - tiledb
   - go
   - go-cgo 
   - conda-forge::gcc
