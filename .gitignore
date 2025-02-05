@@ -37,4 +37,7 @@ build/*
 
 docs/build
 
+<<<<<<< Updated upstream
 *.png
+=======
+>>>>>>> Stashed changes
