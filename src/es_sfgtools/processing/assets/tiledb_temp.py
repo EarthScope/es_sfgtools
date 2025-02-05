@@ -307,5 +307,7 @@ class TDBShotDataArray(TBDArray):
         logger.logdebug(f"Writing dataframe to {self.uri}")
         if validate:
             df_val = self.dataframe_schema.validate(df, lazy=True)
+        else:
+            df_val = df
         df_val.triggerTime = df_val.triggerTime.astype("datetime64[ns]")
         tiledb.from_pandas(str(self.uri), df_val, mode="append")
