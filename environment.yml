@@ -10,7 +10,7 @@ dependencies:
   - pandas
   - matplotlib
   - scikit-learn
-
+  - gfortran
   - julian
   - pandera
   - pyarrow
