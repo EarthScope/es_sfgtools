@@ -31,6 +31,8 @@ button_descriptions = {
     "delete_benchmark": "Delete benchmark",
     "delete_transponder": "Delete transponder",
     "delete_survey": "Delete survey",
+    "add_sensor": "Add sensor to transponder",
+    "add_battery": "Add battery voltage to transponder"
 }
 
 buttons = {key: widgets.Button(description=value, button_style='danger', layout=layout) for key, value in button_descriptions.items()}
@@ -174,6 +176,40 @@ class Site:
             benchmark.transponders.append(Transponder(transponder_address, additional_data=transponder_data))
             print(json.dumps(benchmark.to_dict(), indent=2))
             print("Added transponder to benchmark..")
+
+    def add_sensor_to_transponder(self, benchmark_name: str, transponder_address: str, sensor_data: dict, output, event=None):
+        with output:
+            benchmark = next((b for b in self.benchmarks if b.name == benchmark_name), None)
+            
+            if benchmark is None:
+                print(f"Benchmark {benchmark_name} not found, ensure you have the correct benchmark name")
+                return
+            
+            transponder = next((t for t in benchmark.transponders if t.address == transponder_address), None)
+            
+            if transponder is None:
+                print(f"Transponder with address {transponder_address} not found in benchmark {benchmark_name}")
+                return
+            
+            print("Adding sensor to transponder {} in benchmark {}..".format(transponder_address, benchmark_name))
+            transponder.extraSensors.append(sensor_data)
+
+    def add_battery_voltage_to_transponder(self, benchmark_name: str, transponder_address: str, battery_data: dict, output, event=None):
+        with output:
+            benchmark = next((b for b in self.benchmarks if b.name == benchmark_name), None)
+            
+            if benchmark is None:
+                print(f"Benchmark {benchmark_name} not found, ensure you have the correct benchmark name")
+                return
+            
+            transponder = next((t for t in benchmark.transponders if t.address == transponder_address), None)
+            
+            if transponder is None:
+                print(f"Transponder with address {transponder_address} not found in benchmark {benchmark_name}")
+                return
+            
+            print("Adding battery voltage to transponder {} in benchmark {}..".format(transponder_address, benchmark_name))
+            transponder.batteryVoltage.append(battery_data)
 
 
     def update_existing_transponder(self, benchmark_name: str, transponder_address: str, transponder_data: dict, output, event=None):
