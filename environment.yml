@@ -33,6 +33,13 @@ dependencies:
   - tiledb
   - go
   - go-cgo 
+  - conda-forge::gcc
+  - make
+  - conda-forge::tiledb
+  - libstdcxx-ng
+  - gcc_linux-aarch64
+  - gxx_linux-aarch64
+  - clang
   - pip:
     - -e .
     - garpos @ git+https://github.com/EarthScope/garpos.git
@@ -40,3 +47,5 @@ dependencies:
     - earthscope-cli
     - multipledispatch
     - multiprocessing_logging
+variables:
+  CGO_ENABLED: 1
