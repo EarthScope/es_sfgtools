@@ -10,7 +10,7 @@ dependencies:
   - pandas
   - matplotlib
   - scikit-learn
-  - scikit-sparse
+
   - julian
   - pandera
   - pyarrow
@@ -42,6 +42,7 @@ dependencies:
   - clang
   - pip:
     - -e .
+    - scikit-sparse
     - garpos @ git+https://github.com/EarthScope/garpos.git
     - earthscope-sdk
     - earthscope-cli
