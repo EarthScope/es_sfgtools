@@ -3,9 +3,8 @@ FROM continuumio/miniconda3:latest
 # Enable universe repository and install dependencies
 RUN apt-get update && \
     apt-get install -y software-properties-common && \
-    add-apt-repository universe && \
     apt-get update && \
-    apt-get install -y libsuitesparse-dev
+    apt-get install -y libsuitesparse-dev gfortran
 
 # Set environment variables for SuiteSparse locations
 ENV SUITESPARSE_INCLUDE_DIR=/usr/local/include
