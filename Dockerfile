@@ -13,5 +13,22 @@ ENV SUITESPARSE_LIBRARY_DIR=/usr/lib/aarch64-linux-gnu
 # Copy project files into the container
 COPY . /home/es_sfgtools
 
-# Install dependencies using conda
-RUN cd /home/es_sfgtools && conda env create -f environment.yml
+# Stage 1: build env
+WORKDIR /home/es_sfgtools
+RUN conda env create -f environment.yml 
+
+# Stage 2: build golang binaries
+SHELL ["conda", "run", "-n", "seafloor_geodesy", "/bin/bash", "-c"]
+
+WORKDIR /home/es_sfgtools/src/golangtools/
+RUN pwd &&\
+    echo $(ls) &&\
+    make  
+
+WORKDIR /home/es_sfgtools
+
+# Set up environment
+RUN echo "conda activate seafloor_geodesy" >> ~/.bashrc
+
+# Set entrypoint to bash
+ENTRYPOINT ["bash", "-l"]
