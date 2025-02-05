@@ -20,15 +20,16 @@ CLANG_PATH=$(CONDA_PREFIX)/bin/clang
 PSEUDO_PATH=$(CLANG_PATH)
 CC=clang
 # Build all commands
+#LIBRARY_PATH=$(LIBRARY_PATH) CPATH=$(CPATH) CGO_ENABLED=1 CGO_CFLAGS=$(CGO_CFLAGS)  DYLD_LIBRARY_PATH=$(DYLD_LIBRARY_PATH_CONDA)
+
 build: $(COMMANDS)
 	@mkdir -p $(BUILD_DIR)
 	@for cmd in $(COMMANDS); do \
 		CMD_NAME=$$(basename "$$cmd"); \
-		echo "Command Name: "$$CMD_NAME"";\
+		echo "Command Name: $$CMD_NAME"; \
 		BINARY_NAME=$${CMD_NAME}_$(OS)_$(ARCH); \
 		echo "Building $$BINARY_NAME for $(OS)/$(ARCH)..."; \
-		GOOS=$(OS) GOARCH=$(ARCH) LIBRARY_PATH=$(LIBRARY_PATH) CC=clang CPATH=$(CPATH) CGO_ENABLED=1 CGO_CFLAGS=$(CGO_CFLAGS)  DYLD_LIBRARY_PATH=$(DYLD_LIBRARY_PATH_CONDA)\
-		go build -o $(BUILD_DIR)/$$BINARY_NAME ./cmd/$$CMD_NAME; \
+		env GOOS=$(OS) GOARCH=$(ARCH) go build -o $(BUILD_DIR)/$$BINARY_NAME ./cmd/$$CMD_NAME; \
 	done
 
 
