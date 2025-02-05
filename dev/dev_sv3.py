@@ -20,11 +20,11 @@ if __name__ == "__main__":
 
     network = 'cascadia-gorda'
     station = 'NCC1'
-    survey = '2024_A_1126'
+    campaign = '2024_A_1126'
     
-    dh.change_working_station(network=network,station=station,survey=survey)
+    dh.change_working_station(network=network,station=station,campaign=campaign)
     
-    survey_files = list_survey_files(network=network, station=station, survey=survey, show_details=True)
+    survey_files = list_survey_files(network=network, station=station, survey=campaign, show_details=True)
     dh.add_data_remote(survey_files)
     dh.download_data()
     dh.discover_data_and_add_files(dh.station_dir)
@@ -53,7 +53,7 @@ if __name__ == "__main__":
     # gp_handler_ncc1.run_garpos(-1)
 
     # station = "NFL1"
-    # survey = "2023"
+    # campaign = "2023"
     # main_dir = Path("/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/Cascadia2023/SFGTools")
 
     # dh = DataHandler(main_dir)
@@ -62,7 +62,7 @@ if __name__ == "__main__":
     # NDP1 = main_dir.parent/"NDP1"
     # NFL1 = main_dir.parent/"NFL1"
 
-    # dh.change_working_station(network=network,station="NCL1",survey="2023")
+    # dh.change_working_station(network=network,station="NCL1",campaign="2023")
     # dh.discover_data_and_add_files(
     #     NCL1
     # )
@@ -92,7 +92,7 @@ if __name__ == "__main__":
     # gp_handler.run_garpos()
     # network='alaska-shumagins'
     # site='IVB1'
-    # surveys = ['2018_A_SFG1','2022_A_1049']
+    # campaigns = ['2018_A_SFG1','2022_A_1049']
 
     # dh = DataHandler(Path("/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain"))
     # for survey in surveys:

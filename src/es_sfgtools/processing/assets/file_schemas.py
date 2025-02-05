@@ -96,7 +96,7 @@ class _AssetBase(BaseModel):
     id: Optional[int] = Field(default=None)
     network: Optional[str] = Field(default=None)
     station: Optional[str] = Field(default=None)
-    survey: Optional[str] = Field(default=None)
+    campaign: Optional[str] = Field(default=None)
     is_processed: Optional[bool] = Field(default=False)
 
     timestamp_data_start: Optional[datetime] = Field(default=None)
