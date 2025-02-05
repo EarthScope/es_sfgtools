@@ -35,21 +35,25 @@ def start_and_end_dates(start_date: datetime, end_date: datetime, dict_to_update
 
     # Convert ISO string format to datetime if a string is provided
     try:
-        start_date = convert_to_datetime(start_date)
-        end_date = convert_to_datetime(end_date) 
+        if start_date:
+            start_date = convert_to_datetime(start_date)
+        if end_date:
+            end_date = convert_to_datetime(end_date) 
     except ValueError:
         raise
 
     # Check that it is a reasonable date >1990 and not the default date
-    if start_date >= datetime(year=1990, month=1, day=1):
-        dict_to_update['start'] = start_date.strftime('%Y-%m-%dT%H:%M:%S')
-    else:
-        print("Date too old. Not entering start date.")
+    if start_date:
+        if start_date >= datetime(year=1990, month=1, day=1):
+            dict_to_update['start'] = start_date.strftime('%Y-%m-%dT%H:%M:%S')
+        else:
+            print("Date too old. Not entering start date.")
 
-    if end_date >= datetime(year=1990, month=1, day=1):
-        dict_to_update['end'] = end_date.strftime('%Y-%m-%dT%H:%M:%S')
-    else:
-        print("Date too old. Not entering end date.")
+    if end_date:
+        if end_date >= datetime(year=1990, month=1, day=1):
+            dict_to_update['end'] = end_date.strftime('%Y-%m-%dT%H:%M:%S')
+        else:
+            print("Date too old. Not entering end date.")
 
     # # Check that the start date is not greater than the end date, if so raise an error
     # if dict_to_update['end']:

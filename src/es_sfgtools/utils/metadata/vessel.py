@@ -1,8 +1,13 @@
 import json
-survey_vessels_types = ["insPayloads", "gnssReceivers", "gnssAntennas", "acousticTransducer", 
+from typing import Any, Dict, List
+import ipywidgets as widgets
+
+from es_sfgtools.utils.metadata.utils import AttributeUpdater, layout
+
+survey_vessels_types = ["imuSensors", "gnssReceivers", "gnssAntennas", "acousticTransducer", 
                         "acousticTransceiver", "atdOffsets", "imuSensors"]
 
-vessel_buttons_descriptions = {
+button_descriptions = {
     "new_survey_vessel": "Add new survey vessel",
     "new_imu_sensor": "Add new imu sensor",
     "new_receiver": "Add new GNSS Receiver",
@@ -26,130 +31,371 @@ vessel_buttons_descriptions = {
     "delete_atd": "Delete acoustic to transducer offsets",
 }
 
-def import_vessel(filepath: str):
+buttons = {key: widgets.Button(description=value, button_style='danger', layout=layout) for key, value in button_descriptions.items()}
+
+
+class AtdOffset:
+    def __init__(self, x: str, y: str, z: str):
+        self.x = x
+        self.y = y
+        self.z = z
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "x": self.x,
+            "y": self.y,
+            "z": self.z
+        }
+
+class GnssAntenna(AttributeUpdater):
+    def __init__(self, serial_number: str, additional_data: Dict[str, Any] = None):
+        self.order = ""
+        self.type = ""
+        self.model = ""
+        self.serialNumber = serial_number
+        self.radomeSerialNumber = ""
+        self.start = ""
+        self.end = ""
+
+        if additional_data:
+            self.update_attributes(additional_data)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "order": self.order,
+            "type": self.type,
+            "model": self.model,
+            "serialNumber": self.serialNumber,
+            "radomeSerialNumber": self.radomeSerialNumber,
+            "start": self.start,
+            "end": self.end
+        }
+    
+class GnssReceiver(AttributeUpdater):
+    def __init__(self, serial_number: str, additional_data: Dict[str, Any] = None):
+        self.type = ""
+        self.model = ""
+        self.serialNumber = serial_number
+        self.firmwareVersion = ""
+        self.start = ""
+        self.end = ""
+
+        if additional_data:
+            self.update_attributes(additional_data)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "type": self.type,
+            "model": self.model,
+            "serialNumber": self.serialNumber,
+            "firmwareVersion": self.firmwareVersion,
+            "start": self.start,
+            "end": self.end
+        }
+
+class AcousticTransducer(AttributeUpdater):
+    def __init__(self, serial_number: str, additional_data: Dict[str, Any] = None):
+        self.type = ""
+        self.serialNumber = serial_number
+        self.frequency = ""
+        self.start = ""
+        self.end = ""
+
+        if additional_data:
+            self.update_attributes(additional_data)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "type": self.type,
+            "serialNumber": self.serialNumber,
+            "frequency": self.frequency,
+            "start": self.start,
+            "end": self.end
+        }
+
+class AcousticTransceiver(AttributeUpdater):
+    def __init__(self, serial_number: str, additional_data: Dict[str, Any] = None):
+        self.type = ""
+        self.serialNumber = serial_number
+        self.frequency = ""
+        self.triggerDelay = ""
+        self.delayIncludedInTWTT = ""
+        self.start = ""
+        self.end = ""
+
+        if additional_data:
+            self.update_attributes(additional_data)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "type": self.type,
+            "serialNumber": self.serialNumber,
+            "frequency": self.frequency,
+            "triggerDelay": self.triggerDelay,
+            "delayIncludedInTWTT": self.delayIncludedInTWTT,
+            "start": self.start,
+            "end": self.end
+        }
+    
+class ImuSensor(AttributeUpdater):
+    def __init__(self, serial_number: str, additional_data: Dict[str, Any] = None):
+        self.type = ""
+        self.model = ""
+        self.serialNumber = serial_number
+        self.start = ""
+        self.end = ""
+
+        if additional_data:
+            self.update_attributes(additional_data)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "type": self.type,
+            "model": self.model,
+            "serialNumber": self.serialNumber,
+            "start": self.start,
+            "end": self.end
+        }
+    
+
+
+class Vessel:
+    def __init__(self, name: str = None, type: str = None, model: str = None, serial_number: str = None,
+                 start: str = None, end: str = None, existing_vessel: Dict[str, Any] = None):
+        if existing_vessel:
+            self.import_existing_vessel(existing_vessel)
+        else:
+            self.name = name
+            self.type = type if type else ""
+            self.model = model if model else ""
+            self.serial_number = serial_number if serial_number else ""
+            self.start = start if start else ""
+            self.end = end if end else ""
+            self.atd_offsets: List[AtdOffset] = []
+            self.imu_sensors: List[ImuSensor] = []
+            self.gnss_antennas: List[GnssAntenna] = []
+            self.gnss_receivers: List[GnssReceiver] = []
+            self.acoustic_transducers: List[AcousticTransducer] = []
+            self.acoustic_transceivers: List[AcousticTransceiver] = []
+
+    def import_existing_vessel(self, existing_vessel: Dict[str, Any]):
+        self.name = existing_vessel.get("name", "")
+        self.type = existing_vessel.get("type", "")
+        self.model = existing_vessel.get("model", "")
+        self.serial_number = existing_vessel.get("serialNumber", "")
+        self.start = existing_vessel.get("start", "")
+        self.end = existing_vessel.get("end", "")
+        self.imu_sensors = [ImuSensor(serial_number=sensor["serialNumber"], additional_data=sensor) for sensor in existing_vessel.get("imuSensors", [])]
+        self.atd_offsets = [AtdOffset(**offset) for offset in existing_vessel.get("atdOffsets", [])]
+        self.gnss_antennas = [GnssAntenna(serial_number=antenna["serialNumber"], additional_data=antenna) for antenna in existing_vessel.get("gnssAntennas", [])]
+        self.gnss_receivers = [GnssReceiver(serial_number=receiver["serialNumber"], additional_data=receiver) for receiver in existing_vessel.get("gnssReceivers", [])]
+        self.acoustic_transducers = [AcousticTransducer(serial_number=transducer["serialNumber"], additional_data=transducer) for transducer in existing_vessel.get("acousticTransducer", [])]
+        self.acoustic_transceivers = [AcousticTransceiver(serial_number=transceiver["serialNumber"], additional_data=transceiver) for transceiver in existing_vessel.get("acousticTransceiver", [])]
+        # TODO add GNSS Receiver and INS Payload
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "name": self.name,
+            "type": self.type,
+            "model": self.model,
+            "serialNumber": self.serial_number,
+            "start": self.start,
+            "end": self.end,
+            "imuSensors": [sensor.to_dict() for sensor in self.imu_sensors],
+            "atdOffsets": [offset.to_dict() for offset in self.atd_offsets],
+            "gnssAntennas": [antenna.to_dict() for antenna in self.gnss_antennas],
+            "gnssReceivers": [receiver.to_dict() for receiver in self.gnss_receivers],
+            "acousticTransducer": [transducer.to_dict() for transducer in self.acoustic_transducers],
+            "acousticTransceiver": [transceiver.to_dict() for transceiver in self.acoustic_transceivers]
+        }
+    
+    def new_equipment(self, serial_number: str, equipment_type: str, equipment_data: dict, output, event=None):
+
+        with output:
+            if not serial_number:
+                print("Serial number is required.")
+                
+            if equipment_type not in survey_vessels_types:
+                print(f"Invalid equipment type: {equipment_type}")
+                return
+            
+            print(f"Adding new {equipment_type}..")
+            if equipment_type == "imuSensors":
+                for sensor in self.imu_sensors:
+                    if sensor.serialNumber == serial_number:
+                        print(f"IMU sensor with serial number {serial_number} already exists, choose to update instead.")
+                        print(json.dumps(sensor.to_dict(), indent=2))
+                        return
+                    
+                new_sensor = ImuSensor(serial_number=serial_number, additional_data=equipment_data)
+                self.imu_sensors.append(new_sensor)
+                print(json.dumps(new_sensor.to_dict(), indent=2))
+
+            elif equipment_type == "gnssAntennas":
+                for antenna in self.gnss_antennas:
+                    if antenna.serialNumber == serial_number:
+                        print(f"GNSS antenna with serial number {serial_number} already exists, choose to update instead.")
+                        print(json.dumps(antenna.to_dict(), indent=2))
+                        return
+                    
+                new_antenna = GnssAntenna(serial_number=serial_number, additional_data=equipment_data)
+                self.gnss_antennas.append(new_antenna)
+                print(json.dumps(new_antenna.to_dict(), indent=2))
+
+            elif equipment_type == "gnssReceivers":
+                for receiver in self.gnss_receivers:
+                    if receiver.serialNumber == serial_number:
+                        print(f"GNSS receiver with serial number {serial_number} already exists, choose to update instead.")
+                        print(json.dumps(receiver.to_dict(), indent=2))
+                        return
+                    
+                new_receiver = GnssReceiver(serial_number=serial_number, additional_data=equipment_data)
+                self.gnss_receivers.append(new_receiver)
+                print(json.dumps(new_receiver.to_dict(), indent=2))
+
+            elif equipment_type == "acousticTransducer":
+                for transducer in self.acoustic_transducers:
+                    if transducer.serialNumber == serial_number:
+                        print(f"Acoustic transducer with serial number {serial_number} already exists, choose to update instead.")
+                        print(json.dumps(transducer.to_dict(), indent=2))
+                        return
+                    
+                new_transducer = AcousticTransducer(serial_number=serial_number, additional_data=equipment_data)
+                self.acoustic_transducers.append(new_transducer)
+                print(json.dumps(new_transducer.to_dict(), indent=2))
+
+            elif equipment_type == "acousticTransceiver":
+                for transceiver in self.acoustic_transceivers:
+                    if transceiver.serialNumber == serial_number:
+                        print(f"Acoustic transceiver with serial number {serial_number} already exists, choose to update instead.")
+                        print(json.dumps(transceiver.to_dict(), indent=2))
+                        return
+                    
+                new_transceiver = AcousticTransceiver(serial_number=serial_number, additional_data=equipment_data)
+                self.acoustic_transceivers.append(new_transceiver)
+                print(json.dumps(new_transceiver.to_dict(), indent=2))
+
+            print(f"New {equipment_type} added successfully.")
+
+    def update_equipment(self, serial_number: str, equipment_type: str, equipment_data: dict, output, event=None):
+        with output:
+            if not serial_number:
+                print("Serial number is required.")
+                return
+                
+            if equipment_type not in survey_vessels_types:
+                print(f"Invalid equipment type: {equipment_type}")
+                return
+            
+            print(f"Updating {equipment_type} with serial number {serial_number}..")
+            if equipment_type == "imuSensors":
+                for sensor in self.imu_sensors:
+                    if sensor.serialNumber == serial_number:
+                        sensor.update_attributes(equipment_data)
+                        print(json.dumps(sensor.to_dict(), indent=2))
+                        print(f"IMU sensor with serial number {serial_number} updated successfully.")
+                        return
+                    
+                print(f"IMU sensor with serial number {serial_number} not found.")
+
+            elif equipment_type == "gnssAntennas":
+                for antenna in self.gnss_antennas:
+                    if antenna.serialNumber == serial_number:
+                        antenna.update_attributes(equipment_data)
+                        print(json.dumps(antenna.to_dict(), indent=2))
+                        print(f"GNSS antenna with serial number {serial_number} updated successfully.")
+                        return
+                    
+                print(f"GNSS antenna with serial number {serial_number} not found.")
+
+            elif equipment_type == "gnssReceivers":
+                for receiver in self.gnss_receivers:
+                    if receiver.serialNumber == serial_number:
+                        receiver.update_attributes(equipment_data)
+                        print(json.dumps(receiver.to_dict(), indent=2))
+                        print(f"GNSS receiver with serial number {serial_number} updated successfully.")
+                        return
+                    
+                print(f"GNSS receiver with serial number {serial_number} not found.")
+
+            elif equipment_type == "acousticTransducer":
+                for transducer in self.acoustic_transducers:
+                    if transducer.serialNumber == serial_number:
+                        transducer.update_attributes(equipment_data)
+                        print(json.dumps(transducer.to_dict(), indent=2))
+                        print(f"Acoustic transducer with serial number {serial_number} updated successfully.")
+                        return
+                    
+                print(f"Acoustic transducer with serial number {serial_number} not found.")
+
+            elif equipment_type == "acousticTransceiver":
+                for transceiver in self.acoustic_transceivers:
+                    if transceiver.serialNumber == serial_number:
+                        transceiver.update_attributes(equipment_data)
+                        print(json.dumps(transceiver.to_dict(), indent=2))
+                        print(f"Acoustic transceiver with serial number {serial_number} updated successfully.")
+                        return
+                    
+                print(f"Acoustic transceiver with serial number {serial_number} not found.")
+
+    def delete_equipment(self, serial_number: str, equipment_type: str, output, event=None):
+        with output:
+            if not serial_number:
+                print("Serial number is required.")
+                return
+                
+            if equipment_type not in survey_vessels_types:
+                print(f"Invalid equipment type: {equipment_type}")
+                return
+            
+            print(f"Deleting {equipment_type} with serial number {serial_number}..")
+            if equipment_type == "imuSensors":
+                for i, sensor in enumerate(self.imu_sensors):
+                    if sensor.serialNumber == serial_number:
+                        self.imu_sensors.pop(i)
+                        print(f"IMU sensor with serial number {serial_number} deleted successfully.")
+                        return
+                    
+                print(f"IMU sensor with serial number {serial_number} not found.")
+
+            elif equipment_type == "gnssAntennas":
+                for i, antenna in enumerate(self.gnss_antennas):
+                    if antenna.serialNumber == serial_number:
+                        self.gnss_antennas.pop(i)
+                        print(f"GNSS antenna with serial number {serial_number} deleted successfully.")
+                        return
+                    
+                print(f"GNSS antenna with serial number {serial_number} not found.")
+
+            elif equipment_type == "gnssReceivers":
+                for i, receiver in enumerate(self.gnss_receivers):
+                    if receiver.serialNumber == serial_number:
+                        self.gnss_receivers.pop(i)
+                        print(f"GNSS receiver with serial number {serial_number} deleted successfully.")
+                        return
+                    
+                print(f"GNSS receiver with serial number {serial_number} not found.")
+
+            elif equipment_type == "acousticTransducer":
+                for i, transducer in enumerate(self.acoustic_transducers):
+                    if transducer.serialNumber == serial_number:
+                        self.acoustic_transducers.pop(i)
+                        print(f"Acoustic transducer with serial number {serial_number} deleted successfully.")
+                        return
+                    
+                print(f"Acoustic transducer with serial number {serial_number} not found.")
+
+            elif equipment_type == "acousticTransceiver":
+                for i, transceiver in enumerate(self.acoustic_transceivers):
+                    if transceiver.serialNumber == serial_number:
+                        self.acoustic_transceivers.pop(i)
+                        print(f"Acoustic transceiver with serial number {serial_number} deleted successfully.")
+                        return
+                    
+                print(f"Acoustic transceiver with serial number {serial_number} not found.")
+
+def import_vessel(filepath: str) -> Vessel:
     """Import vessel data from a JSON file."""
     with open(filepath, 'r') as file:
         return Vessel(existing_vessel=json.load(file))
 
-class Vessel:
-    def __init__(self, name, existing_vessel: dict = None) -> None:
-
-        if existing_vessel:
-            self.vessel = existing_vessel
-        else:
-            self.vessel = {
-                "name": name,
-                "insPayloads": [],
-                "gnssReceivers": [],
-                "gnssAntennas": [],
-                "acousticTransducer": [],
-                "acousticTransceiver": [],
-                "atdOffsets": [],
-                "imuSensors": []
-            }
-
-    def export_vesel(self, filepath: str):
-        """Export site data to a JSON file."""
-
-        print("Exporting vessel data to: " + filepath)
-        with open(filepath, 'w') as file:
-            json.dump(self.vessel, file, indent=4)
-        print("Exported vessel data to: " + filepath)
-
-    def add_survey_vessel_equipment(self, primary_vessel_name: str, equipment_name: str, equipment_data_input: dict, output, event=None):
-        with output:
-            print(f"Adding {equipment_name} to {primary_vessel_name}..")
-            if equipment_name not in survey_vessels_types:
-                print("Survey vessel equipment type not found, ensure you have the correct vessel type")
-                return
-            
-            if equipment_data_input["serialNumber"] == "":
-                print("Serial number not provided, please provide a serial number..")
-                return
-
-            vessel = next((primary_vessel for primary_vessel in self.site["surveyVessels"] if primary_vessel["name"] == primary_vessel_name), None)
-            if vessel is None:
-                print("Primary survey vessel {} not found, ensure you have the correct vessel name".format(primary_vessel_name))
-                return
-
-            if equipment_name not in vessel:
-                vessel[equipment_name] = [equipment_data_input]
-                print(f"Added {equipment_name} to {primary_vessel_name}")
-                print(json.dumps(self.site["surveyVessels"], indent=2))
-                return
-
-            existing_equipment = next((e for e in vessel[equipment_name] if e["serialNumber"] == equipment_data_input["serialNumber"]), None)
-            if existing_equipment:
-                print("Equipment {} with serial number {} already exists..".format(equipment_name, equipment_data_input["serialNumber"]))
-                return
-
-            vessel[equipment_name].append(equipment_data_input)
-            print(f"Added {equipment_name} to {primary_vessel_name}")
-
-            print(json.dumps(self.site["surveyVessels"], indent=2))
-
-
-    def existing_vessel_equipment(self, primary_vessel_name: str, equipment_name: str, equipment: dict, output, event=None):
-        """ Update existing equipment on a survey vessel using the serial number """
-        with output:
-            if equipment_name not in survey_vessels_types:
-                print("Survey vessel equipment type not found, ensure you have the correct vessel type")
-                return
-
-            if not equipment.get("serialNumber"):
-                print("Serial number not provided, serial number is required for updating..")
-                return
-
-            vessel = next((primary_vessel for primary_vessel in self.site["surveyVessels"] if primary_vessel["name"] == primary_vessel_name), None)
-            if vessel is None:
-                print(f"Survey vessel {primary_vessel_name} not found")
-                return
-
-            equipment_list = vessel.get(equipment_name, [])
-            existing_equipment = next((equip for equip in equipment_list if equip["serialNumber"] == equipment["serialNumber"]), None)
-            if existing_equipment is None:
-                print(f"Equipment {equipment_name} with serial number {equipment['serialNumber']} not found on vessel {primary_vessel_name}")
-                return
-
-            for key, value in equipment.items():
-                if value:
-                    existing_equipment[key] = value
-
-            print(f"Updated {equipment_name} with serial number {equipment['serialNumber']}")
-            print(json.dumps(self.site["surveyVessels"], indent=2))
-
-    def existing_survey_vessel(self, survey_vessel_name: str, survey_vessel_input: dict, output, event=None):
-        with output:
-            for i in range(len(self.site["surveyVessels"])):
-                site_survey_vessel_name =  self.site["surveyVessels"][i]["name"]
-
-                if site_survey_vessel_name == survey_vessel_name:
-                    print("Updating " + site_survey_vessel_name)
-
-                    for key, value in survey_vessel_input.items():
-                        if value:
-                            self.site["surveyVessels"][i][key] = value
-
-                    print("Updated survey vessel " + site_survey_vessel_name)
-                    print(json.dumps(self.site["surveyVessels"], indent=2))
-                    break
-            else:
-                print("Survey vessel not found, ensure you have the correct survey vessel name")
-
-    def add_atd_offsets(self, primary_vessel_name: str, atd_data_input: dict, output, event=None):
-        with output:
-            print("Adding acoustic to transducer offsets to survey vessel..")
-            if not atd_data_input['x'] or not atd_data_input['y'] or not atd_data_input['z']:
-                print("Offsets not provided, please provide all offsets..")
-                return
-            
-            vessel = next((primary_vessel for primary_vessel in self.site["surveyVessels"] if primary_vessel["name"] == primary_vessel_name), None)
-            if vessel is None:
-                print("Primary survey vessel {} not found, ensure you have the correct vessel name".format(primary_vessel_name))
-                return
-            
-            if "atdOffsets" not in vessel:
-                vessel["atdOffsets"] = [atd_data_input]
-                print("Added acoustic to transducer offsets to survey vessel")
-                print(json.dumps(self.site["surveyVessels"], indent=2))
-                return

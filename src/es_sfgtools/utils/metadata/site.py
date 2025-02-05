@@ -1,7 +1,6 @@
 import json
 from datetime import datetime
 import ipywidgets as widgets
-from ipywidgets import Layout
 from typing import Any, Union, Dict, List
 
 from es_sfgtools.utils.metadata.benchmark import Benchmark, Transponder
