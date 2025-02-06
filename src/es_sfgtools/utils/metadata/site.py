@@ -117,42 +117,39 @@ class Site:
         self.benchmarks = [Benchmark(existing_benchmark=benchmark) for benchmark in existing_site.get("benchmarks", [])]
         self.referenceFrames = [ReferenceFrame(name=rf["name"], additional_data=rf) for rf in existing_site.get("referenceFrames", [])]
 
-    def new_benchmark(self, benchmark_name: str, benchmark_data: dict, output, event=None):
+    def new_benchmark(self, benchmark_name: str, benchmark_data: dict):
         """ Add a new benchmark to the site dictionary """
-        with output:
-            for benchmark in self.benchmarks:
-                if benchmark.name == benchmark_name:
-                    print("Benchmark already exists.. Choose to update or delete if needed")
-                    print(json.dumps(benchmark.to_dict(), indent=2))
-                    return
+        for benchmark in self.benchmarks:
+            if benchmark.name == benchmark_name:
+                print("Benchmark already exists.. Choose to update or delete if needed")
+                print(json.dumps(benchmark.to_dict(), indent=2))
+                return
             
-            print("Adding new benchmark..")
-            new_benchmark = Benchmark(benchmark_name, additional_data=benchmark_data)
-            self.benchmarks.append(new_benchmark)
-            print(json.dumps(new_benchmark.to_dict(), indent=2))
+        print("Adding new benchmark..")
+        new_benchmark = Benchmark(benchmark_name, additional_data=benchmark_data)
+        self.benchmarks.append(new_benchmark)
+        print(json.dumps(new_benchmark.to_dict(), indent=2))
 
 
-    def update_existing_benchmark(self, benchmark_name: str, benchmark_data: dict, output, event=None):
+    def update_existing_benchmark(self, benchmark_name: str, benchmark_data: dict):
         """ Update an existing benchmark in the site dictionary """
-        with output:
-            print("Updating existing benchmark..")
-            for benchmark in self.benchmarks:
-                if benchmark.name == benchmark_name:
-                    benchmark.update_attributes(benchmark_data)
-                    print(json.dumps(benchmark.to_dict(), indent=2))
-                    return
+        print("Updating existing benchmark..")
+        for benchmark in self.benchmarks:
+            if benchmark.name == benchmark_name:
+                benchmark.update_attributes(benchmark_data)
+                print(json.dumps(benchmark.to_dict(), indent=2))
+                return
 
-    def delete_benchmark(self, benchmark_name: str, output, event=None):
+    def delete_benchmark(self, benchmark_name: str):
         """ Delete a benchmark from the site dictionary """
-        with output:
-            print("Deleting benchmark..")
-            for benchmark in self.benchmarks:
-                if benchmark.name == benchmark_name:
-                    self.benchmarks.remove(benchmark)
-                    print("Deleted benchmark..")
-                    return
-                
-            print("Benchmark not found..")
+        print("Deleting benchmark..")
+        for benchmark in self.benchmarks:
+            if benchmark.name == benchmark_name:
+                self.benchmarks.remove(benchmark)
+                print("Deleted benchmark..")
+                return
+            
+        print("Benchmark not found..")
 
     def new_transponder(self, benchmark_name: str, transponder_address, transponder_data: dict, output, event=None):
         """ Add a new transponder to a benchmark in the site dictionary """
