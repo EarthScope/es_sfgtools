@@ -12,7 +12,6 @@ WORKDIR /home/es_sfgtools
 # Enable universe repository and install dependencies
 RUN apt-get update && \
     apt-get install -y software-properties-common && \
-    apt-get update && \
     apt-get install -y libsuitesparse-dev gfortran && \
     apt-get install -y build-essential &&\
     conda env create -f environment.yml &&\
@@ -26,10 +25,21 @@ SHELL ["conda", "run", "-n", "seafloor_geodesy", "/bin/bash", "-c"]
 WORKDIR /home/es_sfgtools/src/golangtools/
 RUN make  
 
-WORKDIR /home/es_sfgtools
+# Stage 3: install pride
+WORKDIR /home
+RUN git clone --depth 1 https://github.com/PrideLab/PRIDE-PPPAR.git
 
+ENV WORK_DIR /home/PRIDE-PPPAR
+# Install the software
+RUN cd $WORK_DIR &&\
+    chmod +x install.sh &&\
+    echo "Y" | HOME=/home ./install.sh 
+
+WORKDIR /home/es_sfgtools
+SHELL ["conda", "run", "-n", "seafloor_geodesy", "/bin/bash", "-c"]
 # Set up environment
-RUN echo "conda activate seafloor_geodesy" >> ~/.bashrc
+RUN echo "conda activate seafloor_geodesy" >> ~/.bashrc &&\
+    echo "export PATH=/home/.PRIDE_PPPAR_BIN:$PATH" >> ~/.bashrc
 
 # Set entrypoint to bash
 ENTRYPOINT ["bash", "-l"]
