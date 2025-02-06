@@ -27,8 +27,11 @@ from .pride_utils import get_nav_file,get_gnss_products
 
 from es_sfgtools.utils.loggers import GNSSLogger as logger
 
+RINEX_BINARIES = Path("src/golangtools/build").resolve()
 
-RINEX_BINARIES = Path(__file__).resolve().parent / "binaries/"
+if not any(RINEX_BINARIES.iterdir()):
+    raise UserWarning(f'Golang binaries not built. Navigate to {RINEX_BINARIES.parent()} and run "make"' )
+
 
 PRIDE_PPP_LOG_INDEX = {
     0: "modified_julian_date",
@@ -44,42 +47,42 @@ PRIDE_PPP_LOG_INDEX = {
 }
 
 RINEX_BIN_PATH = {
-    "darwin_amd64": RINEX_BINARIES / "nova2rnxo-darwin-amd64",
-    "darwin_arm64": RINEX_BINARIES / "nova2rnxo-darwin-arm64",
-    "linux_amd64": RINEX_BINARIES / "nova2rnxo-linux-amd64",
-    "linux_arm64": RINEX_BINARIES / "nova2rnxo-linux-arm64",
+    "darwin_amd64": RINEX_BINARIES / "nova2rnxo_darwin_amd64",
+    "darwin_arm64": RINEX_BINARIES / "nova2rnxo_darwin_arm64",
+    "linux_amd64": RINEX_BINARIES / "nova2rnxo_linux_amd64",
+    "linux_arm64": RINEX_BINARIES / "nova2rnxo_linux_arm64",
 }
 
 
 RINEX_BIN_PATH_BINARY = {
-    "darwin_amd64": RINEX_BINARIES / "novb2rnxo-darwin-amd64",
-    "darwin_arm64": RINEX_BINARIES / "novb2rnxo-darwin-arm64",
-    "linux_amd64": RINEX_BINARIES / "novb2rnxo-linux-amd64",
-    "linux_arm64": RINEX_BINARIES / "novb2rnxo-linux-arm64",
+    "darwin_amd64": RINEX_BINARIES / "novb2rnxo_darwin_amd64",
+    "darwin_arm64": RINEX_BINARIES / "novb2rnxo_darwin_arm64",
+    "linux_amd64": RINEX_BINARIES / "novb2rnxo_linux_amd64",
+    "linux_arm64": RINEX_BINARIES / "novb2rnxo_linux_arm64",
 }
 
 NOVA2TILE_BIN_PATH = {
-    "darwin_arm64": RINEX_BINARIES / "nova2tile-darwin-arm64",
-    "linux_amd64": RINEX_BINARIES / "nova2tile-linux-amd64",
-    "linux_arm64": RINEX_BINARIES / "nova2tile-linux-arm64",
+    "darwin_arm64": RINEX_BINARIES / "nova2tile_darwin_arm64",
+    "linux_amd64": RINEX_BINARIES / "nova2tile_linux_amd64",
+    "linux_arm64": RINEX_BINARIES / "nova2tile_linux_arm64",
 }
 
 NOVB2TILE_BIN_PATH = {
-    "darwin_arm64": RINEX_BINARIES / "novab2tile-darwin-arm64",
-    "linux_amd64": RINEX_BINARIES / "novab2tile-linux-amd64",
-    "linux_arm64": RINEX_BINARIES / "novab2tile-linux-arm64",
+    "darwin_arm64": RINEX_BINARIES / "novab2tile_darwin_arm64",
+    "linux_amd64": RINEX_BINARIES / "novab2tile_linux_amd64",
+    "linux_arm64": RINEX_BINARIES / "novab2tile_linux_arm64",
 }
 
 NOV0002TILE_BIN_PATH = {
-    "darwin_arm64": RINEX_BINARIES / "nov0002tile-darwin-arm64",
-    "linux_amd64": RINEX_BINARIES / "nov0002tile-linux-amd64",
-    "linux_arm64": RINEX_BINARIES / "nov0002tile-linux-arm64",
+    "darwin_arm64": RINEX_BINARIES / "nov0002tile_darwin_arm64",
+    "linux_amd64": RINEX_BINARIES / "nov0002tile_linux_amd64",
+    "linux_arm64": RINEX_BINARIES / "nov0002tile_linux_arm64",
 }
 
 TILE2RINEX_BIN_PATH = {
-    "darwin_arm64": RINEX_BINARIES / "tdb2rnx-darwin-arm64",
-    "linux_amd64": RINEX_BINARIES / "tdb2rnx-linux-amd64",
-    "linux_arm64": RINEX_BINARIES / "tdb2rnx-linux-arm64",
+    "darwin_arm64": RINEX_BINARIES / "tdb2rnx_darwin_arm64",
+    "linux_amd64": RINEX_BINARIES / "tdb2rnx_linux_amd64",
+    "linux_arm64": RINEX_BINARIES / "tdb2rnx_linux_arm64",
 }
 
 class PridePPP(BaseModel):
@@ -1146,3 +1149,6 @@ def tile2rinex(rangea_tdb:Path,settings:Path,writedir:Path,n_procs:int=10) -> Li
             rinex_assets.append(rinex_asset)
 
     return rinex_assets
+
+if __name__ == "__main__":
+    print(GOLANG_BINARIES)
