@@ -497,19 +497,19 @@ def novatel_to_rinex_batch(
         List[AssetEntry]: List of AssetEntry objects representing the converted RINEX files.
 
     Examples:
-        >>> asset_entry_0 = AssetEntry(local_path="/path/to/NCB1_09052024_NOV777.raw", type=AssetType.NOVATEL, network="NCB", station="NCB1", survey="JULY2024")
-        >>> asset_entry_1 = AssetEntry(local_path="/path/to/NCB1_09062024_NOV777.raw", type=AssetType.NOVATEL, network="NCB", station="NCB1", survey="JULY2024")
+        >>> asset_entry_0 = AssetEntry(local_path="/path/to/NCB1_09052024_NOV777.raw", type=AssetType.NOVATEL, network="NCB", station="NCB1", campaign="JULY2024")
+        >>> asset_entry_1 = AssetEntry(local_path="/path/to/NCB1_09062024_NOV777.raw", type=AssetType.NOVATEL, network="NCB", station="NCB1", campaign="JULY2024")
         >>> writedir = Path("/writedir")
         >>> rinex_assets: List[AssetEntry] = novatel_to_rinex([asset_entry_0, asset_entry_1], writedir, show_details=True)
         >>> rinex_assets[0].model_dump()
-        {'local_path': '/writedir/NCB1_09052024_NOV777.raw', 'type': 'rinex', 'network': 'NCB', 'station': 'NCB1', 'survey': 'JULY2024', 'timestamp_created': datetime.datetime(2024, 7, 9, 12, 0, 0, 0)}
+        {'local_path': '/writedir/NCB1_09052024_NOV777.raw', 'type': 'rinex', 'network': 'NCB', 'station': 'NCB1', 'campaign': 'JULY2024', 'timestamp_created': datetime.datetime(2024, 7, 9, 12, 0, 0, 0)}
     """
     assert len(set([x.type for x in source])) == 1, "All sources must be of the same type"
 
     source_type = source[0].type
     site = source[0].station
     network = source[0].network
-    survey = source[0].survey
+    campaign = source[0].campaign
     station = source[0].station
 
     if isinstance(writedir, str):
@@ -532,7 +532,7 @@ def novatel_to_rinex_batch(
             type=AssetType.RINEX,
             network=network,
             station=station,
-            survey=survey,
+            campaign=campaign,
             timestamp_created=datetime.now(),
         )
         rinex_asset = rinex_get_meta(rinex_asset)
@@ -607,16 +607,16 @@ def rinex_to_kin(
         UserWarning: If no kin file is generated from the RINEX file.
 
     Examples:
-        >>> source = AssetEntry(local_path="/path/to/NCB12450.24o", type=AssetType.RINEX, network="NCB", station="NCB1", survey="JULY2024")
+        >>> source = AssetEntry(local_path="/path/to/NCB12450.24o", type=AssetType.RINEX, network="NCB", station="NCB1", campaign="JULY2024")
         >>> writedir = Path("/writedir")
         >>> pridedir = Path("/pridedir")
         >>> pride_ouput: List[AssetEntry] = rinex_to_kin(source, writedir, pridedir, site="NCB1", show_details=True)
         >>> kin_asset = pride_ouput[0]
         >>> kin_asset.model_dump()
-        {'local_path': '/writedir/NCB12450.24o.kin', 'type': 'kin', 'network': 'NCB', 'station': 'NCB1', 'survey': 'JULY2024', 'timestamp_created': datetime.datetime(2024, 7, 9, 12, 0, 0, 0)}
+        {'local_path': '/writedir/NCB12450.24o.kin', 'type': 'kin', 'network': 'NCB', 'station': 'NCB1', 'campaign': 'JULY2024', 'timestamp_created': datetime.datetime(2024, 7, 9, 12, 0, 0, 0)}
         >>> res_asset = pride_ouput[1]
         >>> res_asset.model_dump()
-        {'local_path': '/writedir/NCB12450.24o.res', 'type': 'kinresiduals', 'network': 'NCB', 'station': 'NCB1', 'survey': 'JULY2024', 'timestamp_created': datetime.datetime(2024, 7, 9, 12, 0, 0, 0)}
+        {'local_path': '/writedir/NCB12450.24o.res', 'type': 'kinresiduals', 'network': 'NCB', 'station': 'NCB1', 'campaign': 'JULY2024', 'timestamp_created': datetime.datetime(2024, 7, 9, 12, 0, 0, 0)}
     """
 
     # Check if the pride binary is in the path
@@ -703,7 +703,7 @@ def rinex_to_kin(
             local_path=kin_file_new,
             network=source.network,
             station=source.station,
-            survey=source.survey,
+            campaign=source.campaign,
         )
         logger.loginfo(f"Converted RINEX file {source.local_path} to kin file {kin_file.local_path}")
 
@@ -719,7 +719,7 @@ def rinex_to_kin(
             local_path=res_file_new,
             network=source.network,
             station=source.station,
-            survey=source.survey,
+            campaign=source.campaign,
         )
         logger.loginfo(f"Found PRIDE res file {res_file.local_path}")
   

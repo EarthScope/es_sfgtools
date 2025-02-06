@@ -21,9 +21,11 @@ if __name__ == "__main__":
 
     network = "cascadia-gorda"
     station = "NCC1"
-    survey = "2024_A_1126"
 
-    dh.change_working_station(network=network, station=station, survey=survey)
+    campaign = "2024_A_1126"
+
+    dh.change_working_station(network=network, station=station, campaign=campaign)
+
 
     #
     # sv3_pipeline,config = dh.get_pipeline_sv3()
@@ -56,6 +58,8 @@ if __name__ == "__main__":
     update_dict = {"rejectcriteria": 2.5,"log_lambda":[0]}
 
     gp_handler_ncc1.set_inversion_params(update_dict)
-    gp_handler_ncc1.run_garpos(survey_id="2024_A_1126_2",run_id=3,override=True)
+
+    gp_handler_ncc1.run_garpos(campaign_id="2024_A_1126_2",run_id=3,override=True)
+
     gp_handler_ncc1.plot_ts_results("2024_A_1126_2",3,res_filter=51)
     print("Done")
