@@ -6,7 +6,7 @@ from es_sfgtools.utils.metadata.utils import AttributeUpdater, only_one_is_true
 survey_vessels_types = ["imuSensors", "gnssReceivers", "gnssAntennas", "acousticTransducer", 
                         "acousticTransceiver", "atdOffsets", "imuSensors"]
 
-class AtdOffset:
+class AtdOffset(AttributeUpdater):
     def __init__(self, transducer_serial_number, additional_data: Dict[str, Any] = None):
         self.transducerSerialNumber = transducer_serial_number
         self.x = ""
@@ -277,6 +277,10 @@ class Vessel:
             new_offset = AtdOffset(serial_number, equipment_data)
             self.atd_offsets.append(new_offset)
             print(json.dumps(new_offset.to_dict(), indent=2))
+
+        else:
+            print(f"Invalid equipment type: {equipment_type}")
+            return
 
         print(f"New {equipment_type} added successfully.")
 
