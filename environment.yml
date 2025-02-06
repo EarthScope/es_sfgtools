@@ -36,8 +36,6 @@ dependencies:
   - make
   - conda-forge::tiledb
   - libstdcxx-ng
-  - gcc_linux-aarch64
-  - gxx_linux-aarch64
   - clang
   - pip:
     - -e .
