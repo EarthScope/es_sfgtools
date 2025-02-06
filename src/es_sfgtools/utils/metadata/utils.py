@@ -76,10 +76,17 @@ class AttributeUpdater:
         for key, value in additional_data.items():
             if value:
                 if hasattr(self, key):
+                    print(f"Updating attribute '{key}' with value '{value}'")
                     setattr(self, key, value)
                 else:
                     print(f"Unknown attribute '{key}' provided in additional data")
 
+
+def only_one_is_true(*args):
+    """
+    Check that only one of the arguments is True.
+    """
+    return sum(args) == 1
 
 # TODO: add this functionality to the site class in the future
 # def existing_atd_offsets(self, primary_vessel_name: str, atd_data_input: dict, output, event=None):
