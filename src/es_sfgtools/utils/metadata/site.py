@@ -146,9 +146,9 @@ class Site:
         """ Delete a benchmark from the site dictionary """
         with output:
             print("Deleting benchmark..")
-            for i, benchmark in enumerate(self.benchmarks):
+            for benchmark in self.benchmarks:
                 if benchmark.name == benchmark_name:
-                    self.benchmarks.pop(i)
+                    self.benchmarks.remove(benchmark)
                     print("Deleted benchmark..")
                     return
                 
@@ -246,12 +246,11 @@ class Site:
                 return
             
             print("Deleting transponder in benchmark {}..".format(benchmark_name))
-            for i, transponder in enumerate(benchmark.transponders):
+            for transponder in benchmark.transponders:
                 if transponder.address == transponder_address:
-                    benchmark.transponders.pop(i)
-                    print("Deleted transponder..")
+                    benchmark.transponders.remove(transponder)
                     return
-                
+
             print("Transponder not found..")
                 
 
@@ -286,9 +285,9 @@ class Site:
         """ Delete a campaign from the site dictionary """
         with output:
             print("Deleting campaign..")
-            for i, campaign in enumerate(self.campaigns):
+            for campaign in self.campaigns:
                 if campaign.name == campaign_name:
-                    self.campaigns.pop(i)
+                    self.campaigns.remove(campaign)
                     print("Deleted campaign..")
                     return
                 
@@ -343,9 +342,9 @@ class Site:
                 return
             
             print("Deleting survey {} in campaign {}..".format(survey_id, campaign_name))
-            for i, survey in enumerate(campaign.surveys):
+            for survey in campaign.surveys:
                 if survey.id == survey_id:
-                    campaign.surveys.pop(i)
+                    campaign.surveys.remove(survey)
                     print("Deleted survey..")
                     return
                 
@@ -382,9 +381,9 @@ class Site:
         """ Delete a reference frame from the site dictionary """
         with output:
             print("Deleting reference frame..")
-            for i, reference_frame in enumerate(self.referenceFrames):
+            for reference_frame in self.referenceFrames:
                 if reference_frame.name == reference_frame_name:
-                    self.referenceFrames.pop(i)
+                    self.referenceFrames.remove(reference_frame)
                     print("Deleted reference frame..")
                     return
                 
