@@ -95,6 +95,11 @@ class Site:
         self.benchmarks = [Benchmark(existing_benchmark=benchmark) for benchmark in existing_site.get("benchmarks", [])]
         self.referenceFrames = [ReferenceFrame(name=rf["name"], additional_data=rf) for rf in existing_site.get("referenceFrames", [])]
 
+    def export_site(self, filepath: str):
+        """Export site data to a JSON file."""
+        with open(filepath, 'w') as file:
+            json.dump(self.to_dict(), file, indent=2)
+
     def new_benchmark(self, benchmark_name: str, benchmark_data: dict):
         """ Add a new benchmark to the site dictionary """
 

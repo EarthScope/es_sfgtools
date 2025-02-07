@@ -168,7 +168,10 @@ class Vessel:
         self.gnss_receivers = [GnssReceiver(serial_number=receiver["serialNumber"], additional_data=receiver) for receiver in existing_vessel.get("gnssReceivers", [])]
         self.acoustic_transducers = [AcousticTransducer(serial_number=transducer["serialNumber"], additional_data=transducer) for transducer in existing_vessel.get("acousticTransducer", [])]
         self.acoustic_transceivers = [AcousticTransceiver(serial_number=transceiver["serialNumber"], additional_data=transceiver) for transceiver in existing_vessel.get("acousticTransceiver", [])]
-        # TODO add GNSS Receiver and INS Payload
+
+    def export_vessel(self, filepath: str):
+        with open(filepath, 'w') as file:
+            json.dump(self.to_dict(), file, indent=2)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
