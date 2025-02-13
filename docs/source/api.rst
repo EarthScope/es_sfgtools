@@ -48,4 +48,5 @@ This section includes utility modules in the `es_sfgtools` package.
    :glob:
    :maxdepth: 1
 
+   api/es_sfgtools.utils.metadata.*
    api/es_sfgtools.utils.*
