@@ -312,7 +312,7 @@ class SV3InterrogationData(BaseModel):
         return cls.from_schemas(position_data, triggerTime_dt)
 
     @classmethod
-    def from_qcpin_line(cls, line) -> "InterrogationData":
+    def from_qcpin_line(cls, line) -> "SV3InterrogationData":
         position_data = PositionData.from_sv3_novins(
             line.get("observations").get("NOV_INS")
         )
@@ -340,7 +340,7 @@ class SV3ReplyData(BaseModel):
         cls,
         positionData: PositionData,
         rangeData: RangeData,
-    ) -> "ReplyData":
+    ) -> "SV3ReplyData":
 
         if rangeData.range == 0:
             return None
@@ -350,11 +350,13 @@ class SV3ReplyData(BaseModel):
             triggerDelay=TRIGGER_DELAY_SV3,
         )[0]
 
-        returnTime_sod = datetime_to_sod(
-            rangeData.time
-        )
-        pingTime_sod = returnTime_sod - travelTime
+        # returnTime_sod = datetime_to_sod(
+        #     rangeData.time
+        # )
+        # pingTime_sod = returnTime_sod - travelTime
 
+        returnTime = rangeData.time.timestamp()
+        pingTime = returnTime - travelTime
         return cls(
             head1=positionData.head,
             pitch1=positionData.pitch,
@@ -368,8 +370,8 @@ class SV3ReplyData(BaseModel):
             xc=rangeData.xc,
             tt=travelTime,
             tat=rangeData.tat,
-            pingTime=pingTime_sod,
-            returnTime=returnTime_sod,
+            pingTime=pingTime,
+            returnTime=returnTime,
         )
 
     @classmethod

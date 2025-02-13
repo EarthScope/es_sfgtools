@@ -1,5 +1,5 @@
-from pydantic import BaseModel
-from typing import Optional,List,Union
+from pydantic import BaseModel, Field,model_validator,model_serializer,AliasChoices,field_validator
+from typing import Optional,List,Union,Dict
 from pathlib import Path
 import numpy as np
 import datetime
@@ -43,8 +43,10 @@ class Transponder(BaseModel):
     position_enu: Optional[PositionENU] = None
     tat_offset: Optional[float] = None
     name: Optional[str] = None
-    id: Optional[str] = None
+    id: Optional[str] = Field(None, alias=AliasChoices("id","address"))
     delta_center_position: Optional[PositionENU] = None
+    class Config:
+        allow_population_by_field_name = True
 
 
 class ATDOffset(BaseModel):
@@ -117,4 +119,112 @@ class SiteConfig(BaseModel):
         )
 
 
+class Benchmark(BaseModel):
+    name: str
+    benchmarkID: str = None
+    dropPointLocation: PositionLLH = None
+    aPrioriLocation: PositionLLH = None
+    transponders: List[Transponder] = []
+    start: datetime.datetime = None
 
+class Vessel(BaseModel):
+    name: str
+    type: str
+    serialNumber: str = None
+    start : datetime.datetime = None
+    atd_offset: ATDOffset = None
+
+class Survey(BaseModel):
+    id: str = None
+    type: str = None 
+    vesselName: str = None
+    benchmarkIDs: List[str] = []
+    start: datetime.datetime
+    end: datetime.datetime
+    shot_data_path: str|Path = None
+
+    @model_serializer
+    def to_dict(self):
+        dict_ = self.__dict__.copy()
+        if isinstance(self.start,datetime.datetime):
+            dict_["start"] = self.start.isoformat() 
+        if isinstance(self.end,datetime.datetime):
+            dict_["end"] = self.end.isoformat()
+        dict_["shot_data_path"] = str(self.shot_data_path)
+        return dict_
+
+    @field_validator("start","end",mode='before')
+    def validate_times(cls,v):
+        
+        if isinstance(v,str):
+            return datetime.datetime.strptime(v, "%Y-%m-%dT%H:%M:%S")
+        return v
+
+    class Config:
+        allow_arbitraty_types = True
+    # @model_validator(mode='after')
+    # def load_times(self):
+    #     self.start = datetime.datetime.fromisoformat(self.start)
+    #     self.end = datetime.datetime.fromisoformat(self.end)
+    #     return self
+
+
+class Campaign(BaseModel):
+    name : str = "Campaign"
+    type: str  = "Campaign Type"
+    launchVesselName: str = None
+    recoveryVesselName: str = None
+    principalInvestigator: str = None   
+    cruiseName: str = None
+    surveys:Union[List[Survey] | Dict[str,Survey]] = []
+
+    @model_validator(mode='after')
+    def validate_surveys(self):
+        if isinstance(self.surveys,list):
+            self.surveys = {survey.id:survey for survey in self.surveys}
+        return self
+    @field_validator("surveys")
+    def validate_surveys_pre(cls,v):
+        if isinstance(v,list):
+            return [survey for survey in v]
+        return v
+class Site(BaseModel):
+    name: str = "Site"
+    networks: str = "Networks"
+    timeOrigin: datetime.datetime = None
+    arrayCenter: PositionLLH = {}
+    localGeoidHeight: float = 0
+    benchmarks: List[Benchmark] = []
+    campaigns: List[Campaign] = []
+    surveyVessels: List[Vessel] = []
+
+    @classmethod
+    def from_json(cls,path:Path) -> "Site":
+        with open(path,"r") as f:
+            site = yaml.safe_load(f)
+        name = site["names"][0]
+        networks = site["networks"][0]
+        timeOrigin = datetime.datetime.fromisoformat(site["timeOrigin"])
+        arrayCenter = site["arrayCenter"]
+        localGeoidHeight = site["localGeoidHeight"]
+        benchmarks = []
+        for benchmark_dict in site["benchmarks"]:
+            benchmark = Benchmark(**benchmark_dict)
+            benchmarks.append(benchmark)
+        campaigns = []
+        for campaign_dict in site["campaigns"]:
+            campaign = Campaign(**campaign_dict)
+            campaigns.append(campaign)
+        surveyVessels = []
+        for vessel_dict in site["surveyVessels"]:
+            vessel = Vessel(**vessel_dict)
+            surveyVessels.append(vessel)
+        return Site(
+            name=name,
+            networks=networks,
+            timeOrigin=timeOrigin,
+            localGeoidHeight=localGeoidHeight,
+            benchmarks=benchmarks,
+            campaigns=campaigns,
+            surveyVessels=surveyVessels
+        )

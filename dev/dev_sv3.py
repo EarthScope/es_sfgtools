@@ -27,9 +27,10 @@ if __name__ == "__main__":
     survey_files = list_survey_files(network=network, station=station, survey=campaign, show_details=True)
     dh.add_data_remote(survey_files)
     dh.download_data()
-    dh.discover_data_and_add_files(dh.station_dir)
+     
     pipeline,config = dh.get_pipeline_sv3()
-    config.novatel_config.override = True
+    config.novatel_config.override = False
+    config.dfop00_config.override = True
     config.rinex_config.override = False
     config.rinex_config.override_products_download = False
     config.rinex_config.pride_config.sample_frequency = .25

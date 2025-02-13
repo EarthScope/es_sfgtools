@@ -36,3 +36,4 @@ build/*
 .vscode/
 
 docs/build
+sso_tokens.json

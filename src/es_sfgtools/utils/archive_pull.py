@@ -4,6 +4,8 @@ import os
 import urllib.request
 import ssl
 import logging
+from typing import List
+import boto3
 
 ssl._create_default_https_context = ssl._create_stdlib_context
 
@@ -250,6 +252,26 @@ def list_survey_files(network: str,
     return file_list  
 
 
+def list_s3_directory_files(bucket_name:str, prefix:str) -> List[str]:
+    """
+    Returns a list all files in a given S3 bucket under a specified prefix and return absolute S3 paths.
+
+    Args: 
+        bucket_name (str): Name of the S3 bucket.
+        prefix (str): S3 prefix (folder path) to filter the files.
+    Returns: 
+        List[str]: List of absolute S3 file paths.
+    """
+    s3_client = boto3.client("s3")
+    file_paths = []
+    
+    paginator = s3_client.get_paginator("list_objects_v2")
+    for page in paginator.paginate(Bucket=bucket_name, Prefix=prefix):
+        if "Contents" in page:
+            file_paths.extend(f"s3://{bucket_name}/{obj['Key']}" for obj in page["Contents"])
+    
+    return file_paths
+
 if __name__ == "__main__":    
     # Example usage 
 
@@ -263,4 +285,3 @@ if __name__ == "__main__":
 
     # Download a list of files
     download_file_list_from_archive(file_list)
-
