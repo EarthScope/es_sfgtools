@@ -1,0 +1,248 @@
+{
+    "names": [
+        "NCC1"
+    ],
+    "networks": [
+        "cascadia-gorda"
+    ],
+    "timeOrigin": "2021-10-01T00:00:00",
+    "arrayCenter": {},
+    "localGeoidHeight": "-27.43",
+    "referenceFrames": [],
+    "benchmarks": [
+        {
+            "dropPointLocation": {
+                "latitude": 0,
+                "longitude": 0,
+                "elevation": 0
+            },
+            "aPrioriLocations": {
+                "latitude": "41.655398918",
+                "longitude": "-124.93031952",
+                "elevation": "-953.514"
+            },
+            "name": "NCC1-1",
+            "benchmarkID": "",
+            "start": "2021-10-01T00:00:00",
+            "transponders": [
+                {
+                    "uid": "00611A",
+                    "model": "",
+                    "serialNumber": "",
+                    "batteryCapacity": "",
+                    "address": "5209",
+                    "tat": "200"
+                }
+            ]
+        },
+        {
+            "dropPointLocation": {
+                "latitude": 0,
+                "longitude": 0,
+                "elevation": 0
+            },
+            "aPrioriLocations": {
+                "latitude": "41.6564244322",
+                "longitude": "-124.947567648",
+                "elevation": "-959.578"
+            },
+            "name": "NCC1-2",
+            "benchmarkID": "",
+            "start": "2021-10-01T00:00:00",
+            "transponders": [
+                {
+                    "uid": "0060A6",
+                    "model": "",
+                    "serialNumber": "",
+                    "batteryCapacity": "",
+                    "address": "5210",
+                    "tat": "320",
+                    "start": "2021-10-01T00:00:00"
+                }
+            ]
+        },
+        {
+            "dropPointLocation": {
+                "latitude": 0,
+                "longitude": 0,
+                "elevation": 0
+            },
+            "aPrioriLocations": {
+                "latitude": "41.665982150",
+                "longitude": "-124.938727300",
+                "elevation": " -961.430"
+            },
+            "name": "NCC1-3",
+            "benchmarkID": "mpl037",
+            "start": "2021-10-01T00:00:00",
+            "transponders": [
+                {
+                    "uid": "0060B2",
+                    "model": "",
+                    "serialNumber": "",
+                    "batteryCapacity": "",
+                    "address": "5211",
+                    "tat": "440",
+                    "start": "2021-10-01T00:00:00"
+                }
+            ],
+            "end": "2022-09-19T00:00:00"
+        },
+        {
+            "dropPointLocation": {
+                "latitude": 0,
+                "longitude": 0,
+                "elevation": 0
+            },
+            "aPrioriLocations": {
+                "latitude": "41.6625833241",
+                "longitude": "-124.934385756",
+                "elevation": " -952.572"
+            },
+            "name": "NCC1-3-2",
+            "benchmarkID": "mpl037-2",
+            "start": "2023-09-01T00:00:00",
+            "transponders": [
+                {
+                    "uid": "0060B2",
+                    "model": "",
+                    "serialNumber": "",
+                    "batteryCapacity": "",
+                    "address": "5211",
+                    "tat": "440",
+                    "start": "2023-09-01T00:00:00"
+                }
+            ]
+        }
+    ],
+    "campaigns": [
+        {
+            "type": "measure",
+            "launchVesselName": "",
+            "recoveryVesselName": "",
+            "principalInvestigator": "Benjamin Brooks",
+            "cruiseName": "",
+            "technicianName": "",
+            "technicianContact": "",
+            "name": "2024_A_1126",
+            "surveys": [
+                {
+                    "id": "2024_A_1126_1",
+                    "type": "circle drive",
+                    "vesselName": "1126",
+                    "benchmarkIDs": [
+                        "NCC1-1","NCC1-2","NCC1-3"
+                    ],
+                    "start": "2024-09-22T17:30:00",
+                    "end": "2024-09-23T00:35:00"
+                },
+                {
+                    "id": "2024_A_1126_2",
+                    "type": "center",
+                    "vesselName": "1126",
+                    "benchmarkIDs": [
+                        "NCC1-1",
+                        "NCC1-2",
+                        "NCC1-3-2"
+                    ],
+                    "frequency": "MF",
+                    "start": "2024-09-26T15:30:00",
+                    "end": "2024-10-08T15:00:00"
+                },
+                {
+                    "id": "2024_A_1126_3",
+                    "type": "move around",
+                    "vesselName": "1126",
+                    "benchmarkIDs": [
+                        "NCC1-1",
+                        "NCC1-2",
+                        "NCC1-3-2"
+                    ],
+                    "start": "2024-10-08T16:00:00",
+                    "end": "2024-10-11T02:00:00",
+                    "notes": "GARPOS 2R"
+                },
+                {
+                    "id": "2024_A_1126_4",
+                    "type": "move around",
+                    "vesselName": "1126",
+                    "benchmarkIDs": [
+                        "NCC1-1",
+                        "NCC1-2",
+                        "NCC1-3-2"
+                    ],
+                    "start": "2024-10-11T02:30:00",
+                    "end": "2024-10-13T00:16:00",
+                    "notes": "GARPOS 1.5R, payload crashed 20:03, back on track where survey cut out at 3:00"
+                },
+                {
+                    "id": "2024_A_1126_5",
+                    "type": "move around",
+                    "vesselName": "1126",
+                    "benchmarkIDs": [
+                        "NCC1-1",
+                        "NCC1-2",
+                        "NCC1-3-2"
+                    ],
+                    "start": "2024-10-13T00:16:00",
+                    "end": "2024-10-14T03:36:00",
+                    "notes": "GARPOS 1R"
+                }
+            ],
+            "start": "2024-09-22T00:00:00",
+            "end": "2024-10-14T00:00:00"
+        }
+    ],
+    "surveyVessels": [
+        {
+            "type": "waveglider",
+            "name": "1126",
+            "model": "sv3",
+            "serialNumber": "",
+            "start": "2023-02-01T00:00:00",
+            "atdOffsets": [
+                {
+                    "x": "0.0053",
+                    "y": "0",
+                    "z": "0.92813"
+                }
+            ],
+            "gnssAntennas": [
+                {
+                    "order": "primary",
+                    "type": "novatel",
+                    "model": "GNSS-802L",
+                    "serialNumber": "NMLM22110020V",
+                    "radomeSerialNumber": "",
+                    "start": "2023-02-28T00:00:00"
+                },
+                {
+                    "order": "secondary",
+                    "type": "novatel",
+                    "model": "GNSS-802L",
+                    "serialNumber": "NMLM22090012Z",
+                    "radomeSerialNumber": "",
+                    "start": "2023-02-28T00:00:00"
+                }
+            ],
+            "acousticTransducer": [
+                {
+                    "type": "641-0654",
+                    "serialNumber": "0",
+                    "frequency": "MF",
+                    "start": "2023-02-28T00:00:00"
+                }
+            ],
+            "acousticTransceiver": [
+                {
+                    "type": "",
+                    "serialNumber": "0",
+                    "frequency": "MF",
+                    "triggerDelay": "0.13",
+                    "delayIncludedInTWTT": "True",
+                    "start": "2023-02-28T00:00:00"
+                }
+            ]
+        }
+    ]
+}

@@ -288,7 +288,7 @@ def dev_merge_to_shotdata(acoustic: DataFrame[AcousticDataFrame], position:DataF
     # lat_array,lon_array = pos_trigger[:,3],pos_trigger[:,4]
 
     output_df = output_df.loc[:, ~output_df.columns.str.contains("^unnamed")].drop(columns=["time"]).dropna().reset_index(drop=True)
-    output_df["SET"] = "S01"
+    #output_df["SET"] = "S01"
     output_df["LN"] = "L01"
     return ShotDataFrame.validate(output_df,lazy=True)
 
@@ -331,14 +331,14 @@ def dev_merge_to_shotdata(acoustic: DataFrame[AcousticDataFrame], position:DataF
     #                 if pd.api.types.is_datetime64_any_dtype(shot_df[col]):
     #                     timestamp_data_start = shot_df[col].min()
     #                     timestamp_data_end = shot_df[col].max()
-    #             local_path = working_dir / f"{acoustic_asset.network}_{acoustic_assets.station}_{acoustic_assets.survey}_shot_data_{doy}.csv"
+    #             local_path = working_dir / f"{acoustic_asset.network}_{acoustic_assets.station}_{acoustic_assets.campaign}_shot_data_{doy}.csv"
     #             shot_df.to_csv(local_path,index=False)
     #             new_multi_asset = MultiAssetEntry(
     #                 local_path = str(local_path),
     #                 type = AssetType.SHOTDATA,
     #                 network = acoustic_asset.network,
     #                 station = acoustic_asset.station,
-    #                 survey = acoustic_asset.survey,
+    #                 campaign = acoustic_asset.campaign,
     #                 timestamp_data_start = timestamp_data_start,
     #                 timestamp_data_end = timestamp_data_end,
     #                 parent_id = f"{acoustic_asset.id},{position_doy_map[doy].id}"

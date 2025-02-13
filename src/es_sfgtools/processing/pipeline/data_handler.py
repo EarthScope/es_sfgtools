@@ -13,7 +13,7 @@ import concurrent.futures
 import threading
 from functools import wraps
 import json
-
+from datetime import date
 import seaborn 
 seaborn.set_theme(style="whitegrid")
 
@@ -31,8 +31,8 @@ from es_sfgtools.processing.assets.siteconfig import SiteConfig
 from es_sfgtools.utils.loggers import ProcessLogger as logger, change_all_logger_dirs
 
 
-def check_network_station_survey(func: Callable):
-    """ Wrapper to check if network, station, and survey are set before running a function. """
+def check_network_station_campaign(func: Callable):
+    """ Wrapper to check if network, station, and campaign are set before running a function. """
     @wraps(func)
     def wrapper(self, *args, **kwargs):
         if self.network is None:
@@ -41,8 +41,8 @@ def check_network_station_survey(func: Callable):
         if self.station is None:
             raise ValueError("Station name not set, use change_working_station")
         
-        if self.survey is None:
-            raise ValueError("Survey name not set, use change_working_station")
+        if self.campaign is None:
+            raise ValueError("campaign name not set, use change_working_station")
         
         return func(self, *args, **kwargs)
     return wrapper
@@ -66,7 +66,7 @@ class DataHandler:
 
         self.network = None
         self.station = None
-        self.survey = None
+        self.campaign = None
      
         # Create the directory structures
         self.main_directory = Path(directory)
@@ -82,7 +82,7 @@ class DataHandler:
             self.db_path.touch()
         self.catalog = Catalog(self.db_path)
 
-    def _build_station_dir_structure(self, network: str, station: str, survey: str):
+    def _build_station_dir_structure(self, network: str, station: str, campaign: str):
 
         """
         Build the directory structure for a station.
@@ -90,7 +90,7 @@ class DataHandler:
             - [SFG Data Directory]/
                 - <network>/
                     - <station>/
-                        - <survey>/
+                        - <campaign>/
                             - raw/
                             - intermediate/
                             - processed/ 
@@ -100,7 +100,7 @@ class DataHandler:
         """
 
         # Set up loggers under the station directory
-        logger.loginfo(f"Building directory structure for {network} {station} {survey}")
+        logger.loginfo(f"Building directory structure for {network} {station} {campaign}")
         self.station_log_dir = self.main_directory / network / station / "logs"
         self.station_log_dir.mkdir(parents=True, exist_ok=True)
 
@@ -115,17 +115,17 @@ class DataHandler:
         self.tileb_dir.mkdir(exist_ok=True)
 
         # Create the Data directory structure (network/station/Data)
-        survey_data_dir = self.station_dir / survey
-        survey_data_dir.mkdir(exist_ok=True)
+        campaign_data_dir = self.station_dir / campaign
+        campaign_data_dir.mkdir(exist_ok=True)
 
         # Create the raw, intermediate, and processed directories (network/station/Data/raw) and store as class attributes
-        self.raw_dir = survey_data_dir / "raw"
+        self.raw_dir = campaign_data_dir / "raw"
         self.raw_dir.mkdir(exist_ok=True)
 
-        self.inter_dir = survey_data_dir / "intermediate"
+        self.inter_dir = campaign_data_dir / "intermediate"
         self.inter_dir.mkdir(exist_ok=True)
 
-        self.proc_dir = survey_data_dir / "processed"
+        self.proc_dir = campaign_data_dir / "processed"
         self.proc_dir.mkdir(exist_ok=True)
 
     def _build_tileDB_arrays(self):
@@ -156,14 +156,14 @@ class DataHandler:
             with open(self.rinex_metav1, "w") as f:
                 json.dump(get_metadata(site=self.station), f)
 
-    def change_working_station(self, network: str, station: str, survey: str = None):
+    def change_working_station(self, network: str, station: str, campaign: str = None,start_date:date=None,end_date:date=None):
         """
         Change the working station.
         
         Args:
             network (str): The network name.
             station (str): The station name.
-            survey (str): The survey name. Default is None.
+            campaign (str): The campaign name. Default is None.
         """
 
         # Set class attributes & create the directory structure
@@ -172,11 +172,16 @@ class DataHandler:
         if network is not None:
             self.network = network
 
-        if survey is not None:
-            self.survey = survey
+        if campaign is not None:
+            self.campaign = campaign
 
         # Build the directory structure and TileDB arrays
-        self._build_station_dir_structure(network, station, survey)
+        self._build_station_dir_structure(network, station, campaign)
+
+        if start_date==None or end_date==None:
+            logger.logwarn(f"No date range set for {network}, {station}, {campaign}")
+
+        self.date_range = [start_date,end_date]
         self._build_tileDB_arrays()
         self._build_rinex_meta()
 
@@ -186,7 +191,7 @@ class DataHandler:
         logger.loginfo(f"Changed working station to {network} {station}")
 
 
-    @check_network_station_survey
+    @check_network_station_campaign
     def get_dtype_counts(self):
         """ 
         Get the data type counts (local) for the current station from the catalog.
@@ -196,14 +201,14 @@ class DataHandler:
         """ 
         return self.catalog.get_dtype_counts(network=self.network, 
                                              station=self.station, 
-                                             survey=self.survey)
+                                             campaign=self.campaign)
 
-    @check_network_station_survey
+    @check_network_station_campaign
     def discover_data_and_add_files(self, directory_path: Path) -> None:
         """
         For a given directory of data, iterate through all files and add them to the catalog.
         
-        Note: Be sure to correctly set the network, station, and survey before running this function.
+        Note: Be sure to correctly set the network, station, and campaign before running this function.
 
         Args:
             dir_path (Path): The directory path to look for files and add them to the catalog.
@@ -218,7 +223,7 @@ class DataHandler:
 
         self.add_data_to_catalog(files)
 
-    @check_network_station_survey
+    @check_network_station_campaign
     def add_data_to_catalog(self, local_filepaths: List[str]):
         """ 
         Using a list of local filepaths, add the data to the catalog. 
@@ -239,7 +244,7 @@ class DataHandler:
                     type=file_type,
                     network=self.network,
                     station=self.station,
-                    survey=self.survey,
+                    campaign=self.campaign,
                 )
                 file_data_list.append(file_data)
 
@@ -252,7 +257,7 @@ class DataHandler:
 
         logger.loginfo(f"Added {uploadCount} out of {count} files to the catalog")
 
-    @check_network_station_survey
+    @check_network_station_campaign
     def add_data_remote(self, 
                         remote_filepaths: List[str],
                         remote_type:Union[REMOTE_TYPE,str] = REMOTE_TYPE.HTTP
@@ -287,7 +292,7 @@ class DataHandler:
 
             if not self.catalog.remote_file_exist(network=self.network,
                                                   station=self.station,
-                                                  survey=self.survey,
+                                                  campaign=self.campaign,
                                                   type=file_type,
                                                   remote_path=file):
                 
@@ -297,7 +302,7 @@ class DataHandler:
                     type=file_type,
                     network=self.network,
                     station=self.station,
-                    survey=self.survey,
+                    campaign=self.campaign,
                 )
                 file_data_list.append(file_data)
             else:
@@ -322,7 +327,7 @@ class DataHandler:
             override (bool): Whether to download the data even if it already exists. Default is False.
         """
 
-        # Grab assests from the catalog that match the network, station, survey, and file type
+        # Grab assests from the catalog that match the network, station, campaign, and file type
         if not isinstance(file_types,list):
             file_types = [file_types]
 
@@ -339,7 +344,7 @@ class DataHandler:
         for type in file_types:
             assets = self.catalog.get_assets(network=self.network,
                                             station=self.station,
-                                            survey=self.survey,
+                                            campaign=self.campaign,
                                             type=type)
 
             if len(assets) == 0:
@@ -483,7 +488,7 @@ class DataHandler:
         finally:
             return local_path
     
-    @check_network_station_survey
+    @check_network_station_campaign
     def view_data(self):
         shotdata_dates = self.shotdata_tdb.get_unique_dates().tolist()
         gnss_dates = self.gnss_tdb.get_unique_dates().tolist()
@@ -511,12 +516,12 @@ class DataHandler:
         fig.suptitle(f"Found Dates For {self.network} {self.station}")
         plt.show()
   
-    @check_network_station_survey
+    @check_network_station_campaign
     def get_pipeline_sv3(self) -> Tuple[SV3Pipeline,SV3PipelineConfig]:
         """
         Creates and returns an SV3Pipeline object along with its configuration.
         This method initializes an SV3PipelineConfig object using the instance
-        attributes such as network, station, survey, writedir, pride_dir,
+        attributes such as network, station, campaign, writedir, pride_dir,
         shot_data_dest, gnss_data_dest, and catalog_path. It then creates an
         SV3Pipeline object using the catalog and the created configuration.
         Returns:
@@ -527,19 +532,21 @@ class DataHandler:
        
         config = SV3PipelineConfig(network=self.network, 
                                  station=self.station, 
-                                 survey=self.survey,
+                                 campaign=self.campaign,
                                  inter_dir=self.inter_dir,
                                  pride_dir=self.pride_dir,
                                  shot_data_dest=self.shotdata_tdb,
                                  gnss_data_dest=self.gnss_tdb,
                                  rangea_data_dest=self.rangea_tdb,
-                                 catalog_path=self.db_path)
+                                 catalog_path=self.db_path,
+                                 start_date=self.date_range[0],
+                                 end_date=self.date_range[1])
         config.rinex_config.settings_path = self.rinex_metav2
         pipeline = SV3Pipeline(catalog=self.catalog, config=config)
 
         return pipeline, config
     
-    @check_network_station_survey
+    @check_network_station_campaign
     def get_garpos_handler(self, site_config: SiteConfig) -> GarposHandler:
         """
         Creates and returns a GarposHandler object.

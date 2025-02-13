@@ -10,7 +10,7 @@ dependencies:
   - pandas
   - matplotlib
   - scikit-learn
-  - scikit-sparse
+  - gfortran
   - julian
   - pandera
   - pyarrow
@@ -30,11 +30,20 @@ dependencies:
   - seaborn
   - folium
   - sqlalchemy
-  - tiledb
+  - go
+  - go-cgo 
+  - conda-forge::gcc
+  - make
+  - conda-forge::tiledb
+  - libstdcxx-ng
+  - clang
   - pip:
     - -e .
+    - scikit-sparse
     - garpos @ git+https://github.com/EarthScope/garpos.git
     - earthscope-sdk
     - earthscope-cli
     - multipledispatch
     - multiprocessing_logging
+variables:
+  CGO_ENABLED: 1

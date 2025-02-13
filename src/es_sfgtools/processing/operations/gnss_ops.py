@@ -27,8 +27,11 @@ from .pride_utils import get_nav_file,get_gnss_products
 
 from es_sfgtools.utils.loggers import GNSSLogger as logger
 
+RINEX_BINARIES = Path("src/golangtools/build").resolve()
 
-RINEX_BINARIES = Path(__file__).resolve().parent / "binaries/"
+if not any(RINEX_BINARIES.iterdir()):
+    raise UserWarning(f'Golang binaries not built. Navigate to {RINEX_BINARIES.parent()} and run "make"' )
+
 
 PRIDE_PPP_LOG_INDEX = {
     0: "modified_julian_date",
@@ -44,42 +47,42 @@ PRIDE_PPP_LOG_INDEX = {
 }
 
 RINEX_BIN_PATH = {
-    "darwin_amd64": RINEX_BINARIES / "nova2rnxo-darwin-amd64",
-    "darwin_arm64": RINEX_BINARIES / "nova2rnxo-darwin-arm64",
-    "linux_amd64": RINEX_BINARIES / "nova2rnxo-linux-amd64",
-    "linux_arm64": RINEX_BINARIES / "nova2rnxo-linux-arm64",
+    "darwin_amd64": RINEX_BINARIES / "nova2rnxo_darwin_amd64",
+    "darwin_arm64": RINEX_BINARIES / "nova2rnxo_darwin_arm64",
+    "linux_amd64": RINEX_BINARIES / "nova2rnxo_linux_amd64",
+    "linux_arm64": RINEX_BINARIES / "nova2rnxo_linux_arm64",
 }
 
 
 RINEX_BIN_PATH_BINARY = {
-    "darwin_amd64": RINEX_BINARIES / "novb2rnxo-darwin-amd64",
-    "darwin_arm64": RINEX_BINARIES / "novb2rnxo-darwin-arm64",
-    "linux_amd64": RINEX_BINARIES / "novb2rnxo-linux-amd64",
-    "linux_arm64": RINEX_BINARIES / "novb2rnxo-linux-arm64",
+    "darwin_amd64": RINEX_BINARIES / "novb2rnxo_darwin_amd64",
+    "darwin_arm64": RINEX_BINARIES / "novb2rnxo_darwin_arm64",
+    "linux_amd64": RINEX_BINARIES / "novb2rnxo_linux_amd64",
+    "linux_arm64": RINEX_BINARIES / "novb2rnxo_linux_arm64",
 }
 
 NOVA2TILE_BIN_PATH = {
-    "darwin_arm64": RINEX_BINARIES / "nova2tile-darwin-arm64",
-    "linux_amd64": RINEX_BINARIES / "nova2tile-linux-amd64",
-    "linux_arm64": RINEX_BINARIES / "nova2tile-linux-arm64",
+    "darwin_arm64": RINEX_BINARIES / "nova2tile_darwin_arm64",
+    "linux_amd64": RINEX_BINARIES / "nova2tile_linux_amd64",
+    "linux_arm64": RINEX_BINARIES / "nova2tile_linux_arm64",
 }
 
 NOVB2TILE_BIN_PATH = {
-    "darwin_arm64": RINEX_BINARIES / "novab2tile-darwin-arm64",
-    "linux_amd64": RINEX_BINARIES / "novab2tile-linux-amd64",
-    "linux_arm64": RINEX_BINARIES / "novab2tile-linux-arm64",
+    "darwin_arm64": RINEX_BINARIES / "novab2tile_darwin_arm64",
+    "linux_amd64": RINEX_BINARIES / "novab2tile_linux_amd64",
+    "linux_arm64": RINEX_BINARIES / "novab2tile_linux_arm64",
 }
 
 NOV0002TILE_BIN_PATH = {
-    "darwin_arm64": RINEX_BINARIES / "nov0002tile-darwin-arm64",
-    "linux_amd64": RINEX_BINARIES / "nov0002tile-linux-amd64",
-    "linux_arm64": RINEX_BINARIES / "nov0002tile-linux-arm64",
+    "darwin_arm64": RINEX_BINARIES / "nov0002tile_darwin_arm64",
+    "linux_amd64": RINEX_BINARIES / "nov0002tile_linux_amd64",
+    "linux_arm64": RINEX_BINARIES / "nov0002tile_linux_arm64",
 }
 
 TILE2RINEX_BIN_PATH = {
-    "darwin_arm64": RINEX_BINARIES / "tdb2rnx-darwin-arm64",
-    "linux_amd64": RINEX_BINARIES / "tdb2rnx-linux-amd64",
-    "linux_arm64": RINEX_BINARIES / "tdb2rnx-linux-arm64",
+    "darwin_arm64": RINEX_BINARIES / "tdb2rnx_darwin_arm64",
+    "linux_amd64": RINEX_BINARIES / "tdb2rnx_linux_amd64",
+    "linux_arm64": RINEX_BINARIES / "tdb2rnx_linux_arm64",
 }
 
 class PridePPP(BaseModel):
@@ -494,19 +497,19 @@ def novatel_to_rinex_batch(
         List[AssetEntry]: List of AssetEntry objects representing the converted RINEX files.
 
     Examples:
-        >>> asset_entry_0 = AssetEntry(local_path="/path/to/NCB1_09052024_NOV777.raw", type=AssetType.NOVATEL, network="NCB", station="NCB1", survey="JULY2024")
-        >>> asset_entry_1 = AssetEntry(local_path="/path/to/NCB1_09062024_NOV777.raw", type=AssetType.NOVATEL, network="NCB", station="NCB1", survey="JULY2024")
+        >>> asset_entry_0 = AssetEntry(local_path="/path/to/NCB1_09052024_NOV777.raw", type=AssetType.NOVATEL, network="NCB", station="NCB1", campaign="JULY2024")
+        >>> asset_entry_1 = AssetEntry(local_path="/path/to/NCB1_09062024_NOV777.raw", type=AssetType.NOVATEL, network="NCB", station="NCB1", campaign="JULY2024")
         >>> writedir = Path("/writedir")
         >>> rinex_assets: List[AssetEntry] = novatel_to_rinex([asset_entry_0, asset_entry_1], writedir, show_details=True)
         >>> rinex_assets[0].model_dump()
-        {'local_path': '/writedir/NCB1_09052024_NOV777.raw', 'type': 'rinex', 'network': 'NCB', 'station': 'NCB1', 'survey': 'JULY2024', 'timestamp_created': datetime.datetime(2024, 7, 9, 12, 0, 0, 0)}
+        {'local_path': '/writedir/NCB1_09052024_NOV777.raw', 'type': 'rinex', 'network': 'NCB', 'station': 'NCB1', 'campaign': 'JULY2024', 'timestamp_created': datetime.datetime(2024, 7, 9, 12, 0, 0, 0)}
     """
     assert len(set([x.type for x in source])) == 1, "All sources must be of the same type"
 
     source_type = source[0].type
     site = source[0].station
     network = source[0].network
-    survey = source[0].survey
+    campaign = source[0].campaign
     station = source[0].station
 
     if isinstance(writedir, str):
@@ -529,7 +532,7 @@ def novatel_to_rinex_batch(
             type=AssetType.RINEX,
             network=network,
             station=station,
-            survey=survey,
+            campaign=campaign,
             timestamp_created=datetime.now(),
         )
         rinex_asset = rinex_get_meta(rinex_asset)
@@ -604,16 +607,16 @@ def rinex_to_kin(
         UserWarning: If no kin file is generated from the RINEX file.
 
     Examples:
-        >>> source = AssetEntry(local_path="/path/to/NCB12450.24o", type=AssetType.RINEX, network="NCB", station="NCB1", survey="JULY2024")
+        >>> source = AssetEntry(local_path="/path/to/NCB12450.24o", type=AssetType.RINEX, network="NCB", station="NCB1", campaign="JULY2024")
         >>> writedir = Path("/writedir")
         >>> pridedir = Path("/pridedir")
         >>> pride_ouput: List[AssetEntry] = rinex_to_kin(source, writedir, pridedir, site="NCB1", show_details=True)
         >>> kin_asset = pride_ouput[0]
         >>> kin_asset.model_dump()
-        {'local_path': '/writedir/NCB12450.24o.kin', 'type': 'kin', 'network': 'NCB', 'station': 'NCB1', 'survey': 'JULY2024', 'timestamp_created': datetime.datetime(2024, 7, 9, 12, 0, 0, 0)}
+        {'local_path': '/writedir/NCB12450.24o.kin', 'type': 'kin', 'network': 'NCB', 'station': 'NCB1', 'campaign': 'JULY2024', 'timestamp_created': datetime.datetime(2024, 7, 9, 12, 0, 0, 0)}
         >>> res_asset = pride_ouput[1]
         >>> res_asset.model_dump()
-        {'local_path': '/writedir/NCB12450.24o.res', 'type': 'kinresiduals', 'network': 'NCB', 'station': 'NCB1', 'survey': 'JULY2024', 'timestamp_created': datetime.datetime(2024, 7, 9, 12, 0, 0, 0)}
+        {'local_path': '/writedir/NCB12450.24o.res', 'type': 'kinresiduals', 'network': 'NCB', 'station': 'NCB1', 'campaign': 'JULY2024', 'timestamp_created': datetime.datetime(2024, 7, 9, 12, 0, 0, 0)}
     """
 
     # Check if the pride binary is in the path
@@ -700,7 +703,7 @@ def rinex_to_kin(
             local_path=kin_file_new,
             network=source.network,
             station=source.station,
-            survey=source.survey,
+            campaign=source.campaign,
         )
         logger.loginfo(f"Converted RINEX file {source.local_path} to kin file {kin_file.local_path}")
 
@@ -716,7 +719,7 @@ def rinex_to_kin(
             local_path=res_file_new,
             network=source.network,
             station=source.station,
-            survey=source.survey,
+            campaign=source.campaign,
         )
         logger.loginfo(f"Found PRIDE res file {res_file.local_path}")
   
@@ -1146,3 +1149,6 @@ def tile2rinex(rangea_tdb:Path,settings:Path,writedir:Path,n_procs:int=10) -> Li
             rinex_assets.append(rinex_asset)
 
     return rinex_assets
+
+if __name__ == "__main__":
+    print(GOLANG_BINARIES)

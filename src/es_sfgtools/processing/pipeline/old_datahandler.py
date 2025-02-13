@@ -224,7 +224,7 @@ class DEV_DH_DEP:
                     timestamp_data_end=timestamp_data_end,
                     network=parent.network,
                     station=parent.station,
-                    survey=parent.survey,
+                    campaign=parent.campaign,
                 )
 
             case AssetType.RINEX:
@@ -334,7 +334,7 @@ class DEV_DH_DEP:
             parent_entries = self.catalog.get_single_entries_to_process(
                 network=self.network,
                 station=self.station,
-                survey=self.survey,
+                campaign=self.campaign,
                 parent_type=source,
                 child_type=target,
                 override=override,
