@@ -105,7 +105,7 @@ class Site:
 
         for benchmark in self.benchmarks:
             if benchmark.name == benchmark_name:
-                print("Benchmark already exists.. Choose to update or delete if needed")
+                print("ERROR: Benchmark already exists.. Choose to update or delete if needed")
                 print(json.dumps(benchmark.to_dict(), indent=2))
                 return
             
@@ -120,7 +120,7 @@ class Site:
         """ Run a benchmark operation based on the provided flags """
 
         if not only_one_is_true(add_new, update, delete):
-            print("Please select only one operation(Add/Update/Delete) to run..")
+            print("ERROR: Please select only one operation(Add/Update/Delete) to run..")
             return
         
         if add_new:
@@ -151,13 +151,13 @@ class Site:
                 print("Deleted benchmark.")
                 return
             
-        print("Benchmark {} not found to delete..".format(benchmark_name))
+        print("ERROR: Benchmark {} not found to delete..".format(benchmark_name))
 
     def run_transponder(self, benchmark_name: str, transponder_address: str, transponder_data: dict, add_new: bool, update: bool, delete: bool):
         """ Run a transponder operation based on the provided flags """
 
         if not only_one_is_true(add_new, update, delete):
-            print("Please select only one operation(Add/Update/Delete) to run..")
+            print("ERROR: Please select only one operation(Add/Update/Delete) to run..")
             return
         
         if add_new:
@@ -173,16 +173,16 @@ class Site:
         benchmark = next((b for b in self.benchmarks if b.name == benchmark_name), None)
         
         if benchmark is None:
-            print(f"Benchmark {benchmark_name} not found, ensure you have the correct benchmark name")
+            print(f"ERROR: Benchmark {benchmark_name} not found, ensure you have the correct benchmark name")
             return
         
         if not transponder_address:
-            print("Transponder address not provided, address is required for adding..")
+            print("ERROR: Transponder address not provided, address is required for adding..")
             return
 
         for transponder in benchmark.transponders:
             if transponder.address == transponder_address:
-                print("Transponder {} already exists in benchmark.. please update instead of adding".format(transponder_data["address"]))
+                print("ERROR: Transponder {} already exists in benchmark.. please update instead of adding".format(transponder_data["address"]))
                 return
         
         print("Adding new transponder to benchmark {}..".format(benchmark_name))
@@ -196,13 +196,13 @@ class Site:
         benchmark = next((b for b in self.benchmarks if b.name == benchmark_name), None)
         
         if benchmark is None:
-            print(f"Benchmark {benchmark_name} not found, ensure you have the correct benchmark name")
+            print(f"ERROR: Benchmark {benchmark_name} not found, ensure you have the correct benchmark name")
             return
         
         transponder = next((t for t in benchmark.transponders if t.address == transponder_address), None)
         
         if transponder is None:
-            print(f"Transponder with address {transponder_address} not found in benchmark {benchmark_name}")
+            print(f"ERROR: Transponder with address {transponder_address} not found in benchmark {benchmark_name}")
             return
         
         print("Adding sensor to transponder {} in benchmark {}..".format(transponder_address, benchmark_name))
@@ -215,13 +215,13 @@ class Site:
         benchmark = next((b for b in self.benchmarks if b.name == benchmark_name), None)
         
         if benchmark is None:
-            print(f"Benchmark {benchmark_name} not found, ensure you have the correct benchmark name")
+            print(f"ERROR: Benchmark {benchmark_name} not found, ensure you have the correct benchmark name")
             return
         
         transponder = next((t for t in benchmark.transponders if t.address == transponder_address), None)
         
         if transponder is None:
-            print(f"Transponder with address {transponder_address} not found in benchmark {benchmark_name}")
+            print(f"ERROR: Transponder with address {transponder_address} not found in benchmark {benchmark_name}")
             return
         
         print("Adding battery voltage to transponder {} in benchmark {}..".format(transponder_address, benchmark_name))
@@ -234,13 +234,13 @@ class Site:
         benchmark = next((b for b in self.benchmarks if b.name == benchmark_name), None)
         
         if benchmark is None:
-            print(f"Benchmark {benchmark_name} not found, ensure you have the correct benchmark name")
+            print(f"ERROR: Benchmark {benchmark_name} not found, ensure you have the correct benchmark name")
             return
         
         transponder = next((t for t in benchmark.transponders if t.address == transponder_address), None)
         
         if transponder is None:
-            print(f"Transponder with address {transponder_address} not found in benchmark {benchmark_name}")
+            print(f"ERROR: Transponder with address {transponder_address} not found in benchmark {benchmark_name}")
             return
         
         print("Updating transponder in benchmark {}..".format(benchmark_name))
@@ -252,13 +252,13 @@ class Site:
         benchmark = next((b for b in self.benchmarks if b.name == benchmark_name), None)
         
         if benchmark is None:
-            print(f"Benchmark {benchmark_name} not found, ensure you have the correct benchmark name")
+            print(f"ERROR: Benchmark {benchmark_name} not found, ensure you have the correct benchmark name")
             return
         
         transponder = next((t for t in benchmark.transponders if t.address == transponder_address), None)
         
         if transponder is None:
-            print(f"Transponder with address {transponder_address} not found in benchmark {benchmark_name}")
+            print(f"ERROR: Transponder with address {transponder_address} not found in benchmark {benchmark_name}")
             return
         
         print("Deleting transponder in benchmark {}..".format(benchmark_name))
@@ -268,12 +268,12 @@ class Site:
                 print("Deleted transponder.")
                 return
 
-        print("Transponder not found..")
+        print("ERROR: Transponder not found..")
                 
     def run_campaign(self, campaign_name: str, campaign_data: dict, add_new: bool, update: bool, delete: bool):
         """ Run a campaign operation based on the provided flags """
         if not only_one_is_true(add_new, update, delete):
-            print("Please select only one operation(Add/Update/Delete) to run..")
+            print("ERROR: Please select only one operation(Add/Update/Delete) to run..")
             return
         
         if add_new:
@@ -287,7 +287,7 @@ class Site:
         """ Add a new campaign to the site dictionary """
         for campaign in self.campaigns:
             if campaign.name == campaign_name:
-                print("Campaign already exists.. Choose to update or delete if needed")
+                print("ERROR: Campaign already exists.. Choose to update or delete if needed")
                 print(json.dumps(campaign.to_dict(), indent=2))
                 return
         
@@ -307,7 +307,7 @@ class Site:
                 print("Updated campaign.")
                 return
         
-        print("Campaign not found..")
+        print("ERROR: Campaign not found..")
                 
     def delete_campaign(self, campaign_name: str):
         """ Delete a campaign from the site dictionary """
@@ -318,13 +318,13 @@ class Site:
                 print("Deleted campaign.")
                 return
             
-        print("Campaign {} not found to be deleted..".format(campaign_name))
+        print("ERROR: Campaign {} not found to be deleted..".format(campaign_name))
 
     def run_survey(self, campaign_name: str, survey_id: str, survey_data: dict, add_new: bool, update: bool, delete: bool):
         """ Run a survey operation based on the provided flags """
 
         if not only_one_is_true(add_new, update, delete):
-            print("Please select only one operation(Add/Update/Delete) to run..")
+            print("ERROR: Please select only one operation(Add/Update/Delete) to run..")
             return
         
         if add_new:
@@ -339,7 +339,7 @@ class Site:
         campaign = next((c for c in self.campaigns if c.name == campaign_name), None)
         
         if campaign is None:
-            print(f"Campaign {campaign_name} not found, ensure you have the correct campaign name")
+            print(f"ERROR: Campaign {campaign_name} not found, ensure you have the correct campaign name")
             return
         
         survey_id = campaign_name + "_" + str(len(campaign.surveys) + 1)
@@ -353,12 +353,12 @@ class Site:
     def update_existing_survey(self, campaign_name: str, survey_id: str, survey_data: dict):
         campaign = next((c for c in self.campaigns if c.name == campaign_name), None)
         if campaign is None:
-            print(f"Campaign {campaign_name} not found, ensure you have the correct campaign name")
+            print(f"ERROR: Campaign {campaign_name} not found, ensure you have the correct campaign name")
             return
 
         campaign_survey = next((survey for survey in campaign.surveys if survey.id == survey_id), None)
         if campaign_survey is None:
-            print(f"Survey with ID {survey_id} not found in campaign {campaign_name}")
+            print(f"ERROR: Survey with ID {survey_id} not found in campaign {campaign_name}")
             return
         
         print("Updating survey {} in campaign {}..".format(survey_id, campaign_name))
@@ -371,12 +371,12 @@ class Site:
 
         campaign = next((c for c in self.campaigns if c.name == campaign_name), None)
         if campaign is None:
-            print(f"Campaign {campaign_name} not found, ensure you have the correct campaign name")
+            print(f"ERROR: Campaign {campaign_name} not found, ensure you have the correct campaign name")
             return
 
         campaign_survey = next((survey for survey in campaign.surveys if survey.id == survey_id), None)
         if campaign_survey is None:
-            print(f"Survey with ID {survey_id} not found in campaign {campaign_name}")
+            print(f"ERROR: Survey with ID {survey_id} not found in campaign {campaign_name}")
             return
         
         print("Deleting survey {} in campaign {}..".format(survey_id, campaign_name))
@@ -386,14 +386,14 @@ class Site:
                 print("Deleted survey.")
                 return
             
-        print("Survey {} not found in campaign {}..".format(survey_id, campaign_name))
+        print("ERROR: Survey {} not found in campaign {}..".format(survey_id, campaign_name))
             
 
     def run_reference_frame(self, reference_frame_name: str, reference_frame_data: dict, add_new: bool, update: bool, delete: bool):
         """ Run a reference frame operation based on the provided flags """
 
         if not only_one_is_true(add_new, update, delete):
-            print("Please select only one operation(Add/Update/Delete) to run..")
+            print("ERROR: Please select only one operation(Add/Update/Delete) to run..")
             return
         
         if add_new:
@@ -409,7 +409,7 @@ class Site:
 
         for reference_frame in self.referenceFrames:
             if reference_frame.name == reference_frame_name:
-                print("Reference frame already exists.. Choose to update or delete if needed")
+                print("ERROR: Reference frame already exists.. Choose to update or delete if needed")
                 print(json.dumps(reference_frame.to_dict(), indent=2))
                 return
         
@@ -431,7 +431,7 @@ class Site:
                 print("Updated reference frame.")
                 return
             
-        print("Reference frame not found..")
+        print("ERROR: Reference frame not found..")
         
     def delete_reference_frame(self, reference_frame_name: str):
         """ Delete a reference frame from the site dictionary """
@@ -443,4 +443,4 @@ class Site:
                 print("Deleted reference frame..")
                 return
             
-        print("Reference frame not found..")
+        print("ERROR: Reference frame not found..")

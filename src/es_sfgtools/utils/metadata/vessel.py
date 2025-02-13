@@ -192,15 +192,15 @@ class Vessel:
 
     def run_equipment(self, serial_number: str, equipment_type: str, equipment_data: dict, add_new: bool, update: bool, delete: bool):
         if not only_one_is_true(add_new, update, delete):
-            print("Please select only one action to perform.")
+            print("ERROR: Please select only one action to perform.")
             return
         
         if not serial_number:
-            print("Serial number is required.")
+            print("ERROR: Serial number is required.")
             return
             
         if equipment_type not in survey_vessels_types:
-            print(f"Invalid equipment type: {equipment_type}")
+            print(f"ERROR: Invalid equipment type: {equipment_type}")
             return
         
         if add_new:
@@ -218,7 +218,7 @@ class Vessel:
         if equipment_type == "imuSensors":
             for sensor in self.imu_sensors:
                 if sensor.serialNumber == serial_number:
-                    print(f"IMU sensor with serial number {serial_number} already exists, choose to update instead.")
+                    print(f"ERROR: IMU sensor with serial number {serial_number} already exists, choose to update instead.")
                     print(json.dumps(sensor.to_dict(), indent=2))
                     return
                 
@@ -229,7 +229,7 @@ class Vessel:
         elif equipment_type == "gnssAntennas":
             for antenna in self.gnss_antennas:
                 if antenna.serialNumber == serial_number:
-                    print(f"GNSS antenna with serial number {serial_number} already exists, choose to update instead.")
+                    print(f"ERROR: GNSS antenna with serial number {serial_number} already exists, choose to update instead.")
                     print(json.dumps(antenna.to_dict(), indent=2))
                     return
                 
@@ -240,7 +240,7 @@ class Vessel:
         elif equipment_type == "gnssReceivers":
             for receiver in self.gnss_receivers:
                 if receiver.serialNumber == serial_number:
-                    print(f"GNSS receiver with serial number {serial_number} already exists, choose to update instead.")
+                    print(f"ERROR: GNSS receiver with serial number {serial_number} already exists, choose to update instead.")
                     print(json.dumps(receiver.to_dict(), indent=2))
                     return
                 
@@ -251,7 +251,7 @@ class Vessel:
         elif equipment_type == "acousticTransducer":
             for transducer in self.acoustic_transducers:
                 if transducer.serialNumber == serial_number:
-                    print(f"Acoustic transducer with serial number {serial_number} already exists, choose to update instead.")
+                    print(f"ERROR: Acoustic transducer with serial number {serial_number} already exists, choose to update instead.")
                     print(json.dumps(transducer.to_dict(), indent=2))
                     return
                 
@@ -262,7 +262,7 @@ class Vessel:
         elif equipment_type == "acousticTransceiver":
             for transceiver in self.acoustic_transceivers:
                 if transceiver.serialNumber == serial_number:
-                    print(f"Acoustic transceiver with serial number {serial_number} already exists, choose to update instead.")
+                    print(f"ERROR: Acoustic transceiver with serial number {serial_number} already exists, choose to update instead.")
                     print(json.dumps(transceiver.to_dict(), indent=2))
                     return
                 
@@ -273,7 +273,7 @@ class Vessel:
         elif equipment_type == "atdOffsets":
             for offset in self.atd_offsets:
                 if offset.transducerSerialNumber == serial_number:
-                    print(f"Acoustic to transducer offset with serial number {serial_number} already exists, choose to update instead.")
+                    print(f"ERROR: Acoustic to transducer offset with serial number {serial_number} already exists, choose to update instead.")
                     print(json.dumps(offset.to_dict(), indent=2))
                     return
                 
@@ -282,7 +282,7 @@ class Vessel:
             print(json.dumps(new_offset.to_dict(), indent=2))
 
         else:
-            print(f"Invalid equipment type: {equipment_type}")
+            print(f"ERROR: Invalid equipment type: {equipment_type}")
             return
 
         print(f"New {equipment_type} added successfully.")
@@ -299,7 +299,7 @@ class Vessel:
                     print(f"IMU sensor with serial number {serial_number} updated successfully.")
                     return
                 
-            print(f"IMU sensor with serial number {serial_number} not found.")
+            print(f"ERROR: IMU sensor with serial number {serial_number} not found.")
 
         elif equipment_type == "gnssAntennas":
             for antenna in self.gnss_antennas:
@@ -309,7 +309,7 @@ class Vessel:
                     print(f"GNSS antenna with serial number {serial_number} updated successfully.")
                     return
                 
-            print(f"GNSS antenna with serial number {serial_number} not found.")
+            print(f"ERROR: GNSS antenna with serial number {serial_number} not found.")
 
         elif equipment_type == "gnssReceivers":
             for receiver in self.gnss_receivers:
@@ -319,7 +319,7 @@ class Vessel:
                     print(f"GNSS receiver with serial number {serial_number} updated successfully.")
                     return
                 
-            print(f"GNSS receiver with serial number {serial_number} not found.")
+            print(f"ERROR: GNSS receiver with serial number {serial_number} not found.")
 
         elif equipment_type == "acousticTransducer":
             for transducer in self.acoustic_transducers:
@@ -329,7 +329,7 @@ class Vessel:
                     print(f"Acoustic transducer with serial number {serial_number} updated successfully.")
                     return
                 
-            print(f"Acoustic transducer with serial number {serial_number} not found.")
+            print(f"ERROR: Acoustic transducer with serial number {serial_number} not found.")
 
         elif equipment_type == "acousticTransceiver":
             for transceiver in self.acoustic_transceivers:
@@ -339,7 +339,7 @@ class Vessel:
                     print(f"Acoustic transceiver with serial number {serial_number} updated successfully.")
                     return
                 
-            print(f"Acoustic transceiver with serial number {serial_number} not found.")
+            print(f"ERROR: Acoustic transceiver with serial number {serial_number} not found.")
 
         elif equipment_type == "atdOffsets":
             for offset in self.atd_offsets:
@@ -349,7 +349,7 @@ class Vessel:
                     print(f"Acoustic to transducer offset with serial number {serial_number} updated successfully.")
                     return
                 
-            print(f"Acoustic to transducer offset with serial number {serial_number} not found.")
+            print(f"ERROR: Acoustic to transducer offset with serial number {serial_number} not found.")
 
     def delete_equipment(self, serial_number: str, equipment_type: str):
         """ Delete a survey vessel equipment. """
@@ -362,7 +362,7 @@ class Vessel:
                     print(f"IMU sensor with serial number {serial_number} deleted successfully.")
                     return
                 
-            print(f"IMU sensor with serial number {serial_number} not found.")
+            print(f"ERROR: IMU sensor with serial number {serial_number} not found.")
 
         elif equipment_type == "gnssAntennas":
             for i, antenna in enumerate(self.gnss_antennas):
@@ -371,7 +371,7 @@ class Vessel:
                     print(f"GNSS antenna with serial number {serial_number} deleted successfully.")
                     return
                 
-            print(f"GNSS antenna with serial number {serial_number} not found.")
+            print(f"ERROR: GNSS antenna with serial number {serial_number} not found.")
 
         elif equipment_type == "gnssReceivers":
             for i, receiver in enumerate(self.gnss_receivers):
@@ -380,7 +380,7 @@ class Vessel:
                     print(f"GNSS receiver with serial number {serial_number} deleted successfully.")
                     return
                 
-            print(f"GNSS receiver with serial number {serial_number} not found.")
+            print(f"ERROR: GNSS receiver with serial number {serial_number} not found.")
 
         elif equipment_type == "acousticTransducer":
             for i, transducer in enumerate(self.acoustic_transducers):
@@ -389,7 +389,7 @@ class Vessel:
                     print(f"Acoustic transducer with serial number {serial_number} deleted successfully.")
                     return
                 
-            print(f"Acoustic transducer with serial number {serial_number} not found.")
+            print(f"ERROR: Acoustic transducer with serial number {serial_number} not found.")
 
         elif equipment_type == "acousticTransceiver":
             for i, transceiver in enumerate(self.acoustic_transceivers):
@@ -398,7 +398,7 @@ class Vessel:
                     print(f"Acoustic transceiver with serial number {serial_number} deleted successfully.")
                     return
                 
-            print(f"Acoustic transceiver with serial number {serial_number} not found.")
+            print(f"ERROR: Acoustic transceiver with serial number {serial_number} not found.")
 
         elif equipment_type == "atdOffsets":
             for i, offset in enumerate(self.atd_offsets):
@@ -407,7 +407,7 @@ class Vessel:
                     print(f"Acoustic to transducer offset with serial number {serial_number} deleted successfully.")
                     return
                 
-            print(f"Acoustic to transducer offset with serial number {serial_number} not found.")
+            print(f"ERROR: Acoustic to transducer offset with serial number {serial_number} not found.")
 
 def import_vessel(filepath: str) -> Vessel:
     """Import vessel data from a JSON file."""
