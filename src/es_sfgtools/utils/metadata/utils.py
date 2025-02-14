@@ -1,13 +1,9 @@
 import json
 import os
-from ipywidgets import Layout
 from datetime import datetime
 from typing import Union, Dict, Any
 import copy
 
-
-style = {'description_width': 'initial'}
-layout=Layout(width='30%', height='40px')
 
 class AttributeUpdater:
     def update_attributes(self, additional_data: Dict[str, Any]):
