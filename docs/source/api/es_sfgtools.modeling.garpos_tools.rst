@@ -16,4 +16,5 @@ Submodules
    es_sfgtools.modeling.garpos_tools.hyper_params
    es_sfgtools.modeling.garpos_tools.model_io
    es_sfgtools.modeling.garpos_tools.observation
+   es_sfgtools.modeling.garpos_tools.plotting
    es_sfgtools.modeling.garpos_tools.schemas

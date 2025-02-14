@@ -14,4 +14,4 @@ Submodules
 
    es_sfgtools.utils.archive_pull
    es_sfgtools.utils.loggers
-   es_sfgtools.utils.metadata_generator
+   es_sfgtools.utils.rinex_histogram

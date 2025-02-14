@@ -42,11 +42,18 @@ This section includes modules related to processing assets in the `es_sfgtools` 
 
 Utilities
 ---------
-This section includes utility modules in the `es_sfgtools` package.
 
 .. toctree::
    :glob:
    :maxdepth: 1
 
-   api/es_sfgtools.utils.metadata.*
    api/es_sfgtools.utils.*
+
+This section includes utility modules in the `es_sfgtools` package.
+
+.. toctree::
+   :glob:
+   :maxdepth: 1
+   :caption: Metadata
+
+   api/es_sfgtools.utils.metadata.*
