@@ -5,7 +5,7 @@ from typing import Any, Union, Dict, List
 
 from es_sfgtools.utils.metadata.benchmark import Benchmark, Transponder
 from es_sfgtools.utils.metadata.campaign import Campaign, Survey
-from es_sfgtools.utils.metadata.utils import AttributeUpdater, only_one_is_true
+from es_sfgtools.utils.metadata.utils import AttributeUpdater, convert_to_datetime, only_one_is_true
 
 def import_site(filepath: str):
     """Import site data from a JSON file."""
@@ -16,10 +16,19 @@ def import_site(filepath: str):
 top_level_groups = ["referenceFrames", "benchmarks", "campaigns"]
 
 class ReferenceFrame(AttributeUpdater):
-    def __init__(self, name: str):
+    def __init__(self, name: str, existing_reference_frame: dict = None):
+        if existing_reference_frame:
+            self.import_existing_reference_frame(existing_reference_frame)
+            return
+
         self.name = name
-        self.start: str = ""
-        self.end: str = ""
+        self.start: datetime = None
+        self.end: datetime = None
+
+    def import_existing_reference_frame(self, existing_reference_frame: dict):
+        self.name = existing_reference_frame.get("name", "")
+        self.start = convert_to_datetime(existing_reference_frame.get("start", ""))
+        self.end = convert_to_datetime(existing_reference_frame.get("end", ""))
 
     def to_dict(self) -> Dict[str, Any]:
         """
@@ -30,8 +39,8 @@ class ReferenceFrame(AttributeUpdater):
         """
         return {
             "name": self.name,
-            "start": self.start,
-            "end": self.end
+            "start": self.start.strftime('%Y-%m-%dT%H:%M:%S') if self.start else "",
+            "end": self.end.strftime('%Y-%m-%dT%H:%M:%S') if self.end else "",
         }
 
 
@@ -59,7 +68,7 @@ class Site:
 
         self.names = names
         self.networks = networks if networks else []
-        self.timeOrigin = time_of_origin.strftime('%Y-%m-%dT%H:%M:%S') if time_of_origin else " ",
+        self.timeOrigin = time_of_origin.strftime('%Y-%m-%dT%H:%M:%S') if time_of_origin else "",
         self.localGeoidHeight = local_geoid_height if local_geoid_height else ""
         self.arrayCenter = array_center if array_center else {'x': "", 'y': "", 'z': ""}  
         self.campaigns: List[Campaign] = []
@@ -92,7 +101,7 @@ class Site:
         self.arrayCenter = existing_site.get("arrayCenter", {})
         self.campaigns = [Campaign(existing_campaign=campaign) for campaign in existing_site.get("campaigns", [])]
         self.benchmarks = [Benchmark(existing_benchmark=benchmark) for benchmark in existing_site.get("benchmarks", [])]
-        self.referenceFrames = [ReferenceFrame(name=rf["name"], additional_data=rf) for rf in existing_site.get("referenceFrames", [])]
+        self.referenceFrames = [ReferenceFrame(existing_reference_frame=rf) for rf in existing_site.get("referenceFrames", [])]
 
     def export_site(self, filepath: str):
         """Export site data to a JSON file."""
@@ -104,8 +113,7 @@ class Site:
 
         for benchmark in self.benchmarks:
             if benchmark.name == benchmark_name:
-                print("ERROR: Benchmark already exists.. Choose to update or delete if needed")
-                print(json.dumps(benchmark.to_dict(), indent=2))
+                print("ERROR: Benchmark already exists.. Choose to update or delete if needed.")
                 return
             
         print("Adding new benchmark..")
@@ -160,11 +168,16 @@ class Site:
             return
         
         if add_new:
-            self.new_transponder(benchmark_name=benchmark_name, transponder_address=transponder_address, transponder_data=transponder_data)
+            self.new_transponder(benchmark_name=benchmark_name, 
+                                 transponder_address=transponder_address, 
+                                 transponder_data=transponder_data)
         if update:
-            self.update_existing_transponder(benchmark_name=benchmark_name, transponder_address=transponder_address, transponder_data=transponder_data)
+            self.update_existing_transponder(benchmark_name=benchmark_name, 
+                                             transponder_address=transponder_address, 
+                                             transponder_data=transponder_data)
         if delete:
-            self.delete_transponder(benchmark_name=benchmark_name, transponder_address=transponder_address)
+            self.delete_transponder(benchmark_name=benchmark_name, 
+                                    transponder_address=transponder_address)
 
     def new_transponder(self, benchmark_name: str, transponder_address, transponder_data: dict):
         """ Add a new transponder to a benchmark in the site dictionary """
@@ -181,7 +194,7 @@ class Site:
 
         for transponder in benchmark.transponders:
             if transponder.address == transponder_address:
-                print("ERROR: Transponder {} already exists in benchmark.. please update instead of adding".format(transponder_data["address"]))
+                print("ERROR: Transponder {} already exists in benchmark.. please update instead of adding.".format(transponder_address))
                 return
         
         print("Adding new transponder to benchmark {}..".format(benchmark_name))
@@ -287,7 +300,6 @@ class Site:
         for campaign in self.campaigns:
             if campaign.name == campaign_name:
                 print("ERROR: Campaign already exists.. Choose to update or delete if needed")
-                print(json.dumps(campaign.to_dict(), indent=2))
                 return
         
         print("Adding new campaign..")
@@ -319,7 +331,7 @@ class Site:
             
         print("ERROR: Campaign {} not found to be deleted..".format(campaign_name))
 
-    def run_survey(self, campaign_name: str, survey_id: str, survey_data: dict, add_new: bool, update: bool, delete: bool):
+    def run_survey(self, campaign_name: str, survey_data: dict, add_new: bool, update: bool, delete: bool, survey_id: str = None):
         """ Run a survey operation based on the provided flags """
 
         if not only_one_is_true(add_new, update, delete):
@@ -327,13 +339,23 @@ class Site:
             return
         
         if add_new:
-            self.new_survey(campaign_name, survey_data)
+            self.new_survey(campaign_name=campaign_name, 
+                            survey_data=survey_data,
+                            survey_id=survey_id)
         if update:
-            self.update_existing_survey(campaign_name, survey_id, survey_data)
+            if not survey_id:
+                print("ERROR: Survey ID not provided, please provide a survey ID to update..")
+                return
+            self.update_existing_survey(campaign_name=campaign_name, 
+                                        survey_id=survey_id, 
+                                        survey_data=survey_data)
         if delete:
-            self.delete_survey(campaign_name, survey_id)
+            if not survey_id:
+                print("ERROR: Survey ID not provided, please provide a survey ID to delete..")
+            self.delete_survey(campaign_name=campaign_name, 
+                               survey_id=survey_id)
 
-    def new_survey(self, campaign_name: str, survey_data: dict):
+    def new_survey(self, campaign_name: str, survey_data: dict, survey_id: str = None):
         """ Add a new survey to a campaign in the site dictionary """
         campaign = next((c for c in self.campaigns if c.name == campaign_name), None)
         
@@ -341,8 +363,15 @@ class Site:
             print(f"ERROR: Campaign {campaign_name} not found, ensure you have the correct campaign name")
             return
         
-        survey_id = campaign_name + "_" + str(len(campaign.surveys) + 1)
-        print("Generating new survey ID: " + survey_id)
+        if survey_id: 
+            campaign_survey = next((survey for survey in campaign.surveys if survey.survey_id == survey_id), None)
+            if campaign_survey:
+                print(f"ERROR: Survey with ID {survey_id} already exists in campaign {campaign_name}")
+                return
+        
+        if not survey_id:
+            survey_id = campaign_name + "_" + str(len(campaign.surveys) + 1)
+            print("Generating new survey ID: " + survey_id)
         
         print("Adding survey to campaign {}..".format(campaign_name))
         campaign.surveys.append(Survey(survey_id=survey_id, additional_data=survey_data))
@@ -355,7 +384,7 @@ class Site:
             print(f"ERROR: Campaign {campaign_name} not found, ensure you have the correct campaign name")
             return
 
-        campaign_survey = next((survey for survey in campaign.surveys if survey.id == survey_id), None)
+        campaign_survey = next((survey for survey in campaign.surveys if survey.survey_id == survey_id), None)
         if campaign_survey is None:
             print(f"ERROR: Survey with ID {survey_id} not found in campaign {campaign_name}")
             return
@@ -409,7 +438,6 @@ class Site:
         for reference_frame in self.referenceFrames:
             if reference_frame.name == reference_frame_name:
                 print("ERROR: Reference frame already exists.. Choose to update or delete if needed")
-                print(json.dumps(reference_frame.to_dict(), indent=2))
                 return
         
         print("Adding new reference frame..")

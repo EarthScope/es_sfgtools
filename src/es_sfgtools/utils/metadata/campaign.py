@@ -1,6 +1,7 @@
+from datetime import datetime
 from typing import Any, Dict, List
 
-from es_sfgtools.utils.metadata.utils import AttributeUpdater
+from es_sfgtools.utils.metadata.utils import AttributeUpdater, convert_to_datetime
 
 def campaign_checks(campaign_year, campaign_interval, vessel_code):
     """ Check the campaign year, interval and vessel code 
@@ -28,17 +29,46 @@ def campaign_checks(campaign_year, campaign_interval, vessel_code):
 
 
 class Survey(AttributeUpdater):
-    def __init__(self, survey_id: str, additional_data: Dict[str, Any] = None):
-        self.id = survey_id
+    def __init__(self, survey_id: str= None, additional_data: Dict[str, Any] = None, existing_survey: Dict[str, Any] = None):
+        if existing_survey:
+            self.import_existing_survey(existing_survey)
+            return
+        
+        self.survey_id = survey_id
         self.type: str = ""
         self.benchmarkIDs: List[str] = []
-        self.start: str = ""
-        self.end: str = ""
+        self.start: datetime = None
+        self.end: datetime = None
         self.notes: str = ""
         self.commands: str = ""
 
         if additional_data:
             self.update_attributes(additional_data)
+
+    def import_existing_survey(self, existing_survey: Dict[str, Any]):
+        """
+        Import an existing survey from a dictionary.
+
+        Args:
+            existing_survey (Dict[str, Any]): A dictionary containing the existing survey data.
+        """
+        self.survey_id = existing_survey.get("id", "")
+        self.type = existing_survey.get("type", "")
+        self.benchmarkIDs = existing_survey.get("benchmarkIDs", [])
+        start_time = existing_survey.get("start", "")
+        if start_time:
+            self.start = convert_to_datetime(start_time)
+        else:
+            self.start = None
+
+        end_time = existing_survey.get("end", "")
+        if end_time:
+            self.end = convert_to_datetime(end_time)
+        else:
+            self.end = None
+
+        self.notes = existing_survey.get("notes", "")
+        self.commands = existing_survey.get("commands", "")
 
     def to_dict(self) -> Dict[str, Any]:
         """
@@ -48,13 +78,13 @@ class Survey(AttributeUpdater):
             Dict[str, Any]: A dictionary representation of the Survey instance.
         """
         return {
-            "id": self.id,
-            "type": self.type,
-            "benchmarkIDs": self.benchmarkIDs,
-            "start": self.start,
-            "end": self.end,
-            "notes": self.notes,
-            "commands": self.commands
+            "id": self.survey_id,
+            "type": self.type if self.type else "",
+            "benchmarkIDs": self.benchmarkIDs if self.benchmarkIDs else [],
+            "start": self.start.strftime('%Y-%m-%dT%H:%M:%S') if self.start else "",
+            "end": self.end.strftime('%Y-%m-%dT%H:%M:%S') if self.end else "",
+            "notes": self.notes if self.notes else "",
+            "commands": self.commands if self.commands else ""
         }
 
 
@@ -69,8 +99,8 @@ class Campaign(AttributeUpdater):
         self.cruiseName: str = ""
         self.technicianName: str = ""
         self.technicianContact: str = ""
-        self.start: str = ""
-        self.end: str = ""
+        self.start: datetime = None
+        self.end: datetime = None
         self.surveys: List[Survey] = []
         
         if existing_campaign:
@@ -92,9 +122,20 @@ class Campaign(AttributeUpdater):
         self.cruiseName = existing_campaign.get("cruiseName", "")
         self.technicianName = existing_campaign.get("technicianName", "")
         self.technicianContact = existing_campaign.get("technicianContact", "")
-        self.start = existing_campaign.get("start", "")
-        self.end = existing_campaign.get("end", "")
-        self.surveys = [Survey(survey_id=survey["id"], additional_data=survey) for survey in existing_campaign["surveys"]]
+
+        start = existing_campaign.get("start", "")
+        if start:
+            self.start = convert_to_datetime(start)
+        else:
+            self.start = None
+
+        end = existing_campaign.get("end", "")
+        if end:
+            self.end = convert_to_datetime(end)
+        else:
+            self.end = None
+
+        self.surveys = [Survey(survey_id=survey["id"], existing_survey=survey ) for survey in existing_campaign["surveys"]]
 
 
     def to_dict(self) -> Dict[str, Any]:
@@ -107,14 +148,14 @@ class Campaign(AttributeUpdater):
         return {
             "name": self.name,
             "vesselCode": self.vesselCode,
-            "type": self.type,
-            "launchVesselName": self.launchVesselName,
-            "recoveryVesselName": self.recoveryVesselName,
-            "cruiseName": self.cruiseName,
-            "technicianName": self.technicianName,
-            "technicianContact": self.technicianContact,
-            "start": self.start,
-            "end": self.end,
+            "type": self.type if self.type else "",
+            "launchVesselName": self.launchVesselName if self.launchVesselName else "",
+            "recoveryVesselName": self.recoveryVesselName if self.recoveryVesselName else "",
+            "cruiseName": self.cruiseName if self.cruiseName else "",
+            "technicianName": self.technicianName if self.technicianName else "",
+            "technicianContact": self.technicianContact if self.technicianContact else "",
+            "start": self.start.strftime('%Y-%m-%dT%H:%M:%S') if self.start else "",
+            "end": self.end.strftime('%Y-%m-%dT%H:%M:%S') if self.end else "",
             "surveys": [survey.to_dict() for survey in self.surveys]    
         }
 

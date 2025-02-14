@@ -1,11 +1,55 @@
 import json
+import os
 from ipywidgets import Layout
 from datetime import datetime
 from typing import Union, Dict, Any
+import copy
 
 
 style = {'description_width': 'initial'}
 layout=Layout(width='30%', height='40px')
+
+class AttributeUpdater:
+    def update_attributes(self, additional_data: Dict[str, Any]):
+        """
+        Update the attributes based on the provided dictionary. Handles nested objects with the AttributeUpdater (e.g Location) class.
+
+        Args:
+            additional_data (Dict[str, Any]): A dictionary of additional attributes to update.
+        """
+        for key, value in additional_data.items():
+            if value:
+                if hasattr(self, key):
+                    if isinstance(value, dict) and isinstance(getattr(self, key), AttributeUpdater):
+                        getattr(self, key).update_attributes(value)
+                    else:
+                        setattr(self, key, value)
+                else:
+                    print(f"Unknown attribute '{key}' provided in additional data")
+
+
+class Location(AttributeUpdater):
+    def __init__(self, latitude: float = None, longitude: float = None, elevation: float = None, additional_data: Dict[str, Any] = None):
+        self.latitude: float = latitude
+        self.longitude: float = longitude
+        self.elevation: float = elevation
+
+        if additional_data:
+            self.update_attributes(additional_data)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "latitude": float(self.latitude) if self.latitude is not None else 0,
+            "longitude": float(self.longitude) if self.longitude is not None else 0,
+            "elevation": float(self.elevation) if self.elevation is not None else 0
+        }
+
+
+def only_one_is_true(*args):
+    """
+    Check that only one of the arguments is True.
+    """
+    return sum(args) == 1
 
 def convert_to_datetime(date_str: Union[str, datetime]) -> datetime:
     """
@@ -28,65 +72,64 @@ def convert_to_datetime(date_str: Union[str, datetime]) -> datetime:
             raise
     return date_str
 
-def start_and_end_dates(start_date: datetime, end_date: datetime, dict_to_update: dict) -> dict:
+
+def convert_custom_objects_to_dict(d: dict) -> dict:
+    """
+    Recursively convert custom objects in the dictionary to their dictionary representations.
+
+    Args:
+        d (dict): The dictionary to update.
+
+    Returns:
+        dict: The updated dictionary with custom objects converted to dictionaries.
+    """
+    for key, value in d.items():
+        if isinstance(value, AttributeUpdater):
+            d[key] = value.to_dict()
+        elif isinstance(value, datetime):
+            d[key] = value.isoformat()
+        elif isinstance(value, dict):
+            d[key] = convert_custom_objects_to_dict(value)
+    return d
+
+
+def start_and_end_dates(start_date: datetime, end_date: datetime, dict_to_update: dict, name: str = None) -> dict:
     """
     Add or update the start and end dates in the dictionary.
     """
 
-    # Convert ISO string format to datetime if a string is provided
+    print(f"Updating start and end dates for {name}..")
+    # Convert ISO string format to datetime if a string is provided & Chcek for reasonable dates (not notebook default date)
     try:
         if start_date:
             start_date = convert_to_datetime(start_date)
+
+            if start_date >= datetime(year=1990, month=1, day=1):
+                dict_to_update['start'] = start_date      
+            else:
+                print("Date too old. Not entering start date.")
+        else:
+            print("No start date provided..")
+
         if end_date:
             end_date = convert_to_datetime(end_date) 
+            
+            if end_date >= datetime(year=1990, month=1, day=1):
+                dict_to_update['end'] = end_date 
+            else:
+                print("Date too old. Not entering end date.")
+        else:
+            print("No end date provided..") 
     except ValueError:
         raise
 
-    # Check that it is a reasonable date >1990 and not the default date
-    if start_date:
-        if start_date >= datetime(year=1990, month=1, day=1):
-            dict_to_update['start'] = start_date.strftime('%Y-%m-%dT%H:%M:%S')
-        else:
-            print("Date too old. Not entering start date.")
+    # Create a deep copy of dict_to_update to ensure it remains unchanged
+    dict_to_print = copy.deepcopy(dict_to_update)
+    # Recursively convert custom objects to dictionaries before serializing to JSON
+    print("Check your site output to confirm.. \n" + json.dumps(convert_custom_objects_to_dict(dict_to_print), indent=2))
 
-    if end_date:
-        if end_date >= datetime(year=1990, month=1, day=1):
-            dict_to_update['end'] = end_date.strftime('%Y-%m-%dT%H:%M:%S')
-        else:
-            print("Date too old. Not entering end date.")
-
-    # # Check that the start date is not greater than the end date, if so raise an error
-    # if dict_to_update['end']:
-    #     if start_date > end_date:
-    #         print("Start date is greater than end date.. Please check the dates")
-    #         raise ValueError("Start date is greater than end date.. Please check the dates entered")
-
-    print("Check your site output to confirm.. \n" + json.dumps(dict_to_update, indent=2))
     return dict_to_update
 
-
-class AttributeUpdater:
-    def update_attributes(self, additional_data: Dict[str, Any]):
-        """
-        Update the attributes based on the provided dictionary.
-
-        Args:
-            additional_data (Dict[str, Any]): A dictionary of additional attributes to update.
-        """
-        for key, value in additional_data.items():
-            if value:
-                if hasattr(self, key):
-                    print(f"Updating attribute '{key}' with value '{value}'")
-                    setattr(self, key, value)
-                else:
-                    print(f"Unknown attribute '{key}' provided in additional data")
-
-
-def only_one_is_true(*args):
-    """
-    Check that only one of the arguments is True.
-    """
-    return sum(args) == 1
 
 # TODO: add this functionality to the site class in the future
 # def existing_atd_offsets(self, primary_vessel_name: str, atd_data_input: dict, output, event=None):
