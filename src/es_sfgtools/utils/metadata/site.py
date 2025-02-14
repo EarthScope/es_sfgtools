@@ -16,11 +16,10 @@ def import_site(filepath: str):
 top_level_groups = ["referenceFrames", "benchmarks", "campaigns"]
 
 class ReferenceFrame(AttributeUpdater):
-    start: str = ""
-    end: str = ""
-
     def __init__(self, name: str):
         self.name = name
+        self.start: str = ""
+        self.end: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
         """

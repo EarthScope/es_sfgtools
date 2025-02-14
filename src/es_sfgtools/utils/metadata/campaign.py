@@ -28,15 +28,14 @@ def campaign_checks(campaign_year, campaign_interval, vessel_code):
 
 
 class Survey(AttributeUpdater):
-    type: str = ""
-    benchmarkIDs: List[str] = []
-    start: str = ""
-    end: str = ""
-    notes: str = ""
-    commands: str = ""
-
     def __init__(self, survey_id: str, additional_data: Dict[str, Any] = None):
         self.id = survey_id
+        self.type: str = ""
+        self.benchmarkIDs: List[str] = []
+        self.start: str = ""
+        self.end: str = ""
+        self.notes: str = ""
+        self.commands: str = ""
 
         if additional_data:
             self.update_attributes(additional_data)
@@ -60,19 +59,19 @@ class Survey(AttributeUpdater):
 
 
 class Campaign(AttributeUpdater):
-    vesselCode: str = ""
-    type: str = ""
-    principalInvestigator: str = ""
-    launchVesselName: str = ""
-    recoveryVesselName: str = ""
-    cruiseName: str = ""
-    technicianName: str = ""
-    technicianContact: str = ""
-    start: str = ""
-    end: str = ""
-    surveys: List[Survey] = []
 
     def __init__(self, name: str = None, additional_data: Dict[str, Any] = None, existing_campaign: dict = None):
+        self.vesselCode: str = ""
+        self.type: str = ""
+        self.principalInvestigator: str = ""
+        self.launchVesselName: str = ""
+        self.recoveryVesselName: str = ""
+        self.cruiseName: str = ""
+        self.technicianName: str = ""
+        self.technicianContact: str = ""
+        self.start: str = ""
+        self.end: str = ""
+        self.surveys: List[Survey] = []
         
         if existing_campaign:
             self.import_existing_campaign(existing_campaign)
