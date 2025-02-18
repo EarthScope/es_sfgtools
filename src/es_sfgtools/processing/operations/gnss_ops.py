@@ -1157,6 +1157,3 @@ def tile2rinex(rangea_tdb:Path,settings:Path,writedir:Path,n_procs:int=10) -> Li
 
     return rinex_assets
 
-if __name__ == "__main__":
-    print(RINEX_BINARIES)
-    print(Path(__file__))
