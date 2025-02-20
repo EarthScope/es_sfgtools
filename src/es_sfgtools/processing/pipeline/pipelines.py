@@ -4,7 +4,7 @@ from multiprocessing import Pool, cpu_count
 import warnings
 from functools import partial
 import pandas as pd
-from typing import List, Optional
+from typing import List, Optional,Union
 from pathlib import Path
 import multiprocessing
 import datetime
@@ -65,8 +65,8 @@ class SV3PipelineConfig(BaseModel):
     inter_dir: Path = Field(..., title="Intermediate Directory")
     pride_dir: Path = Field(..., title="Pride Directory")
     catalog_path: Path = Field(..., title="Catalog Path")
-    start_date: datetime.date = Field(default=None, title="Campaign Start Date")
-    end_date: datetime.date = Field(default=None, title="Campaign End Date")
+    start_date: Union[datetime.date,None] = Field(default=None, title="Campaign Start Date")
+    end_date: Union[datetime.date,None] = Field(default=None, title="Campaign End Date")
     novatel_config: NovatelConfig = NovatelConfig()
     rinex_config: RinexConfig = RinexConfig()
     dfop00_config: DFOP00Config = DFOP00Config()

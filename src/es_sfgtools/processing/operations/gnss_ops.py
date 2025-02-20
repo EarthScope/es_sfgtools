@@ -597,7 +597,6 @@ def rinex_to_kin(
     show_details: bool = True
 ) -> Tuple[AssetEntry]:
 
-
     """
     Converts a RINEX file to a kin file.
     Args:
@@ -641,11 +640,11 @@ def rinex_to_kin(
         raise FileNotFoundError(f"RINEX file {source.local_path} not found")
 
     source = rinex_get_meta(source)
-    #get_nav_file(rinex_path=source.local_path)
-    #get_gnss_products(rinex_path=source.local_path,pride_dir=pridedir)
+    # get_nav_file(rinex_path=source.local_path)
+    # get_gnss_products(rinex_path=source.local_path,pride_dir=pridedir)
     if source.station is not None:
         site = source.station
-    
+
     # If PridePdpConfig is not provided, use the default configuration
     if pride_config is None:
         pride_config = PridePdpConfig()
@@ -686,7 +685,6 @@ def rinex_to_kin(
         if "error" in line.lower():
             logger.logerr(line)
 
-    
     year, doy = (
         source.timestamp_data_start.year,
         source.timestamp_data_start.timetuple().tm_yday,
@@ -697,7 +695,7 @@ def rinex_to_kin(
     res_file_path = file_dir / f"res_{str(year)}{str(doy)}_{site.lower()}"
     kin_file = None
     res_file = None
-   
+
     if kin_file_path.exists():
         kin_file_new = writedir / (kin_file_path.name + ".kin")
         shutil.copy(src=kin_file_path,dst=kin_file_new)
@@ -729,7 +727,6 @@ def rinex_to_kin(
             campaign=source.campaign,
         )
         logger.loginfo(f"Found PRIDE res file {res_file.local_path}")
-  
 
     if not kin_file:
         response = f"No kin file generated from RINEX {source.local_path}"
@@ -928,7 +925,7 @@ def get_wrms_from_res(res_path):
                 data.append(wrms)
             else:
                 line = res_file.readline()
-    wrms_df = pd.DataFrame({"date": timestamps, "wrms": data}).set_index("date")
+    wrms_df = pd.DataFrame({"date": timestamps, "wrms": data})
     return wrms_df
 
 
@@ -967,7 +964,7 @@ def plot_kin_results_wrms(kin_df, title=None, save_as=None):
     fig.tight_layout()
     if save_as is not None:
         plt.savefig(save_as)
-    plt.close()
+    
 
 
 def nov0002tile(files:List[AssetEntry],rangea_tdb:Path,n_procs:int=10) -> None:
@@ -1156,4 +1153,3 @@ def tile2rinex(rangea_tdb:Path,settings:Path,writedir:Path,n_procs:int=10) -> Li
             rinex_assets.append(rinex_asset)
 
     return rinex_assets
-
