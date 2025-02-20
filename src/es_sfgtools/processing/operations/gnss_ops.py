@@ -27,7 +27,14 @@ from .pride_utils import get_nav_file,get_gnss_products
 
 from es_sfgtools.utils.loggers import GNSSLogger as logger
 
-RINEX_BINARIES = Path("src/golangtools/build").resolve()
+RINEX_BINARIES = "src/golangtools/build"
+SELF_PATH = Path(__file__).resolve()
+# find src
+for parent in SELF_PATH.parents:
+    if parent.name == "src":
+        RINEX_BINARIES = Path(str(parent.parent) +"/"+ RINEX_BINARIES)
+        break
+
 
 if not any(RINEX_BINARIES.iterdir()):
     raise UserWarning(f'Golang binaries not built. Navigate to {RINEX_BINARIES.parent()} and run "make"' )
@@ -1150,5 +1157,3 @@ def tile2rinex(rangea_tdb:Path,settings:Path,writedir:Path,n_procs:int=10) -> Li
 
     return rinex_assets
 
-if __name__ == "__main__":
-    print(GOLANG_BINARIES)
