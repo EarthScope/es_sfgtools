@@ -27,8 +27,18 @@ class ReferenceFrame(AttributeUpdater):
 
     def import_existing_reference_frame(self, existing_reference_frame: dict):
         self.name = existing_reference_frame.get("name", "")
-        self.start = convert_to_datetime(existing_reference_frame.get("start", ""))
-        self.end = convert_to_datetime(existing_reference_frame.get("end", ""))
+        start_time = existing_reference_frame.get("start", "")
+        if start_time:
+            self.start = convert_to_datetime(start_time)
+        else:
+            self.start = None
+
+        end_time = existing_reference_frame.get("end", "")
+        if end_time:
+            self.end = convert_to_datetime(end_time)
+        else:
+            self.end = None
+
 
     def to_dict(self) -> Dict[str, Any]:
         """
@@ -123,7 +133,7 @@ class Site:
         print("Added benchmark.")
 
 
-    def run_benchmark(self, benchmark_name: str, benchmark_data: dict, add_new: bool, update: bool, delete: bool):
+    def run_benchmark(self, benchmark_name: str, benchmark_data: dict, add_new: bool = False, update: bool = False, delete: bool = False):
         """ Run a benchmark operation based on the provided flags """
 
         if not only_one_is_true(add_new, update, delete):
@@ -282,7 +292,7 @@ class Site:
 
         print("ERROR: Transponder not found..")
                 
-    def run_campaign(self, campaign_name: str, campaign_data: dict, add_new: bool, update: bool, delete: bool):
+    def run_campaign(self, campaign_name: str, campaign_data: dict, add_new: bool = False, update: bool = False, delete: bool = False):
         """ Run a campaign operation based on the provided flags """
         if not only_one_is_true(add_new, update, delete):
             print("ERROR: Please select only one operation(Add/Update/Delete) to run..")
@@ -331,7 +341,7 @@ class Site:
             
         print("ERROR: Campaign {} not found to be deleted..".format(campaign_name))
 
-    def run_survey(self, campaign_name: str, survey_data: dict, add_new: bool, update: bool, delete: bool, survey_id: str = None):
+    def run_survey(self, campaign_name: str, survey_data: dict, add_new: bool = False, update: bool = False, delete: bool = False, survey_id: str = None):
         """ Run a survey operation based on the provided flags """
 
         if not only_one_is_true(add_new, update, delete):
@@ -417,7 +427,7 @@ class Site:
         print("ERROR: Survey {} not found in campaign {}..".format(survey_id, campaign_name))
             
 
-    def run_reference_frame(self, reference_frame_name: str, reference_frame_data: dict, add_new: bool, update: bool, delete: bool):
+    def run_reference_frame(self, reference_frame_name: str, reference_frame_data: dict, add_new: bool = False, update: bool = False, delete: bool = False):
         """ Run a reference frame operation based on the provided flags """
 
         if not only_one_is_true(add_new, update, delete):
