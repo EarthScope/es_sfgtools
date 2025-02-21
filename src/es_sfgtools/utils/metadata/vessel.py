@@ -1,13 +1,20 @@
+from datetime import datetime
 import json
 from typing import Any, Dict, List
 
-from es_sfgtools.utils.metadata.utils import AttributeUpdater, only_one_is_true
+from es_sfgtools.utils.metadata.utils import AttributeUpdater, convert_to_datetime, only_one_is_true
 
 survey_vessels_types = ["imuSensors", "gnssReceivers", "gnssAntennas", "acousticTransducer", 
                         "acousticTransceiver", "atdOffsets", "imuSensors"]
 
 class AtdOffset(AttributeUpdater):
-    def __init__(self, transducer_serial_number, additional_data: Dict[str, Any] = None):
+    # TODO work on this... 
+
+    def __init__(self, transducer_serial_number: str = None, additional_data: Dict[str, Any] = None, existing_atd_offset: Dict[str, Any] = None):
+        if existing_atd_offset:
+            self.import_exisiting_ATD_offset(existing_atd=existing_atd_offset)
+            return
+
         self.transducerSerialNumber = transducer_serial_number
         self.x = ""
         self.y = ""
@@ -15,6 +22,13 @@ class AtdOffset(AttributeUpdater):
 
         if additional_data:
             self.update_attributes(additional_data)
+
+    def import_exisiting_ATD_offset(self, existing_atd: dict):
+        self.transducerSerialNumber = existing_atd.get("transducerSerialNumber", "")
+        self.x = existing_atd.get('x', "")
+        self.y = existing_atd.get('y', "")
+        self.z = existing_atd.get('z', "")
+
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -25,17 +39,40 @@ class AtdOffset(AttributeUpdater):
         }
 
 class GnssAntenna(AttributeUpdater):
-    def __init__(self, serial_number: str, additional_data: Dict[str, Any] = None):
+    def __init__(self, serial_number: str = None, additional_data: Dict[str, Any] = None, existing_GNSS_antenna: Dict[str, Any] = None):
+        if existing_GNSS_antenna:
+            self.import_exisiting_antenna(existing_GNSS_antenna)
+            return
+
         self.order = ""
         self.type = ""
         self.model = ""
         self.serialNumber = serial_number
         self.radomeSerialNumber = ""
-        self.start = ""
-        self.end = ""
+        self.start: datetime = None
+        self.end: datetime = None
 
         if additional_data:
             self.update_attributes(additional_data)
+
+    def import_exisiting_antenna(self, existing_antenna: Dict):
+        self.order = existing_antenna.get("order", "")
+        self.type = existing_antenna.get("type", "")
+        self.model = existing_antenna.get("model", "")
+        self.serialNumber = existing_antenna.get("serialNumber", "")
+        self.radomeSerialNumber = existing_antenna.get("radomeSerialNumber", "")
+
+        start_time = existing_antenna.get("start", "")
+        if start_time:
+            self.start = convert_to_datetime(start_time)
+        else:
+            self.start = None
+
+        end_time = existing_antenna.get("end", "")
+        if end_time:
+            self.end = convert_to_datetime(end_time)
+        else:
+            self.end = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -44,21 +81,43 @@ class GnssAntenna(AttributeUpdater):
             "model": self.model,
             "serialNumber": self.serialNumber,
             "radomeSerialNumber": self.radomeSerialNumber,
-            "start": self.start,
-            "end": self.end
+            "start": self.start.strftime('%Y-%m-%dT%H:%M:%S') if self.start else "",
+            "end": self.end.strftime('%Y-%m-%dT%H:%M:%S') if self.end else "",
         }
     
 class GnssReceiver(AttributeUpdater):
-    def __init__(self, serial_number: str, additional_data: Dict[str, Any] = None):
+    def __init__(self, serial_number: str = None, additional_data: Dict[str, Any] = None, existing_receiver: dict = None):
+        if existing_receiver:
+            self.import_exisiting_receiver(existing_receiver=existing_receiver)
+            return
+
         self.type = ""
         self.model = ""
         self.serialNumber = serial_number
         self.firmwareVersion = ""
-        self.start = ""
-        self.end = ""
+        self.start: datetime = None
+        self.end: datetime = None
 
         if additional_data:
             self.update_attributes(additional_data)
+
+    def import_exisiting_receiver(self, existing_receiver: dict):
+        self.type = existing_receiver.get("type", "")
+        self.model = existing_receiver.get("model", "")
+        self.serialNumber = existing_receiver.get("serialNumber", "")
+        self.firmwareVersion = existing_receiver.get("firmwareVersion", "")
+
+        start_time = existing_receiver.get("start", "")
+        if start_time:
+            self.start = convert_to_datetime(start_time)
+        else:
+            self.start = None
+
+        end_time = existing_receiver.get("end", "")
+        if end_time:
+            self.end = convert_to_datetime(end_time)
+        else:
+            self.end = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -66,42 +125,90 @@ class GnssReceiver(AttributeUpdater):
             "model": self.model,
             "serialNumber": self.serialNumber,
             "firmwareVersion": self.firmwareVersion,
-            "start": self.start,
-            "end": self.end
+            "start": self.start.strftime('%Y-%m-%dT%H:%M:%S') if self.start else "",
+            "end": self.end.strftime('%Y-%m-%dT%H:%M:%S') if self.end else "",
         }
 
 class AcousticTransducer(AttributeUpdater):
-    def __init__(self, serial_number: str, additional_data: Dict[str, Any] = None):
+    def __init__(self, serial_number: str = None, additional_data: Dict[str, Any] = None, existing_transducer: dict = None):
+
+        if existing_transducer:
+            self.import_existing_transducer(existing_transducer=existing_transducer)
+            return
+
         self.type = ""
         self.serialNumber = serial_number
         self.frequency = ""
-        self.start = ""
-        self.end = ""
+        self.start: datetime = None
+        self.end: datetime = None
 
         if additional_data:
             self.update_attributes(additional_data)
+
+    def import_existing_transducer(self, existing_transducer: dict):
+        self.type = existing_transducer.get("type", "")
+        self.serialNumber = existing_transducer.get("serialNumber", "")
+        self.frequency = existing_transducer.get('frequency', "")
+
+        start_time = existing_transducer.get("start", "")
+        if start_time:
+            self.start = convert_to_datetime(start_time)
+        else:
+            self.start = None
+
+        end_time = existing_transducer.get("end", "")
+        if end_time:
+            self.end = convert_to_datetime(end_time)
+        else:
+            self.end = None
+
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             "type": self.type,
             "serialNumber": self.serialNumber,
             "frequency": self.frequency,
-            "start": self.start,
-            "end": self.end
+            "start": self.start.strftime('%Y-%m-%dT%H:%M:%S') if self.start else "",
+            "end": self.end.strftime('%Y-%m-%dT%H:%M:%S') if self.end else "",
         }
 
 class AcousticTransceiver(AttributeUpdater):
-    def __init__(self, serial_number: str, additional_data: Dict[str, Any] = None):
+    def __init__(self, serial_number: str = None, additional_data: Dict[str, Any] = None, existing_transceiver: dict = None):
+
+        if existing_transceiver:
+            self.import_existing_transceiver(existing_transceiver=existing_transceiver)
+            return
+
         self.type = ""
         self.serialNumber = serial_number
         self.frequency = ""
         self.triggerDelay = ""
         self.delayIncludedInTWTT = ""
-        self.start = ""
-        self.end = ""
+        self.start: datetime = None
+        self.end: datetime = None
 
         if additional_data:
             self.update_attributes(additional_data)
+
+    def import_existing_transceiver(self, existing_transceiver: dict):
+        self.type = existing_transceiver.get("type", "")
+        self.serialNumber = existing_transceiver.get("serialNumber", "")
+        self.frequency = existing_transceiver.get('frequency', "")
+        self.triggerDelay = existing_transceiver.get('triggerDelay', "")
+        self.delayIncludedInTWTT = existing_transceiver.get("delayIncludedInTWTT", "")
+        
+        start_time = existing_transceiver.get("start", "")
+        if start_time:
+            self.start = convert_to_datetime(start_time)
+        else:
+            self.start = None
+
+        end_time = existing_transceiver.get("end", "")
+        if end_time:
+            self.end = convert_to_datetime(end_time)
+        else:
+            self.end = None
+
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -110,28 +217,50 @@ class AcousticTransceiver(AttributeUpdater):
             "frequency": self.frequency,
             "triggerDelay": self.triggerDelay,
             "delayIncludedInTWTT": self.delayIncludedInTWTT,
-            "start": self.start,
-            "end": self.end
+            "start": self.start.strftime('%Y-%m-%dT%H:%M:%S') if self.start else "",
+            "end": self.end.strftime('%Y-%m-%dT%H:%M:%S') if self.end else "",
         }
     
 class ImuSensor(AttributeUpdater):
-    def __init__(self, serial_number: str, additional_data: Dict[str, Any] = None):
+    def __init__(self, serial_number: str = None, additional_data: Dict[str, Any] = None, existing_IMU_sensor: Dict[str, Any] = None):
+
+        if existing_IMU_sensor:
+            self.import_exisiting_IMU_sensor(existing_IMU_sensor=existing_IMU_sensor)
+            return 
+        
         self.type = ""
         self.model = ""
         self.serialNumber = serial_number
-        self.start = ""
-        self.end = ""
+        self.start: datetime = None
+        self.end: datetime = None
 
         if additional_data:
             self.update_attributes(additional_data)
+
+    def import_exisiting_IMU_sensor(self, existing_IMU_sensor: dict):
+        self.type = existing_IMU_sensor.get("type", "")
+        self.model = existing_IMU_sensor.get("model", "")
+        self.serialNumber = existing_IMU_sensor.get('serialNumber', "")
+        
+        start_time = existing_IMU_sensor.get("start", "")
+        if start_time:
+            self.start = convert_to_datetime(start_time)
+        else:
+            self.start = None
+
+        end_time = existing_IMU_sensor.get("end", "")
+        if end_time:
+            self.end = convert_to_datetime(end_time)
+        else:
+            self.end = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             "type": self.type,
             "model": self.model,
             "serialNumber": self.serialNumber,
-            "start": self.start,
-            "end": self.end
+            "start": self.start.strftime('%Y-%m-%dT%H:%M:%S') if self.start else "",
+            "end": self.end.strftime('%Y-%m-%dT%H:%M:%S') if self.end else "",
         }
     
 
@@ -146,8 +275,8 @@ class Vessel:
             self.type = type if type else ""
             self.model = model if model else ""
             self.serial_number = serial_number if serial_number else ""
-            self.start = start if start else ""
-            self.end = end if end else ""
+            self.start = convert_to_datetime(start) if start else None # TODO deal with start/end times with actual datetimes
+            self.end = convert_to_datetime(end) if end else None
             self.atd_offsets: List[AtdOffset] = []
             self.imu_sensors: List[ImuSensor] = []
             self.gnss_antennas: List[GnssAntenna] = []
@@ -160,14 +289,25 @@ class Vessel:
         self.type = existing_vessel.get("type", "")
         self.model = existing_vessel.get("model", "")
         self.serial_number = existing_vessel.get("serialNumber", "")
-        self.start = existing_vessel.get("start", "")
-        self.end = existing_vessel.get("end", "")
-        self.imu_sensors = [ImuSensor(serial_number=sensor["serialNumber"], additional_data=sensor) for sensor in existing_vessel.get("imuSensors", [])]
-        self.atd_offsets = [AtdOffset(**offset) for offset in existing_vessel.get("atdOffsets", [])]
-        self.gnss_antennas = [GnssAntenna(serial_number=antenna["serialNumber"], additional_data=antenna) for antenna in existing_vessel.get("gnssAntennas", [])]
-        self.gnss_receivers = [GnssReceiver(serial_number=receiver["serialNumber"], additional_data=receiver) for receiver in existing_vessel.get("gnssReceivers", [])]
-        self.acoustic_transducers = [AcousticTransducer(serial_number=transducer["serialNumber"], additional_data=transducer) for transducer in existing_vessel.get("acousticTransducer", [])]
-        self.acoustic_transceivers = [AcousticTransceiver(serial_number=transceiver["serialNumber"], additional_data=transceiver) for transceiver in existing_vessel.get("acousticTransceiver", [])]
+        
+        start_time = existing_vessel.get("start", "")
+        if start_time:
+            self.start = convert_to_datetime(start_time)
+        else:
+            self.start = None
+
+        end_time = existing_vessel.get("end", "")
+        if end_time:
+            self.end = convert_to_datetime(end_time)
+        else:
+            self.end = None
+
+        self.imu_sensors = [ImuSensor(existing_IMU_sensor=sensor) for sensor in existing_vessel.get('imuSensors', [])]
+        self.atd_offsets = [AtdOffset(existing_atd_offset=atd_offset) for atd_offset in existing_vessel.get('atdOffsets', [])] # TODO work on where these offsets live
+        self.gnss_antennas = [GnssAntenna(existing_GNSS_antenna=antenna) for antenna in existing_vessel.get("gnssAntennas", [])]
+        self.gnss_receivers = [GnssReceiver(existing_receiver=receiver) for receiver in existing_vessel.get("gnssReceivers", [])]
+        self.acoustic_transducers = [AcousticTransducer(existing_transducer=transducer) for transducer in existing_vessel.get("acousticTransducer", [])]
+        self.acoustic_transceivers = [AcousticTransceiver(existing_transceiver=transceiver) for transceiver in existing_vessel.get("acousticTransceiver", [])]
 
     def export_vessel(self, filepath: str):
         with open(filepath, 'w') as file:
@@ -179,8 +319,8 @@ class Vessel:
             "type": self.type,
             "model": self.model,
             "serialNumber": self.serial_number,
-            "start": self.start,
-            "end": self.end,
+            "start": self.start.strftime('%Y-%m-%dT%H:%M:%S') if self.start else "",
+            "end": self.end.strftime('%Y-%m-%dT%H:%M:%S') if self.end else "",
             "imuSensors": [sensor.to_dict() for sensor in self.imu_sensors],
             "atdOffsets": [offset.to_dict() for offset in self.atd_offsets],
             "gnssAntennas": [antenna.to_dict() for antenna in self.gnss_antennas],
@@ -190,7 +330,7 @@ class Vessel:
         }
 
 
-    def run_equipment(self, serial_number: str, equipment_type: str, equipment_data: dict, add_new: bool, update: bool, delete: bool):
+    def run_equipment(self, serial_number: str, equipment_type: str, equipment_data: dict, add_new: bool=False, update: bool = False, delete: bool = False):
         if not only_one_is_true(add_new, update, delete):
             print("ERROR: Please select only one action to perform.")
             return
@@ -277,7 +417,7 @@ class Vessel:
                     print(json.dumps(offset.to_dict(), indent=2))
                     return
                 
-            new_offset = AtdOffset(serial_number, equipment_data)
+            new_offset = AtdOffset(serial_number, additional_data=equipment_data)
             self.atd_offsets.append(new_offset)
             print(json.dumps(new_offset.to_dict(), indent=2))
 
