@@ -33,8 +33,6 @@ build: $(COMMANDS)
 	done
 
 
-# Show detected platform
-
 debug:
 	@echo "OS: $(OS)"
 	@echo "ARCH: $(ARCH)"

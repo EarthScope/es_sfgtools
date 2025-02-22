@@ -13,7 +13,6 @@ matplotlib
 scikit-learn
 # scikit-sparse
 seaborn
-folium
 sqlalchemy
 pyarrow
 pandera
@@ -34,7 +33,6 @@ botocore
 
 # Utilities
 tqdm
-multipledispatch
 multiprocessing_logging
 
 # Jupyter and Widgets

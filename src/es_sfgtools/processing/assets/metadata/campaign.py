@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any, Dict, List
 
-from es_sfgtools.utils.metadata.utils import AttributeUpdater, convert_to_datetime
+from .utils import AttributeUpdater, convert_to_datetime
 
 def campaign_checks(campaign_year, campaign_interval, vessel_code):
     """ Check the campaign year, interval and vessel code 

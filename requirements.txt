@@ -15,7 +15,6 @@ earthscope-cli
 ipywidgets
 matplotlib
 seaborn
-folium
 scikit-learn
 sqlalchemy
 tiledb

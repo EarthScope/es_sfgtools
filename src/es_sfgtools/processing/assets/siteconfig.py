@@ -188,6 +188,7 @@ class Campaign(BaseModel):
         if isinstance(v,list):
             return [survey for survey in v]
         return v
+    
 class Site(BaseModel):
     name: str = "Site"
     networks: str = "Networks"

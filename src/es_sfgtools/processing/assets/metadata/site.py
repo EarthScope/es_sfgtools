@@ -3,9 +3,9 @@ from datetime import datetime
 import ipywidgets as widgets
 from typing import Any, Union, Dict, List
 
-from es_sfgtools.utils.metadata.benchmark import Benchmark, Transponder
-from es_sfgtools.utils.metadata.campaign import Campaign, Survey
-from es_sfgtools.utils.metadata.utils import AttributeUpdater, convert_to_datetime, only_one_is_true
+from .benchmark import Benchmark, Transponder
+from .campaign import Campaign, Survey
+from .utils import AttributeUpdater, convert_to_datetime, only_one_is_true
 
 def import_site(filepath: str):
     """Import site data from a JSON file."""

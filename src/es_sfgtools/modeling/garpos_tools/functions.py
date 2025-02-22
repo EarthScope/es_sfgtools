@@ -49,6 +49,8 @@ from es_sfgtools.modeling.garpos_tools.schemas import (
     GarposObservationOutput,
     GarposResults,
 )
+from es_sfgtools.processing.assets.metadata.site import import_site,Site
+
 from es_sfgtools.utils.loggers import GarposLogger as logger
 
 from ...processing.assets.tiledb_temp import TDBShotDataArray
@@ -907,7 +909,7 @@ class GarposHandler:
     """
 
     def __init__(
-        self, shotdata: TDBShotDataArray, site_config: SiteConfig, working_dir: Path
+        self, shotdata: TDBShotDataArray, working_dir: Path
     ):
         """
         Initializes the class with shot data, site configuration, and working directory.
@@ -920,7 +922,7 @@ class GarposHandler:
         self.LIB_DIRECTORY = garpos_fixed.lib_directory
         self.LIB_RAYTRACE = garpos_fixed.lib_raytrace
         self.shotdata = shotdata
-        self.site_config = site_config
+
         self.working_dir = working_dir
         self.shotdata_dir = working_dir / "shotdata"
         self.shotdata_dir.mkdir(exist_ok=True, parents=True)
@@ -928,27 +930,6 @@ class GarposHandler:
         self.results_dir.mkdir(exist_ok=True, parents=True)
         self.inversion_params = InversionParams()
         # self.dates = self.shotdata.get_unique_dates().tolist()
-
-        self.coord_transformer = CoordTransformer(site_config.position_llh)
-
-        for transponder in self.site_config.transponders:
-            lat, lon, hgt = (
-                transponder.position_llh.latitude,
-                transponder.position_llh.longitude,
-                transponder.position_llh.height,
-            )
-
-            e, n, u = self.coord_transformer.LLH2ENU(lat, lon, hgt)
-
-            transponder.position_enu = PositionENU(east=e, north=n, up=u)
-            transponder.id = (
-                "M" + str(transponder.id)
-                if str(transponder.id)[0].isdigit()
-                else str(transponder.id)
-            )
-        self.avg_transponder_enu, self.avg_transponder_llh = avg_transponder_position(
-            site_config.transponders
-        )
 
     def _rectify_shotdata(self, shot_data: pd.DataFrame) -> pd.DataFrame:
         """
@@ -1022,7 +1003,7 @@ class GarposHandler:
         return ObservationData.validate(shot_data, lazy=True).sort_values("triggerTime")
 
     def load_campaign_data(self, path: Path):
-        self.site = Site.from_json(path)
+        self.site = import_site(str(path))
 
     def set_campaign(self, name: str):
         for campaign in self.site.campaigns:
@@ -1030,6 +1011,26 @@ class GarposHandler:
                 self.campaign = campaign
                 return
         raise ValueError(f"campaign {name} not found")
+
+    def set_survey(self,survey_id:str):
+        current_survey = None
+        for survey in self.campaign.surveys:
+            if survey.survey_id == survey_id:
+                current_survey = survey
+                break
+        if current_survey == None:
+            raise ValueError(
+                f"Survey {survey_id} not found in {[x.survey_id for x in self.campaign.surveys]}"
+            )
+        self.current_survey = survey
+
+        # load benchmarks
+        self.current_benchmarks = []
+        for benchmark in self.site.benchmarks:
+            if benchmark.benchmarkID in self.current_survey.benchmarkIDs:
+                self.current_benchmarks.append(benchmark)
+        if not self.current_benchmarks:
+            raise ValueError(f"No Benchmarks Found")
 
     def prep_shotdata(self, overwrite: bool = False):
         """
@@ -1069,32 +1070,6 @@ class GarposHandler:
                         f"Shot data for {str(year)}_{str(doy)} failed validation."
                     ) from e
 
-    def subset_shots(self,data:pd.DataFrame,dt_s:float=59) -> pd.DataFrame:
-        # Subset the shotdata by breaks in data
-        st = np.diff(data.ST.to_numpy())
-        breakpoints = np.where(st > dt_s)[0].tolist()
-        if not breakpoints:
-            return data
-        last = 0
-        data["SET"] = "S01"
-        last = 0
-        
-        for idx, breakpoint in enumerate(breakpoints):
-            setidx = idx + 1
-            setidx_str = f"S{setidx:02d}"  # Ensures leading zeros (e.g., "01", "02")
-
-            data.loc[last:breakpoint, "SET"] = setidx_str
-            last = breakpoint   # Move to the next segment
-    
-        # Handle the last segment after the last breakpoint
-        setidx += 1
-        setidx_str = f"S{setidx:02d}"
-        data.loc[last:, "SET"] = setidx_str
-        return data
-
-
-\
-
     def prep_shotdata(self, overwrite: bool = False):
         for survey in self.campaign.surveys.values():
             benchmarks = []
@@ -1117,7 +1092,7 @@ class GarposHandler:
                 self.shotdata_dir
                 / f"{survey.id}_{survey_type}_{start_doy}_{end_doy}.csv"
             )
-           
+
         logger.loginfo("Preparing shot data")
         for date in self.dates:
             year, doy = date.year, date.timetuple().tm_yday
@@ -1132,7 +1107,7 @@ class GarposHandler:
                         f"No shot data found for survey {survey.id} {survey_type} {start_doy} {end_doy}"
                     )
                     continue
-   
+
                 shot_data_rectified = self._rectify_shotdata(shot_data_queried)
                 shot_data_rectified = self.subset_shots(shot_data_rectified)
                 try:
@@ -1147,16 +1122,16 @@ class GarposHandler:
                     shot_data_rectified.MT = shot_data_rectified.MT.apply(
                         lambda x: "M" + str(x) if str(x)[0].isdigit() else str(x)
                     )
-            
+
                     shot_data_rectified.to_csv(str(shot_data_path))
                 except Exception as e:
                     logger.logerr(f"Shot data for {str(year)}_{str(doy)} failed validation. Error: {e}")
                     raise ValueError(
                         f"Shot data for {survey.id} {survey_type} {start_doy} {end_doy} failed validation."
                     ) from e
-                
+
             self.campaign.surveys[survey.id].shot_data_path = shot_data_path
-  
+
         logger.loginfo(f"Shot data prepared and saved under {self.shotdata_dir}")  
 
     def set_inversion_params(self, parameters: dict | InversionParams):
@@ -1320,7 +1295,7 @@ class GarposHandler:
 
         with open(path, "w") as f:
             f.write(fixed_str)
-        
+
         logger.loginfo(f"Fixed parameters written to {path}")
 
     def _run_garpos(
@@ -1399,9 +1374,12 @@ class GarposHandler:
     def _run_garpos_survey(
         self, survey_id: str, run_id: int | str = 0, override: bool = False
     ) -> None:
-        try:
-            survey = self.campaign.surveys[survey_id]
-        except KeyError:
+        current_survey = None
+        for survey in self.campaign.surveys:
+            if survey.survey_id == survey_id:
+                current_survey = survey
+                break
+        if current_survey == None:
             raise ValueError(f"Survey {survey_id} not found")
 
         results_dir = self.results_dir / survey_id
@@ -1430,7 +1408,6 @@ class GarposHandler:
             None
         """
 
-
         if survey_id is None:
             for survey_id in self.campaign.surveys.keys():
                 self._run_garpos_survey(survey_id, run_id, override=override)
@@ -1445,7 +1422,7 @@ class GarposHandler:
     def plot_ts_results(
         self, survey_id: str, run_id: int | str = 0, res_filter: float = 10
     ) -> None:
-        
+
         """
         Plots the time series results for a given survey.
         Parameters:
@@ -1473,7 +1450,7 @@ class GarposHandler:
             survey = Survey(**dict(self.campaign.surveys[survey_id]))
         except KeyError:
             raise ValueError(f"Survey {survey_id} not found")
-        
+
         results_dir = self.results_dir / survey.id
         results_path = results_dir / f"_{run_id}_results.json"
         with open(results_path, "r") as f:
