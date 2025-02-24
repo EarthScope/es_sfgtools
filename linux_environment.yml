@@ -1,4 +1,4 @@
-name: seafloor_geodesy
+name: seafloor_geodesy_linux
 channels:
   - defaults
   - conda-forge
