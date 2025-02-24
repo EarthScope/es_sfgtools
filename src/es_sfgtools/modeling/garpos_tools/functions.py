@@ -931,6 +931,10 @@ class GarposHandler:
         self.inversion_params = InversionParams()
         # self.dates = self.shotdata.get_unique_dates().tolist()
 
+        self.campaign = None
+        self.current_survey = None
+        self.coord_transformer = None
+
     def _rectify_shotdata(self, shot_data: pd.DataFrame) -> pd.DataFrame:
         """
         Rectifies the shot data to the site local coordinate system by transforming coordinates and renaming columns.
@@ -1004,6 +1008,7 @@ class GarposHandler:
 
     def load_campaign_data(self, path: Path):
         self.site = import_site(str(path))
+        
 
     def set_campaign(self, name: str):
         for campaign in self.site.campaigns:

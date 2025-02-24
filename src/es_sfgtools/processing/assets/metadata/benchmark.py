@@ -1,7 +1,7 @@
 from typing import Any, Dict, List
 from datetime import datetime
 
-from es_sfgtools.utils.metadata.utils import AttributeUpdater, Location, convert_to_datetime
+from .utils import AttributeUpdater, Location, convert_to_datetime
 
 
 
