@@ -34,7 +34,6 @@ dependencies:
   - conda-forge::tiledb
   - clang
   - scikit-sparse
-  - libgcc
   - pip:
     - -e .
     - garpos @ git+https://github.com/EarthScope/garpos.git
