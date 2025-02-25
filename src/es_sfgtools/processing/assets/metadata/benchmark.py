@@ -6,7 +6,10 @@ from .utils import AttributeUpdater, Location, convert_to_datetime
 
 
 class Benchmark(AttributeUpdater):
-    def __init__(self, name: str = None, additional_data: Dict[str, Any] = None, existing_benchmark: Dict[str, Any] = None):
+    def __init__(self, 
+                 name: str = None, 
+                 additional_data: Dict[str, Any] = None, 
+                 existing_benchmark: Dict[str, Any] = None):
 
         if existing_benchmark:
             self.import_exisiting_benchmark(existing_benchmark)

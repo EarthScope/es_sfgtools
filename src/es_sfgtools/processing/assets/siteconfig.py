@@ -39,6 +39,15 @@ class PositionENU(BaseModel):
 
 
 class Transponder(BaseModel):
+    address: Optional[str] = None
+    uid: Optional[str] = None
+    model: Optional[str] = None
+    serialNumber: Optional[str] = None
+    batteryCapacity: Optional[str] = None
+    tat: float = 0.0
+    start: Optional[datetime.datetime] = None
+    end: Optional[datetime.datetime] = None
+
     position_llh: Optional[PositionLLH] = None
     position_enu: Optional[PositionENU] = None
     tat_offset: Optional[float] = None
