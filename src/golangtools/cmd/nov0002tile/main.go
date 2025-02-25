@@ -11,7 +11,7 @@ import (
 	"strings"
 	"sync"
 
-	tiledb "github.com/TileDB-Inc/TileDB-Go"
+	utils "github.com/EarthScope/es_sfgtools/src/golangtools/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/earthscope/gnsstools/pkg/common/gnss/observation"
 	novatelascii "gitlab.com/earthscope/gnsstools/pkg/encoding/novatel/novatel_ascii"
@@ -246,7 +246,7 @@ func main() {
 		flag.PrintDefaults()
 		log.Fatalln("no files specified")
 	}
-	if !ArrayExists(*tdbPathPtr) {
+	if !utils.ArrayExists(*tdbPathPtr) {
 		err := tiledbgnss.CreateArray("s3://earthscope-tiledb-schema-dev-us-east-2-ebamji/GNSS_OBS_SCHEMA_V3.tdb/", *tdbPathPtr, "us-east-2")
 		if err != nil {
 			log.Errorf("error creating array: %v",err)
@@ -278,22 +278,3 @@ func main() {
 	wg.Wait()
 }
 
-// Check if the TileDB array exists at the given path
-func ArrayExists(arrayPath string) bool {
-	ctx, err := tiledb.NewContext(nil)
-	if err != nil {
-		log.Errorf("failed creating TileDB context: %v", err)
-		return false
-	}
-	defer ctx.Free()
-
-	schema, err := tiledb.LoadArraySchema(ctx, arrayPath)
-	if err != nil{
-		log.Errorf("failed to load TileDB array schema: %v",err)
-	}
-	if schema == nil {
-		return false
-	} else {
-		return true
-	}
-}
