@@ -13,7 +13,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"gitlab.com/earthscope/gnsstools/pkg/encoding/gnss/observation"
+	"gitlab.com/earthscope/gnsstools/pkg/common/gnss/observation"
 	"gitlab.com/earthscope/gnsstools/pkg/encoding/rinex"
 	"gitlab.com/earthscope/gnsstools/pkg/encoding/tiledbgnss"
 )
