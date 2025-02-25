@@ -2,6 +2,7 @@ package utils
 
 import (
 	tiledb "github.com/TileDB-Inc/TileDB-Go"
+	log "github.com/sirupsen/logrus"
 )
 func ArrayExists(arrayPath string) bool {
 	ctx, err := tiledb.NewContext(nil)
