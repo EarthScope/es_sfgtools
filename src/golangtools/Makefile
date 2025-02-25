@@ -6,8 +6,9 @@ ARCH := $(shell go env GOARCH)
 BUILD_DIR=build
 COMMANDS=$(wildcard cmd/*)
 CONDA_BASE := $(shell conda info --base)
-CONDA_PREFIX := $(shell conda info --envs | awk '/\*/ {print $$NF}' | tr -d ' ')
-
+#CONDA_PREFIX := $(shell conda info --envs | awk '/\*/ {print $3}' | tr -d ' ')
+#CONDA_PREFIX=/Users/franklyndunbar/miniconda3/envs/seafloor_geodesy_mac
+CONDA_PREFIX := $(shell conda info --envs | awk '/\*/ {print $$NF}')
 
 DYLD_LIBRARY_PATH := $(shell echo $$DYLD_LIBRARY_PATH)
 DYLD_LIBRARY_PATH_CONDA=$(CONDA_PREFIX)/include:$(DYLD_LIBRARY_PATH)
@@ -33,11 +34,10 @@ build: $(COMMANDS)
 	done
 
 
-# Show detected platform
-
 debug:
 	@echo "OS: $(OS)"
 	@echo "ARCH: $(ARCH)"
+	@echo "LIBRARY_PATH: $(LIBRARY_PATH)"
 	@echo "Conda Prefix: $(CONDA_PREFIX)"
 	@echo "TileDB Library Path: $(CONDA_PREFIX)/lib"
 	@echo "DYLD_LIBRARY_PATH: $(DYLD_LIBRARY_PATH_CONDA)"
