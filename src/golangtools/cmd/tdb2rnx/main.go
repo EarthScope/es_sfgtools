@@ -1,3 +1,4 @@
+// Author: Franklyn Dunbar  | Contact franklyn.dunbar@earthscope.org | Dec 2024
 package main
 
 import (
@@ -7,11 +8,12 @@ import (
 	"io"
 	"os"
 	"sort"
+	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 
-	"gitlab.com/earthscope/gnsstools/pkg/common/gnss/observation"
+	"gitlab.com/earthscope/gnsstools/pkg/encoding/gnss/observation"
 	"gitlab.com/earthscope/gnsstools/pkg/encoding/rinex"
 	"gitlab.com/earthscope/gnsstools/pkg/encoding/tiledbgnss"
 )
@@ -22,63 +24,6 @@ type BodyParameters struct {
 	QueryParams tiledbgnss.ObsQueryParams `json:"query"`
 }
 
-func main() {
-	tdbPathPtr := flag.String("tdb", "", "Path to the TileDB array")
-	metaPtr := flag.String("settings", "", "settings file")
-	//jsonMetaFilePath := flag.String("meta", "", "path to JSON file")
-	flag.Parse()
-	log.SetOutput(os.Stdout)
-
-
-
-	// Parse settings from JSON
-	settings, err := parseSettings(*metaPtr)
-	if err != nil {
-		log.Fatalf("failed parsing settings: %s", err)
-	}
-	if settings == nil {
-		log.Fatalf("failed parsing settings")
-	}
-
-	timeStart,timeEnd,err := tiledbgnss.GetTimeRange(*tdbPathPtr)
-
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	fmt.Print(timeStart)
-	fmt.Print(timeEnd)
-
-	timeSlices := tiledbgnss.GetDateArranged(timeStart,timeEnd)
-
-	fmt.Print("\n Time Slices \n")
-	for _,timeSlice := range timeSlices {
-		// Clear the epochs slice
-		
-		fmt.Print("Start: ",timeSlice.Start,"\n")
-		fmt.Print("End: ",timeSlice.End)
-		fmt.Print("\n\n")
-		queryParams := tiledbgnss.ObsQueryParams{
-			Time: []tiledbgnss.TimeRange{timeSlice},
-		}
-		epochs, err := tiledbgnss.ReadObsV3Array(
-			*tdbPathPtr, "us-east-2", queryParams)
-		if err != nil {
-			fmt.Print("Error Reading TDB: ",err)
-		}
-		fmt.Print("Epochs: ",len(epochs),"\n")
-		settings.TimeOfFirst = epochs[0].Time
-		settings.TimeOfLast = epochs[len(epochs)-1].Time	
-		err = processDailyEpoch(epochs, settings)
-		epochs = nil // Clear the epochs list
-		if err != nil {
-			fmt.Print("Error Processing Daily Epoch: ",err)
-		}
-		fmt.Print("\n\n ===================== \n\n")
-
-	}
-}
-
 func processDailyEpoch(epochs []observation.Epoch, settings *rinex.Settings) error {
 	// sort epochs by time
 	sort.Slice(epochs, func(i, j int) bool {
@@ -86,17 +31,14 @@ func processDailyEpoch(epochs []observation.Epoch, settings *rinex.Settings) err
 	})
 
 	startYear,startMonth,startDay := epochs[0].Time.Date()
-	endYear,endMonth,endDay := epochs[len(epochs)-1].Time.Date()
 
-	fmt.Print("Start Date: ",startYear,startMonth,startDay,"\n")
-	fmt.Print("End Date: ",endYear,endMonth,endDay)
-	fmt.Print("\n")
 	currentDate := time.Date(startYear,startMonth,startDay,0,0,0,0,time.UTC)
 	dayOfYear := currentDate.YearDay()
 	outFile := &os.File{}
 	yy := startYear % 100
 	filename := fmt.Sprintf("%s%03d0.%02do", settings.MarkerName, dayOfYear, yy)
-	fmt.Print("\nWriting to Filename: ",filename,"\n")
+	log.Infof("Generating Daily RINEX File For Year %d, Month %d, Day %d To %s",startYear,startMonth,startDay,filename)
+	
 	outFile, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0644)
 
 	if err != nil {
@@ -154,3 +96,69 @@ func parseSettings(path string) (*rinex.Settings, error) {
 	return settings, nil
 }
 	
+
+func main() {
+	startTime := time.Now()
+	tdbPathPtr := flag.String("tdb", "", "Path to the TileDB array")
+	metaPtr := flag.String("settings", "", "settings file")
+	numProcsPtr := flag.Int("procs", 10, "Number of concurrent processes")
+
+	flag.Parse()
+	log.SetOutput(os.Stdout)
+
+	// Parse settings from JSON
+	settings, err := parseSettings(*metaPtr)
+	if err != nil {
+		log.Fatalf("failed parsing settings: %s", err)
+	}
+
+
+	timeStart,timeEnd,err := tiledbgnss.GetTimeRange(*tdbPathPtr)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	log.Infof("Time Range: %s - %s Found At %s",timeStart,timeEnd,*tdbPathPtr)
+	timeSlices := tiledbgnss.GetDateArranged(timeStart,timeEnd)
+
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	sem := make(chan struct{}, *numProcsPtr) // Limit to 10 concurrent goroutines
+
+	for _,timeSlice := range timeSlices {
+		wg.Add(1)
+		go func(timeSlice tiledbgnss.TimeRange) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			// Read the epochs from the TDB
+			queryParams := tiledbgnss.ObsQueryParams{
+				Time: []tiledbgnss.TimeRange{timeSlice},
+			}
+			epochs, err := tiledbgnss.ReadObsV3Array(
+				*tdbPathPtr, "us-east-2", queryParams)
+			if err != nil {
+				log.Debug("Error Reading TDB: ",err)
+			}
+			
+			if len(epochs) == 0 {
+				log.Debug("No epochs found for the given time slice")
+				return
+			}
+			mu.Lock()
+			log.Infof("Found %d Epochs From Array Within Timespan: %s",len(epochs),timeSlice)
+		
+			settings.TimeOfFirst = epochs[0].Time
+			settings.TimeOfLast = epochs[len(epochs)-1].Time	
+			err = processDailyEpoch(epochs, settings)
+			epochs = nil // Clear the epochs list
+			if err != nil {
+				fmt.Print("Error Processing Daily Epoch: ",err)
+			}
+			log.Infof("==================== COMPLETE ====================")
+			mu.Unlock()
+		}(timeSlice)
+	}
+	wg.Wait()
+	log.Infof("Total Time Elapsed: %s",time.Since(startTime))
+}
+
