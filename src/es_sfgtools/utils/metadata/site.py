@@ -55,7 +55,7 @@ class ReferenceFrame(AttributeUpdater):
 
 
 class Site:
-    def __init__(self, names: List[str] = None, networks: List[str] = None, time_of_origin: str = None, 
+    def __init__(self, names: List[str] = None, networks: List[str] = None, time_of_origin: datetime = None, 
     local_geoid_height: float = None, array_center: Dict = None, existing_site: Dict = None) -> None:
         """
         Create a new site object.
@@ -78,7 +78,7 @@ class Site:
 
         self.names = names
         self.networks = networks if networks else []
-        self.timeOrigin = time_of_origin.strftime('%Y-%m-%dT%H:%M:%S') if time_of_origin else "",
+        self.timeOrigin = time_of_origin,
         self.localGeoidHeight = local_geoid_height if local_geoid_height else ""
         self.arrayCenter = array_center if array_center else {'x': "", 'y': "", 'z': ""}  
         self.campaigns: List[Campaign] = []
@@ -95,7 +95,7 @@ class Site:
         return {
             "names": self.names,
             "networks": self.networks,
-            "timeOrigin": self.timeOrigin,
+            "timeOrigin": self.timeOrigin.strftime('%Y-%m-%dT%H:%M:%S') if self.timeOrigin else "",
             "localGeoidHeight": self.localGeoidHeight,
             "arrayCenter": self.arrayCenter,
             "referenceFrames": [referenceFrame.to_dict() for referenceFrame in self.referenceFrames],
