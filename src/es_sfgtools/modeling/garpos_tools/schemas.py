@@ -7,11 +7,11 @@ from pydantic import BaseModel, Field, model_validator,field_serializer,field_va
 from pathlib import Path
 import pandas as pd
 from datetime import datetime
-
+from configparser import ConfigParser
 from ...processing.assets.observables import SoundVelocityDataFrame
-from ...processing.assets.siteconfig import ATDOffset, PositionENU, PositionLLH, Transponder
+from ...processing.assets.siteconfig import GPATDOffset, GPPositionENU, GPPositionLLH, GPTransponder
 from es_sfgtools.utils.loggers import GarposLogger as logger
-
+import julian
 
 from garpos import LIB_DIRECTORY,LIB_RAYTRACE
 
@@ -121,7 +121,7 @@ class ObservationData(pa.DataFrameModel):
     class Config:
         coerce = True
         add_missing_columns = True
-    
+
 
 class GarposObservationOutput(pa.DataFrameModel):
     MT: Series[str] = pa.Field(
@@ -250,8 +250,8 @@ class InversionParams(BaseModel):
     deltab: float = Field(
         default=1.0e-6, description="Infinitesimal values to make Jacobian matrix"
     )
-    delta_center_position : PositionENU = Field(
-        default=PositionENU(east_sigma=1,north_sigma=1), description="Delta center position"
+    delta_center_position : GPPositionENU = Field(
+        default=GPPositionENU(east_sigma=1,north_sigma=1), description="Delta center position"
     )
 
 
@@ -332,18 +332,11 @@ class GarposObservation(BaseModel):
 
 class GarposSite(BaseModel):
     name: str
-    atd_offset: ATDOffset
-    center_enu: Optional[PositionENU] = None
-    center_llh: PositionLLH
-    transponders: List[Transponder]
-    delta_center_position: PositionENU = PositionENU()
-
-
-class GarposInput(BaseModel):
-    observation: GarposObservation
-    site: GarposSite
-    shot_data_file: Optional[Path] = None
-    sound_speed_file: Optional[Path] = None
+    atd_offset: GPATDOffset
+    center_enu: Optional[GPPositionENU] = None
+    center_llh: GPPositionLLH
+    transponders: List[GPTransponder]
+    delta_center_position: GPPositionENU = GPPositionENU()
 
 
 class GarposFixed(BaseModel):
@@ -352,23 +345,176 @@ class GarposFixed(BaseModel):
     inversion_params: InversionParams = InversionParams()
 
 class GarposResults(BaseModel):
-    center_llh: PositionLLH
-    delta_center_position: PositionENU
-    transponders: list[Transponder]
+    center_llh: GPPositionLLH
+    delta_center_position: GPPositionENU
+    transponders: list[GPTransponder]
     shot_data: Union[Path, pd.DataFrame]
 
     @field_serializer("shot_data")
     def serialize_shot_data(self, value):
         return str(value)
-    
+
     class Config:
         arbitrary_types_allowed = True  
-    # @field_validator("shot_data", mode="before")
-    # def validate_shot_data(cls, value):
-    #     try:
-    #         if isinstance(value, str):
-    #             value = pd.read_json(value)
 
-    #         return GarposObservationOutput.validate(value, lazy=True)
-    #     except ValidationError as e:
-    #         raise ValueError(f"Invalid shot data: {e}")
+
+class GarposInput(BaseModel):
+    site_name: str
+    campaign_id: str
+    survey_id: str
+    site_center_llh: GPPositionLLH
+    array_center_enu: GPPositionENU
+    transponders: List[GPTransponder]
+    sound_speed_data: Optional[Path]
+    atd_offset: GPATDOffset
+    start_date: datetime
+    end_date:datetime
+    shot_data: Optional[Path]
+    delta_center_position:GPPositionENU = GPPositionENU()
+    ref_frame = "ITRF"
+
+    def to_datafile(self, path: Path,n_shot:int) -> None:
+        """
+        Write a GarposInput to a datafile
+
+        Args:
+            garpos_input (GarposInput): The GarposInput object
+            path (Path): The path to the datafile
+
+        Returns:
+            None
+        """
+        def datetime_to_mjd(dt: datetime) -> float:
+            jd = julian.to_jd(dt, fmt='jd')
+            mjd = jd - 2400000.5
+            return mjd
+        # Write the data file
+        center_enu: List[float] = self.array_center_enu.get_position()
+        delta_center_position: List[float] = (
+            self.delta_center_position.get_position()
+            + self.delta_center_position.get_std_dev()
+            + [0.0, 0.0, 0.0]
+        )
+        atd_offset = self.atd_offset.get_offset() + [0.0, 0.0, 0.0] * 2
+        date_mjd = datetime_to_mjd(self.start_date)
+        obs_str = f"""
+[Obs-parameter]
+    Site_name   = {self.site_name}
+    Campaign    = {self.campaign_id}
+    Date(UTC)   = {self.start_date.strftime('%Y-%m-%d')}
+    Date(jday)  = {date_mjd}
+    Ref.Frame   = {self.ref_frame}
+    SoundSpeed  = {str(self.sound_speed_data)}
+
+[Data-file]
+    datacsv     = {str(self.shot_data)}
+    N_shot      = {n_shot}
+    used_shot   = {0}
+
+[Site-parameter]
+    Latitude0   = {self.site_center_llh.latitude}
+    Longitude0  = {self.site_center_llh.longitude}
+    Height0     = {self.site_center_llh.height}
+    Stations    = {' '.join([transponder.id for transponder in self.transponders])}
+    Center_ENU  = {center_enu[0]} {center_enu[1]} {center_enu[2]}
+
+[Model-parameter]
+    dCentPos    = {" ".join(map(str, delta_center_position))}
+    ATDoffset   = {" ".join(map(str, atd_offset))}"""
+
+        # Add the transponder data to the string
+        for transponder in self.transponders:
+            position = (
+                transponder.position_enu.get_position()
+                + transponder.position_enu.get_std_dev()
+                + [0.0, 0.0, 0.0]
+            )
+            obs_str += f"""
+        {transponder.id}_dPos    = {" ".join(map(str, position))}"""
+
+        with open(path, "w") as f:
+            f.write(obs_str)
+
+    @classmethod
+    def from_datafile(cls,path:Path) -> GarposInput:
+        config = ConfigParser()
+        config.read(path)
+
+        # Extract data from config
+        observation_section = config["Obs-parameter"]
+        site_section = config["Site-parameter"]
+        model_section = config["Model-parameter"]
+        data_section = config["Data-file"]
+        # populate transponders
+        transponder_list = []
+        for key in model_section.keys():
+            (
+                east_value,
+                north_value,
+                up_value,
+                east_sigma,
+                north_sigma,
+                up_sigma,
+                cov_en,
+                cov_ue,
+                cov_nu,
+            ) = [float(x) for x in model_section[key].split()]
+            position = GPPositionENU(
+                east=east_value,
+                east_sigma=east_sigma,
+                north=north_value,
+                north_sigma=north_sigma,
+                up=up_value,
+                up_sigma=up_sigma,
+                cov_en=cov_en,
+                cov_ue=cov_ue,
+                cov_nu=cov_nu,
+            )
+            if "dpos" in key:
+                transponder_id = key.split("_")[0].upper()
+                transponder = GPTransponder(id=transponder_id, position_enu=position)
+                transponder_list.append(transponder)
+            if "dcentpos" in key:
+                delta_center_position = position
+            if "atdoffset" in key:
+                atd_offset = GPATDOffset(
+                    forward=position.east,
+                    rightward=position.north,
+                    downward=position.up,
+                )
+
+        start_date = datetime.strptime(observation_section["Date(UTC)"], "%Y-%m-%d")
+        date_mjd = float(observation_section["Date(jday)"])
+        start_date = julian.from_jd(date_mjd + 2400000.5, fmt="jd")
+
+        garpos_input = cls(
+            site_name=observation_section["Site_name"],
+            campaign_id=observation_section["Campaign"],
+            survey_id=data_section.get("SurveyID", ""),
+            site_center_llh=GPPositionLLH(
+                latitude=float(site_section["Latitude0"]),
+                longitude=float(site_section["Longitude0"]),
+                height=float(site_section["Height0"]),
+            ),
+            array_center_enu=GPPositionENU(
+                east=float(site_section["Center_ENU"].split()[0]),
+                north=float(site_section["Center_ENU"].split()[1]),
+                up=float(site_section["Center_ENU"].split()[2]),
+            ),
+            transponders=transponder_list,
+            sound_speed_data=(
+                Path(observation_section["SoundSpeed"])
+                if observation_section["SoundSpeed"]
+                else None
+            ),
+            atd_offset=atd_offset,
+            start_date=start_date,
+            end_date=start_date,  # Assuming end_date is not provided in the file
+            shot_data=(
+                Path(data_section["datacsv"]) if data_section["datacsv"] else None
+            ),
+            delta_center_position=delta_center_position,
+            ref_frame=observation_section.get("Ref.Frame", "ITRF"),
+        )
+
+        return garpos_input

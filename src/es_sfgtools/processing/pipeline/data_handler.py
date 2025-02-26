@@ -27,7 +27,7 @@ from es_sfgtools.processing.pipeline.constants import REMOTE_TYPE, FILE_TYPES
 from es_sfgtools.processing.pipeline.datadiscovery import scrape_directory_local, get_file_type_local, get_file_type_remote
 
 from es_sfgtools.modeling.garpos_tools.functions import GarposHandler
-from es_sfgtools.processing.assets.siteconfig import SiteConfig
+from es_sfgtools.processing.assets.siteconfig import GPSiteConfig
 from es_sfgtools.utils.loggers import ProcessLogger as logger, change_all_logger_dirs
 
 
@@ -547,7 +547,7 @@ class DataHandler:
         return pipeline, config
     
     @check_network_station_campaign
-    def get_garpos_handler(self, site_config: SiteConfig) -> GarposHandler:
+    def get_garpos_handler(self, site_config: GPSiteConfig) -> GarposHandler:
         """
         Creates and returns a GarposHandler object.
         This method initializes a GarposHandler object using the instance

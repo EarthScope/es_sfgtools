@@ -8,12 +8,12 @@ import yaml
 
 logger = logging.getLogger(__name__)
 
-class PositionLLH(BaseModel):
+class GPPositionLLH(BaseModel):
     latitude: float
     longitude: float
     height: Optional[float] = 0
 
-class PositionENU(BaseModel):
+class GPPositionENU(BaseModel):
     east: Optional[float] = 0
     north: Optional[float] = 0
     up: Optional[float] = 0
@@ -38,18 +38,18 @@ class PositionENU(BaseModel):
         return cov_mat
 
 
-class Transponder(BaseModel):
-    position_llh: Optional[PositionLLH] = None
-    position_enu: Optional[PositionENU] = None
+class GPTransponder(BaseModel):
+    position_llh: Optional[GPPositionLLH] = None
+    position_enu: Optional[GPPositionENU] = None
     tat_offset: Optional[float] = None
     name: Optional[str] = None
     id: Optional[str] = Field(None, alias=AliasChoices("id","address"))
-    delta_center_position: Optional[PositionENU] = None
+    delta_center_position: Optional[GPPositionENU] = None
     class Config:
         allow_population_by_field_name = True
 
 
-class ATDOffset(BaseModel):
+class GPATDOffset(BaseModel):
     forward: float
     rightward: float
     downward: float
@@ -57,18 +57,17 @@ class ATDOffset(BaseModel):
         return [self.forward, self.rightward, self.downward]
 
 
-class SiteConfig(BaseModel):
-    name: Optional[str] = None
+class GPSiteConfig(BaseModel):
     campaign: Optional[str] = None
     date: Optional[datetime.datetime] = None
-    position_llh: PositionLLH
-    transponders: Optional[List[Transponder]]
+    position_llh: GPPositionLLH
+    transponders: Optional[List[GPTransponder]]
     sound_speed_data: Optional[str] = None
-    atd_offset: Optional[ATDOffset] = None
-    delta_center_position: Optional[PositionENU] = PositionENU()
+    atd_offset: Optional[GPATDOffset] = None
+    delta_center_position: Optional[GPPositionENU] = GPPositionENU()
 
     @classmethod
-    def from_config(cls, config_file: Union[str, Path]) -> "SiteConfig":
+    def from_config(cls, config_file: Union[str, Path]) -> "GPSiteConfig":
         with open(config_file, "r") as f:
             config = yaml.safe_load(f)
 
@@ -77,10 +76,10 @@ class SiteConfig(BaseModel):
         date = config["time_origin"]
         array_center = config["array_center"]
         height = -1*config["solver"]["geoid_undulation"]
-        position_llh = PositionLLH(latitude=array_center["lat"], longitude=array_center["lon"], height=height)
+        position_llh = GPPositionLLH(latitude=array_center["lat"], longitude=array_center["lon"], height=height)
         transponder_set = []
         for transponder in config["transponders"]:
-            transponder_position = PositionLLH(
+            transponder_position = GPPositionLLH(
                 latitude=transponder["lat"],
                 longitude=transponder["lon"],
                 height=transponder["height"]
@@ -96,20 +95,20 @@ class SiteConfig(BaseModel):
                     id = "5211"
                 case "4":
                     id = "5212"
-            transponder_set.append(Transponder(
+            transponder_set.append(GPTransponder(
                 position_llh=transponder_position,
                 tat_offset=tat_offset,
                 id=id,
                 name=name
             ))
         atd_offset_dict = config["posfilter"]["atd_offsets"]
-        atd_offset = ATDOffset(
+        atd_offset = GPATDOffset(
             forward=atd_offset_dict["forward"],
             rightward=atd_offset_dict["rightward"],
             downward=atd_offset_dict["downward"],
         )
 
-        return SiteConfig(
+        return GPSiteConfig(
             name=name,
             campaign=campaign,
             date=date,
@@ -122,9 +121,9 @@ class SiteConfig(BaseModel):
 class Benchmark(BaseModel):
     name: str
     benchmarkID: str = None
-    dropPointLocation: PositionLLH = None
-    aPrioriLocation: PositionLLH = None
-    transponders: List[Transponder] = []
+    dropPointLocation: GPPositionLLH = None
+    aPrioriLocation: GPPositionLLH = None
+    transponders: List[GPTransponder] = []
     start: datetime.datetime = None
 
 class Vessel(BaseModel):
@@ -132,7 +131,7 @@ class Vessel(BaseModel):
     type: str
     serialNumber: str = None
     start : datetime.datetime = None
-    atd_offset: ATDOffset = None
+    atd_offset: GPATDOffset = None
 
 class Survey(BaseModel):
     id: str = None
@@ -188,11 +187,12 @@ class Campaign(BaseModel):
         if isinstance(v,list):
             return [survey for survey in v]
         return v
+    
 class Site(BaseModel):
     name: str = "Site"
     networks: str = "Networks"
     timeOrigin: datetime.datetime = None
-    arrayCenter: PositionLLH = {}
+    arrayCenter: GPPositionLLH = {}
     localGeoidHeight: float = 0
     benchmarks: List[Benchmark] = []
     campaigns: List[Campaign] = []
@@ -228,3 +228,4 @@ class Site(BaseModel):
             campaigns=campaigns,
             surveyVessels=surveyVessels
         )
+

@@ -9,7 +9,7 @@ from typing import Union
 from pathlib import Path
 from datetime import datetime,timedelta
 from ..assets.file_schemas import AssetEntry,AssetType
-from ..assets.siteconfig import SiteConfig,Transponder,ATDOffset,PositionLLH
+from ..assets.siteconfig import GPSiteConfig,GPTransponder,GPATDOffset,GPPositionLLH
 from ..assets.observables import SoundVelocityDataFrame
 
 from es_sfgtools.utils.loggers import ProcessLogger as logger
@@ -98,7 +98,7 @@ def seabird_to_soundvelocity(
 MASTER_STATION_ID = {"0": "5209", "1": "5210", "2": "5211", "3": "5212"}
 
 
-def show_site_config(site_config: SiteConfig):
+def show_site_config(site_config: GPSiteConfig):
     response = ""
     for item in site_config:
         if item[0] == "position_llh":
@@ -129,7 +129,7 @@ def build_site(
     name: str,
     campaign: str,
     date: datetime.date,
-) -> SiteConfig:
+) -> GPSiteConfig:
     """
     Build a site configuration.
 
@@ -154,7 +154,7 @@ def build_site(
     
     match type(atd_offset):
         case type(dict()):
-            atd_offset = ATDOffset(**atd_offset)
+            atd_offset = GPATDOffset(**atd_offset)
         case type(AssetEntry):
             assert atd_offset.type == AssetType.LEVERARM
         case type(str):
@@ -189,10 +189,10 @@ def build_site(
             id = MASTER_STATION_ID[id]
             # TODO This is not the var
             offset = float(line_processed[5].replace("d0", ""))
-            transponder_position = PositionLLH(
+            transponder_position = GPPositionLLH(
                 latitude=lat, longitude=lon, height=height
             )
-            transponder = Transponder(
+            transponder = GPTransponder(
                 id=id, position_llh=transponder_position, tat_offset=offset
             )
             transponders.append(transponder)
@@ -232,13 +232,13 @@ def build_site(
             geoid_undulation  # TODO John things this might work
         )
 
-    site_position_llh = PositionLLH(
+    site_position_llh = GPPositionLLH(
         latitude=center_llh["latitude"],
         longitude=center_llh["longitude"],
         height=center_llh["height"],
     )
 
-    site = SiteConfig(
+    site = GPSiteConfig(
         position_llh=site_position_llh,
         transponders=transponders,
         name=name,
@@ -252,7 +252,7 @@ def build_site(
 
 def masterfile_to_siteconfig(
     source: Union[AssetEntry,str,Path], show_details: bool = True
-) -> Union[SiteConfig, None]:
+) -> Union[GPSiteConfig, None]:
     """
     Convert a MasterFile to a SiteConfig
     """
@@ -285,10 +285,10 @@ def masterfile_to_siteconfig(
                 id = MASTER_STATION_ID[id]
                 # TODO This is not the var
                 offset = float(line_processed[5].replace("d0", ""))
-                transponder_position = PositionLLH(
+                transponder_position = GPPositionLLH(
                     latitude=lat, longitude=lon, height=height
                 )
-                transponder = Transponder(
+                transponder = GPTransponder(
                     id=id, position_llh=transponder_position, tat_offset=offset
                 )
                 transponders.append(transponder)
@@ -329,12 +329,12 @@ def masterfile_to_siteconfig(
             geoid_undulation  # TODO John things this might work
         )
 
-    site_position_llh = PositionLLH(
+    site_position_llh = GPPositionLLH(
         latitude=center_llh["latitude"],
         longitude=center_llh["longitude"],
         height=center_llh["height"],
     )
-    site = SiteConfig(position_llh=site_position_llh, transponders=transponders)
+    site = GPSiteConfig(position_llh=site_position_llh, transponders=transponders)
     if show_details:
         show_site_config(site_config=site)
     return site
@@ -342,7 +342,7 @@ def masterfile_to_siteconfig(
 
 def leverarmfile_to_atdoffset(
     source: Union[AssetEntry,str,Path], show_details: bool = True
-) -> ATDOffset:
+) -> GPATDOffset:
     """
     Read the ATD offset from a "lever_arms" file
     format is [rightward,forward,downward] [m]
@@ -367,7 +367,7 @@ def leverarmfile_to_atdoffset(
     )
     logger.loginfo(response)
 
-    return ATDOffset(forward=forward, rightward=rightward, downward=downward)
+    return GPATDOffset(forward=forward, rightward=rightward, downward=downward)
 
 @pa.check_types(lazy=True)
 def CTDfile_to_svp(source: Union[AssetEntry,str,Path]) -> DataFrame[SoundVelocityDataFrame]:

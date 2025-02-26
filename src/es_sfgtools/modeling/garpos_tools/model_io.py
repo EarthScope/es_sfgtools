@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 from  garpos import LIB_DIRECTORY,LIB_RAYTRACE
 # Local Imports
 
-from ...processing.assets.siteconfig import PositionENU, PositionLLH, Transponder, ATDOffset
+from ...processing.assets.siteconfig import GPPositionENU, GPPositionLLH, GPTransponder, GPATDOffset
 
 from .hyper_params import InversionParams, InversionType
 from .schemas import GarposObservation,GarposSite,ObservationData,GarposResults
@@ -231,7 +231,7 @@ class GarposInput(BaseModel):
                 cov_ue,
                 cov_nu,
             ) = [float(x) for x in model_section[key].split()]
-            position = PositionENU(
+            position = GPPositionENU(
                 east=Point(value=east_value, sigma=east_sigma),
                 north=Point(value=north_value, sigma=north_sigma),
                 up=Point(value=up_value, sigma=up_sigma),
@@ -241,12 +241,12 @@ class GarposInput(BaseModel):
             )
             if "dpos" in key:
                 transponder_id = key.split("_")[0].upper()
-                transponder = Transponder(id=transponder_id, position_enu=position)
+                transponder = GPTransponder(id=transponder_id, position_enu=position)
                 transponder_list.append(transponder)
             if "dcentpos" in key:
                 delta_center_position = position
             if "atdoffset" in key:
-                atd_offset = ATDOffset(
+                atd_offset = GPATDOffset(
                     forward=position.east,
                     rightward=position.north,
                     downward=position.up,
@@ -258,12 +258,12 @@ class GarposInput(BaseModel):
         site = GarposSite(
             name=observation_section["site_name"],
             atd_offset=atd_offset,
-            center_enu=PositionENU(
+            center_enu=GPPositionENU(
                 east=Point(value=float(site_section["center_enu"].split()[0])),
                 north=Point(value=float(site_section["center_enu"].split()[1])),
                 up=Point(value=float(site_section["center_enu"].split()[2])),
             ),
-            center_llh=PositionLLH(
+            center_llh=GPPositionLLH(
                 latitude=float(site_section["latitude0"]),
                 longitude=float(site_section["longitude0"]),
                 height=float(site_section["height0"]),

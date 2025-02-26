@@ -409,6 +409,12 @@ class Vessel:
                 
             print(f"ERROR: Acoustic to transducer offset with serial number {serial_number} not found.")
 
+    @classmethod
+    def from_json(filepath:str) -> 'Vessel':
+        with open(filepath, 'r') as file:
+            return Vessel(existing_vessel=json.load(file))
+
+
 def import_vessel(filepath: str) -> Vessel:
     """Import vessel data from a JSON file."""
     with open(filepath, 'r') as file:

@@ -26,7 +26,7 @@ import julian
 import pymap3d as pm
 
 # Local Imports
-from .schemas import PositionENU, PositionLLH, SoundVelocityProfile,Transponder,ATDOffset
+from .schemas import GPPositionENU, GPPositionLLH, SoundVelocityProfile,GPTransponder,GPATDOffset
 from ..schemas import AcousticDataFrame, IMUDataFrame, PositionDataFrame
 from ..schemas.file_schemas import MasterFile,SeaBirdFile,NovatelFile,RinexFile,SonardyneFile,LeverArmFile,KinFile
 from ..utils import CoordTransformer
@@ -35,8 +35,8 @@ from es_sfgtools.utils.loggers import GarposLogger as logger
 
 
 def avg_transponder_position(
-    transponders: List[Transponder],
-) -> Tuple[PositionENU, PositionLLH]:
+    transponders: List[GPTransponder],
+) -> Tuple[GPPositionENU, GPPositionLLH]:
     """
     Calculate the average position of the transponders
 
@@ -62,10 +62,10 @@ def avg_transponder_position(
 
     min_pos_llh = np.min(pos_array_llh, axis=0).tolist()
 
-    out_pos_llh = PositionLLH(
+    out_pos_llh = GPPositionLLH(
         latitude=avg_pos_llh[0], longitude=avg_pos_llh[1], height=avg_pos_llh[2]
     )
-    out_pos_enu = PositionENU.from_list(avg_pos_enu)
+    out_pos_enu = GPPositionENU.from_list(avg_pos_enu)
 
     return out_pos_enu, out_pos_llh
 
@@ -528,11 +528,11 @@ class GarposObservation(BaseModel):
 
 class GarposSite(BaseModel):
     name: str
-    atd_offset: ATDOffset
-    center_enu: PositionENU
-    center_llh: PositionLLH
-    transponders: List[Transponder]
-    delta_center_position: PositionENU
+    atd_offset: GPATDOffset
+    center_enu: GPPositionENU
+    center_llh: GPPositionLLH
+    transponders: List[GPTransponder]
+    delta_center_position: GPPositionENU
 
     @classmethod
     def from_file_schema(
@@ -565,7 +565,7 @@ class GarposSite(BaseModel):
             )
 
             e, n, u = coord_transformer.LLH2ENU(lat, lon, hgt)
-            position_enu = PositionENU.from_list([e, n, u])
+            position_enu = GPPositionENU.from_list([e, n, u])
             transponder.position_enu = position_enu
 
         # Calculate the array center in ENU
@@ -576,10 +576,10 @@ class GarposSite(BaseModel):
             transponder_avg_llh.longitude,
             transponder_avg_llh.height,
         )
-        transponder_avg_enu = PositionENU.from_list(transponder_center_enu)
+        transponder_avg_enu = GPPositionENU.from_list(transponder_center_enu)
         atd_offset = lever_arm_file.load()
         delta_center_position = (
-            PositionENU()
+            GPPositionENU()
         )  # TODO add sigma_e,sigma_n values of 1.0 per james/john recc.
         delta_center_position.east.sigma = 1.0
         delta_center_position.north.sigma = 1.0

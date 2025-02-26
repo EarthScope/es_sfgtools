@@ -30,11 +30,11 @@ from es_sfgtools.processing.assets.observables import (
     SoundVelocityDataFrame,
 )
 from es_sfgtools.processing.assets.siteconfig import (
-    PositionENU,
-    ATDOffset,
-    Transponder,
-    PositionLLH,
-    SiteConfig,
+    GPPositionENU,
+    GPATDOffset,
+    GPTransponder,
+    GPPositionLLH,
+    GPSiteConfig,
     Site,
     Survey,
 )
@@ -49,6 +49,7 @@ from es_sfgtools.modeling.garpos_tools.schemas import (
     GarposObservationOutput,
     GarposResults,
 )
+from es_sfgtools.utils.metadata.site import Site as MetaSite
 from es_sfgtools.utils.loggers import GarposLogger as logger
 
 from ...processing.assets.tiledb_temp import TDBShotDataArray
@@ -150,7 +151,7 @@ class CoordTransformer:
             Converts arrays of ECEF coordinates to ENU coordinates.
     """
 
-    def __init__(self, pos_llh: list | PositionLLH):
+    def __init__(self, lattitude:float,longitude:float,elevation:float):
         """
         Initialize the object with a position in latitude, longitude, and height.
         Args:
@@ -159,14 +160,10 @@ class CoordTransformer:
                                       or an instance of PositionLLH class.
         """
 
-        if isinstance(pos_llh, list):
-            self.lat0 = pos_llh[0]
-            self.lon0 = pos_llh[1]
-            self.hgt0 = pos_llh[2]
-        else:
-            self.lat0 = pos_llh.latitude
-            self.lon0 = pos_llh.longitude
-            self.hgt0 = pos_llh.height
+      
+        self.lat0 = latitude
+        self.lon0 = longitude
+        self.hgt0 = elevation
 
         self.X0, self.Y0, self.Z0 = pm.geodetic2ecef(self.lat0, self.lon0, self.hgt0)
 
@@ -388,7 +385,7 @@ def datafile_to_garposinput(path: Path) -> GarposInput:
             cov_ue,
             cov_nu,
         ) = [float(x) for x in model_section[key].split()]
-        position = PositionENU(
+        position = GPPositionENU(
             east=east_value,
             east_sigma=east_sigma,
             north=north_value,
@@ -401,12 +398,12 @@ def datafile_to_garposinput(path: Path) -> GarposInput:
         )
         if "dpos" in key:
             transponder_id = key.split("_")[0].upper()
-            transponder = Transponder(id=transponder_id, position_enu=position)
+            transponder = GPTransponder(id=transponder_id, position_enu=position)
             transponder_list.append(transponder)
         if "dcentpos" in key:
             delta_center_position = position
         if "atdoffset" in key:
-            atd_offset = ATDOffset(
+            atd_offset = GPATDOffset(
                 forward=position.east,
                 rightward=position.north,
                 downward=position.up,
@@ -414,12 +411,12 @@ def datafile_to_garposinput(path: Path) -> GarposInput:
 
     site = GarposSite(
         name=observation_section["Site_name"],
-        center_llh=PositionLLH(
+        center_llh=GPPositionLLH(
             latitude=float(site_section["Latitude0"]),
             longitude=float(site_section["Longitude0"]),
             height=float(site_section["Height0"]),
         ),
-        center_enu=PositionENU(
+        center_enu=GPPositionENU(
             east=float(site_section["Center_ENU"].split()[0]),
             north=float(site_section["Center_ENU"].split()[1]),
             up=float(site_section["Center_ENU"].split()[2]),
@@ -588,8 +585,8 @@ def garposfixed_from_datafile(path: Path) -> GarposFixed:
 
 
 def avg_transponder_position(
-    transponders: List[Transponder],
-) -> Tuple[PositionENU, PositionLLH]:
+    transponders: List[GPTransponder],
+) -> Tuple[GPPositionENU, GPPositionLLH]:
     """
     Calculate the average position of the transponders.
 
@@ -613,10 +610,10 @@ def avg_transponder_position(
     avg_pos_llh = np.mean(pos_array_llh, axis=0).tolist()
     avg_pos_enu = np.mean(pos_array_enu, axis=0).tolist()
 
-    out_pos_llh = PositionLLH(
+    out_pos_llh = GPPositionLLH(
         latitude=avg_pos_llh[0], longitude=avg_pos_llh[1], height=avg_pos_llh[2]
     )
-    out_pos_enu = PositionENU(
+    out_pos_enu = GPPositionENU(
         east=avg_pos_enu[0], north=avg_pos_enu[1], up=avg_pos_enu[2]
     )
 
@@ -709,8 +706,8 @@ def plot_enu_llh_side_by_side(garpos_input: GarposInput):
 
 
 def rectify_shotdata_site(
-    site_config: SiteConfig, shot_data: DataFrame[ObservationData]
-) -> Tuple[SiteConfig, DataFrame[ShotDataFrame]]:
+    site_config: GPSiteConfig, shot_data: DataFrame[ObservationData]
+) -> Tuple[GPSiteConfig, DataFrame[ShotDataFrame]]:
     """
     Rectifies shot data for a given site configuration.
     This function transforms the shot data coordinates from ECEF to ENU, renames
@@ -801,7 +798,7 @@ def rectify_shotdata_site(
 
         e, n, u = coord_transformer.LLH2ENU(lat, lon, hgt)
 
-        transponder.position_enu = PositionENU(east=e, north=n, up=u)
+        transponder.position_enu = GPPositionENU(east=e, north=n, up=u)
         transponder.id = (
             "M" + str(transponder.id)
             if str(transponder.id)[0].isdigit()
@@ -856,7 +853,7 @@ def process_garpos_results(results: GarposInput) -> Tuple[GarposResults, pd.Data
         delta_y = np.mean(np.cos(takeoff) * np.sin(azimuth))
         delta_z = np.mean(np.sin(azimuth))
 
-        transponder.delta_center_position = PositionENU(
+        transponder.delta_center_position = GPPositionENU(
             east=delta_x, north=delta_y, up=delta_z
         )
 
@@ -907,7 +904,7 @@ class GarposHandler:
     """
 
     def __init__(
-        self, shotdata: TDBShotDataArray, site_config: SiteConfig, working_dir: Path
+        self, shotdata: TDBShotDataArray, working_dir: Path
     ):
         """
         Initializes the class with shot data, site configuration, and working directory.
@@ -920,35 +917,15 @@ class GarposHandler:
         self.LIB_DIRECTORY = garpos_fixed.lib_directory
         self.LIB_RAYTRACE = garpos_fixed.lib_raytrace
         self.shotdata = shotdata
-        self.site_config = site_config
         self.working_dir = working_dir
         self.shotdata_dir = working_dir / "shotdata"
         self.shotdata_dir.mkdir(exist_ok=True, parents=True)
         self.results_dir = working_dir / "results"
         self.results_dir.mkdir(exist_ok=True, parents=True)
-        self.inversion_params = InversionParams()
-        # self.dates = self.shotdata.get_unique_dates().tolist()
 
-        self.coord_transformer = CoordTransformer(site_config.position_llh)
-
-        for transponder in self.site_config.transponders:
-            lat, lon, hgt = (
-                transponder.position_llh.latitude,
-                transponder.position_llh.longitude,
-                transponder.position_llh.height,
-            )
-
-            e, n, u = self.coord_transformer.LLH2ENU(lat, lon, hgt)
-
-            transponder.position_enu = PositionENU(east=e, north=n, up=u)
-            transponder.id = (
-                "M" + str(transponder.id)
-                if str(transponder.id)[0].isdigit()
-                else str(transponder.id)
-            )
-        self.avg_transponder_enu, self.avg_transponder_llh = avg_transponder_position(
-            site_config.transponders
-        )
+        self.current_campaign = None
+        self.current_survey = None
+        self.coord_transformer = None
 
     def _rectify_shotdata(self, shot_data: pd.DataFrame) -> pd.DataFrame:
         """
@@ -1021,79 +998,25 @@ class GarposHandler:
         ]
         return ObservationData.validate(shot_data, lazy=True).sort_values("triggerTime")
 
-    def load_campaign_data(self, path: Path):
-        self.site = Site.from_json(path)
+    def set_site_data(self, site_path: Path|str, sound_speed_path:Path|str, atd_offset:dict):
+        self.site = MetaSite.from_json(site_path)
+        self.sound_speed_path = sound_speed_path
+        self.atd_offset = atd_offset
 
     def set_campaign(self, name: str):
         for campaign in self.site.campaigns:
             if campaign.name == name:
-                self.campaign = campaign
+                self.current_campaign = campaign
+                self.current_survey = None
                 return
-        raise ValueError(f"campaign {name} not found")
-
-    def prep_shotdata(self, overwrite: bool = False):
-        """
-        A method to prepare and save shot data for each date in the object's date list using the following steps:
-
-        1. Check if the shot data file exists for each date within self.shotdata_dir.
-        2. If the file does not exist or if the `overwrite` flag is set to True, read, rectify, validate, and save the shot data to a CSV file.
-        3. Query the shot data for the date from the TDBShotDataArray
-        4. Rectify the shot data using the `_rectify_shotdata` method
-        5. Validate the rectified shot data
-        6. Save the rectified shot data to a CSV file
-
-        Args:
-            overwrite (bool): If True, existing shot data files will be overwritten.
-                      Defaults to False.
-        Raises:
-            ValueError: If the shot data fails validation.
-        """
-
-        for date in self.dates:
-            year, doy = date.year, date.timetuple().tm_yday
-            shot_data_path = self.shotdata_dir / f"{str(year)}_{str(doy)}.csv"
-            if not shot_data_path.exists() or overwrite:
-                shot_data_queried: pd.DataFrame = self.shotdata.read_df(date)
-                shot_data_rectified = self._rectify_shotdata(shot_data_queried)
-                try:
-                    shot_data_rectified = ShotDataFrame.validate(
-                        shot_data_rectified, lazy=True
-                    )
-                    shot_data_rectified.MT = shot_data_rectified.MT.apply(
-                        lambda x: "M" + str(x) if str(x)[0].isdigit() else str(x)
-                    )
-                    shot_data_path = self.shotdata_dir / f"{str(year)}_{str(doy)}.csv"
-                    shot_data_rectified.to_csv(shot_data_path)
-                except Exception as e:
-                    raise ValueError(
-                        f"Shot data for {str(year)}_{str(doy)} failed validation."
-                    ) from e
-
-    def subset_shots(self,data:pd.DataFrame,dt_s:float=59) -> pd.DataFrame:
-        # Subset the shotdata by breaks in data
-        st = np.diff(data.ST.to_numpy())
-        breakpoints = np.where(st > dt_s)[0].tolist()
-        if not breakpoints:
-            return data
-        last = 0
-        data["SET"] = "S01"
-        last = 0
-        
-        for idx, breakpoint in enumerate(breakpoints):
-            setidx = idx + 1
-            setidx_str = f"S{setidx:02d}"  # Ensures leading zeros (e.g., "01", "02")
-
-            data.loc[last:breakpoint, "SET"] = setidx_str
-            last = breakpoint   # Move to the next segment
+        raise ValueError(f"campaign {name} not found among: {[x.name for x in self.site.campaigns]}")
     
-        # Handle the last segment after the last breakpoint
-        setidx += 1
-        setidx_str = f"S{setidx:02d}"
-        data.loc[last:, "SET"] = setidx_str
-        return data
-
-
-\
+    def set_survey(self,name:str):
+        for survey in self.current_campaign.surveys:
+            if survey.survey_id == name:
+                self.current_survey = survey
+                return
+        raise ValueError(f"Survey {name} not found among: {[x.survey_id for x in self.current_campaign.surveys]}")
 
     def prep_shotdata(self, overwrite: bool = False):
         for survey in self.campaign.surveys.values():
@@ -1479,9 +1402,9 @@ class GarposHandler:
         with open(results_path, "r") as f:
             results = json.load(f)
         transponders = []
-        arrayinfo = PositionENU.model_validate(results["delta_center_position"])
+        arrayinfo = GPPositionENU.model_validate(results["delta_center_position"])
         for transponder in results["transponders"]:
-            _transponder_ = Transponder.model_validate(transponder)
+            _transponder_ = GPTransponder.model_validate(transponder)
             transponders.append(_transponder_)
         results_df_raw = pd.read_csv(results_dir / f"_{run_id}_results_df.csv")
         results_df_raw = ShotDataFrame.validate(results_df_raw, lazy=True)

@@ -93,6 +93,14 @@ class Site:
             "campaigns": [campaign.to_dict() for campaign in self.campaigns]
         }
     
+    @classmethod
+    def from_json(cls,file:str) -> "Site":
+        with open(file,'r') as buf:
+            data = json.load(buf)
+        instance = Site()
+        instance.import_existing_site(data)
+        return instance
+    
     def import_existing_site(self, existing_site: Dict):
         self.names = existing_site.get("names", [])
         self.networks = existing_site.get("networks", [])
