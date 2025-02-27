@@ -371,7 +371,7 @@ class GarposInput(BaseModel):
     end_date:datetime
     shot_data: Optional[Path]
     delta_center_position:GPPositionENU = GPPositionENU()
-    ref_frame = "ITRF"
+    ref_frame: str = "ITRF"
 
     def to_datafile(self, path: Path,n_shot:int) -> None:
         """
@@ -436,7 +436,7 @@ class GarposInput(BaseModel):
             f.write(obs_str)
 
     @classmethod
-    def from_datafile(cls,path:Path) -> GarposInput:
+    def from_datafile(cls,path:Path) -> "GarposInput":
         config = ConfigParser()
         config.read(path)
 

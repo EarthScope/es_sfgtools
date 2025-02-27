@@ -135,7 +135,12 @@ class GarposHandler:
             Runs the GARPOS model for a specific date or for all dates.
     """
 
-    def __init__(self, shotdata: TDBShotDataArray, working_dir: Path):
+    def __init__(self, 
+                 shotdata: TDBShotDataArray, 
+                 working_dir: Path,
+                 site_path:Path,
+                 sound_speed_path:Path,
+                 vessel_path:Path):
         """
         Initializes the class with shot data, site configuration, and working directory.
         Args:
@@ -157,6 +162,7 @@ class GarposHandler:
         self.current_campaign = None
         self.current_survey = None
         self.coord_transformer = None
+        self.set_site_data(site_path=site_path,sound_speed_path=sound_speed_path,vessel_path=vessel_path)
 
     def _rectify_shotdata(self, shot_data: pd.DataFrame) -> pd.DataFrame:
         """
@@ -273,128 +279,130 @@ class GarposHandler:
         return obs_path
     
     def prep_shotdata(self, overwrite: bool = False):
-        for survey in self.current_campaign.surveys.values():
-            survey_dir = self.current_campaign_dir / survey.survey_id
-            survey_dir.mkdir(exist_ok=True)
-            obsfile_path = self.get_obsfile_path(campaign_name=self.current_campaign.name,survey.survey_id)
-            if obsfile_path.exists() and not overwrite:
-                continue
-            benchmarks = []
-            for benchmark in self.site.benchmarks:
-                if benchmark.name in survey.benchmarkIDs:
-                    benchmarks.append(benchmark)
-            GPtransponders = []
-            for benchmark in benchmarks:
-                # Find correct transponder, default to first
-                current_transponder = benchmark.transponders[-1]
-                for transponder in benchmark.transponders:
-                    if survey.start > transponder.start:
-                        current_transponder = transponder
+        for campaign in self.site.campaigns:
+            self.set_campaign(campaign.name)
+            for survey in self.current_campaign.surveys.values():
+                survey_dir = self.current_campaign_dir / survey.survey_id
+                survey_dir.mkdir(exist_ok=True)
+                obsfile_path = self.get_obsfile_path(campaign_name=self.current_campaign.name,survey_id=survey.survey_id)
+                if obsfile_path.exists() and not overwrite:
+                    continue
+                benchmarks = []
+                for benchmark in self.site.benchmarks:
+                    if benchmark.name in survey.benchmarkIDs:
+                        benchmarks.append(benchmark)
+                GPtransponders = []
+                for benchmark in benchmarks:
+                    # Find correct transponder, default to first
+                    current_transponder = benchmark.transponders[-1]
+                    for transponder in benchmark.transponders:
+                        if survey.start > transponder.start:
+                            current_transponder = transponder
 
-                gp_transponder = GPTransponder(
-                    position_llh=GPPositionLLH(
-                        latitude=benchmark.aPrioriLocation.latitude
-                        longitude=benchmark.aPrioriLocation.longitude
-                        height=benchmark.aPrioriLocation.elevation
+                    gp_transponder = GPTransponder(
+                        position_llh=GPPositionLLH(
+                            latitude=benchmark.aPrioriLocation.latitude,
+                            longitude=benchmark.aPrioriLocation.longitude,
+                            height=benchmark.aPrioriLocation.elevation
+                        ),
+                        tat_offset=current_transponder.tat, 
+                        id = current_transponder.address,
+                        name= benchmark.benchmarkID
                     )
-                    tat_offset=current_transponder.tat 
-                    id = current_transponder.address
-                    name= benchmark.benchmarkID
-                )
-                # Rectify to local coordinates
-                gp_transponder_enu:Tuple = self.coord_transformer.LLH2ENU(
-                    lat=gp_transponder.position_llh.latitude,
-                    lon=gp_transponder.position_llh.longitude,
-                    hgt=gp_transponder.position_llh.height
-                )
-                gp_transponder_enu = GPPositionENU(
-                    east = gp_transponder_enu[0],
-                    north=gp_transponder_enu[1]
-                    up=gp_transponder_enu[2]
-                )
-                gp_transponder.position_enu = gp_transponder_enu
-                GPtransponders.append(gp_transponder)
-            if len(GPtransponders) == 0:
-                print(f"No transponders found for survey {survey.id}")
-                continue
+                    # Rectify to local coordinates
+                    gp_transponder_enu:Tuple = self.coord_transformer.LLH2ENU(
+                        lat=gp_transponder.position_llh.latitude,
+                        lon=gp_transponder.position_llh.longitude,
+                        hgt=gp_transponder.position_llh.height
+                    )
+                    gp_transponder_enu = GPPositionENU(
+                        east = gp_transponder_enu[0],
+                        north=gp_transponder_enu[1],
+                        up=gp_transponder_enu[2]
+                    )
+                    gp_transponder.position_enu = gp_transponder_enu
+                    GPtransponders.append(gp_transponder)
+                if len(GPtransponders) == 0:
+                    print(f"No transponders found for survey {survey.id}")
+                    continue
 
-            # Get average transponder position
-            _,array_center_llh = avg_transponder_position(GPtransponders)
-            array_dpos_center = self.coord_transformer.LLH2ENU(
-                lat=array_center_llh.latitude,
-                lon=array_center_llh.longitude,
-                hgt=array_center_llh.height
-            )
-
-
-            survey_type = survey.type.replace(" ", "")
-            start_doy = survey.start.timetuple().tm_yday
-            end_doy = survey.end.timetuple().tm_yday
-
-            shot_data_path = (
-                survey_dir
-                / f"{self.current_campaign.name}_{survey.survey_id}_{survey_type}_{start_doy}_{end_doy}.csv"
-            )
-
-            logger.loginfo("Preparing shot data")
-            shot_data_queried: pd.DataFrame = self.shotdata.read_df(
-                    start=survey.start, end=survey.end
-                )
-            if shot_data_queried.empty:
-                print(
-                    f"No shot data found for survey {survey.id} {survey_type} {start_doy} {end_doy}"
-                )
-                continue
-            shot_data_rectified = self._rectify_shotdata(shot_data_queried)
-            transponder_ids = [x.id for x in GPtransponders]
-            try:
-                shot_data_rectified = ShotDataFrame.validate(
-                    shot_data_rectified, lazy=True
-                )
-                # Only use shotdata for transponders in the survey
-                shot_data_rectified = shot_data_rectified[
-                    shot_data_rectified.MT.isin(transponders)
-                ]
-
-                shot_data_rectified.MT = shot_data_rectified.MT.apply(
-                    lambda x: "M" + str(x) if str(x)[0].isdigit() else str(x)
+                # Get average transponder position
+                _,array_center_llh = avg_transponder_position(GPtransponders)
+                array_dpos_center = self.coord_transformer.LLH2ENU(
+                    lat=array_center_llh.latitude,
+                    lon=array_center_llh.longitude,
+                    hgt=array_center_llh.height
                 )
 
-                shot_data_rectified.to_csv(str(shot_data_path))
-            except Exception as e:
-                logger.logerr(
-                    f"Shot data for {str(year)}_{str(doy)} failed validation. Error: {e}"
+
+                survey_type = survey.type.replace(" ", "")
+                start_doy = survey.start.timetuple().tm_yday
+                end_doy = survey.end.timetuple().tm_yday
+
+                shot_data_path = (
+                    survey_dir
+                    / f"{self.current_campaign.name}_{survey.survey_id}_{survey_type}_{start_doy}_{end_doy}.csv"
                 )
-                raise ValueError(
-                    f"Shot data for {survey.id} {survey_type} {start_doy} {end_doy} failed validation."
-                ) from e 
+
+                logger.loginfo("Preparing shot data")
+                shot_data_queried: pd.DataFrame = self.shotdata.read_df(
+                        start=survey.start, end=survey.end
+                    )
+                if shot_data_queried.empty:
+                    print(
+                        f"No shot data found for survey {survey.id} {survey_type} {start_doy} {end_doy}"
+                    )
+                    continue
+                shot_data_rectified = self._rectify_shotdata(shot_data_queried)
+                transponder_ids = [x.id for x in GPtransponders]
+                try:
+                    shot_data_rectified = ShotDataFrame.validate(
+                        shot_data_rectified, lazy=True
+                    )
+                    # Only use shotdata for transponders in the survey
+                    shot_data_rectified = shot_data_rectified[
+                        shot_data_rectified.MT.isin(transponders)
+                    ]
+
+                    shot_data_rectified.MT = shot_data_rectified.MT.apply(
+                        lambda x: "M" + str(x) if str(x)[0].isdigit() else str(x)
+                    )
+
+                    shot_data_rectified.to_csv(str(shot_data_path))
+                except Exception as e:
+                    logger.logerr(
+                        f"Shot data for {str(year)}_{str(doy)} failed validation. Error: {e}"
+                    )
+                    raise ValueError(
+                        f"Shot data for {survey.id} {survey_type} {start_doy} {end_doy} failed validation."
+                    ) from e 
 
 
-            logger.loginfo(f"Shot data prepared and saved to {str(shot_data_path)}")
+                logger.loginfo(f"Shot data prepared and saved to {str(shot_data_path)}")
 
-            garpos_input = GarposInput(
-                site_name=self.site.names[0],
-                campaign_id=self.current_campaign.name ,
-                survey_id=survey.survey_id ,
-                site_center_llh=GPPositionLLH(
-                    lattitude=self.current_campaign.arrayCenter["lattitude"],
-                    longitude=self.current_campaign.arrayCenter["longitude"],
-                    height=self.current_campaign.localGeoidHeight
-                ),
-                array_center_enu=array_dpos_center,
-                transponders=GPtransponders,
-                atd_offset=GPATDOffset(
-                    forward=self.vessel_meta.atd_offsets[0]["x"],
-                    rightward=self.vessel_meta.atd_offsets[0]["y"],
-                    downward=self.vessel_meta.atd_offsets[0]["z"],
-                ),
-                start_date=survey.start,
-                end_date=survey.end,
-                shot_data=shot_data_path
-                delta_center_position=self.inversion_params.delta_center_position
+                garpos_input = GarposInput(
+                    site_name=self.site.names[0],
+                    campaign_id=self.current_campaign.name ,
+                    survey_id=survey.survey_id ,
+                    site_center_llh=GPPositionLLH(
+                        lattitude=self.current_campaign.arrayCenter["lattitude"],
+                        longitude=self.current_campaign.arrayCenter["longitude"],
+                        height=self.current_campaign.localGeoidHeight
+                    ),
+                    array_center_enu=array_dpos_center,
+                    transponders=GPtransponders,
+                    atd_offset=GPATDOffset(
+                        forward=self.vessel_meta.atd_offsets[0]["x"],
+                        rightward=self.vessel_meta.atd_offsets[0]["y"],
+                        downward=self.vessel_meta.atd_offsets[0]["z"],
+                    ),
+                    start_date=survey.start,
+                    end_date=survey.end,
+                    shot_data=shot_data_path,
+                    delta_center_position=self.inversion_params.delta_center_position
 
-            )
-            garpos_input.to_datafile(obsfile_path,len(shot_data_rectified))
+                )
+                garpos_input.to_datafile(obsfile_path,len(shot_data_rectified))
             
 
     def set_inversion_params(self, parameters: dict | InversionParams):

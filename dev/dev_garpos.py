@@ -17,41 +17,42 @@ if __name__ == "__main__":
 
     main_dir = Path("/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain")
     BaseLogger.route_to_console()
-    dh = DataHandler(main_dir)
-
     network = "cascadia-gorda"
     station = "NCC1"
-
     campaign = "2024_A_1126"
-
+    dh = DataHandler(main_dir)
     dh.change_working_station(network=network, station=station, campaign=campaign)
+
 
     ncc1_2024_config = dh.station_dir / "NCC1_2024_config.yaml"
     svp_path = dh.station_dir / "NCC1_CTD_2021_fit"
     svp_path_processed = dh.station_dir / "svp.csv"
-    if not svp_path_processed.exists():
-        svp_df = CTDfile_to_svp(svp_path)
-        svp_df.to_csv(svp_path_processed)
 
-    config = GPSiteConfig.from_config(ncc1_2024_config)
-
-    config.sound_speed_data = svp_path_processed
-    # config.position_llh.height *= -1
-    gp_handler_ncc1= dh.get_garpos_handler(site_config=config)
-
+    ncc1_vessel_config = Path(
+        "/Users/franklyndunbar/Project/SeaFloorGeodesy/es_sfgtools/dev/NCC1_vessel.json"
+    )
     site_path = Path(
         "/Users/franklyndunbar/Project/SeaFloorGeodesy/es_sfgtools/dev/NCC1.json"
     )
 
-    gp_handler_ncc1.load_campaign_data(site_path)
-    gp_handler_ncc1.set_campaign("2024_A_1126")
+
+
+    gp_handler_ncc1= dh.get_garpos_handler(
+        site_config=site_path,
+        sound_speed_data=svp_path_processed,
+        vessel_data=ncc1_vessel_config)
 
     gp_handler_ncc1.prep_shotdata()
-    update_dict = {"rejectcriteria": 2.5,"log_lambda":[0]}
+    
+    # gp_handler_ncc1.load_campaign_data(site_path)
+    # gp_handler_ncc1.set_campaign("2024_A_1126")
 
-    gp_handler_ncc1.set_inversion_params(update_dict)
+    # gp_handler_ncc1.prep_shotdata()
+    # update_dict = {"rejectcriteria": 2.5,"log_lambda":[0]}
 
-    gp_handler_ncc1.run_garpos(campaign_id="2024_A_1126_2",run_id=3,override=True)
+    # gp_handler_ncc1.set_inversion_params(update_dict)
 
-    gp_handler_ncc1.plot_ts_results("2024_A_1126_2",3,res_filter=51)
-    print("Done")
+    # gp_handler_ncc1.run_garpos(campaign_id="2024_A_1126_2",run_id=3,override=True)
+
+    # gp_handler_ncc1.plot_ts_results("2024_A_1126_2",3,res_filter=51)
+    # print("Done")
