@@ -250,7 +250,7 @@ def merge_to_shotdata(
         on=["triggertime", "MT", "TT"],
     ).dropna()
 
-    # remove _x from lattitude and longitude
+    # remove _x from latitude and longitude
     output_df = output_df.rename(
         columns={
             "latitude_x": "latitude",

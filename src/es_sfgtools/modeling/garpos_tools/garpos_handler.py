@@ -93,7 +93,9 @@ def avg_transponder_position(
     out_pos_llh = GPPositionLLH(
         latitude=avg_pos_llh[0], longitude=avg_pos_llh[1], height=avg_pos_llh[2]
     )
-    out_pos_enu = GPPositionENU.from_list(avg_pos_enu)
+    out_pos_enu = GPPositionENU(
+        east=avg_pos_enu[0], north=avg_pos_enu[1], up=avg_pos_enu[2]
+    )
 
     return out_pos_enu, out_pos_llh
 
@@ -163,6 +165,9 @@ class GarposHandler:
         self.current_survey = None
         self.coord_transformer = None
         self.set_site_data(site_path=site_path,sound_speed_path=sound_speed_path,vessel_path=vessel_path)
+        self._garposfixed_to_datafile(
+            inversion_params=self.inversion_params,path=self.working_dir/"default_settings.ini"
+        )
 
     def _rectify_shotdata(self, shot_data: pd.DataFrame) -> pd.DataFrame:
         """
@@ -245,7 +250,6 @@ class GarposHandler:
         shutil.copy(src=sound_speed_path,dst=new_ss_path)
         self.sound_speed_path = new_ss_path
 
-
     def set_campaign(self, name: str):
         for campaign in self.site.campaigns:
             if campaign.name == name:
@@ -253,9 +257,9 @@ class GarposHandler:
                 self.current_campaign_dir = self.working_dir / self.current_campaign.name
                 self.current_campaign_dir.mkdir(exist_ok=True)
                 self.coord_transformer = CoordTransformer(
-                    lattitude=self.current_campaign.arrayCenter["lattitude"],
-                    longitude=self.current_campaign.arrayCenter["longitude"],
-                    elevation=self.current_campaign.localGeoidHeight
+                    latitude=self.site.arrayCenter["latitude"],
+                    longitude=self.site.arrayCenter["longitude"],
+                    elevation=float(self.site.localGeoidHeight)
                 )
                 self.current_survey = None
 
@@ -275,18 +279,29 @@ class GarposHandler:
 
     def get_obsfile_path(self,campaign_name:str,survey_id:str) -> Path:
         obs_path = self.working_dir / campaign_name / survey_id / "observaton.ini"
-        obs_path.parent.mkdir(exist_ok=True,parents=True)
+        # obs_path.parent.mkdir(exist_ok=True,parents=True)
         return obs_path
-    
+
     def prep_shotdata(self, overwrite: bool = False):
         for campaign in self.site.campaigns:
             self.set_campaign(campaign.name)
-            for survey in self.current_campaign.surveys.values():
-                survey_dir = self.current_campaign_dir / survey.survey_id
-                survey_dir.mkdir(exist_ok=True)
-                obsfile_path = self.get_obsfile_path(campaign_name=self.current_campaign.name,survey_id=survey.survey_id)
+            for survey in self.current_campaign.surveys:
+                obsfile_path = self.get_obsfile_path(
+                    campaign_name=self.current_campaign.name, survey_id=survey.survey_id
+                )
                 if obsfile_path.exists() and not overwrite:
                     continue
+                shot_data_queried: pd.DataFrame = self.shotdata.read_df(
+                        start=survey.start, end=survey.end
+                    )
+                if shot_data_queried.empty:
+                    print(
+                        f"No shot data found for survey {survey.survey_id}"
+                    )
+                    continue
+                survey_dir = self.current_campaign_dir / survey.survey_id
+                survey_dir.mkdir(exist_ok=True)
+
                 benchmarks = []
                 for benchmark in self.site.benchmarks:
                     if benchmark.name in survey.benchmarkIDs:
@@ -295,15 +310,15 @@ class GarposHandler:
                 for benchmark in benchmarks:
                     # Find correct transponder, default to first
                     current_transponder = benchmark.transponders[-1]
-                    for transponder in benchmark.transponders:
-                        if survey.start > transponder.start:
-                            current_transponder = transponder
+                    # for transponder in benchmark.transponders:
+                    #     if survey.start > transponder.start:
+                    #         current_transponder = transponder
 
                     gp_transponder = GPTransponder(
                         position_llh=GPPositionLLH(
                             latitude=benchmark.aPrioriLocation.latitude,
                             longitude=benchmark.aPrioriLocation.longitude,
-                            height=benchmark.aPrioriLocation.elevation
+                            height=float(benchmark.aPrioriLocation.elevation)
                         ),
                         tat_offset=current_transponder.tat, 
                         id = current_transponder.address,
@@ -334,25 +349,17 @@ class GarposHandler:
                     hgt=array_center_llh.height
                 )
 
-
                 survey_type = survey.type.replace(" ", "")
                 start_doy = survey.start.timetuple().tm_yday
                 end_doy = survey.end.timetuple().tm_yday
 
                 shot_data_path = (
                     survey_dir
-                    / f"{self.current_campaign.name}_{survey.survey_id}_{survey_type}_{start_doy}_{end_doy}.csv"
+                    / f"{survey.survey_id}_{survey_type}.csv"
                 )
 
                 logger.loginfo("Preparing shot data")
-                shot_data_queried: pd.DataFrame = self.shotdata.read_df(
-                        start=survey.start, end=survey.end
-                    )
-                if shot_data_queried.empty:
-                    print(
-                        f"No shot data found for survey {survey.id} {survey_type} {start_doy} {end_doy}"
-                    )
-                    continue
+
                 shot_data_rectified = self._rectify_shotdata(shot_data_queried)
                 transponder_ids = [x.id for x in GPtransponders]
                 try:
@@ -361,7 +368,7 @@ class GarposHandler:
                     )
                     # Only use shotdata for transponders in the survey
                     shot_data_rectified = shot_data_rectified[
-                        shot_data_rectified.MT.isin(transponders)
+                        shot_data_rectified.MT.isin([x.id for x in GPtransponders])
                     ]
 
                     shot_data_rectified.MT = shot_data_rectified.MT.apply(
@@ -377,33 +384,40 @@ class GarposHandler:
                         f"Shot data for {survey.id} {survey_type} {start_doy} {end_doy} failed validation."
                     ) from e 
 
-
                 logger.loginfo(f"Shot data prepared and saved to {str(shot_data_path)}")
+                # get soundspeed relative path
+                rel_depth = len(shot_data_path.relative_to(self.sound_speed_path.parent).parts) -1
+                ss_path = "../"*rel_depth + self.sound_speed_path.name 
 
                 garpos_input = GarposInput(
                     site_name=self.site.names[0],
                     campaign_id=self.current_campaign.name ,
                     survey_id=survey.survey_id ,
                     site_center_llh=GPPositionLLH(
-                        lattitude=self.current_campaign.arrayCenter["lattitude"],
-                        longitude=self.current_campaign.arrayCenter["longitude"],
-                        height=self.current_campaign.localGeoidHeight
+                        latitude=self.site.arrayCenter["latitude"],
+                        longitude=self.site.arrayCenter["longitude"],
+                        height=float(self.site.localGeoidHeight)
                     ),
-                    array_center_enu=array_dpos_center,
+                    array_center_enu=GPPositionENU(
+                        east=array_dpos_center[0],
+                        north=array_dpos_center[1],
+                        up=array_dpos_center[2]
+                    ),
                     transponders=GPtransponders,
                     atd_offset=GPATDOffset(
-                        forward=self.vessel_meta.atd_offsets[0]["x"],
-                        rightward=self.vessel_meta.atd_offsets[0]["y"],
-                        downward=self.vessel_meta.atd_offsets[0]["z"],
+                        forward=float(self.vessel_meta.atd_offsets[0].x),
+                        rightward=float(self.vessel_meta.atd_offsets[0].y),
+                        downward=float(self.vessel_meta.atd_offsets[0].z),
                     ),
                     start_date=survey.start,
                     end_date=survey.end,
-                    shot_data=shot_data_path,
-                    delta_center_position=self.inversion_params.delta_center_position
-
+                    shot_data="./"+shot_data_path.name,
+                    delta_center_position=self.inversion_params.delta_center_position,
+                    sound_speed_data=ss_path
                 )
                 garpos_input.to_datafile(obsfile_path,len(shot_data_rectified))
-            
+                with open(survey_dir/"survey_meta.json",'w') as file:
+                    json.dump(survey.to_dict(),file)
 
     def set_inversion_params(self, parameters: dict | InversionParams):
         """
@@ -422,7 +436,6 @@ class GarposHandler:
         else:
             for key, value in parameters.items():
                 setattr(self.inversion_params, key, value)
-
 
     def _garposfixed_to_datafile(
         self, inversion_params: InversionParams, path: Path
@@ -529,7 +542,6 @@ class GarposHandler:
         9. Saves the results DataFrame to a CSV file.
         """
 
-        assert shot_data_path.exists(), f"Shot data not found at {shot_data_path}"
         garpos_input = GarposInput.from_datafile(obs_file_path)
         results_path = results_dir / f"_{run_id}_results.json"
         results_df_path: Path = results_dir / f"_{run_id}_results_df.csv"
@@ -543,18 +555,19 @@ class GarposHandler:
         )
 
         results_dir.mkdir(exist_ok=True, parents=True)
-
+        garpos_input.shot_data = results_dir.parent / garpos_input.shot_data.name
+        garpos_input.sound_speed_data = obs_file_path.parent.parent.parent / garpos_input.sound_speed_data.name
         input_path = results_dir / f"_{run_id}_observation.ini"
         fixed_path = results_dir / f"_{run_id}_settings.ini"
         garpos_input.to_datafile(input_path)
         self._garposfixed_to_datafile(self.inversion_params, fixed_path)
 
-        print("Running GARPOS for", shot_data_path)
+        print(f"Running GARPOS for {garpos_input.campaign_id}, {garpos_input.survey_id}")
         rf = drive_garpos(
             str(input_path),
             str(fixed_path),
             str(results_dir) + "/",
-            self.site_config.campaign + f"_{run_id}",
+            garpos_input.campaign_id+"_"+garpos_input.survey_id + f"_{run_id}",
             13,
         )
 
@@ -568,28 +581,21 @@ class GarposHandler:
     def _run_garpos_survey(
         self, survey_id: str, run_id: int | str = 0, override: bool = False
     ) -> None:
-        try:
-            survey = self.campaign.surveys[survey_id]
-        except KeyError:
-            raise ValueError(f"Survey {survey_id} not found")
-
-        results_dir = self.results_dir / survey_id
+        
+        self.set_survey(name=survey_id)
+        results_dir = self.current_campaign_dir / survey_id / "results"
         results_dir.mkdir(exist_ok=True, parents=True)
-        shot_data_path = survey.shot_data_path
-        if shot_data_path is None:
-            print(f"No shot data found for survey {survey_id}")
-            return
-        with open(results_dir / "survey_meta.json", "w") as f:
-            json.dump(survey.model_dump(), f, indent=4)
-        self._run_garpos(results_dir, shot_data_path, run_id, override=override)
+        obsfile_path = self.get_obsfile_path(campaign_name=self.current_campaign.name,survey_id=survey_id)
+        if not obsfile_path.exists():
+            raise ValueError("Obsfile Not Found")
+        
+        self._run_garpos(obs_file_path=obsfile_path,results_dir=results_dir,run_id=run_id,override=override)
 
     def run_garpos(
-        self, survey_id: str = None, run_id: int | str = 0, override: bool = False
+        self, campaign_id:str,survey_id: str = None, run_id: int | str = 0, override: bool = False
     ) -> None:
 
-        logger.loginfo(
-            f"GARPOS model run completed for {str(year)}_{str(doy)}. Results saved at {results_path}"
-        )
+
 
         """
         Run the GARPOS model for a specific date or for all dates.
@@ -600,15 +606,17 @@ class GarposHandler:
         Returns:
             None
         """
+        if campaign_id != self.current_campaign.name:
+            self.set_campaign(campaign_id)
 
         if survey_id is None:
-            for survey_id in self.campaign.surveys.keys():
-                self._run_garpos_survey(survey_id, run_id, override=override)
+            for survey in self.current_campaign.surveys:
+                self._run_garpos_survey(survey.survey_id, run_id, override=override)
 
         logger.loginfo(f"Running GARPOS model for date(s) provided. Run ID: {run_id}")
-        if date_index is None:
-            for date in self.dates:
-                self._run_garpos(date, run_id=run_id)
+        if survey_id is None:
+            for survey in self.current_campaign.surveys:
+                self._run_garpos_survey(survey.survey_id, run_id, override=override)
         else:
             self._run_garpos_survey(survey_id, run_id, override=override)
 

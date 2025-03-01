@@ -365,15 +365,16 @@ class GarposInput(BaseModel):
     site_center_llh: GPPositionLLH
     array_center_enu: GPPositionENU
     transponders: List[GPTransponder]
-    sound_speed_data: Optional[Path]
+    sound_speed_data: Optional[Path|str]
     atd_offset: GPATDOffset
     start_date: datetime
     end_date:datetime
-    shot_data: Optional[Path]
+    shot_data: Optional[Path| str]
     delta_center_position:GPPositionENU = GPPositionENU()
     ref_frame: str = "ITRF"
+    n_shot:int
 
-    def to_datafile(self, path: Path,n_shot:int) -> None:
+    def to_datafile(self, path: Path) -> None:
         """
         Write a GarposInput to a datafile
 
@@ -408,7 +409,7 @@ class GarposInput(BaseModel):
 
 [Data-file]
     datacsv     = {str(self.shot_data)}
-    N_shot      = {n_shot}
+    N_shot      = {self.n_shot}
     used_shot   = {0}
 
 [Site-parameter]
@@ -430,7 +431,7 @@ class GarposInput(BaseModel):
                 + [0.0, 0.0, 0.0]
             )
             obs_str += f"""
-        {transponder.id}_dPos    = {" ".join(map(str, position))}"""
+    {transponder.id}_dPos    = {" ".join(map(str, position))}"""
 
         with open(path, "w") as f:
             f.write(obs_str)
@@ -515,6 +516,7 @@ class GarposInput(BaseModel):
             ),
             delta_center_position=delta_center_position,
             ref_frame=observation_section.get("Ref.Frame", "ITRF"),
+            n_shot=data_section["N_shot"]
         )
 
         return garpos_input

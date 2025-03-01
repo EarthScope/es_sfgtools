@@ -151,7 +151,7 @@ class CoordTransformer:
             Converts arrays of ECEF coordinates to ENU coordinates.
     """
 
-    def __init__(self, lattitude:float,longitude:float,elevation:float):
+    def __init__(self, latitude:float,longitude:float,elevation:float):
         """
         Initialize the object with a position in latitude, longitude, and height.
         Args:
