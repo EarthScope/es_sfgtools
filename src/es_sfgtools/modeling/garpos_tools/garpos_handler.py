@@ -35,7 +35,6 @@ from es_sfgtools.modeling.garpos_tools.schemas import (
     GarposFixed,
     InversionParams,
     ObservationData,
-    GarposResults,
     GarposInput
 )
 from es_sfgtools.modeling.garpos_tools.functions import CoordTransformer,process_garpos_results
@@ -150,10 +149,8 @@ class GarposHandler:
             site_config (SiteConfig): The site configuration.
             working_dir (Path): The working directory path.
         """
-        garpos_fixed = GarposFixed()
-        self.LIB_DIRECTORY = garpos_fixed.lib_directory
-        self.LIB_RAYTRACE = garpos_fixed.lib_raytrace
-        self.inversion_params = InversionParams()
+        self.garpos_fixed = GarposFixed()
+        
         self.shotdata = shotdata
         self.working_dir = working_dir
         self.shotdata_dir = working_dir / "shotdata"
@@ -165,9 +162,7 @@ class GarposHandler:
         self.current_survey = None
         self.coord_transformer = None
         self.set_site_data(site_path=site_path,sound_speed_path=sound_speed_path,vessel_path=vessel_path)
-        self._garposfixed_to_datafile(
-            inversion_params=self.inversion_params,path=self.working_dir/"default_settings.ini"
-        )
+        self.garpos_fixed._to_datafile(path=self.working_dir/"default_settings.ini")
 
     def _rectify_shotdata(self, shot_data: pd.DataFrame) -> pd.DataFrame:
         """
@@ -259,7 +254,7 @@ class GarposHandler:
                 self.coord_transformer = CoordTransformer(
                     latitude=self.site.arrayCenter["latitude"],
                     longitude=self.site.arrayCenter["longitude"],
-                    elevation=float(self.site.localGeoidHeight)
+                    elevation=-float(self.site.localGeoidHeight) # use negatiive value to account for garpos error "ys is shallower than layer"
                 )
                 self.current_survey = None
 
@@ -388,7 +383,7 @@ class GarposHandler:
                 # get soundspeed relative path
                 rel_depth = len(shot_data_path.relative_to(self.sound_speed_path.parent).parts) -1
                 ss_path = "../"*rel_depth + self.sound_speed_path.name 
-
+          
                 garpos_input = GarposInput(
                     site_name=self.site.names[0],
                     campaign_id=self.current_campaign.name ,
@@ -413,9 +408,10 @@ class GarposHandler:
                     end_date=survey.end,
                     shot_data="./"+shot_data_path.name,
                     delta_center_position=self.inversion_params.delta_center_position,
-                    sound_speed_data=ss_path
+                    sound_speed_data=ss_path,
+                    n_shot=len(shot_data_rectified)
                 )
-                garpos_input.to_datafile(obsfile_path,len(shot_data_rectified))
+                garpos_input.to_datafile(obsfile_path)
                 with open(survey_dir/"survey_meta.json",'w') as file:
                     json.dump(survey.to_dict(),file)
 
@@ -432,83 +428,10 @@ class GarposHandler:
         """
 
         if isinstance(parameters, InversionParams):
-            self.inversion_params = parameters
+            self.garpos_fixed.inversion_params = parameters
         else:
             for key, value in parameters.items():
-                setattr(self.inversion_params, key, value)
-
-    def _garposfixed_to_datafile(
-        self, inversion_params: InversionParams, path: Path
-    ) -> None:
-        """
-        Generates a data file with fixed parameters for the inversion process.
-        This method creates a configuration file with hyperparameters and inversion parameters
-        required for the inversion process. The generated file is written to the specified path.
-        Args:
-            inversion_params (InversionParams): An instance of InversionParams containing the
-                parameters for the inversion process.
-            path (Path): The file path where the generated configuration file will be saved.
-        Returns:
-            None
-        """
-
-        logger.loginfo("Writing fixed parameters to datafile for inversion process")
-        fixed_str = f"""[HyperParameters]
-    # Hyperparameters
-    #  When setting multiple values, ABIC-minimum HP will be searched.
-    #  The delimiter for multiple HP must be "space".
-
-    # Smoothness parameter for background perturbation (in log10 scale)
-    Log_Lambda0 = {" ".join([str(x) for x in inversion_params.log_lambda])}
-
-    # Smoothness parameter for spatial gradient ( = Lambda0 * gradLambda )
-    Log_gradLambda = {inversion_params.log_gradlambda}
-
-    # Correlation length of data for transmit time (in min.)
-    mu_t = {" ".join([str(x) for x in inversion_params.mu_t])}
-
-    # Data correlation coefficient b/w the different transponders.
-    mu_mt = {" ".join([str(x) for x in inversion_params.mu_mt])}
-
-    [Inv-parameter]
-    # The path for RayTrace lib.
-    lib_directory = {self.LIB_DIRECTORY}
-    lib_raytrace = {self.LIB_RAYTRACE}
-
-    # Typical Knot interval (in min.) for gamma's component (a0, a1, a2).
-    #  Note ;; shorter numbers recommended, but consider the computational resources.
-    knotint0 = {inversion_params.knotint0}
-    knotint1 = {inversion_params.knotint1}
-    knotint2 = {inversion_params.knotint2}
-
-    # Criteria for the rejection of data (+/- rsig * Sigma).
-    # if = 0, no data will be rejected during the process.
-    RejectCriteria = {inversion_params.rejectcriteria}
-
-    # Inversion type
-    #  0: solve only positions
-    #  1: solve only gammas (sound speed variation)
-    #  2: solve both positions and gammas
-    inversiontype = {inversion_params.inversiontype.value}
-
-    # Typical measurement error for travel time.
-    # (= 1.e-4 sec is recommended in 10 kHz carrier)
-    traveltimescale = {inversion_params.traveltimescale}
-
-    # Maximum loop for iteration.
-    maxloop = {inversion_params.maxloop}
-
-    # Convergence criteria for model parameters.
-    ConvCriteria = {inversion_params.convcriteria}
-
-    # Infinitesimal values to make Jacobian matrix.
-    deltap = {inversion_params.deltap}
-    deltab = {inversion_params.deltab}"""
-
-        with open(path, "w") as f:
-            f.write(fixed_str)
-
-        logger.loginfo(f"Fixed parameters written to {path}")
+                setattr(self.garpos_fixed.inversion_params, key, value)
 
     def _run_garpos(
         self,
@@ -516,7 +439,7 @@ class GarposHandler:
         results_dir:Path,
         run_id: int | str = 0,
         override: bool = False,
-    ) -> GarposResults:
+    ) -> None:
         """
         Run the GARPOS model for a given date and run ID.
 
@@ -560,7 +483,7 @@ class GarposHandler:
         input_path = results_dir / f"_{run_id}_observation.ini"
         fixed_path = results_dir / f"_{run_id}_settings.ini"
         garpos_input.to_datafile(input_path)
-        self._garposfixed_to_datafile(self.inversion_params, fixed_path)
+        self.garpos_fixed._to_datafile(fixed_path)
 
         print(f"Running GARPOS for {garpos_input.campaign_id}, {garpos_input.survey_id}")
         rf = drive_garpos(

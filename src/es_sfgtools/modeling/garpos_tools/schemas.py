@@ -276,87 +276,81 @@ class InversionParams(BaseModel):
         return values
 
 
-class GarposObservation(BaseModel):
-    campaign: str
-    date_utc: datetime
-    date_mjd: float
-    ref_frame: str = "ITRF2014"
-    shot_data: pd.DataFrame
-    sound_speed_data: pd.DataFrame
-
-    @field_serializer("date_utc")
-    def serialize_date(self, value):
-        return str(value.isoformat())
-
-    @field_serializer("shot_data")
-    def serialize_shot_data(self, value):
-        return value.to_json(orient="records")
-
-    @field_serializer("sound_speed_data")
-    def serialize_sound_speed_data(self, value):
-        return value.to_json(orient="records")
-
-    @field_validator("shot_data", mode="before")
-    def validate_shot_data(cls, value):
-        try:
-            if isinstance(value, str):
-                value = pd.read_json(value)
-
-            return ObservationData.validate(value, lazy=True)
-        except ValidationError as e:
-            logger.logerr(f"Invalid shot data: {e}")
-            raise ValueError(f"Invalid shot data: {e}")
-
-    @field_validator("sound_speed_data", mode="before")
-    def validate_sound_speed_data(cls, value):
-        try:
-            if isinstance(value, str):
-                value = pd.read_json(value)
-            return SoundVelocityDataFrame.validate(value, lazy=True)
-        except SchemaErrors as err:
-            logger.logerr(f"Invalid sound speed data: {err.data}")
-            raise ValueError(f"Invalid sound speed data: {err.data}")
-
-    @field_validator("date_utc", mode="before")
-    def validate_date_utc(cls, value):
-        if isinstance(value, str):
-            try:
-                return datetime.fromisoformat(value)
-            except ValueError as e:
-                logger.logerr(f"Invalid date format: {e}")
-                raise ValueError(f"Invalid date format: {e}")
-        return value
-    class Config:
-        arbitrary_types_allowed = True
-
-
-class GarposSite(BaseModel):
-    name: str
-    atd_offset: GPATDOffset
-    center_enu: Optional[GPPositionENU] = None
-    center_llh: GPPositionLLH
-    transponders: List[GPTransponder]
-    delta_center_position: GPPositionENU = GPPositionENU()
-
-
 class GarposFixed(BaseModel):
     lib_directory: str = LIB_DIRECTORY
     lib_raytrace: str = LIB_RAYTRACE
     inversion_params: InversionParams = InversionParams()
 
-class GarposResults(BaseModel):
-    center_llh: GPPositionLLH
-    delta_center_position: GPPositionENU
-    transponders: list[GPTransponder]
-    shot_data: Union[Path, pd.DataFrame]
+    def _to_datafile(
+        self,path: Path
+    ) -> None:
+        """
+        Generates a data file with fixed parameters for the inversion process.
+        This method creates a configuration file with hyperparameters and inversion parameters
+        required for the inversion process. The generated file is written to the specified path.
+        Args:
+            self.inversion_params (InversionParams): An instance of InversionParams containing the
+                parameters for the inversion process.
+            path (Path): The file path where the generated configuration file will be saved.
+        Returns:
+            None
+        """
 
-    @field_serializer("shot_data")
-    def serialize_shot_data(self, value):
-        return str(value)
+        
+        fixed_str = f"""[HyperParameters]
+    # Hyperparameters
+    #  When setting multiple values, ABIC-minimum HP will be searched.
+    #  The delimiter for multiple HP must be "space".
 
-    class Config:
-        arbitrary_types_allowed = True  
+    # Smoothness parameter for background perturbation (in log10 scale)
+    Log_Lambda0 = {" ".join([str(x) for x in self.inversion_params.log_lambda])}
 
+    # Smoothness parameter for spatial gradient ( = Lambda0 * gradLambda )
+    Log_gradLambda = {self.inversion_params.log_gradlambda}
+
+    # Correlation length of data for transmit time (in min.)
+    mu_t = {" ".join([str(x) for x in self.inversion_params.mu_t])}
+
+    # Data correlation coefficient b/w the different transponders.
+    mu_mt = {" ".join([str(x) for x in self.inversion_params.mu_mt])}
+
+    [Inv-parameter]
+    # The path for RayTrace lib.
+    lib_directory = {self.lib_directory}
+    lib_raytrace = {self.lib_raytrace}
+
+    # Typical Knot interval (in min.) for gamma's component (a0, a1, a2).
+    #  Note ;; shorter numbers recommended, but consider the computational resources.
+    knotint0 = {self.inversion_params.knotint0}
+    knotint1 = {self.inversion_params.knotint1}
+    knotint2 = {self.inversion_params.knotint2}
+
+    # Criteria for the rejection of data (+/- rsig * Sigma).
+    # if = 0, no data will be rejected during the process.
+    RejectCriteria = {self.inversion_params.rejectcriteria}
+
+    # Inversion type
+    #  0: solve only positions
+    #  1: solve only gammas (sound speed variation)
+    #  2: solve both positions and gammas
+    inversiontype = {self.inversion_params.inversiontype.value}
+
+    # Typical measurement error for travel time.
+    # (= 1.e-4 sec is recommended in 10 kHz carrier)
+    traveltimescale = {self.inversion_params.traveltimescale}
+
+    # Maximum loop for iteration.
+    maxloop = {self.inversion_params.maxloop}
+
+    # Convergence criteria for model parameters.
+    ConvCriteria = {self.inversion_params.convcriteria}
+
+    # Infinitesimal values to make Jacobian matrix.
+    deltap = {self.inversion_params.deltap}
+    deltab = {self.inversion_params.deltab}"""
+
+        with open(path, "w") as f:
+            f.write(fixed_str)
 
 class GarposInput(BaseModel):
     site_name: str
@@ -374,6 +368,14 @@ class GarposInput(BaseModel):
     ref_frame: str = "ITRF"
     n_shot:int
 
+    @field_serializer("shot_data","sound_speed_data")
+    def path_to_str(self,value):
+        return str(value)
+    
+    @field_serializer("start_date","end_date")
+    def dt_to_str(self,value):
+        return value.isoformat()
+    
     def to_datafile(self, path: Path) -> None:
         """
         Write a GarposInput to a datafile
@@ -389,6 +391,10 @@ class GarposInput(BaseModel):
             jd = julian.to_jd(dt, fmt='jd')
             mjd = jd - 2400000.5
             return mjd
+        
+        for transponder in self.transponders:
+            if not "M" in transponder.id:
+                transponder.id = "M" + transponder.id 
         # Write the data file
         center_enu: List[float] = self.array_center_enu.get_position()
         delta_center_position: List[float] = (

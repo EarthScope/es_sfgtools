@@ -42,7 +42,7 @@ if __name__ == "__main__":
         sound_speed_data=svp_path_processed,
         vessel_data=ncc1_vessel_config)
 
-    gp_handler_ncc1.prep_shotdata()
+    gp_handler_ncc1.prep_shotdata(False)
 
     # gp_handler_ncc1.load_campaign_data(site_path)
     # gp_handler_ncc1.set_campaign("2024_A_1126")
@@ -52,7 +52,7 @@ if __name__ == "__main__":
 
     gp_handler_ncc1.set_inversion_params(update_dict)
 
-    gp_handler_ncc1.run_garpos(campaign_id='2024_A_1126',run_id=0,override=True)
+    gp_handler_ncc1.run_garpos(campaign_id='2024_A_1126',run_id=0,override=False)
 
     # gp_handler_ncc1.plot_ts_results("2024_A_1126_2",3,res_filter=51)
     # print("Done")
