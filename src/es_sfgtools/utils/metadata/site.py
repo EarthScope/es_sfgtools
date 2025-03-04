@@ -69,6 +69,7 @@ class Site:
         array_center: Dict = None,
         existing_site: Dict = None,
     ) -> None:
+
         """
         Create a new site object.
 
@@ -90,7 +91,8 @@ class Site:
 
         self.names = names
         self.networks = networks if networks else []
-        self.timeOrigin = (time_of_origin,)
+        self.timeOrigin = time_of_origin,
+
         self.localGeoidHeight = local_geoid_height if local_geoid_height else ""
         self.arrayCenter = array_center if array_center else {"x": "", "y": "", "z": ""}
         self.campaigns: List[Campaign] = []
@@ -107,9 +109,10 @@ class Site:
         return {
             "names": self.names,
             "networks": self.networks,
-            "timeOrigin": (
-                self.timeOrigin.strftime("%Y-%m-%dT%H:%M:%S") if self.timeOrigin else ""
-            ),
+
+
+            "timeOrigin": self.timeOrigin.strftime('%Y-%m-%dT%H:%M:%S') if self.timeOrigin else "",
+
             "localGeoidHeight": self.localGeoidHeight,
             "arrayCenter": self.arrayCenter,
             "referenceFrames": [
@@ -168,6 +171,7 @@ class Site:
         delete: bool = False,
     ):
         """Run a benchmark operation based on the provided flags"""
+
 
         if not only_one_is_true(add_new, update, delete):
             print("ERROR: Please select only one operation(Add/Update/Delete) to run..")
@@ -391,7 +395,7 @@ class Site:
                 return
 
         print("ERROR: Transponder not found..")
-
+        
     def run_campaign(
         self,
         campaign_name: str,
@@ -401,6 +405,7 @@ class Site:
         delete: bool = False,
     ):
         """Run a campaign operation based on the provided flags"""
+
         if not only_one_is_true(add_new, update, delete):
             print("ERROR: Please select only one operation(Add/Update/Delete) to run..")
             return
@@ -460,6 +465,7 @@ class Site:
         survey_id: str = None,
     ):
         """Run a survey operation based on the provided flags"""
+
 
         if not only_one_is_true(add_new, update, delete):
             print("ERROR: Please select only one operation(Add/Update/Delete) to run..")
@@ -575,7 +581,6 @@ class Site:
                 campaign.surveys.remove(survey)
                 print("Deleted survey.")
                 return
-
         print(
             "ERROR: Survey {} not found in campaign {}..".format(
                 survey_id, campaign_name
@@ -591,6 +596,7 @@ class Site:
         delete: bool = False,
     ):
         """Run a reference frame operation based on the provided flags"""
+
 
         if not only_one_is_true(add_new, update, delete):
             print("ERROR: Please select only one operation(Add/Update/Delete) to run..")
