@@ -27,7 +27,7 @@ from es_sfgtools.processing.pipeline.constants import REMOTE_TYPE, FILE_TYPES
 from es_sfgtools.processing.pipeline.datadiscovery import scrape_directory_local, get_file_type_local, get_file_type_remote
 
 from es_sfgtools.modeling.garpos_tools.garpos_handler import GarposHandler
-from es_sfgtools.processing.assets.siteconfig import GPSiteConfig
+
 from es_sfgtools.utils.loggers import ProcessLogger as logger, change_all_logger_dirs
 
 

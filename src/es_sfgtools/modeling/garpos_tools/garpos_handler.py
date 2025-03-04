@@ -24,20 +24,18 @@ import matplotlib.gridspec as gridspec
 from es_sfgtools.processing.assets.observables import (
     ShotDataFrame
 )
-from es_sfgtools.processing.assets.siteconfig import (
-    GPPositionENU,
-    GPTransponder,
-    Survey,
-    GPPositionLLH,
-    GPATDOffset
-)
+
 from es_sfgtools.modeling.garpos_tools.schemas import (
     GarposFixed,
     InversionParams,
     ObservationData,
-    GarposInput
+    GarposInput,
+    GPTransponder,
+    GPATDOffset,
+    GPPositionENU,
+    GPPositionLLH
 )
-from es_sfgtools.modeling.garpos_tools.functions import CoordTransformer,process_garpos_results
+from es_sfgtools.modeling.garpos_tools.functions import CoordTransformer,process_garpos_results,rectify_shotdata
 
 from es_sfgtools.utils.metadata.site import Site as MetaSite
 from es_sfgtools.utils.metadata.vessel import Vessel as MetaVessel
@@ -164,77 +162,6 @@ class GarposHandler:
         self.set_site_data(site_path=site_path,sound_speed_path=sound_speed_path,vessel_path=vessel_path)
         self.garpos_fixed._to_datafile(path=self.working_dir/"default_settings.ini")
 
-    def _rectify_shotdata(self, shot_data: pd.DataFrame) -> pd.DataFrame:
-        """
-        Rectifies the shot data to the site local coordinate system by transforming coordinates and renaming columns.
-        This method performs the following operations on the input shot data:
-        1. Transforms the ECEF coordinates to ENU coordinates for two sets of points.
-        2. Adds the transformed coordinates to the DataFrame.
-        3. Sets default values for the "SET" and "LN" columns.
-        4. Renames specific columns according to a predefined mapping.
-        5. Selects and reorders the columns in the DataFrame.
-        6. Validates and sorts the DataFrame by "triggerTime".
-
-        Args:
-            shot_data (pd.DataFrame): The input DataFrame containing shot data with columns
-                                      "east0", "north0", "up0", "east1", "north1", "up1",
-                                      "trigger_time", "hae0", "pingTime", "returnTime",
-                                      "tt", "transponderID", "head0", "pitch0", "roll0",
-                                      "head1", "pitch1", and "roll1".
-        Returns:
-            pd.DataFrame: The rectified and validated DataFrame sorted by "triggerTime".
-        """
-
-        e0, n0, u0 = self.coord_transformer.ECEF2ENU_vec(
-            shot_data.east0.to_numpy(),
-            shot_data.north0.to_numpy(),
-            shot_data.up0.to_numpy(),
-        )
-        e1, n1, u1 = self.coord_transformer.ECEF2ENU_vec(
-            shot_data.east1.to_numpy(),
-            shot_data.north1.to_numpy(),
-            shot_data.up1.to_numpy(),
-        )
-        shot_data["ant_e0"] = e0
-        shot_data["ant_n0"] = n0
-        shot_data["ant_u0"] = u0
-        shot_data["ant_e1"] = e1
-        shot_data["ant_n1"] = n1
-        shot_data["ant_u1"] = u1
-        shot_data["SET"] = "S01"
-        shot_data["LN"] = "L01"
-        rename_dict = {
-            "trigger_time": "triggertime",
-            "hae0": "height",
-            "pingTime": "ST",
-            "returnTime": "RT",
-            "tt": "TT",
-            "transponderID": "MT",
-        }
-        shot_data = shot_data.rename(columns=rename_dict).loc[
-            :,
-            [
-                "triggerTime",
-                "MT",
-                "ST",
-                "RT",
-                "TT",
-                "ant_e0",
-                "ant_n0",
-                "ant_u0",
-                "head0",
-                "pitch0",
-                "roll0",
-                "ant_e1",
-                "ant_n1",
-                "ant_u1",
-                "head1",
-                "pitch1",
-                "roll1",
-            ],
-        ]
-        return ObservationData.validate(shot_data, lazy=True).sort_values("triggerTime")
-
     def set_site_data(
         self, site_path: Path | str, sound_speed_path: Path | str, vessel_path: Path|str
     ):
@@ -355,7 +282,7 @@ class GarposHandler:
 
                 logger.loginfo("Preparing shot data")
 
-                shot_data_rectified = self._rectify_shotdata(shot_data_queried)
+                shot_data_rectified = rectify_shotdata(self.coord_transformer,shot_data_queried)
                 transponder_ids = [x.id for x in GPtransponders]
                 try:
                     shot_data_rectified = ShotDataFrame.validate(
@@ -407,7 +334,7 @@ class GarposHandler:
                     start_date=survey.start,
                     end_date=survey.end,
                     shot_data="./"+shot_data_path.name,
-                    delta_center_position=self.inversion_params.delta_center_position,
+                    delta_center_position=self.garpos_fixed.inversion_params.delta_center_position,
                     sound_speed_data=ss_path,
                     n_shot=len(shot_data_rectified)
                 )
@@ -498,6 +425,7 @@ class GarposHandler:
         proc_results, results_df = process_garpos_results(results)
 
         results_df.to_csv(results_df_path, index=False)
+        proc_results.shot_data = results_df_path
         with open(results_path, "w") as f:
             json.dump(proc_results.model_dump(), f, indent=4)
 
@@ -544,7 +472,7 @@ class GarposHandler:
             self._run_garpos_survey(survey_id, run_id, override=override)
 
     def plot_ts_results(
-        self, survey_id: str, run_id: int | str = 0, res_filter: float = 10
+        self, campaign_name:str = None, survey_id: str= None, run_id: int | str = 0, res_filter: float = 10
     ) -> None:
         """
         Plots the time series results for a given survey.
@@ -568,22 +496,19 @@ class GarposHandler:
         - The plots include information about the delta center position and transponder positions.
         """
 
-        print("Plotting results for survey ", survey_id)
-        try:
-            survey = Survey(**dict(self.campaign.surveys[survey_id]))
-        except KeyError:
-            raise ValueError(f"Survey {survey_id} not found")
+        if campaign_name is not None:
+            self.set_campaign(campaign_name)
+        self.set_survey(survey_id)
+        obsfile_path = self.get_obsfile_path(self.current_campaign.name,self.current_survey.survey_id)
 
-        results_dir = self.results_dir / survey.id
+        results_dir = obsfile_path.parent / "results"
         results_path = results_dir / f"_{run_id}_results.json"
         with open(results_path, "r") as f:
             results = json.load(f)
-        transponders = []
-        arrayinfo = GPPositionENU.model_validate(results["delta_center_position"])
-        for transponder in results["transponders"]:
-            _transponder_ = GPTransponder.model_validate(transponder)
-            transponders.append(_transponder_)
-        results_df_raw = pd.read_csv(results_dir / f"_{run_id}_results_df.csv")
+            garpos_results = GarposInput(**results)
+            arrayinfo = garpos_results.delta_center_position
+
+        results_df_raw = pd.read_csv(garpos_results.shot_data)
         results_df_raw = ShotDataFrame.validate(results_df_raw, lazy=True)
         results_df_raw["time"] = results_df_raw.ST.apply(
             lambda x: datetime.fromtimestamp(x)
@@ -593,12 +518,12 @@ class GarposHandler:
         unique_ids = results_df["MT"].unique()
 
         plt.figsize = (32, 32)
-        plt.suptitle(f"Survey {survey.id} Results")
+        plt.suptitle(f"Survey {survey_id} Results")
         gs = gridspec.GridSpec(13, 16)
         figure_text = "Delta Center Position\n"
         dpos = arrayinfo.get_position()
         figure_text += f"Array :  East {dpos[0]:.3f} m, North {dpos[1]:.3f} m, Up {dpos[2]:.3f} m \n"
-        for id, transponder in enumerate(transponders):
+        for id, transponder in enumerate(garpos_results.transponders):
             dpos = transponder.delta_center_position.get_position()
             figure_text += f"TSP {transponder.id} : East {dpos[0]:.3f} m, North {dpos[1]:.3f} m, Up {dpos[2]:.3f} m \n"
 
@@ -650,7 +575,7 @@ class GarposHandler:
         ax1.xaxis.set_label_position("top")
         ax1.xaxis.set_ticks_position("top")
         ax1.legend()
-        for transponder in transponders:
+        for transponder in garpos_results.transponders:
             idx = unique_ids.tolist().index(transponder.id)
             ax3.scatter(
                 transponder.position_enu.east,
@@ -693,7 +618,7 @@ class GarposHandler:
         ax4.set_xlabel("Residual Range (m)", labelpad=-1)
         ax4.set_ylabel("Frequency")
         ax4.set_title(
-            f"Histogram of Residual Range Values, within {res_filter:.1f} meters and sorted in .05m bins"
+            f"Histogram of Residual Range Values, within {res_filter:.1f} meters"
         )
         ax4.legend()
         plt.show()

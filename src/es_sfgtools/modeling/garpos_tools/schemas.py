@@ -3,17 +3,70 @@ from pandera.typing import Series, DataFrame
 from pandera.errors import SchemaErrors
 from enum import Enum
 from typing import List, Optional,Union
-from pydantic import BaseModel, Field, model_validator,field_serializer,field_validator,ValidationError
+from pydantic import BaseModel, Field, model_validator,field_serializer,field_validator,ValidationError,AliasChoices
 from pathlib import Path
+import numpy as np
 import pandas as pd
 from datetime import datetime
 from configparser import ConfigParser
 from ...processing.assets.observables import SoundVelocityDataFrame
-from ...processing.assets.siteconfig import GPATDOffset, GPPositionENU, GPPositionLLH, GPTransponder
 from es_sfgtools.utils.loggers import GarposLogger as logger
 import julian
 
 from garpos import LIB_DIRECTORY,LIB_RAYTRACE
+
+
+class GPPositionLLH(BaseModel):
+    latitude: float
+    longitude: float
+    height: Optional[float] = 0
+
+
+class GPPositionENU(BaseModel):
+    east: Optional[float] = 0
+    north: Optional[float] = 0
+    up: Optional[float] = 0
+    east_sigma: Optional[float] = 0
+    north_sigma: Optional[float] = 0
+    up_sigma: Optional[float] = 0
+    cov_nu: Optional[float] = 0
+    cov_ue: Optional[float] = 0
+    cov_en: Optional[float] = 0
+
+    def get_position(self) -> List[float]:
+        return [self.east, self.north, self.up]
+
+    def get_std_dev(self) -> List[float]:
+        return [self.east_sigma, self.north_sigma, self.up_sigma]
+
+    def get_covariance(self) -> np.ndarray:
+        cov_mat = np.diag([self.east_sigma**2, self.north_sigma**2, self.up_sigma**2])
+        cov_mat[0, 1] = cov_mat[1, 0] = self.cov_en**2
+        cov_mat[0, 2] = cov_mat[2, 0] = self.cov_ue**2
+        cov_mat[1, 2] = cov_mat[2, 1] = self.cov_nu**2
+        return cov_mat
+
+
+class GPTransponder(BaseModel):
+    position_llh: Optional[GPPositionLLH] = None
+    position_enu: Optional[GPPositionENU] = None
+    tat_offset: Optional[float] = None
+    name: Optional[str] = None
+    id: Optional[str] = Field(None, alias=AliasChoices("id", "address"))
+    delta_center_position: Optional[GPPositionENU] = None
+
+    class Config:
+        allow_population_by_field_name = True
+
+
+class GPATDOffset(BaseModel):
+    forward: float
+    rightward: float
+    downward: float
+
+    def get_offset(self) -> List[float]:
+        return [self.forward, self.rightward, self.downward]
+
 
 class ObservationData(pa.DataFrameModel):
     """Observation data file schema
@@ -371,11 +424,11 @@ class GarposInput(BaseModel):
     @field_serializer("shot_data","sound_speed_data")
     def path_to_str(self,value):
         return str(value)
-    
+
     @field_serializer("start_date","end_date")
     def dt_to_str(self,value):
         return value.isoformat()
-    
+
     def to_datafile(self, path: Path) -> None:
         """
         Write a GarposInput to a datafile
@@ -391,7 +444,7 @@ class GarposInput(BaseModel):
             jd = julian.to_jd(dt, fmt='jd')
             mjd = jd - 2400000.5
             return mjd
-        
+
         for transponder in self.transponders:
             if not "M" in transponder.id:
                 transponder.id = "M" + transponder.id 
@@ -526,3 +579,97 @@ class GarposInput(BaseModel):
         )
 
         return garpos_input
+
+
+class InversionLoop(BaseModel):
+    iteration: int
+    rms_tt: float  # ms
+    used_shot_percentage: float
+    reject: int
+    max_dx: float
+    hgt: float
+    inv_type: InversionType
+
+
+class InversionResults(BaseModel):
+    ABIC: float
+    misfit: float
+    inv_type: InversionType
+    lambda_0_squared: float
+    grad_lambda_squared: float
+    mu_t: float  # [s]
+    mu_mt: float
+    delta_center_position: List[float]
+    loop_data: List[InversionLoop]
+
+    @classmethod
+    def from_dat_file(cls, file_path: str) -> "InversionResults":
+        """
+        Parse the inversion results from a .dat file
+
+        Args:
+            file_path (str): Path to the .dat file
+
+        Returns:
+            InversionResults (obj): Inversion results
+        """
+
+        logger.loginfo(f"Reading inversion results from {file_path}")
+        with open(file_path, "r") as f:
+            lines = f.readlines()
+            # Extract data from the file
+            loop_data = []
+            for line in lines:
+                if line.startswith("#Inversion-type"):
+                    parsed_line = line.split()
+                    iteration = int(parsed_line[4].replace(",", ""))
+                    inv_type = InversionType(int(parsed_line[1]))
+                    rms_tt = float(parsed_line[7])
+                    used_shot_percentage = float(parsed_line[11].replace("%,", ""))
+                    reject = int(parsed_line[14].replace(",", ""))
+                    max_dx = float(parsed_line[17].replace(",", ""))
+                    hgt = float(parsed_line[20])
+                    loop_data.append(
+                        InversionLoop(
+                            iteration=iteration,
+                            rms_tt=rms_tt,
+                            used_shot_percentage=used_shot_percentage,
+                            reject=reject,
+                            max_dx=max_dx,
+                            hgt=hgt,
+                            inv_type=inv_type,
+                        )
+                    )
+                delta_center_position = [0, 0, 0, 0, 0, 0]
+                if line.startswith("dcentpos"):
+                    parsed_line = line.split()
+                    delta_center_position = [float(x) for x in parsed_line[2]]
+                if line.startswith("#  ABIC"):
+                    parsed_line = line.split()
+                    ABIC = float(parsed_line[3])
+                    misfit = float(parsed_line[6])
+                if line.startswith("# lambda_0^2"):
+                    parsed_line = line.split()
+                    lambda_0_squared = float(parsed_line[3])
+                if line.startswith("# lambda_g^2"):
+                    parsed_line = line.split()
+                    grad_lambda_squared = float(parsed_line[3])
+                if line.startswith("# mu_t"):
+                    parsed_line = line.split()
+                    mu_t = float(parsed_line[3])
+                if line.startswith("# mu_MT"):
+                    parsed_line = line.split()
+                    mu_mt = float(parsed_line[3])
+
+            logger.loginfo(f"Finished reading inversion results from {file_path}")
+            return cls(
+                delta_center_position=delta_center_position,
+                ABIC=ABIC,
+                misfit=misfit,
+                inv_type=inv_type,
+                lambda_0_squared=lambda_0_squared,
+                grad_lambda_squared=grad_lambda_squared,
+                mu_t=mu_t,
+                mu_mt=mu_mt,
+                loop_data=loop_data,
+            )

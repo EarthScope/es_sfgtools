@@ -2,11 +2,11 @@ import os
 from pathlib import Path
 
 from es_sfgtools.processing.pipeline.data_handler import DataHandler
-from es_sfgtools.processing.assets.siteconfig import GPSiteConfig
+
 from es_sfgtools.processing.operations.site_ops import (
     CTDfile_to_svp,
-    masterfile_to_siteconfig,
-    leverarmfile_to_atdoffset,
+    #masterfile_to_siteconfig,
+    #leverarmfile_to_atdoffset,
 )
 from es_sfgtools.utils.loggers import BaseLogger
 
@@ -52,7 +52,7 @@ if __name__ == "__main__":
 
     gp_handler_ncc1.set_inversion_params(update_dict)
 
-    gp_handler_ncc1.run_garpos(campaign_id='2024_A_1126',run_id=0,override=False)
+    #gp_handler_ncc1.run_garpos(campaign_id='2024_A_1126',run_id=0,override=True)
 
-    # gp_handler_ncc1.plot_ts_results("2024_A_1126_2",3,res_filter=51)
+    gp_handler_ncc1.plot_ts_results(campaign_name='2024_A_1126',survey_id="2024_A_1126_1",res_filter=20)
     # print("Done")
