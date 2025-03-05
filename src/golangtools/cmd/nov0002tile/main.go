@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sfg_utils/pkg/sfg_utils"
 	"strconv"
 	"strings"
 	"sync"
 
-	utils "github.com/EarthScope/es_sfgtools/src/golangtools/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/earthscope/gnsstools/pkg/common/gnss/observation"
 	novatelascii "gitlab.com/earthscope/gnsstools/pkg/encoding/novatel/novatel_ascii"
@@ -246,7 +246,7 @@ func main() {
 		flag.PrintDefaults()
 		log.Fatalln("no files specified")
 	}
-	if !utils.ArrayExists(*tdbPathPtr) {
+	if !sfg_utils.ArrayExists(*tdbPathPtr) {
 		err := tiledbgnss.CreateArray("s3://earthscope-tiledb-schema-dev-us-east-2-ebamji/GNSS_OBS_SCHEMA_V3.tdb/", *tdbPathPtr, "us-east-2")
 		if err != nil {
 			log.Errorf("error creating array: %v",err)
