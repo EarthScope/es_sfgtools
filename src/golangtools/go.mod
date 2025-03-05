@@ -3,7 +3,7 @@ go 1.23.3
 require (
 	github.com/TileDB-Inc/TileDB-Go v0.35.0
 	github.com/sirupsen/logrus v1.9.3
-	gitlab.com/earthscope/gnsstools v0.17.0
+	gitlab.com/earthscope/gnsstools v0.17.3
 )
 
 require (
@@ -19,4 +19,4 @@ require (
 	gonum.org/v1/gonum v0.15.1 // indirect
 )
 
-module sfg_utils
+module github.com/EarthScope/es_sfgtools/src/golangtools

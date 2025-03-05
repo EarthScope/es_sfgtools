@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sfg_utils/pkg/sfg_utils"
 	"strconv"
 	"strings"
 	"sync"
 
+	sfg_utils "github.com/EarthScope/es_sfgtools/src/golangtools/pkg/sfg_utils"
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/earthscope/gnsstools/pkg/common/gnss/observation"
 	novatelascii "gitlab.com/earthscope/gnsstools/pkg/encoding/novatel/novatel_ascii"
