@@ -12,7 +12,7 @@ CONDA_PREFIX := $(shell conda info --envs | awk '/\*/ {print $$NF}')
 
 DYLD_LIBRARY_PATH := $(shell echo $$DYLD_LIBRARY_PATH)
 DYLD_LIBRARY_PATH_CONDA=$(CONDA_PREFIX)/include:$(DYLD_LIBRARY_PATH)
-CGO_CFLAGS=-I$(CONDA_BASE)/tiledb/include
+CGO_CFLAGS=-I$(CONDA_BASE)/tiledb/include -Wno-deprecated-declarations
 CGO_LDFLAGS=-L$(CONDA_PREFIX)/lib -ltiledb
 
 LIBRARY_PATH=$(CONDA_PREFIX)/lib
