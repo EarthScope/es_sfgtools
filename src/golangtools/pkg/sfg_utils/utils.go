@@ -1,4 +1,4 @@
-package utils
+package sfg_utils
 
 import (
 	tiledb "github.com/TileDB-Inc/TileDB-Go"

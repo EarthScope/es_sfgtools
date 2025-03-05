@@ -3,17 +3,70 @@ from pandera.typing import Series, DataFrame
 from pandera.errors import SchemaErrors
 from enum import Enum
 from typing import List, Optional,Union
-from pydantic import BaseModel, Field, model_validator,field_serializer,field_validator,ValidationError
+from pydantic import BaseModel, Field, model_validator,field_serializer,field_validator,ValidationError,AliasChoices
 from pathlib import Path
+import numpy as np
 import pandas as pd
 from datetime import datetime
-
+from configparser import ConfigParser
 from ...processing.assets.observables import SoundVelocityDataFrame
-from ...processing.assets.siteconfig import ATDOffset, PositionENU, PositionLLH, Transponder
 from es_sfgtools.utils.loggers import GarposLogger as logger
-
+import julian
 
 from garpos import LIB_DIRECTORY,LIB_RAYTRACE
+
+
+class GPPositionLLH(BaseModel):
+    latitude: float
+    longitude: float
+    height: Optional[float] = 0
+
+
+class GPPositionENU(BaseModel):
+    east: Optional[float] = 0
+    north: Optional[float] = 0
+    up: Optional[float] = 0
+    east_sigma: Optional[float] = 0
+    north_sigma: Optional[float] = 0
+    up_sigma: Optional[float] = 0
+    cov_nu: Optional[float] = 0
+    cov_ue: Optional[float] = 0
+    cov_en: Optional[float] = 0
+
+    def get_position(self) -> List[float]:
+        return [self.east, self.north, self.up]
+
+    def get_std_dev(self) -> List[float]:
+        return [self.east_sigma, self.north_sigma, self.up_sigma]
+
+    def get_covariance(self) -> np.ndarray:
+        cov_mat = np.diag([self.east_sigma**2, self.north_sigma**2, self.up_sigma**2])
+        cov_mat[0, 1] = cov_mat[1, 0] = self.cov_en**2
+        cov_mat[0, 2] = cov_mat[2, 0] = self.cov_ue**2
+        cov_mat[1, 2] = cov_mat[2, 1] = self.cov_nu**2
+        return cov_mat
+
+
+class GPTransponder(BaseModel):
+    position_llh: Optional[GPPositionLLH] = None
+    position_enu: Optional[GPPositionENU] = None
+    tat_offset: Optional[float] = None
+    name: Optional[str] = None
+    id: Optional[str] = Field(None, alias=AliasChoices("id", "address"))
+    delta_center_position: Optional[GPPositionENU] = None
+
+    class Config:
+        allow_population_by_field_name = True
+
+
+class GPATDOffset(BaseModel):
+    forward: float
+    rightward: float
+    downward: float
+
+    def get_offset(self) -> List[float]:
+        return [self.forward, self.rightward, self.downward]
+
 
 class ObservationData(pa.DataFrameModel):
     """Observation data file schema
@@ -121,7 +174,7 @@ class ObservationData(pa.DataFrameModel):
     class Config:
         coerce = True
         add_missing_columns = True
-    
+
 
 class GarposObservationOutput(pa.DataFrameModel):
     MT: Series[str] = pa.Field(
@@ -250,8 +303,8 @@ class InversionParams(BaseModel):
     deltab: float = Field(
         default=1.0e-6, description="Infinitesimal values to make Jacobian matrix"
     )
-    delta_center_position : PositionENU = Field(
-        default=PositionENU(east_sigma=1,north_sigma=1), description="Delta center position"
+    delta_center_position : GPPositionENU = Field(
+        default=GPPositionENU(east_sigma=1,north_sigma=1), description="Delta center position"
     )
 
 
@@ -276,99 +329,347 @@ class InversionParams(BaseModel):
         return values
 
 
-class GarposObservation(BaseModel):
-    campaign: str
-    date_utc: datetime
-    date_mjd: float
-    ref_frame: str = "ITRF2014"
-    shot_data: pd.DataFrame
-    sound_speed_data: pd.DataFrame
-
-    @field_serializer("date_utc")
-    def serialize_date(self, value):
-        return str(value.isoformat())
-
-    @field_serializer("shot_data")
-    def serialize_shot_data(self, value):
-        return value.to_json(orient="records")
-
-    @field_serializer("sound_speed_data")
-    def serialize_sound_speed_data(self, value):
-        return value.to_json(orient="records")
-
-    @field_validator("shot_data", mode="before")
-    def validate_shot_data(cls, value):
-        try:
-            if isinstance(value, str):
-                value = pd.read_json(value)
-
-            return ObservationData.validate(value, lazy=True)
-        except ValidationError as e:
-            logger.logerr(f"Invalid shot data: {e}")
-            raise ValueError(f"Invalid shot data: {e}")
-
-    @field_validator("sound_speed_data", mode="before")
-    def validate_sound_speed_data(cls, value):
-        try:
-            if isinstance(value, str):
-                value = pd.read_json(value)
-            return SoundVelocityDataFrame.validate(value, lazy=True)
-        except SchemaErrors as err:
-            logger.logerr(f"Invalid sound speed data: {err.data}")
-            raise ValueError(f"Invalid sound speed data: {err.data}")
-
-    @field_validator("date_utc", mode="before")
-    def validate_date_utc(cls, value):
-        if isinstance(value, str):
-            try:
-                return datetime.fromisoformat(value)
-            except ValueError as e:
-                logger.logerr(f"Invalid date format: {e}")
-                raise ValueError(f"Invalid date format: {e}")
-        return value
-    class Config:
-        arbitrary_types_allowed = True
-
-
-class GarposSite(BaseModel):
-    name: str
-    atd_offset: ATDOffset
-    center_enu: Optional[PositionENU] = None
-    center_llh: PositionLLH
-    transponders: List[Transponder]
-    delta_center_position: PositionENU = PositionENU()
-
-
-class GarposInput(BaseModel):
-    observation: GarposObservation
-    site: GarposSite
-    shot_data_file: Optional[Path] = None
-    sound_speed_file: Optional[Path] = None
-
-
 class GarposFixed(BaseModel):
     lib_directory: str = LIB_DIRECTORY
     lib_raytrace: str = LIB_RAYTRACE
     inversion_params: InversionParams = InversionParams()
 
-class GarposResults(BaseModel):
-    center_llh: PositionLLH
-    delta_center_position: PositionENU
-    transponders: list[Transponder]
-    shot_data: Union[Path, pd.DataFrame]
+    def _to_datafile(
+        self,path: Path
+    ) -> None:
+        """
+        Generates a data file with fixed parameters for the inversion process.
+        This method creates a configuration file with hyperparameters and inversion parameters
+        required for the inversion process. The generated file is written to the specified path.
+        Args:
+            self.inversion_params (InversionParams): An instance of InversionParams containing the
+                parameters for the inversion process.
+            path (Path): The file path where the generated configuration file will be saved.
+        Returns:
+            None
+        """
 
-    @field_serializer("shot_data")
-    def serialize_shot_data(self, value):
+        
+        fixed_str = f"""[HyperParameters]
+    # Hyperparameters
+    #  When setting multiple values, ABIC-minimum HP will be searched.
+    #  The delimiter for multiple HP must be "space".
+
+    # Smoothness parameter for background perturbation (in log10 scale)
+    Log_Lambda0 = {" ".join([str(x) for x in self.inversion_params.log_lambda])}
+
+    # Smoothness parameter for spatial gradient ( = Lambda0 * gradLambda )
+    Log_gradLambda = {self.inversion_params.log_gradlambda}
+
+    # Correlation length of data for transmit time (in min.)
+    mu_t = {" ".join([str(x) for x in self.inversion_params.mu_t])}
+
+    # Data correlation coefficient b/w the different transponders.
+    mu_mt = {" ".join([str(x) for x in self.inversion_params.mu_mt])}
+
+    [Inv-parameter]
+    # The path for RayTrace lib.
+    lib_directory = {self.lib_directory}
+    lib_raytrace = {self.lib_raytrace}
+
+    # Typical Knot interval (in min.) for gamma's component (a0, a1, a2).
+    #  Note ;; shorter numbers recommended, but consider the computational resources.
+    knotint0 = {self.inversion_params.knotint0}
+    knotint1 = {self.inversion_params.knotint1}
+    knotint2 = {self.inversion_params.knotint2}
+
+    # Criteria for the rejection of data (+/- rsig * Sigma).
+    # if = 0, no data will be rejected during the process.
+    RejectCriteria = {self.inversion_params.rejectcriteria}
+
+    # Inversion type
+    #  0: solve only positions
+    #  1: solve only gammas (sound speed variation)
+    #  2: solve both positions and gammas
+    inversiontype = {self.inversion_params.inversiontype.value}
+
+    # Typical measurement error for travel time.
+    # (= 1.e-4 sec is recommended in 10 kHz carrier)
+    traveltimescale = {self.inversion_params.traveltimescale}
+
+    # Maximum loop for iteration.
+    maxloop = {self.inversion_params.maxloop}
+
+    # Convergence criteria for model parameters.
+    ConvCriteria = {self.inversion_params.convcriteria}
+
+    # Infinitesimal values to make Jacobian matrix.
+    deltap = {self.inversion_params.deltap}
+    deltab = {self.inversion_params.deltab}"""
+
+        with open(path, "w") as f:
+            f.write(fixed_str)
+
+class GarposInput(BaseModel):
+    site_name: str
+    campaign_id: str
+    survey_id: str
+    site_center_llh: GPPositionLLH
+    array_center_enu: GPPositionENU
+    transponders: List[GPTransponder]
+    sound_speed_data: Optional[Path|str]
+    atd_offset: GPATDOffset
+    start_date: datetime
+    end_date:datetime
+    shot_data: Optional[Path| str]
+    delta_center_position:GPPositionENU = GPPositionENU()
+    ref_frame: str = "ITRF"
+    n_shot:int
+
+    @field_serializer("shot_data","sound_speed_data")
+    def path_to_str(self,value):
         return str(value)
-    
-    class Config:
-        arbitrary_types_allowed = True  
-    # @field_validator("shot_data", mode="before")
-    # def validate_shot_data(cls, value):
-    #     try:
-    #         if isinstance(value, str):
-    #             value = pd.read_json(value)
 
-    #         return GarposObservationOutput.validate(value, lazy=True)
-    #     except ValidationError as e:
-    #         raise ValueError(f"Invalid shot data: {e}")
+    @field_serializer("start_date","end_date")
+    def dt_to_str(self,value):
+        return value.isoformat()
+
+    def to_datafile(self, path: Path) -> None:
+        """
+        Write a GarposInput to a datafile
+
+        Args:
+            garpos_input (GarposInput): The GarposInput object
+            path (Path): The path to the datafile
+
+        Returns:
+            None
+        """
+        def datetime_to_mjd(dt: datetime) -> float:
+            jd = julian.to_jd(dt, fmt='jd')
+            mjd = jd - 2400000.5
+            return mjd
+
+        for transponder in self.transponders:
+            if not "M" in transponder.id:
+                transponder.id = "M" + transponder.id 
+        # Write the data file
+        center_enu: List[float] = self.array_center_enu.get_position()
+        delta_center_position: List[float] = (
+            self.delta_center_position.get_position()
+            + self.delta_center_position.get_std_dev()
+            + [0.0, 0.0, 0.0]
+        )
+        atd_offset = self.atd_offset.get_offset() + [0.0, 0.0, 0.0] * 2
+        date_mjd = datetime_to_mjd(self.start_date)
+        obs_str = f"""
+[Obs-parameter]
+    Site_name   = {self.site_name}
+    Campaign    = {self.campaign_id}
+    Date(UTC)   = {self.start_date.strftime('%Y-%m-%d')}
+    Date(jday)  = {date_mjd}
+    Ref.Frame   = {self.ref_frame}
+    SoundSpeed  = {str(self.sound_speed_data)}
+
+[Data-file]
+    datacsv     = {str(self.shot_data)}
+    N_shot      = {self.n_shot}
+    used_shot   = {0}
+
+[Site-parameter]
+    Latitude0   = {self.site_center_llh.latitude}
+    Longitude0  = {self.site_center_llh.longitude}
+    Height0     = {self.site_center_llh.height}
+    Stations    = {' '.join([transponder.id for transponder in self.transponders])}
+    Center_ENU  = {center_enu[0]} {center_enu[1]} {center_enu[2]}
+
+[Model-parameter]
+    dCentPos    = {" ".join(map(str, delta_center_position))}
+    ATDoffset   = {" ".join(map(str, atd_offset))}"""
+
+        # Add the transponder data to the string
+        for transponder in self.transponders:
+            position = (
+                transponder.position_enu.get_position()
+                + transponder.position_enu.get_std_dev()
+                + [0.0, 0.0, 0.0]
+            )
+            obs_str += f"""
+    {transponder.id}_dPos    = {" ".join(map(str, position))}"""
+
+        with open(path, "w") as f:
+            f.write(obs_str)
+
+    @classmethod
+    def from_datafile(cls,path:Path) -> "GarposInput":
+        config = ConfigParser()
+        config.read(path)
+
+        # Extract data from config
+        observation_section = config["Obs-parameter"]
+        site_section = config["Site-parameter"]
+        model_section = config["Model-parameter"]
+        data_section = config["Data-file"]
+        # populate transponders
+        transponder_list = []
+        for key in model_section.keys():
+            (
+                east_value,
+                north_value,
+                up_value,
+                east_sigma,
+                north_sigma,
+                up_sigma,
+                cov_en,
+                cov_ue,
+                cov_nu,
+            ) = [float(x) for x in model_section[key].split()]
+            position = GPPositionENU(
+                east=east_value,
+                east_sigma=east_sigma,
+                north=north_value,
+                north_sigma=north_sigma,
+                up=up_value,
+                up_sigma=up_sigma,
+                cov_en=cov_en,
+                cov_ue=cov_ue,
+                cov_nu=cov_nu,
+            )
+            if "dpos" in key:
+                transponder_id = key.split("_")[0].upper()
+                transponder = GPTransponder(id=transponder_id, position_enu=position)
+                transponder_list.append(transponder)
+            if "dcentpos" in key:
+                delta_center_position = position
+            if "atdoffset" in key:
+                atd_offset = GPATDOffset(
+                    forward=position.east,
+                    rightward=position.north,
+                    downward=position.up,
+                )
+
+        start_date = datetime.strptime(observation_section["Date(UTC)"], "%Y-%m-%d")
+        date_mjd = float(observation_section["Date(jday)"])
+        start_date = julian.from_jd(date_mjd + 2400000.5, fmt="jd")
+
+        garpos_input = cls(
+            site_name=observation_section["Site_name"],
+            campaign_id=observation_section["Campaign"],
+            survey_id=data_section.get("SurveyID", ""),
+            site_center_llh=GPPositionLLH(
+                latitude=float(site_section["Latitude0"]),
+                longitude=float(site_section["Longitude0"]),
+                height=float(site_section["Height0"]),
+            ),
+            array_center_enu=GPPositionENU(
+                east=float(site_section["Center_ENU"].split()[0]),
+                north=float(site_section["Center_ENU"].split()[1]),
+                up=float(site_section["Center_ENU"].split()[2]),
+            ),
+            transponders=transponder_list,
+            sound_speed_data=(
+                Path(observation_section["SoundSpeed"])
+                if observation_section["SoundSpeed"]
+                else None
+            ),
+            atd_offset=atd_offset,
+            start_date=start_date,
+            end_date=start_date,  # Assuming end_date is not provided in the file
+            shot_data=(
+                Path(data_section["datacsv"]) if data_section["datacsv"] else None
+            ),
+            delta_center_position=delta_center_position,
+            ref_frame=observation_section.get("Ref.Frame", "ITRF"),
+            n_shot=data_section["N_shot"]
+        )
+
+        return garpos_input
+
+
+class InversionLoop(BaseModel):
+    iteration: int
+    rms_tt: float  # ms
+    used_shot_percentage: float
+    reject: int
+    max_dx: float
+    hgt: float
+    inv_type: InversionType
+
+
+class InversionResults(BaseModel):
+    ABIC: float
+    misfit: float
+    inv_type: InversionType
+    lambda_0_squared: float
+    grad_lambda_squared: float
+    mu_t: float  # [s]
+    mu_mt: float
+    delta_center_position: List[float]
+    loop_data: List[InversionLoop]
+
+    @classmethod
+    def from_dat_file(cls, file_path: str) -> "InversionResults":
+        """
+        Parse the inversion results from a .dat file
+
+        Args:
+            file_path (str): Path to the .dat file
+
+        Returns:
+            InversionResults (obj): Inversion results
+        """
+
+        logger.loginfo(f"Reading inversion results from {file_path}")
+        with open(file_path, "r") as f:
+            lines = f.readlines()
+            # Extract data from the file
+            loop_data = []
+            for line in lines:
+                if line.startswith("#Inversion-type"):
+                    parsed_line = line.split()
+                    iteration = int(parsed_line[4].replace(",", ""))
+                    inv_type = InversionType(int(parsed_line[1]))
+                    rms_tt = float(parsed_line[7])
+                    used_shot_percentage = float(parsed_line[11].replace("%,", ""))
+                    reject = int(parsed_line[14].replace(",", ""))
+                    max_dx = float(parsed_line[17].replace(",", ""))
+                    hgt = float(parsed_line[20])
+                    loop_data.append(
+                        InversionLoop(
+                            iteration=iteration,
+                            rms_tt=rms_tt,
+                            used_shot_percentage=used_shot_percentage,
+                            reject=reject,
+                            max_dx=max_dx,
+                            hgt=hgt,
+                            inv_type=inv_type,
+                        )
+                    )
+                delta_center_position = [0, 0, 0, 0, 0, 0]
+                if line.startswith("dcentpos"):
+                    parsed_line = line.split()
+                    delta_center_position = [float(x) for x in parsed_line[2]]
+                if line.startswith("#  ABIC"):
+                    parsed_line = line.split()
+                    ABIC = float(parsed_line[3])
+                    misfit = float(parsed_line[6])
+                if line.startswith("# lambda_0^2"):
+                    parsed_line = line.split()
+                    lambda_0_squared = float(parsed_line[3])
+                if line.startswith("# lambda_g^2"):
+                    parsed_line = line.split()
+                    grad_lambda_squared = float(parsed_line[3])
+                if line.startswith("# mu_t"):
+                    parsed_line = line.split()
+                    mu_t = float(parsed_line[3])
+                if line.startswith("# mu_MT"):
+                    parsed_line = line.split()
+                    mu_mt = float(parsed_line[3])
+
+            logger.loginfo(f"Finished reading inversion results from {file_path}")
+            return cls(
+                delta_center_position=delta_center_position,
+                ABIC=ABIC,
+                misfit=misfit,
+                inv_type=inv_type,
+                lambda_0_squared=lambda_0_squared,
+                grad_lambda_squared=grad_lambda_squared,
+                mu_t=mu_t,
+                mu_mt=mu_mt,
+                loop_data=loop_data,
+            )
