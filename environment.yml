@@ -29,18 +29,17 @@ dependencies:
   - sqlalchemy
   - go
   - go-cgo 
-  - conda-forge::gcc
+  - gcc
   - make
-  - conda-forge::tiledb
-  - conda-forge::tiledb-py
+  - tiledb
+  - tiledb-py
   - libstdcxx-ng
   - clang
-  - conda-forge::scikit-sparse
+  - scikit-sparse
   - sphinx
   - sphinx-rtd-theme
   - myst-parser
   - sphinxcontrib-apidoc
-  - sphinx_pyproject
   - pip:
     - -e .
     - garpos @ git+https://github.com/EarthScope/garpos.git
@@ -48,5 +47,6 @@ dependencies:
     - earthscope-cli
     - multipledispatch
     - multiprocessing_logging
+    - sphinx_pyproject
 variables:
   CGO_ENABLED: 1
