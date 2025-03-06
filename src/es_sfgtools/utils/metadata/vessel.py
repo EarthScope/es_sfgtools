@@ -322,7 +322,7 @@ class ImuSensor(AttributeUpdater):
             "model": self.model,
             "serialNumber": self.serialNumber,
             "start": self.start.strftime("%Y-%m-%dT%H:%M:%S") if self.start else "",
-            "end": self.end.strftime("%Y-%m-%dT%H:%M:%S") if self.end else "",
+            "end": self.end.strftime("%Y-%m-%dT%H:%M:%S") if self.end else "",}
 
 
 
