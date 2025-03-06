@@ -35,9 +35,9 @@ dependencies:
   - conda-forge::tiledb-py
   - libstdcxx-ng
   - clang
+  - conda-forge::scikit-sparse
   - pip:
     - -e .
-    - scikit-sparse
     - garpos @ git+https://github.com/EarthScope/garpos.git
     - earthscope-sdk
     - earthscope-cli
