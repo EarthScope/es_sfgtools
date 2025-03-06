@@ -37,7 +37,9 @@ for parent in SELF_PATH.parents:
 
 
 if not any(RINEX_BINARIES.iterdir()):
-    raise UserWarning(f'Golang binaries not built. Navigate to {RINEX_BINARIES.parent} and run "make"' )
+    logger.logwarn(f'Golang binaries not built. Navigate to {RINEX_BINARIES.parent} and run "make"' )
+    #raising UserWarning prevents import of data handler
+    #raise UserWarning(f'Golang binaries not built. Navigate to {RINEX_BINARIES.parent} and run "make"' )
 
 
 PRIDE_PPP_LOG_INDEX = {
