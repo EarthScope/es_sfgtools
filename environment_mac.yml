@@ -21,9 +21,6 @@ dependencies:
   - boto3
   - botocore
   - tqdm
-  - nbgitpuller
-  - jupyterlab
-  - jupyterhub-singleuser
   - ipykernel
   - ipywidgets
   - seaborn
@@ -32,6 +29,7 @@ dependencies:
   - go-cgo 
   - make
   - conda-forge::tiledb
+  - conda-forge::tiledb-py
   - clang
   - scikit-sparse
   - pip:

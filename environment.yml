@@ -22,9 +22,6 @@ dependencies:
   - botocore
   - tqdm
   - nodejs
-  - nbgitpuller
-  - jupyterlab
-  - jupyterhub-singleuser
   - ipykernel
   - ipywidgets
   - seaborn
