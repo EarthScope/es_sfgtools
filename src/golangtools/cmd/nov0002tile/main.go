@@ -230,7 +230,7 @@ func processFileNOV000(file string) []observation.Epoch{
 				
 					if m.Msg == "RANGEA" {
 
-						rangea, err := novatelascii.DeserializeRANGEA(m.Data,false)
+						rangea, err := novatelascii.DeserializeRANGEA(m.Data)
 						if err != nil {
 							
 							continue epochLoop
