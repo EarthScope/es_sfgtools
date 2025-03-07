@@ -198,6 +198,12 @@ func (reader Reader) NextMessage() (message novatelascii.Message, err error) {
 // Returns:
 //   - A slice of observation.Epoch containing the processed GNSS epoch data.
 func processFileNOV000(file string) []observation.Epoch{
+    // defer func() {
+    //     if r := recover(); r != nil {
+    //         log.Printf("Recovered from panic: %v", r)
+    //     }
+    // }()
+
 	f,err := os.Open(file)
 	if err != nil {
 		log.Fatalf("failed opening file %s, %s ",file, err)
@@ -221,14 +227,19 @@ func processFileNOV000(file string) []observation.Epoch{
 			}
 			switch m:=message.(type) {
 				case novatelascii.LongMessage:
+				
 					if m.Msg == "RANGEA" {
-						rangea, err := novatelascii.DeserializeRANGEA(m.Data)
+
+						rangea, err := novatelascii.DeserializeRANGEA(m.Data,false)
 						if err != nil {
-							continue
+							
+							continue epochLoop
+
 						}
 						epoch, err := rangea.SerializeGNSSEpoch(m.Time())
 						if err != nil {
-							continue
+						
+							continue epochLoop
 						}
 						epochs = append(epochs, epoch)
 					}

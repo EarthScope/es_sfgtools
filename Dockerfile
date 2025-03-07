@@ -14,14 +14,14 @@ RUN apt-get update && \
     apt-get install -y software-properties-common && \
     apt-get install -y libsuitesparse-dev gfortran && \
     apt-get install -y build-essential &&\
-    conda env create -f environment.yml &&\
+    conda env create -f linux_environment.yml &&\
     conda clean --all -y
 
 
 
 
 # Stage 2: build golang binaries
-SHELL ["conda", "run", "-n", "seafloor_geodesy", "/bin/bash", "-c"]
+SHELL ["conda", "run", "-n", "seafloor_geodesy_linux", "/bin/bash", "-c"]
 WORKDIR /home/es_sfgtools/src/golangtools/
 RUN make  
 
@@ -36,9 +36,9 @@ RUN cd $WORK_DIR &&\
     echo "Y" | HOME=/home ./install.sh 
 
 WORKDIR /home/es_sfgtools
-SHELL ["conda", "run", "-n", "seafloor_geodesy", "/bin/bash", "-c"]
+SHELL ["conda", "run", "-n", "seafloor_geodesy_linux", "/bin/bash", "-c"]
 # Set up environment
-RUN echo "conda activate seafloor_geodesy" >> ~/.bashrc &&\
+RUN echo "conda activate seafloor_geodesy_linux" >> ~/.bashrc &&\
     echo "export PATH=/home/.PRIDE_PPPAR_BIN:$PATH" >> ~/.bashrc
 
 # Set entrypoint to bash
