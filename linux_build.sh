@@ -1,13 +1,16 @@
-#!/bin/bash
 
 apt-get update
 apt-get install -y build-essential software-properties-common libsuitesparse-dev gfortran
 
 # set environment variables
-export SUITESPARSE_INCLUDE_DIR=/usr/local/include
-export SUITESPARSE_LIBRARY_DIR=/usr/lib/aarch64-linux-gnu
+export SUITESPARSE_INCLUDE_DIR=/usr/include
+export SUITESPARSE_LIBRARY_DIR=/usr/lib/x86_64-linux-gnu
 
-conda env create -f linux_enviroment.yml
+if ! command -v conda &> /dev/null; then
+    echo "conda could not be found"
+    exit 1
+fi
+mamba env create -f linux_enviroment.yml
 
 # Stage 2: build golang binaries
 #SHELL ["conda", "run", "-n", "seafloor_geodesy_linux", "/bin/bash", "-c"]
