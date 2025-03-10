@@ -38,6 +38,7 @@ dependencies:
   - clang
   - pip:
     - -e .
+    - scikit-sparse
     - garpos @ git+https://github.com/EarthScope/garpos.git
     - earthscope-sdk
     - earthscope-cli

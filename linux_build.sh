@@ -1,4 +1,4 @@
-
+#!/bin/bash
 apt-get update
 apt-get install -y build-essential software-properties-common libsuitesparse-dev gfortran
 
@@ -10,7 +10,7 @@ if ! command -v conda &> /dev/null; then
     echo "conda could not be found"
     exit 1
 fi
-mamba env create -f linux_enviroment.yml
+conda env create -f linux_enviroment.yml
 
 # Stage 2: build golang binaries
 #SHELL ["conda", "run", "-n", "seafloor_geodesy_linux", "/bin/bash", "-c"]
