@@ -113,7 +113,7 @@ func main() {
 	}
 
 
-	timeStart,timeEnd,err := tiledbgnss.GetTimeRange(*tdbPathPtr)
+	timeStart,timeEnd,err := tiledbgnss.GetTimeRange(*tdbPathPtr,"us-east-2")
 	if err != nil {
 		log.Fatalln(err)
 	}

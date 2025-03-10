@@ -2,27 +2,32 @@
 OS := $(shell go env GOOS)
 ARCH := $(shell go env GOARCH)
 
+TEST_PREFIX := $(shell echo $$CONDA_PREFIX)
+
 # Variables
 BUILD_DIR=build
 COMMANDS=$(wildcard cmd/*)
 CONDA_BASE := $(shell conda info --base)
-#CONDA_PREFIX := $(shell conda info --envs | awk '/\*/ {print $3}' | tr -d ' ')
-#CONDA_PREFIX=/Users/franklyndunbar/miniconda3/envs/seafloor_geodesy_mac
-CONDA_PREFIX := $(shell conda info --envs | awk '/\*/ {print $$NF}')
+CONDA_PREFIX := $(shell echo $$CONDA_PREFIX)
 
-DYLD_LIBRARY_PATH := $(shell echo $$DYLD_LIBRARY_PATH)
-DYLD_LIBRARY_PATH_CONDA=$(CONDA_PREFIX)/include:$(DYLD_LIBRARY_PATH)
-CGO_CFLAGS=-I$(CONDA_BASE)/tiledb/include -Wno-deprecated-declarations
-CGO_LDFLAGS=-L$(CONDA_PREFIX)/lib -ltiledb
+# Set DYLD_LIBRARY_PATH on macOS or LD_LIBRARY_PATH on Linux
+ifeq ($(OS),darwin)
+    DYLD_LIBRARY_PATH := $(CONDA_PREFIX)/lib:$(DYLD_LIBRARY_PATH)
+else
+    LD_LIBRARY_PATH := $(CONDA_PREFIX)/lib:$(LD_LIBRARY_PATH)
+endif
 
-LIBRARY_PATH=$(CONDA_PREFIX)/lib
-CPATH=$(CONDA_PREFIX)/include
-CLANG_PATH=$(CONDA_PREFIX)/bin/clang
-PSEUDO_PATH=$(CLANG_PATH)
-CC=clang
+# CGO flags for TileDB
+CGO_CFLAGS = -I$(CONDA_PREFIX)/include -Wno-deprecated-declarations
+CGO_LDFLAGS = -L$(CONDA_PREFIX)/lib -ltiledb
+
+LIBRARY_PATH = $(CONDA_PREFIX)/lib
+CPATH = $(CONDA_PREFIX)/include
+CLANG_PATH = $(CONDA_PREFIX)/bin/clang
+PSEUDO_PATH = $(CLANG_PATH)
+CC = clang
+
 # Build all commands
-#LIBRARY_PATH=$(LIBRARY_PATH) CPATH=$(CPATH) CGO_ENABLED=1 CGO_CFLAGS=$(CGO_CFLAGS)  DYLD_LIBRARY_PATH=$(DYLD_LIBRARY_PATH_CONDA)
-
 build: $(COMMANDS)
 	@mkdir -p $(BUILD_DIR)
 	@for cmd in $(COMMANDS); do \
@@ -30,15 +35,17 @@ build: $(COMMANDS)
 		echo "Command Name: $$CMD_NAME"; \
 		BINARY_NAME=$${CMD_NAME}_$(OS)_$(ARCH); \
 		echo "Building $$BINARY_NAME for $(OS)/$(ARCH)..."; \
-		env GOOS=$(OS) GOARCH=$(ARCH) go build -o $(BUILD_DIR)/$$BINARY_NAME ./cmd/$$CMD_NAME; \
+		env CGO_ENABLED=1 GOOS=$(OS) GOARCH=$(ARCH) CGO_CFLAGS="$(CGO_CFLAGS)" CGO_LDFLAGS="$(CGO_LDFLAGS)" DYLD_LIBRARY_PATH=$(DYLD_LIBRARY_PATH) LD_LIBRARY_PATH=$(LD_LIBRARY_PATH) go build -o $(BUILD_DIR)/$$BINARY_NAME ./cmd/$$CMD_NAME; \
 	done
 
-
 debug:
+	@echo "SHELL = $(SHELL)"
 	@echo "OS: $(OS)"
 	@echo "ARCH: $(ARCH)"
+	@echo "TEST_PREFIX: $(TEST_PREFIX)"
 	@echo "LIBRARY_PATH: $(LIBRARY_PATH)"
 	@echo "Conda Prefix: $(CONDA_PREFIX)"
+	@echo "Conda Base: $(CONDA_BASE)"
 	@echo "TileDB Library Path: $(CONDA_PREFIX)/lib"
 	@echo "DYLD_LIBRARY_PATH: $(DYLD_LIBRARY_PATH_CONDA)"
 	@echo "CPATH: $(CPATH)"
