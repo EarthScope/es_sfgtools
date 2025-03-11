@@ -19,7 +19,7 @@ seaborn.set_theme(style="whitegrid")
 
 from es_sfgtools.utils.archive_pull import download_file_from_archive
 from es_sfgtools.processing.assets.file_schemas import AssetEntry, AssetType
-from es_sfgtools.processing.assets.tiledb_temp import TDBAcousticArray,TDBGNSSArray,TDBPositionArray,TDBShotDataArray
+from es_sfgtools.processing.assets.tiledb_temp import TDBAcousticArray,TDBGNSSArray,TDBPositionArray,TDBShotDataArray,TDBGNSSObsArray
 from es_sfgtools.processing.pipeline.catalog import Catalog
 from es_sfgtools.processing.pipeline.pipelines import SV3Pipeline, SV3PipelineConfig
 from es_sfgtools.processing.operations.gnss_ops import get_metadata,get_metadatav2
@@ -137,7 +137,7 @@ class DataHandler:
         self.gnss_tdb = TDBGNSSArray(self.tileb_dir/"gnss_db.tdb")
         self.position_tdb = TDBPositionArray(self.tileb_dir/"position_db.tdb")
         self.shotdata_tdb = TDBShotDataArray(self.tileb_dir/"shotdata_db.tdb")
-        self.rangea_tdb = self.tileb_dir/"rangea_db.tdb" # golang binaries will be used to interact with this array
+        self.rangea_tdb = TDBGNSSObsArray(self.tileb_dir/"rangea_db.tdb") # golang binaries will be used to interact with this array
 
     def _build_rinex_meta(self) -> None:
         """
