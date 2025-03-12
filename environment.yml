@@ -15,7 +15,7 @@ dependencies:
   - pandera
   - pyarrow
   - pydantic
-  - libtiff
+#  - libtiff
   - pyproj
   - pymap3d
   - boto3
@@ -23,7 +23,7 @@ dependencies:
   - tqdm
   - nodejs
   - ipykernel
-  - ipywidgets
+#  - ipywidgets
   - seaborn
   - folium
   - sqlalchemy
@@ -40,13 +40,14 @@ dependencies:
   - sphinx-rtd-theme
   - myst-parser
   - sphinxcontrib-apidoc
+  - bc
   - pip:
     - -e .
     - garpos @ git+https://github.com/EarthScope/garpos.git
     - earthscope-sdk
     - earthscope-cli
-    - multipledispatch
-    - multiprocessing_logging
+   # - multipledispatch
+   # - multiprocessing_logging
     - sphinx_pyproject
 variables:
   CGO_ENABLED: 1

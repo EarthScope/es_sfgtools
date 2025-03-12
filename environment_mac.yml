@@ -15,28 +15,34 @@ dependencies:
   - pandera
   - pyarrow
   - pydantic
-  - libtiff
+  # - libtiff
   - pyproj
   - pymap3d
   - boto3
   - botocore
   - tqdm
   - ipykernel
-  - ipywidgets
+  # - ipywidgets
   - seaborn
   - sqlalchemy
   - go
   - go-cgo 
   - make
-  - conda-forge::tiledb
-  - conda-forge::tiledb-py
+  - tiledb=2.27
+  - tiledb-py
   - clang
   - scikit-sparse
+  - sphinx
+  - sphinx-rtd-theme
+  - myst-parser
+  - sphinxcontrib-apidoc
   - pip:
     - -e .
     - garpos @ git+https://github.com/EarthScope/garpos.git
     - earthscope-sdk
     - earthscope-cli
-    - multiprocessing_logging
+    # - multipledispatch
+    # - multiprocessing_logging
+    - sphinx_pyproject
 variables:
   CGO_ENABLED: 1
