@@ -23,6 +23,7 @@ from es_sfgtools.processing.assets.tiledb_temp import (
     TDBGNSSArray,
     TDBPositionArray,
     TDBShotDataArray,
+    TDBGNSSObsArray
 )
 from es_sfgtools.processing.assets.tiledb_temp import TDBAcousticArray,TDBGNSSArray,TDBPositionArray,TDBShotDataArray
 from es_sfgtools.processing.operations.utils import (
@@ -73,13 +74,13 @@ class SV3PipelineConfig(BaseModel):
     position_update_config: PositionUpdateConfig = PositionUpdateConfig()
     shot_data_dest: TDBShotDataArray = None
     gnss_data_dest: TDBGNSSArray = None
-    rangea_data_dest: Path = None
+    rangea_data_dest: TDBGNSSObsArray = None
 
     class Config:
         title = "SV3 Pipeline Configuration"
         arbitrary_types_allowed = True
 
-    @field_serializer("gnss_data_dest","shot_data_dest")
+    @field_serializer("gnss_data_dest","shot_data_dest", "rangea_data_dest")
     def _s_shotdata(self,v):
         return str(v.uri)
     # @field_serializer("shot_data_dest")
@@ -96,12 +97,18 @@ class SV3PipelineConfig(BaseModel):
         if isinstance(v,str):
             return TDBGNSSArray(Path(v))
         return v
+    
+    @field_validator("rangea_data_dest")
+    def _v_rangeadata(cls,v:str|TDBGNSSObsArray):
+        if isinstance(v,str):
+            return TDBGNSSObsArray(Path(v))
+        return v
 
-    @field_serializer("inter_dir","pride_dir","catalog_path","rangea_data_dest")
+    @field_serializer("inter_dir","pride_dir","catalog_path")
     def _s_path(self,v):
         return str(v)
 
-    @field_validator("inter_dir","pride_dir","catalog_path","rangea_data_dest")
+    @field_validator("inter_dir","pride_dir","catalog_path")
     def _v_path(cls,v:str):
         return Path(v)
 
@@ -141,7 +148,7 @@ class SV3Pipeline:
                 "parent_ids": [x.id for x in novatel_770_entries],
             }
             if self.config.novatel_config.override or not self.catalog.is_merge_complete(**merge_signature):
-                gnss_ops.novb2tile(files=novatel_770_entries,rangea_tdb=self.config.rangea_data_dest,n_procs=self.config.novatel_config.n_processes)
+                gnss_ops.novb2tile(files=novatel_770_entries,rangea_tdb=self.config.rangea_data_dest.uri,n_procs=self.config.novatel_config.n_processes)
 
                 self.catalog.add_merge_job(**merge_signature)
                 response = f"Added {len(novatel_770_entries)} Novatel 770 Entries to the catalog"
@@ -169,7 +176,7 @@ class SV3Pipeline:
                 "parent_ids": [x.id for x in novatel_000_entries],
             }
             if self.config.novatel_config.override or not self.catalog.is_merge_complete(**merge_signature):
-                gnss_ops.nov0002tile(files=novatel_000_entries,rangea_tdb=self.config.rangea_data_dest,n_procs=self.config.novatel_config.n_processes)
+                gnss_ops.nov0002tile(files=novatel_000_entries,rangea_tdb=self.config.rangea_data_dest.uri,n_procs=self.config.novatel_config.n_processes)
 
                 self.catalog.add_merge_job(**merge_signature)
                 gnss_logger.loginfo(f"Added {len(novatel_000_entries)} Novatel 000 Entries to the catalog")
@@ -182,7 +189,7 @@ class SV3Pipeline:
     def get_rinex_files(self) -> None:
 
         gnss_logger.loginfo(f"Gathering Rinex Files for {self.config.network} {self.config.station} {self.config.campaign}. This may take a few minutes...")
-        parent_ids = f"N-{self.config.network}|ST-{self.config.station}|SV-{self.config.campaign}|TDB-{self.config.rangea_data_dest}"
+        parent_ids = f"N-{self.config.network}|ST-{self.config.station}|SV-{self.config.campaign}|TDB-{self.config.rangea_data_dest.uri}"
         merge_signature = {
             "parent_type": AssetType.RANGEATDB.value,
             "child_type": AssetType.RINEX.value,
@@ -191,7 +198,7 @@ class SV3Pipeline:
 
         if self.config.rinex_config.override or not self.catalog.is_merge_complete(**merge_signature):
             rinex_entries: List[AssetEntry] = gnss_ops.tile2rinex(
-                rangea_tdb=self.config.rangea_data_dest,
+                rangea_tdb=self.config.rangea_data_dest.uri,
                 settings=self.config.rinex_config.settings_path,
                 writedir=self.config.inter_dir,
                 n_procs=self.config.rinex_config.n_processes,
