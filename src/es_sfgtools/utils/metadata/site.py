@@ -1,150 +1,72 @@
 import json
 from datetime import datetime
-import ipywidgets as widgets
-from typing import Any, Union, Dict, List
+from typing import Any, Optional, Union, Dict, List
 
 from es_sfgtools.utils.metadata.benchmark import Benchmark, Transponder
 from es_sfgtools.utils.metadata.campaign import Campaign, Survey
 from es_sfgtools.utils.metadata.utils import (
     AttributeUpdater,
-    convert_to_datetime,
+    check_dates,
     only_one_is_true,
+    parse_datetime,
 )
+from pydantic import BaseModel, Field, field_validator
+
+REFERENCE_FRAMES = "referenceFrames"
+BENCHMARKS = "benchmarks"
+CAMPAIGNS = "campaigns"
+
+top_level_groups = [REFERENCE_FRAMES, BENCHMARKS, CAMPAIGNS]
 
 
 def import_site(filepath: str):
     """Import site data from a JSON file."""
     with open(filepath, "r") as file:
-        return Site(existing_site=json.load(file))
+        return Site(**json.load(file))
 
 
-top_level_groups = ["referenceFrames", "benchmarks", "campaigns"]
+class ReferenceFrame(AttributeUpdater, BaseModel):
+    # Required
+    name: str
+
+    #Optional
+    start: Optional[datetime] = Field(default=None)
+    end: Optional[datetime] = Field(default=None)
+
+    _parse_datetime = field_validator('start', 'end', mode='before')(parse_datetime)
+    _check_dates = field_validator('end', mode='after')(check_dates)
 
 
-class ReferenceFrame(AttributeUpdater):
-    def __init__(self, name: str, existing_reference_frame: dict = None):
-        if existing_reference_frame:
-            self.import_existing_reference_frame(existing_reference_frame)
-            return
+class ArrayCenter(BaseModel, AttributeUpdater):
+    x: Optional[float] = Field(default=None)
+    y: Optional[float] = Field(default=None)
+    z: Optional[float] = Field(default=None)
 
-        self.name = name
-        self.start: datetime = None
-        self.end: datetime = None
+class Site(BaseModel):
+    # Required 
+    names: List[str]
+    networks: List[str]
+    timeOrigin: datetime
+    localGeoidHeight: float
 
-    def import_existing_reference_frame(self, existing_reference_frame: dict):
-        self.name = existing_reference_frame.get("name", "")
-        start_time = existing_reference_frame.get("start", "")
-        if start_time:
-            self.start = convert_to_datetime(start_time)
-        else:
-            self.start = None
+    # Optional
+    arrayCenter: Optional[ArrayCenter] = Field(default_factory=ArrayCenter)
+    campaigns: List[Campaign] = Field(default_factory=list)
+    benchmarks: List[Benchmark] = Field(default_factory=list)
+    referenceFrames: List[ReferenceFrame] = Field(default_factory=list)
 
-        end_time = existing_reference_frame.get("end", "")
-        if end_time:
-            self.end = convert_to_datetime(end_time)
-        else:
-            self.end = None
-
-    def to_dict(self) -> Dict[str, Any]:
-        """
-        Convert the ReferenceFrame instance to a dictionary.
-
-        Returns:
-            Dict[str, Any]: A dictionary representation of the ReferenceFrame instance.
-        """
-        return {
-            "name": self.name,
-            "start": self.start.strftime("%Y-%m-%dT%H:%M:%S") if self.start else "",
-            "end": self.end.strftime("%Y-%m-%dT%H:%M:%S") if self.end else "",
-        }
-
-
-class Site:
-    def __init__(
-        self,
-        names: List[str] = None,
-        networks: List[str] = None,
-        time_of_origin: datetime = None,
-        local_geoid_height: float = None,
-        array_center: Dict = None,
-        existing_site: Dict = None,
-    ) -> None:
-
-        """
-        Create a new site object.
-
-        Args:
-            names: List of names of the site.
-            networks: List of networks the site is part of.
-            time_of_origin: Time of origin of the site.
-            local_geoid_height: Local geoid height of the site.
-            existing_site: Existing site data to import.
-        """
-
-        if existing_site:
-            self.import_existing_site(existing_site)
-            return
-
-        if time_of_origin and time_of_origin <= datetime(year=1990, month=1, day=1):
-            print("Time of origin is not a valid date.. Not entering time of origin.")
-            time_of_origin = None
-
-        self.names = names
-        self.networks = networks if networks else []
-        self.timeOrigin = time_of_origin,
-
-        self.localGeoidHeight = local_geoid_height if local_geoid_height else ""
-        self.arrayCenter = array_center if array_center else {"x": "", "y": "", "z": ""}
-        self.campaigns: List[Campaign] = []
-        self.benchmarks: List[Benchmark] = []
-        self.referenceFrames: List[ReferenceFrame] = []
-
-    def to_dict(self) -> Dict[str, Any]:
-        """
-        Convert the Site instance to a dictionary.
-
-        Returns:
-            Dict[str, Any]: A dictionary representation of the Site instance.
-        """
-        return {
-            "names": self.names,
-            "networks": self.networks,
-
-
-            "timeOrigin": self.timeOrigin.strftime('%Y-%m-%dT%H:%M:%S') if self.timeOrigin else "",
-
-            "localGeoidHeight": self.localGeoidHeight,
-            "arrayCenter": self.arrayCenter,
-            "referenceFrames": [
-                referenceFrame.to_dict() for referenceFrame in self.referenceFrames
-            ],
-            "benchmarks": [benchmark.to_dict() for benchmark in self.benchmarks],
-            "campaigns": [campaign.to_dict() for campaign in self.campaigns],
-        }
-
-    def import_existing_site(self, existing_site: Dict):
-        self.names = existing_site.get("names", [])
-        self.networks = existing_site.get("networks", [])
-        self.timeOrigin = existing_site.get("timeOrigin", "")
-        self.localGeoidHeight = existing_site.get("localGeoidHeight", "")
-        self.arrayCenter = existing_site.get("arrayCenter", {})
-        self.campaigns = [
-            Campaign(existing_campaign=campaign)
-            for campaign in existing_site.get("campaigns", [])
-        ]
-        self.benchmarks = [
-            Benchmark(existing_benchmark=benchmark)
-            for benchmark in existing_site.get("benchmarks", [])
-        ]
-        self.referenceFrames = [
-            ReferenceFrame(existing_reference_frame=rf)
-            for rf in existing_site.get("referenceFrames", [])
-        ]
-
-    def export_site(self, filepath: str):
-        """Export site data to a JSON file."""
+    def export_site(self, filepath: str): 
         with open(filepath, "w") as file:
-            json.dump(self.to_dict(), file, indent=2)
+            json.dump(self.model_dump_json(), file, indent=2)
+
+    @classmethod
+    def from_json(cls, filepath: str) -> 'Site':
+        with open(filepath, "r") as file:
+            return cls(**json.load(file))
+        
+    def print_json(self):
+        print(self.model_dump_json(indent=2))
+
 
     def new_benchmark(self, benchmark_name: str, benchmark_data: dict):
         """Add a new benchmark to the site dictionary"""
