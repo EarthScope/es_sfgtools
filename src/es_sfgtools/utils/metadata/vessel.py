@@ -1,428 +1,157 @@
 from datetime import datetime
 import json
-from typing import Any, Dict, List
+from typing import Any, ClassVar, Dict, List, Optional
+from pydantic import BaseModel, Field, ValidationError, field_validator
 
+from es_sfgtools.utils.metadata.utils import AttributeUpdater, only_one_is_true, parse_datetime, check_dates
 
-from es_sfgtools.utils.metadata.utils import (
-    AttributeUpdater,
-    convert_to_datetime,
-    only_one_is_true,
-)
+IMU_SENSORS = "imuSensors"
+ATD_OFFSETS = "atdOffsets"
+GNSS_ANTENNAS = "gnssAntennas"
+GNSS_RECEIVERS = "gnssReceivers"
+ACOUSTIC_TRANSCEIVER = "acousticTransceiver"
+ACOUSTIC_TRANSDUCER = "acousticTransducer"
 
 survey_vessels_types = [
-    "imuSensors",
-    "gnssReceivers",
-    "gnssAntennas",
-    "acousticTransducer",
-    "acousticTransceiver",
-    "atdOffsets",
-    "imuSensors",
+    IMU_SENSORS,
+    GNSS_ANTENNAS,
+    GNSS_RECEIVERS,
+    ACOUSTIC_TRANSCEIVER,
+    ACOUSTIC_TRANSDUCER,
+    ATD_OFFSETS
 ]
 
-
-
-class AtdOffset(AttributeUpdater):
-
-    def __init__(
-        self,
-        transducer_serial_number: str = None,
-        additional_data: Dict[str, Any] = None,
-        existing_atd_offset: Dict[str, Any] = None,
-    ):
-
-        if existing_atd_offset:
-            self.import_exisiting_ATD_offset(existing_atd=existing_atd_offset)
-            return
-
-        self.transducerSerialNumber = transducer_serial_number
-        self.x = ""
-        self.y = ""
-        self.z = ""
-
-        if additional_data:
-            self.update_attributes(additional_data)
-
-    def import_exisiting_ATD_offset(self, existing_atd: dict):
-        self.transducerSerialNumber = existing_atd.get("transducerSerialNumber", "")
-        self.x = existing_atd.get("x", "")
-        self.y = existing_atd.get("y", "")
-        self.z = existing_atd.get("z", "")
-
-
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "transducerSerialNumber": self.transducerSerialNumber,
-            "x": self.x,
-            "y": self.y,
-            "z": self.z,
-        }
-
-
-class GnssAntenna(AttributeUpdater):
-
-    def __init__(
-        self,
-        serial_number: str = None,
-        additional_data: Dict[str, Any] = None,
-        existing_GNSS_antenna: Dict[str, Any] = None,
-    ):
-
-        if existing_GNSS_antenna:
-            self.import_exisiting_antenna(existing_GNSS_antenna)
-            return
-
-        self.order = ""
-        self.type = ""
-        self.model = ""
-        self.serialNumber = serial_number
-        self.radomeSerialNumber = ""
-        self.start: datetime = None
-        self.end: datetime = None
-
-        if additional_data:
-            self.update_attributes(additional_data)
-
-    def import_exisiting_antenna(self, existing_antenna: Dict):
-        self.order = existing_antenna.get("order", "")
-        self.type = existing_antenna.get("type", "")
-        self.model = existing_antenna.get("model", "")
-        self.serialNumber = existing_antenna.get("serialNumber", "")
-        self.radomeSerialNumber = existing_antenna.get("radomeSerialNumber", "")
-
-        start_time = existing_antenna.get("start", "")
-        if start_time:
-            self.start = convert_to_datetime(start_time)
-        else:
-            self.start = None
-
-        end_time = existing_antenna.get("end", "")
-        if end_time:
-            self.end = convert_to_datetime(end_time)
-        else:
-            self.end = None
-
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "order": self.order,
-            "type": self.type,
-            "model": self.model,
-            "serialNumber": self.serialNumber,
-            "radomeSerialNumber": self.radomeSerialNumber,
-            "start": self.start.strftime("%Y-%m-%dT%H:%M:%S") if self.start else "",
-            "end": self.end.strftime("%Y-%m-%dT%H:%M:%S") if self.end else "",
-
-        }
-
-
-class GnssReceiver(AttributeUpdater):
-
-    def __init__(
-        self,
-        serial_number: str = None,
-        additional_data: Dict[str, Any] = None,
-        existing_receiver: dict = None,
-    ):
-
-        if existing_receiver:
-            self.import_exisiting_receiver(existing_receiver=existing_receiver)
-            return
-
-        self.type = ""
-        self.model = ""
-        self.serialNumber = serial_number
-        self.firmwareVersion = ""
-        self.start: datetime = None
-        self.end: datetime = None
-
-        if additional_data:
-            self.update_attributes(additional_data)
-
-    def import_exisiting_receiver(self, existing_receiver: dict):
-        self.type = existing_receiver.get("type", "")
-        self.model = existing_receiver.get("model", "")
-        self.serialNumber = existing_receiver.get("serialNumber", "")
-        self.firmwareVersion = existing_receiver.get("firmwareVersion", "")
-
-        start_time = existing_receiver.get("start", "")
-        if start_time:
-            self.start = convert_to_datetime(start_time)
-        else:
-            self.start = None
-
-        end_time = existing_receiver.get("end", "")
-        if end_time:
-            self.end = convert_to_datetime(end_time)
-        else:
-            self.end = None
-
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "type": self.type,
-            "model": self.model,
-            "serialNumber": self.serialNumber,
-            "firmwareVersion": self.firmwareVersion,
-            "start": self.start.strftime("%Y-%m-%dT%H:%M:%S") if self.start else "",
-            "end": self.end.strftime("%Y-%m-%dT%H:%M:%S") if self.end else "",
-
-        }
-
-
-class AcousticTransducer(AttributeUpdater):
-    def __init__(
-        self,
-        serial_number: str = None,
-        additional_data: Dict[str, Any] = None,
-        existing_transducer: dict = None,
-    ):
-
-
-        if existing_transducer:
-            self.import_existing_transducer(existing_transducer=existing_transducer)
-            return
-
-        self.type = ""
-        self.serialNumber = serial_number
-        self.frequency = ""
-        self.start: datetime = None
-        self.end: datetime = None
-
-        if additional_data:
-            self.update_attributes(additional_data)
-
-    def import_existing_transducer(self, existing_transducer: dict):
-        self.type = existing_transducer.get("type", "")
-        self.serialNumber = existing_transducer.get("serialNumber", "")
-        self.frequency = existing_transducer.get("frequency", "")
-
-
-        start_time = existing_transducer.get("start", "")
-        if start_time:
-            self.start = convert_to_datetime(start_time)
-        else:
-            self.start = None
-
-        end_time = existing_transducer.get("end", "")
-        if end_time:
-            self.end = convert_to_datetime(end_time)
-        else:
-            self.end = None
-
-
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "type": self.type,
-            "serialNumber": self.serialNumber,
-            "frequency": self.frequency,
-
-            "start": self.start.strftime("%Y-%m-%dT%H:%M:%S") if self.start else "",
-            "end": self.end.strftime("%Y-%m-%dT%H:%M:%S") if self.end else "",
-
-        }
-
-
-class AcousticTransceiver(AttributeUpdater):
-    def __init__(
-        self,
-        serial_number: str = None,
-        additional_data: Dict[str, Any] = None,
-        existing_transceiver: dict = None,
-    ):
-
-
-        if existing_transceiver:
-            self.import_existing_transceiver(existing_transceiver=existing_transceiver)
-            return
-
-        self.type = ""
-        self.serialNumber = serial_number
-        self.frequency = ""
-        self.triggerDelay = ""
-        self.delayIncludedInTWTT = ""
-        self.start: datetime = None
-        self.end: datetime = None
-
-        if additional_data:
-            self.update_attributes(additional_data)
-
-    def import_existing_transceiver(self, existing_transceiver: dict):
-        self.type = existing_transceiver.get("type", "")
-        self.serialNumber = existing_transceiver.get("serialNumber", "")
-        self.frequency = existing_transceiver.get("frequency", "")
-        self.triggerDelay = existing_transceiver.get("triggerDelay", "")
-        self.delayIncludedInTWTT = existing_transceiver.get("delayIncludedInTWTT", "")
-
-
-        start_time = existing_transceiver.get("start", "")
-        if start_time:
-            self.start = convert_to_datetime(start_time)
-        else:
-            self.start = None
-
-        end_time = existing_transceiver.get("end", "")
-        if end_time:
-            self.end = convert_to_datetime(end_time)
-        else:
-            self.end = None
-
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "type": self.type,
-            "serialNumber": self.serialNumber,
-            "frequency": self.frequency,
-            "triggerDelay": self.triggerDelay,
-            "delayIncludedInTWTT": self.delayIncludedInTWTT,
-            "start": self.start.strftime("%Y-%m-%dT%H:%M:%S") if self.start else "",
-            "end": self.end.strftime("%Y-%m-%dT%H:%M:%S") if self.end else "",
-
-        }
-
-
-class ImuSensor(AttributeUpdater):
-    def __init__(
-        self,
-        serial_number: str = None,
-        additional_data: Dict[str, Any] = None,
-        existing_IMU_sensor: Dict[str, Any] = None,
-    ):
-
-        if existing_IMU_sensor:
-            self.import_exisiting_IMU_sensor(existing_IMU_sensor=existing_IMU_sensor)
-            return
-
-
-        self.type = ""
-        self.model = ""
-        self.serialNumber = serial_number
-        self.start: datetime = None
-        self.end: datetime = None
-
-        if additional_data:
-            self.update_attributes(additional_data)
-
-    def import_exisiting_IMU_sensor(self, existing_IMU_sensor: dict):
-        self.type = existing_IMU_sensor.get("type", "")
-        self.model = existing_IMU_sensor.get("model", "")
-        self.serialNumber = existing_IMU_sensor.get("serialNumber", "")
-
-        start_time = existing_IMU_sensor.get("start", "")
-        if start_time:
-            self.start = convert_to_datetime(start_time)
-        else:
-            self.start = None
-
-        end_time = existing_IMU_sensor.get("end", "")
-        if end_time:
-            self.end = convert_to_datetime(end_time)
-        else:
-            self.end = None
-
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "type": self.type,
-            "model": self.model,
-            "serialNumber": self.serialNumber,
-            "start": self.start.strftime("%Y-%m-%dT%H:%M:%S") if self.start else "",
-            "end": self.end.strftime("%Y-%m-%dT%H:%M:%S") if self.end else "",
-
-
-
-class Vessel:
-    def __init__(
-        self,
-        name: str = None,
-        type: str = None,
-        model: str = None,
-        serial_number: str = None,
-        start: str = None,
-        end: str = None,
-        existing_vessel: Dict[str, Any] = None,
-    ):
-        if existing_vessel:
-            self.import_existing_vessel(existing_vessel)
-        else:
-            self.name = name
-            self.type = type if type else ""
-            self.model = model if model else ""
-            self.serial_number = serial_number if serial_number else ""
-            self.start = (
-                convert_to_datetime(start) if start else None
-            )  # TODO deal with start/end times with actual datetimes
-
-            self.end = convert_to_datetime(end) if end else None
-            self.atd_offsets: List[AtdOffset] = []
-            self.imu_sensors: List[ImuSensor] = []
-            self.gnss_antennas: List[GnssAntenna] = []
-            self.gnss_receivers: List[GnssReceiver] = []
-            self.acoustic_transducers: List[AcousticTransducer] = []
-            self.acoustic_transceivers: List[AcousticTransceiver] = []
-
-    def import_existing_vessel(self, existing_vessel: Dict[str, Any]):
-        self.name = existing_vessel.get("name", "")
-        self.type = existing_vessel.get("type", "")
-        self.model = existing_vessel.get("model", "")
-        self.serial_number = existing_vessel.get("serialNumber", "")
-
-        start_time = existing_vessel.get("start", "")
-        if start_time:
-            self.start = convert_to_datetime(start_time)
-        else:
-            self.start = None
-
-        end_time = existing_vessel.get("end", "")
-        if end_time:
-            self.end = convert_to_datetime(end_time)
-        else:
-            self.end = None
-        self.imu_sensors = [
-            ImuSensor(existing_IMU_sensor=sensor)
-            for sensor in existing_vessel.get("imuSensors", [])
-        ]
-        self.atd_offsets = [
-            AtdOffset(existing_atd_offset=atd_offset)
-            for atd_offset in existing_vessel.get("atdOffsets", [])
-        ]  # TODO work on where these offsets live
-        self.gnss_antennas = [
-            GnssAntenna(existing_GNSS_antenna=antenna)
-            for antenna in existing_vessel.get("gnssAntennas", [])
-        ]
-        self.gnss_receivers = [
-            GnssReceiver(existing_receiver=receiver)
-            for receiver in existing_vessel.get("gnssReceivers", [])
-        ]
-        self.acoustic_transducers = [
-            AcousticTransducer(existing_transducer=transducer)
-            for transducer in existing_vessel.get("acousticTransducer", [])
-        ]
-        self.acoustic_transceivers = [
-            AcousticTransceiver(existing_transceiver=transceiver)
-            for transceiver in existing_vessel.get("acousticTransceiver", [])
-        ]
-
-
-    def export_vessel(self, filepath: str):
+class AtdOffset(AttributeUpdater, BaseModel):
+    transducerSerialNumber: Optional[str] = Field(default=None)
+    x: float
+    y: float
+    z: float
+
+class GnssAntenna(AttributeUpdater, BaseModel):
+    # Required
+    type: str
+    serialNumber: str
+    start: datetime
+    
+    # Optional
+    order: Optional[str] = Field(default=None)
+    model: Optional[str] = Field(default=None)
+    radomeSerialNumber: Optional[str] = Field(default=None)
+    end: Optional[datetime] = Field(default=None)
+
+    # Validators    
+    _parse_datetime = field_validator('start', 'end', mode='before')(parse_datetime)
+    _check_dates = field_validator('end')(check_dates)
+
+class GnssReceiver(AttributeUpdater, BaseModel):
+    # Required
+    type: str
+    serialNumber: str
+    start: datetime
+
+    # Optional
+    model: Optional[str] = Field(default=None)
+    firmwareVersion: Optional[str] = Field(default=None)
+    end: Optional[datetime] = Field(default=None)
+
+    # Validators
+    _parse_datetime = field_validator('start', 'end', mode='before')(parse_datetime)
+    _check_dates = field_validator('end')(check_dates)
+
+class AcousticTransducer(AttributeUpdater, BaseModel):
+    # Required
+    type: str
+    serialNumber: str
+    frequency: str
+    start: datetime
+
+    # Optional
+    end: Optional[datetime] = Field(default=None)
+
+    # Validators
+    _parse_datetime = field_validator('start', 'end', mode='before')(parse_datetime)
+    _check_dates = field_validator('end')(check_dates)
+
+
+class AcousticTransceiver(AttributeUpdater, BaseModel):
+    # Required
+    type: str
+    serialNumber: str
+    frequency: str
+    start: datetime
+
+    # Optional
+    triggerDelay: Optional[float] = Field(default=None)
+    delayIncludedInTWTT: Optional[bool] = Field(default=None)
+    end: Optional[datetime] = Field(default=None)
+
+    # Validators
+    _parse_datetime = field_validator('start', 'end', mode='before')(parse_datetime)
+    _check_dates = field_validator('end')(check_dates)
+
+
+class ImuSensor(AttributeUpdater, BaseModel):
+    # Required
+    type: str
+    serialNumber: str
+    start: datetime
+
+    # Optional
+    model: Optional[str] = Field(default=None)
+    end: Optional[datetime] = Field(default=None)
+
+    # Validators
+    _parse_datetime = field_validator('start', 'end', mode='before')(parse_datetime)
+    _check_dates = field_validator('end', mode='after')(check_dates)
+
+class Vessel(AttributeUpdater, BaseModel):
+    # Required
+    name: str
+    type: str
+    model: str
+
+    # Optional
+    serialNumber: Optional[str] = Field(default=None)
+    start: Optional[datetime]
+    end: Optional[datetime] = Field(default=None)
+    imuSensors: List[ImuSensor] = Field(default_factory=list)
+    atdOffsets: List[AtdOffset] = Field(default_factory=list)
+    gnssAntennas: List[GnssAntenna] = Field(default_factory=list)
+    gnssReceivers: List[GnssReceiver] = Field(default_factory=list)
+    acousticTransducers: List[AcousticTransducer] = Field(default_factory=list)
+    acousticTransceivers: List[AcousticTransceiver] = Field(default_factory=list)
+
+    # Validators
+    _parse_datetime = field_validator('start', 'end', mode='before')(parse_datetime)
+    _check_dates = field_validator('end')(check_dates)
+
+    @field_validator('name', 'type', 'model')
+    def check_required_fields(cls, value):
+        if not value:
+            raise ValueError('Required field {} is empty'.format(value))
+        return value
+
+    def export_vessel(self, filepath: str): 
         with open(filepath, "w") as file:
-            json.dump(self.to_dict(), file, indent=2)
+            json.dump(self.model_dump_json(), file, indent=2)
 
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "name": self.name,
-            "type": self.type,
-            "model": self.model,
-            "serialNumber": self.serial_number,
-            "start": self.start.strftime("%Y-%m-%dT%H:%M:%S") if self.start else "",
-            "end": self.end.strftime("%Y-%m-%dT%H:%M:%S") if self.end else "",
+    # Map of equipment types to their respective lists and classes - used for adding, updating and deleting equipment
+    equipment_map: ClassVar[Dict[str, Any]] = {
+        IMU_SENSORS: (lambda self: self.imuSensors, ImuSensor),
+        GNSS_ANTENNAS: (lambda self: self.gnssAntennas, GnssAntenna),
+        GNSS_RECEIVERS: (lambda self: self.gnssReceivers, GnssReceiver),
+        ACOUSTIC_TRANSDUCER: (lambda self: self.acousticTransducers, AcousticTransducer),
+        ACOUSTIC_TRANSCEIVER: (lambda self: self.acousticTransceivers, AcousticTransceiver),
+        ATD_OFFSETS: (lambda self: self.atdOffsets, AtdOffset),
+    }
 
-            "imuSensors": [sensor.to_dict() for sensor in self.imu_sensors],
-            "atdOffsets": [offset.to_dict() for offset in self.atd_offsets],
-            "gnssAntennas": [antenna.to_dict() for antenna in self.gnss_antennas],
-            "gnssReceivers": [receiver.to_dict() for receiver in self.gnss_receivers],
-            "acousticTransducer": [
-                transducer.to_dict() for transducer in self.acoustic_transducers
-            ],
-            "acousticTransceiver": [
-                transceiver.to_dict() for transceiver in self.acoustic_transceivers
-            ],
-        }
+    @classmethod
+    def from_json(cls, filepath: str) -> 'Vessel':
+        with open(filepath, "r") as file:
+            return cls(**json.load(file))
+    
+    def print_json(self):
+        print(self.model_dump_json(indent=2))
 
     def run_equipment(
         self,
@@ -459,266 +188,88 @@ class Vessel:
         """Add a new survey vessel equipment."""
 
         print(f"Adding new {equipment_type}..")
-        if equipment_type == "imuSensors":
-            for sensor in self.imu_sensors:
-                if sensor.serialNumber == serial_number:
-                    print(
-                        f"ERROR: IMU sensor with serial number {serial_number} already exists, choose to update instead."
-                    )
-                    print(json.dumps(sensor.to_dict(), indent=2))
-                    return
 
-            new_sensor = ImuSensor(
-                serial_number=serial_number, additional_data=equipment_data
-            )
-            self.imu_sensors.append(new_sensor)
-            print(json.dumps(new_sensor.to_dict(), indent=2))
-
-        elif equipment_type == "gnssAntennas":
-            for antenna in self.gnss_antennas:
-                if antenna.serialNumber == serial_number:
-                    print(
-                        f"ERROR: GNSS antenna with serial number {serial_number} already exists, choose to update instead."
-                    )
-                    print(json.dumps(antenna.to_dict(), indent=2))
-                    return
-
-            new_antenna = GnssAntenna(
-                serial_number=serial_number, additional_data=equipment_data
-            )
-            self.gnss_antennas.append(new_antenna)
-            print(json.dumps(new_antenna.to_dict(), indent=2))
-
-        elif equipment_type == "gnssReceivers":
-            for receiver in self.gnss_receivers:
-                if receiver.serialNumber == serial_number:
-                    print(
-                        f"ERROR: GNSS receiver with serial number {serial_number} already exists, choose to update instead."
-                    )
-                    print(json.dumps(receiver.to_dict(), indent=2))
-                    return
-
-            new_receiver = GnssReceiver(
-                serial_number=serial_number, additional_data=equipment_data
-            )
-            self.gnss_receivers.append(new_receiver)
-            print(json.dumps(new_receiver.to_dict(), indent=2))
-
-        elif equipment_type == "acousticTransducer":
-            for transducer in self.acoustic_transducers:
-                if transducer.serialNumber == serial_number:
-                    print(
-                        f"ERROR: Acoustic transducer with serial number {serial_number} already exists, choose to update instead."
-                    )
-                    print(json.dumps(transducer.to_dict(), indent=2))
-                    return
-
-            new_transducer = AcousticTransducer(
-                serial_number=serial_number, additional_data=equipment_data
-            )
-            self.acoustic_transducers.append(new_transducer)
-            print(json.dumps(new_transducer.to_dict(), indent=2))
-
-        elif equipment_type == "acousticTransceiver":
-            for transceiver in self.acoustic_transceivers:
-                if transceiver.serialNumber == serial_number:
-                    print(
-                        f"ERROR: Acoustic transceiver with serial number {serial_number} already exists, choose to update instead."
-                    )
-                    print(json.dumps(transceiver.to_dict(), indent=2))
-                    return
-
-            new_transceiver = AcousticTransceiver(
-                serial_number=serial_number, additional_data=equipment_data
-            )
-            self.acoustic_transceivers.append(new_transceiver)
-            print(json.dumps(new_transceiver.to_dict(), indent=2))
-
-        elif equipment_type == "atdOffsets":
-            for offset in self.atd_offsets:
-                if offset.transducerSerialNumber == serial_number:
-                    print(
-                        f"ERROR: Acoustic to transducer offset with serial number {serial_number} already exists, choose to update instead."
-                    )
-                    print(json.dumps(offset.to_dict(), indent=2))
-                    return
-
-            new_offset = AtdOffset(serial_number, additional_data=equipment_data)
-            self.atd_offsets.append(new_offset)
-            print(json.dumps(new_offset.to_dict(), indent=2))
-
-        else:
+        if equipment_type not in self.equipment_map:
             print(f"ERROR: Invalid equipment type: {equipment_type}")
             return
 
+        equipment_list, equipment_class = self.equipment_map[equipment_type]
+        equipment_list = equipment_list(self)
+
+        for equipment in equipment_list:
+            if equipment.serialNumber == serial_number:
+                print(
+                    f"ERROR: {equipment_type} with serial number {serial_number} already exists, choose to update instead."
+                )
+                print(equipment.model_dump_json(indent=2))
+                return
+
+        try:
+            equipment_data["serialNumber"] = serial_number
+            new_equipment = equipment_class(**equipment_data)
+        except ValidationError as e:
+            print(f"Validation error for {equipment_type}: {e}")
+            return
+
+        equipment_list.append(new_equipment)
+        print(new_equipment.model_dump_json(indent=2))
         print(f"New {equipment_type} added successfully.")
 
+        
     def update_equipment(
         self, serial_number: str, equipment_type: str, equipment_data: dict
     ):
         """Update the attributes of a survey vessel equipment."""
 
         print(f"Updating {equipment_type} with serial number {serial_number}..")
-        if equipment_type == "imuSensors":
-            for sensor in self.imu_sensors:
-                if sensor.serialNumber == serial_number:
-                    sensor.update_attributes(equipment_data)
-                    print(json.dumps(sensor.to_dict(), indent=2))
-                    print(
-                        f"IMU sensor with serial number {serial_number} updated successfully."
-                    )
-                    return
 
-            print(f"ERROR: IMU sensor with serial number {serial_number} not found.")
+        if equipment_type not in self.equipment_map:
+            print(f"ERROR: Invalid equipment type: {equipment_type}")
+            return
 
-        elif equipment_type == "gnssAntennas":
-            for antenna in self.gnss_antennas:
-                if antenna.serialNumber == serial_number:
-                    antenna.update_attributes(equipment_data)
-                    print(json.dumps(antenna.to_dict(), indent=2))
-                    print(
-                        f"GNSS antenna with serial number {serial_number} updated successfully."
-                    )
-                    return
+        equipment_list, _ = self.equipment_map[equipment_type]
+        equipment_list = equipment_list(self)
 
-            print(f"ERROR: GNSS antenna with serial number {serial_number} not found.")
 
-        elif equipment_type == "gnssReceivers":
-            for receiver in self.gnss_receivers:
-                if receiver.serialNumber == serial_number:
-                    receiver.update_attributes(equipment_data)
-                    print(json.dumps(receiver.to_dict(), indent=2))
-                    print(
-                        f"GNSS receiver with serial number {serial_number} updated successfully."
-                    )
-                    return
+        for equipment in equipment_list:
+            if equipment.serialNumber == serial_number:
+                equipment_data["serialNumber"] = serial_number
+                equipment.update_attributes(equipment_data)
+                print(equipment.model_dump_json(indent=2))
+                print(f"{equipment_type} with serial number {serial_number} updated successfully.")
+                return
 
-            print(f"ERROR: GNSS receiver with serial number {serial_number} not found.")
-
-        elif equipment_type == "acousticTransducer":
-            for transducer in self.acoustic_transducers:
-                if transducer.serialNumber == serial_number:
-                    transducer.update_attributes(equipment_data)
-                    print(json.dumps(transducer.to_dict(), indent=2))
-                    print(
-                        f"Acoustic transducer with serial number {serial_number} updated successfully."
-                    )
-                    return
-
-            print(
-                f"ERROR: Acoustic transducer with serial number {serial_number} not found."
-            )
-
-        elif equipment_type == "acousticTransceiver":
-            for transceiver in self.acoustic_transceivers:
-                if transceiver.serialNumber == serial_number:
-                    transceiver.update_attributes(equipment_data)
-                    print(json.dumps(transceiver.to_dict(), indent=2))
-                    print(
-                        f"Acoustic transceiver with serial number {serial_number} updated successfully."
-                    )
-                    return
-
-            print(
-                f"ERROR: Acoustic transceiver with serial number {serial_number} not found."
-            )
-
-        elif equipment_type == "atdOffsets":
-            for offset in self.atd_offsets:
-                if offset.transducerSerialNumber == serial_number:
-                    offset.update_attributes(equipment_data)
-                    print(json.dumps(offset.to_dict(), indent=2))
-                    print(
-                        f"Acoustic to transducer offset with serial number {serial_number} updated successfully."
-                    )
-                    return
-
-            print(
-                f"ERROR: Acoustic to transducer offset with serial number {serial_number} not found."
-            )
+        print(f"ERROR: {equipment_type} with serial number {serial_number} not found.")
 
     def delete_equipment(self, serial_number: str, equipment_type: str):
         """Delete a survey vessel equipment."""
 
         print(f"Deleting {equipment_type} with serial number {serial_number}..")
-        if equipment_type == "imuSensors":
-            for i, sensor in enumerate(self.imu_sensors):
-                if sensor.serialNumber == serial_number:
-                    self.imu_sensors.pop(i)
-                    print(
-                        f"IMU sensor with serial number {serial_number} deleted successfully."
-                    )
-                    return
 
-            print(f"ERROR: IMU sensor with serial number {serial_number} not found.")
+        if equipment_type not in self.equipment_map:
+            print(f"ERROR: Invalid equipment type: {equipment_type}")
+            return
 
-        elif equipment_type == "gnssAntennas":
-            for i, antenna in enumerate(self.gnss_antennas):
-                if antenna.serialNumber == serial_number:
-                    self.gnss_antennas.pop(i)
-                    print(
-                        f"GNSS antenna with serial number {serial_number} deleted successfully."
-                    )
-                    return
+        equipment_list, _ = self.equipment_map[equipment_type]
+        equipment_list = equipment_list(self)
 
-            print(f"ERROR: GNSS antenna with serial number {serial_number} not found.")
+        for i, equipment in enumerate(equipment_list):
+            if equipment.serialNumber == serial_number:
+                equipment_list.pop(i)
+                print(f"{equipment_type} with serial number {serial_number} deleted successfully.")
+                return
 
-        elif equipment_type == "gnssReceivers":
-            for i, receiver in enumerate(self.gnss_receivers):
-                if receiver.serialNumber == serial_number:
-                    self.gnss_receivers.pop(i)
-                    print(
-                        f"GNSS receiver with serial number {serial_number} deleted successfully."
-                    )
-                    return
+        print(f"ERROR: {equipment_type} with serial number {serial_number} not found.")
 
-            print(f"ERROR: GNSS receiver with serial number {serial_number} not found.")
-
-        elif equipment_type == "acousticTransducer":
-            for i, transducer in enumerate(self.acoustic_transducers):
-                if transducer.serialNumber == serial_number:
-                    self.acoustic_transducers.pop(i)
-                    print(
-                        f"Acoustic transducer with serial number {serial_number} deleted successfully."
-                    )
-                    return
-
-            print(
-                f"ERROR: Acoustic transducer with serial number {serial_number} not found."
-            )
-
-        elif equipment_type == "acousticTransceiver":
-            for i, transceiver in enumerate(self.acoustic_transceivers):
-                if transceiver.serialNumber == serial_number:
-                    self.acoustic_transceivers.pop(i)
-                    print(
-                        f"Acoustic transceiver with serial number {serial_number} deleted successfully."
-                    )
-                    return
-
-            print(
-                f"ERROR: Acoustic transceiver with serial number {serial_number} not found."
-            )
-
-        elif equipment_type == "atdOffsets":
-            for i, offset in enumerate(self.atd_offsets):
-                if offset.transducerSerialNumber == serial_number:
-                    self.atd_offsets.pop(i)
-                    print(
-                        f"Acoustic to transducer offset with serial number {serial_number} deleted successfully."
-                    )
-                    return
-
-            print(
-                f"ERROR: Acoustic to transducer offset with serial number {serial_number} not found."
-            )
-
-    @classmethod
-    def from_json(cls,filepath:str) -> 'Vessel':
-        with open(filepath, "r") as file:
-            return Vessel(existing_vessel=json.load(file))
 
 def import_vessel(filepath: str) -> Vessel:
     """Import vessel data from a JSON file."""
     with open(filepath, "r") as file:
-        return Vessel(existing_vessel=json.load(file))
+        return Vessel(**json.load(file))
+
+
+if __name__ == "__main__":
+    vessel_json_file_path = '/Users/terry/repos/seafloor_geodesy_notebooks/notebooks/1126.json'     
+    vessel_data = json.load(open(vessel_json_file_path))
+
+    vessel_class = import_vessel(vessel_json_file_path)
