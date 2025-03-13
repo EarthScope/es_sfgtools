@@ -38,7 +38,7 @@ class Survey(AttributeUpdater, BaseModel):
     start: datetime = Field(..., description="The start date of the survey",
                             gt=datetime(1901, 1, 1))
     end: datetime = Field(..., description="The end date of the survey",
-                          gt=start)
+                          gt=datetime(1901, 1, 1))
 
     # Optional
     notes: Optional[str] = Field(default=None)
@@ -57,7 +57,7 @@ class Campaign(AttributeUpdater, BaseModel):
     start: datetime = Field(..., description="The start date of the campaign",
                             gt=datetime(1901, 1, 1))
     end: datetime = Field(..., description="The end date of the campaign",
-                          gt=start)
+                          gt=datetime(1901, 1, 1))
 
     # Optional
     principalInvestigator: Optional[str] = Field(default=None)

@@ -48,7 +48,7 @@ class Transponder(AttributeUpdater, BaseModel):
     # Optional
     end: Optional[datetime] = Field(default=None, 
                                     description="The end date of the transponder (if removed)",
-                                    gt=start) # TODO Check if this is works (maybe don't need to check if end is after start)
+                                    gt=datetime(1901, 1, 1)) # TODO Check if this is works (maybe don't need to check if end is after start)
     uid: Optional[str] = Field(default=None, description="The UID of the transponder")
     model: Optional[str] = Field(default=None, description="The model of the transponder")
     serialNumber: Optional[str] = Field(default=None, description="The serial number of the transponder")
@@ -58,7 +58,9 @@ class Transponder(AttributeUpdater, BaseModel):
     extraSensors: Optional[List[ExtraSensors]] = Field(default_factory=list, description="Extra sensors attached to the transponder")
 
     _check_for_empty_strings = field_validator('uid', 'model', 'serialNumber', 'batteryCapacity', 'notes')(check_optional_fields_for_empty_strings)
-
+    _parse_datetime = field_validator('start', 'end', mode='before')(parse_datetime)
+    _check_dates = field_validator('end')(check_dates)
+    
 class Benchmark(AttributeUpdater, BaseModel):
     # Required
     name: str = Field(..., description="The name of the benchmark")
@@ -69,7 +71,7 @@ class Benchmark(AttributeUpdater, BaseModel):
 
     # Optional
     end: Optional[datetime] = Field(default=None, description="The end date of the benchmark",
-                                    gt=start)
+                                    gt=datetime(1901, 1, 1))
     dropPointLocation: Optional[Location] = Field(default=None, description="The drop point location of the benchmark")
     transponders: Optional[List[Transponder]] = Field(default_factory=list, description="The transponders attached to the benchmark")
 

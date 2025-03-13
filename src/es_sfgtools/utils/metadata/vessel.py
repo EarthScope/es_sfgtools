@@ -37,7 +37,7 @@ class GnssAntenna(AttributeUpdater, BaseModel):
     order: Optional[str] = Field(default=None)
     model: Optional[str] = Field(default=None)
     radomeSerialNumber: Optional[str] = Field(default=None)
-    end: Optional[datetime] = Field(default=None, gt=start)
+    end: Optional[datetime] = Field(default=None, gt=datetime(1901, 1, 1))
 
     # Validators    
     _parse_datetime = field_validator('start', 'end', mode='before')(parse_datetime)
@@ -52,7 +52,7 @@ class GnssReceiver(AttributeUpdater, BaseModel):
     # Optional
     model: Optional[str] = Field(default=None)
     firmwareVersion: Optional[str] = Field(default=None)
-    end: Optional[datetime] = Field(default=None, gt=start)
+    end: Optional[datetime] = Field(default=None, gt=datetime(1901, 1, 1))
 
     # Validators
     _parse_datetime = field_validator('start', 'end', mode='before')(parse_datetime)
@@ -66,7 +66,7 @@ class AcousticTransducer(AttributeUpdater, BaseModel):
     start: datetime = Field(..., gt=datetime(1901, 1, 1))
 
     # Optional
-    end: Optional[datetime] = Field(default=None)
+    end: Optional[datetime] = Field(default=None, gt=datetime(1901, 1, 1))
 
     # Validators
     _parse_datetime = field_validator('start', 'end', mode='before')(parse_datetime)
@@ -83,7 +83,7 @@ class AcousticTransceiver(AttributeUpdater, BaseModel):
     # Optional
     triggerDelay: Optional[float] = Field(default=None)
     delayIncludedInTWTT: Optional[bool] = Field(default=None)
-    end: Optional[datetime] = Field(default=None, gt=start)
+    end: Optional[datetime] = Field(default=None, gt=datetime(1901, 1, 1))
 
     # Validators
     _parse_datetime = field_validator('start', 'end', mode='before')(parse_datetime)
@@ -98,7 +98,7 @@ class ImuSensor(AttributeUpdater, BaseModel):
 
     # Optional
     model: Optional[str] = Field(default=None)
-    end: Optional[datetime] = Field(default=None, gt=start)
+    end: Optional[datetime] = Field(default=None, gt=datetime(1901, 1, 1))
 
     # Validators
     _parse_datetime = field_validator('start', 'end', mode='before')(parse_datetime)
@@ -113,7 +113,7 @@ class Vessel(AttributeUpdater, BaseModel):
     # Optional
     serialNumber: Optional[str] = Field(default=None)
     start: Optional[datetime] = Field(default=None, gt=datetime(1901, 1, 1))
-    end: Optional[datetime] = Field(default=None, gt=start)
+    end: Optional[datetime] = Field(default=None, gt=datetime(1901, 1, 1))
     imuSensors: List[ImuSensor] = Field(default_factory=list)
     atdOffsets: List[AtdOffset] = Field(default_factory=list)
     gnssAntennas: List[GnssAntenna] = Field(default_factory=list)

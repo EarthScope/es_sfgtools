@@ -39,7 +39,7 @@ class ReferenceFrame(AttributeUpdater, BaseModel):
                                       ge=datetime(1901, 1, 1))
     end: Optional[datetime] = Field(default=None, 
                                     description="The end date of the reference frame used for the site",
-                                    ge=start)
+                                    ge=datetime(1901, 1, 1))
 
     _parse_datetime = field_validator('start', 'end', mode='before')(parse_datetime)
     _check_dates = field_validator('end', mode='after')(check_dates)
@@ -249,17 +249,20 @@ class Site(BaseModel):
                             )
                             print(transponder.model_dump_json(indent=2))
                             return
+                        
                     try:   
                         new_transponder = Transponder(**sub_component_metadata)
                     except ValidationError as e:
                         print(f"Validation error for transponder: {e}")
                         return
-                    equipment.transponder.append(new_transponder)
+                    
+                    equipment.transponders.append(new_transponder)
                     print(new_transponder.model_dump_json(indent=2))
                     print(f"New transponder added successfully.")
                     return
 
                 elif sub_component_type == SURVEYS:
+                    num_of_surveys = 0
                     for survey in equipment.surveys:
                         if survey.id == sub_component_metadata['id']:
                             print(
@@ -267,6 +270,12 @@ class Site(BaseModel):
                             )
                             print(survey.model_dump_json(indent=2))
                             return
+                        num_of_surveys = len(equipment.surveys)
+
+                    if not sub_component_metadata['id']:
+                        # Generate a new one if not provided
+                        sub_component_metadata['id'] = f"{component_name}_{num_of_surveys + 1}"
+
                     try:   
                         new_survey = Survey(**sub_component_metadata)
                     except ValidationError as e:
