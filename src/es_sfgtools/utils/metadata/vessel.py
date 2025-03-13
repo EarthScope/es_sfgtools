@@ -31,13 +31,13 @@ class GnssAntenna(AttributeUpdater, BaseModel):
     # Required
     type: str
     serialNumber: str
-    start: datetime
+    start: datetime = Field(..., gt=datetime(1901, 1, 1))
     
     # Optional
     order: Optional[str] = Field(default=None)
     model: Optional[str] = Field(default=None)
     radomeSerialNumber: Optional[str] = Field(default=None)
-    end: Optional[datetime] = Field(default=None)
+    end: Optional[datetime] = Field(default=None, gt=start)
 
     # Validators    
     _parse_datetime = field_validator('start', 'end', mode='before')(parse_datetime)
@@ -47,12 +47,12 @@ class GnssReceiver(AttributeUpdater, BaseModel):
     # Required
     type: str
     serialNumber: str
-    start: datetime
+    start: datetime = Field(..., gt=datetime(1901, 1, 1))
 
     # Optional
     model: Optional[str] = Field(default=None)
     firmwareVersion: Optional[str] = Field(default=None)
-    end: Optional[datetime] = Field(default=None)
+    end: Optional[datetime] = Field(default=None, gt=start)
 
     # Validators
     _parse_datetime = field_validator('start', 'end', mode='before')(parse_datetime)
@@ -63,7 +63,7 @@ class AcousticTransducer(AttributeUpdater, BaseModel):
     type: str
     serialNumber: str
     frequency: str
-    start: datetime
+    start: datetime = Field(..., gt=datetime(1901, 1, 1))
 
     # Optional
     end: Optional[datetime] = Field(default=None)
@@ -78,12 +78,12 @@ class AcousticTransceiver(AttributeUpdater, BaseModel):
     type: str
     serialNumber: str
     frequency: str
-    start: datetime
+    start: datetime = Field(..., gt=datetime(1901, 1, 1))
 
     # Optional
     triggerDelay: Optional[float] = Field(default=None)
     delayIncludedInTWTT: Optional[bool] = Field(default=None)
-    end: Optional[datetime] = Field(default=None)
+    end: Optional[datetime] = Field(default=None, gt=start)
 
     # Validators
     _parse_datetime = field_validator('start', 'end', mode='before')(parse_datetime)
@@ -94,11 +94,11 @@ class ImuSensor(AttributeUpdater, BaseModel):
     # Required
     type: str
     serialNumber: str
-    start: datetime
+    start: datetime = Field(..., gt=datetime(1901, 1, 1))
 
     # Optional
     model: Optional[str] = Field(default=None)
-    end: Optional[datetime] = Field(default=None)
+    end: Optional[datetime] = Field(default=None, gt=start)
 
     # Validators
     _parse_datetime = field_validator('start', 'end', mode='before')(parse_datetime)
@@ -106,14 +106,14 @@ class ImuSensor(AttributeUpdater, BaseModel):
 
 class Vessel(AttributeUpdater, BaseModel):
     # Required
-    name: str
-    type: str
-    model: str
+    name: str = Field(..., description="The 4 digit name of the vessel")
+    type: str = Field(..., description="The type of the vessel. e.g. waveglider")
+    model: str = Field(..., description="The model of the vessel")
 
     # Optional
     serialNumber: Optional[str] = Field(default=None)
-    start: Optional[datetime]
-    end: Optional[datetime] = Field(default=None)
+    start: Optional[datetime] = Field(default=None, gt=datetime(1901, 1, 1))
+    end: Optional[datetime] = Field(default=None, gt=start)
     imuSensors: List[ImuSensor] = Field(default_factory=list)
     atdOffsets: List[AtdOffset] = Field(default_factory=list)
     gnssAntennas: List[GnssAntenna] = Field(default_factory=list)
@@ -157,7 +157,7 @@ class Vessel(AttributeUpdater, BaseModel):
         self,
         serial_number: str,
         equipment_type: str,
-        equipment_data: dict,
+        equipment_metadata: dict,
         add_new: bool = False,
         update: bool = False,
         delete: bool = False,
@@ -176,14 +176,14 @@ class Vessel(AttributeUpdater, BaseModel):
             return
 
         if add_new:
-            self.new_equipment(serial_number, equipment_type, equipment_data)
+            self._new_equipment(serial_number, equipment_type, equipment_metadata)
         elif update:
-            self.update_equipment(serial_number, equipment_type, equipment_data)
+            self._update_equipment(serial_number, equipment_type, equipment_metadata)
         elif delete:
-            self.delete_equipment(serial_number, equipment_type)
+            self._delete_equipment(serial_number, equipment_type)
 
-    def new_equipment(
-        self, serial_number: str, equipment_type: str, equipment_data: dict
+    def _new_equipment(
+        self, serial_number: str, equipment_type: str, equipment_metadata: dict
     ):
         """Add a new survey vessel equipment."""
 
@@ -205,8 +205,8 @@ class Vessel(AttributeUpdater, BaseModel):
                 return
 
         try:
-            equipment_data["serialNumber"] = serial_number
-            new_equipment = equipment_class(**equipment_data)
+            equipment_metadata["serialNumber"] = serial_number
+            new_equipment = equipment_class(**equipment_metadata)
         except ValidationError as e:
             print(f"Validation error for {equipment_type}: {e}")
             return
@@ -216,8 +216,8 @@ class Vessel(AttributeUpdater, BaseModel):
         print(f"New {equipment_type} added successfully.")
 
         
-    def update_equipment(
-        self, serial_number: str, equipment_type: str, equipment_data: dict
+    def _update_equipment(
+        self, serial_number: str, equipment_type: str, equipment_metadata: dict
     ):
         """Update the attributes of a survey vessel equipment."""
 
@@ -233,15 +233,15 @@ class Vessel(AttributeUpdater, BaseModel):
 
         for equipment in equipment_list:
             if equipment.serialNumber == serial_number:
-                equipment_data["serialNumber"] = serial_number
-                equipment.update_attributes(equipment_data)
+                equipment_metadata["serialNumber"] = serial_number
+                equipment.update_attributes(equipment_metadata)
                 print(equipment.model_dump_json(indent=2))
                 print(f"{equipment_type} with serial number {serial_number} updated successfully.")
                 return
 
         print(f"ERROR: {equipment_type} with serial number {serial_number} not found.")
 
-    def delete_equipment(self, serial_number: str, equipment_type: str):
+    def _delete_equipment(self, serial_number: str, equipment_type: str):
         """Delete a survey vessel equipment."""
 
         print(f"Deleting {equipment_type} with serial number {serial_number}..")
