@@ -24,7 +24,7 @@ from es_sfgtools.processing.assets.tiledb_temp import (
     TDBPositionArray,
     TDBShotDataArray,
 )
-from es_sfgtools.processing.assets.tiledb_temp import TDBAcousticArray,TDBGNSSArray,TDBPositionArray,TDBShotDataArray
+from es_sfgtools.processing.assets.tiledb_temp import TDBAcousticArray,TDBGNSSArray,TDBPositionArray,TDBShotDataArray,TDBGNSSObsArray
 from es_sfgtools.processing.operations.utils import (
     get_merge_signature_shotdata,
     merge_shotdata_gnss,
@@ -42,6 +42,7 @@ class RinexConfig(BaseModel):
     override_products_download: bool = Field(False, title="Flag to Override Existing Products Download")
     n_processes: int = Field(default_factory=cpu_count, title="Number of Processes to Use")
     settings_path: Optional[Path] = Field("", title="Settings Path")
+    time_interval: Optional[int] = Field(1, title="Tile to Rinex Time Interval [s]")
     class Config:
         arbitrary_types_allowed = True
     @field_serializer("settings_path")
@@ -73,13 +74,13 @@ class SV3PipelineConfig(BaseModel):
     position_update_config: PositionUpdateConfig = PositionUpdateConfig()
     shot_data_dest: TDBShotDataArray = None
     gnss_data_dest: TDBGNSSArray = None
-    rangea_data_dest: Path = None
+    rangea_data_dest: TDBGNSSObsArray = None
 
     class Config:
         title = "SV3 Pipeline Configuration"
         arbitrary_types_allowed = True
 
-    @field_serializer("gnss_data_dest","shot_data_dest")
+    @field_serializer("gnss_data_dest","shot_data_dest","rangea_data_dest")
     def _s_shotdata(self,v):
         return str(v.uri)
     # @field_serializer("shot_data_dest")
@@ -96,12 +97,18 @@ class SV3PipelineConfig(BaseModel):
         if isinstance(v,str):
             return TDBGNSSArray(Path(v))
         return v
+    
+    @field_validator("rangea_data_dest")
+    def _v_rangeadata(cls,v:str|TDBGNSSObsArray):
+        if isinstance(v,str):
+            return TDBGNSSObsArray(Path(v))
+        return v
 
-    @field_serializer("inter_dir","pride_dir","catalog_path","rangea_data_dest")
+    @field_serializer("inter_dir","pride_dir","catalog_path")
     def _s_path(self,v):
         return str(v)
 
-    @field_validator("inter_dir","pride_dir","catalog_path","rangea_data_dest")
+    @field_validator("inter_dir","pride_dir","catalog_path")
     def _v_path(cls,v:str):
         return Path(v)
 
@@ -191,10 +198,12 @@ class SV3Pipeline:
 
         if self.config.rinex_config.override or not self.catalog.is_merge_complete(**merge_signature):
             rinex_entries: List[AssetEntry] = gnss_ops.tile2rinex(
-                rangea_tdb=self.config.rangea_data_dest,
+                rangea_tdb=self.config.rangea_data_dest.uri,
                 settings=self.config.rinex_config.settings_path,
                 writedir=self.config.inter_dir,
-                n_procs=self.config.rinex_config.n_processes,
+                time_interval=self.config.rinex_config.time_interval,
+                processing_year=self.config.start_date.year if self.config.start_date is not None else 0,
+                
             )
 
             # If campaign start and end dates are set, filter out rinex assets that are outside of the range. 

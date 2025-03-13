@@ -1093,7 +1093,7 @@ def novb2tile(files:List[AssetEntry],rangea_tdb:Path,n_procs:int=10) -> None:
             if "Processing" in message or "Created" in message:
                 logger.loginfo(message)
 
-def tile2rinex(rangea_tdb:Path,settings:Path,writedir:Path,n_procs:int=10) -> List[AssetEntry]:
+def tile2rinex(rangea_tdb:Path,settings:Path,writedir:Path,time_interval:int=1,processing_year:int=0) -> List[AssetEntry]:
     """Given a tdb file, convert it to rinex files
 
     Args:
@@ -1120,7 +1120,9 @@ def tile2rinex(rangea_tdb:Path,settings:Path,writedir:Path,n_procs:int=10) -> Li
 
     with tempfile.TemporaryDirectory(dir="/tmp/") as workdir:
         # Use a temp dir so as to only return newly created rinex files
-        cmd = [str(binary_path), "-tdb", str(rangea_tdb),"-settings",str(settings),"-procs",str(n_procs)]
+        cmd = [str(binary_path), "-tdb", str(rangea_tdb),"-settings",str(settings),"-timeint",str(time_interval),"-year",str(processing_year)]
+        print("Command")
+        print(" ".join(cmd))
         result = subprocess.run(cmd, check=True, capture_output=True,cwd=workdir)
 
         if result.stdout:
