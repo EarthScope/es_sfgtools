@@ -23,10 +23,23 @@ class EquipmentType(str, Enum):
 
 
 class AtdOffset(AttributeUpdater, BaseModel):
-    transducerSerialNumber: Optional[str] = Field(default=None)
-    x: float
-    y: float
-    z: float
+    """The offset of the transducer from the GNSS antenna"""
+
+    serialNumber: str = Field(
+        ..., description="The transducer serial number associated with the offset"
+    )
+    x: float = Field(
+        ...,
+        description="X offset: Relative position of the transducer to the GNSS antenna",
+    )
+    y: float = Field(
+        ...,
+        description="Y offset: Relative position of the transducer to the GNSS antenna",
+    )
+    z: float = Field(
+        ...,
+        description="Z offset: Relative position of the transducer to the GNSS antenna",
+    )
 
 
 class GnssAntenna(AttributeUpdater, BaseModel):
@@ -56,8 +69,10 @@ class GnssReceiver(AttributeUpdater, BaseModel):
     start: datetime = Field(..., gt=datetime(1901, 1, 1))
 
     # Optional
-    model: Optional[str] = Field(default=None)
-    firmwareVersion: Optional[str] = Field(default=None)
+    model: Optional[str] = Field(default=None, description="The model of the receiver")
+    firmwareVersion: Optional[str] = Field(
+        default=None, description="The firmware version of the receiver"
+    )
     end: Optional[datetime] = Field(default=None, gt=datetime(1901, 1, 1))
 
     # Validators
@@ -90,13 +105,23 @@ class AcousticTransceiver(AttributeUpdater, BaseModel):
     # Required
     type: str
     serialNumber: str
-    frequency: str
+    frequency: str = Field(
+        ..., description="The frequency of the transceiver, e.g MF/LMF"
+    )
     start: datetime = Field(..., gt=datetime(1901, 1, 1))
 
     # Optional
-    triggerDelay: Optional[float] = Field(default=None)
-    delayIncludedInTWTT: Optional[bool] = Field(default=None)
-    end: Optional[datetime] = Field(default=None, gt=datetime(1901, 1, 1))
+    triggerDelay: Optional[float] = Field(
+        default=None, description="The trigger delay in seconds"
+    )
+    delayIncludedInTWTT: Optional[bool] = Field(
+        default=None, description="Whether the delay is included in the TWTT"
+    )
+    end: Optional[datetime] = Field(
+        default=None,
+        gt=datetime(1901, 1, 1),
+        description="The end date of the transceiver usage",
+    )
 
     # Validators
     _parse_datetime = field_validator("start", "end", mode="before")(parse_datetime)

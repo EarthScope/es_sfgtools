@@ -46,18 +46,20 @@ class Survey(AttributeUpdater, BaseModel):
         ..., description="The type of the survey (e.g. circle | fixed point | mixed)"
     )
     benchmarkIDs: List[str] = Field(
-        ..., description="The unique IDs of the benchmarks associated with the survey"
+        ..., description="Benchmark IDs associated with the survey"
     )
     start: datetime = Field(
-        ..., description="The start date of the survey", gt=datetime(1901, 1, 1)
+        ..., description="The start date & time of the survey", gt=datetime(1901, 1, 1)
     )
     end: datetime = Field(
-        ..., description="The end date of the survey", gt=datetime(1901, 1, 1)
+        ..., description="The end date & time of the survey", gt=datetime(1901, 1, 1)
     )
 
     # Optional
-    notes: Optional[str] = Field(default=None)
-    commands: Optional[str] = Field(default=None)
+    notes: Optional[str] = Field(
+        default=None, description="Any additional notes about the survey"
+    )
+    commands: Optional[str] = Field(default=None, description="Log of commands")
 
     _parse_datetime = field_validator("start", "end", mode="before")(parse_datetime)
     _check_dates = field_validator("end", mode="after")(check_dates)
@@ -79,10 +81,10 @@ class Campaign(AttributeUpdater, BaseModel):
         description="The 4 digit vessel code, associated with a vessel metadata file",
     )
     start: datetime = Field(
-        ..., description="The start date of the campaign", gt=datetime(1901, 1, 1)
+        ..., description="The start date & time of the campaign", gt=datetime(1901, 1, 1)
     )
     end: datetime = Field(
-        ..., description="The end date of the campaign", gt=datetime(1901, 1, 1)
+        ..., description="The end date & time of the campaign", gt=datetime(1901, 1, 1)
     )
 
     # Optional

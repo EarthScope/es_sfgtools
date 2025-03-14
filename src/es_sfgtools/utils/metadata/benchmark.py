@@ -49,7 +49,7 @@ class Location(AttributeUpdater, BaseModel):
 class Transponder(AttributeUpdater, BaseModel):
     # Required
     address: str = Field(..., description="The address of the transponder")
-    tat: float = Field(..., description="TAS in ms", gt=0)
+    tat: float = Field(..., description="Turn around time (TAT) in ms", gt=0)
     start: datetime = Field(
         ..., description="The start date of the transponder", gt=datetime(1901, 1, 1)
     )

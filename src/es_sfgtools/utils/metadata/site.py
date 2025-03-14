@@ -71,7 +71,7 @@ class Site(BaseModel):
     names: List[str] = Field(
         ..., description="The names of the site, including the 4 character ID"
     )
-    networks: List[str] = Field(..., description="The networks the site is part of")
+    networks: List[str] = Field(..., description="A list networks the site is part of")
     timeOrigin: datetime = Field(
         ..., description="The time origin of the site", ge=datetime(1901, 1, 1)
     )
