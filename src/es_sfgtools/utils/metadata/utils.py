@@ -1,28 +1,28 @@
-import json
-import os
+# Description: Utility functions for metadata classes.
 from datetime import datetime
-from typing import Optional, Union, Dict, Any
-import copy
+from typing import Union, Dict, Any
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel
+
 
 def parse_datetime(cls, value):
     # Check that the date is a string and convert it to a datetime object
     if not value:
         # If an empty string, ignore it
         return None
-    
+
     if isinstance(value, str):
         return convert_to_datetime(value)
-    
+
     elif isinstance(value, datetime):
         return value
-    
+
     else:
-        raise ValueError('Invalid date format')
+        raise ValueError("Invalid date format")
+
 
 def check_dates(cls, end, values):
-    start = values.data['start']
+    start = values.data["start"]
 
     # Check that the end date is a string and convert it to a datetime object
     if isinstance(end, str):
@@ -30,9 +30,10 @@ def check_dates(cls, end, values):
 
     # Check that the start date is before the end date
     if start and end and start > end:
-        raise ValueError('End date must not be before start date')
-    
+        raise ValueError("End date must not be before start date")
+
     return end
+
 
 def if_zero_than_none(cls, value):
     # Check if the field is the number 0 and replace it with None
@@ -40,11 +41,13 @@ def if_zero_than_none(cls, value):
         return None
     return value
 
-def check_optional_fields_for_empty_strings(cls, value):
+
+def check_fields_for_empty_strings(cls, value):
     # Check if the field is the string but is empty and replace it with None
     if isinstance(value, str) and not value:
         return None
     return value
+
 
 class AttributeUpdater:
     def update_attributes(self, additional_data: Dict[str, Any]):
@@ -57,7 +60,9 @@ class AttributeUpdater:
         for key, value in additional_data.items():
             if value:
                 if hasattr(self, key):
-                    if isinstance(value, dict) and isinstance(getattr(self, key), AttributeUpdater):
+                    if isinstance(value, dict) and isinstance(
+                        getattr(self, key), AttributeUpdater
+                    ):
                         getattr(self, key).update_attributes(value)
                     else:
                         self.set_value(key, value)
@@ -78,6 +83,7 @@ def only_one_is_true(*args):
     """
     return sum(args) == 1
 
+
 def convert_to_datetime(date_str: Union[str, datetime]) -> datetime:
     """
     Convert ISO string format to datetime if a string is provided.
@@ -95,7 +101,9 @@ def convert_to_datetime(date_str: Union[str, datetime]) -> datetime:
         try:
             return datetime.fromisoformat(date_str)
         except ValueError:
-            print("Invalid date format, please provide a valid date in format YYYY-MM-DDTHH:MM:SS")
+            print(
+                "Invalid date format, please provide a valid date in format YYYY-MM-DDTHH:MM:SS"
+            )
             raise
     return date_str
 
@@ -127,7 +135,7 @@ def convert_custom_objects_to_dict(d: dict) -> dict:
 #         if not atd_data_input['x'] or not atd_data_input['y'] or not atd_data_input['z']:
 #             print("Offsets not provided, please provide all offsets..")
 #             return
-        
+
 #         vessel = next((primary_vessel for primary_vessel in self.site["surveyVessels"] if primary_vessel["name"] == primary_vessel_name), None)
 #         if vessel is None:
 #             print("Primary survey vessel {} not found, ensure you have the correct vessel name".format(primary_vessel_name))
@@ -142,4 +150,3 @@ def convert_custom_objects_to_dict(d: dict) -> dict:
 # STATION_NAME_PATH_INDEX = 2
 # YYYY_A_CAMPAIGN_PATH_INDEX = 3
 # RAW_FILES_PATH_INDEX = 4
-
