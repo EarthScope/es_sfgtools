@@ -106,3 +106,22 @@ class Campaign(AttributeUpdater, BaseModel):
         "technicianName",
         "technicianContact",
     )(check_fields_for_empty_strings)
+
+    def check_survey_times(self):
+        """ Check that survey times do not overlap with each other """
+        #TODO test this
+
+        # Sort surveys by start time
+        sorted_surveys = sorted(self.surveys, key=lambda survey: survey.start)
+
+        # Check for overlapping times
+        for i in range(len(sorted_surveys) - 1):
+            current_survey = sorted_surveys[i]
+            next_survey = sorted_surveys[i + 1]
+
+            if current_survey.end > next_survey.start:
+                raise ValueError(
+                    f"Survey times overlap: {current_survey.id} ends at {current_survey.end} and {next_survey.id} starts at {next_survey.start}"
+                )
+
+        print("No overlapping survey times found.")
