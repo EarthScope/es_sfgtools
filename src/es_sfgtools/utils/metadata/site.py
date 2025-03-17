@@ -286,24 +286,29 @@ class Site(BaseModel):
 
         if add_new:
             self._new_sub_component(
-                component_type,
-                component_name,
-                sub_component_type,
-                sub_component_metadata,
+                component_type=component_type,
+                component_name=component_name,
+                sub_component_type=sub_component_type,
+                sub_component_metadata=sub_component_metadata,
             )
         if update:
             self._update_existing_sub_component(
-                component_type,
-                component_name,
-                sub_component_type,
-                sub_component_metadata,
+                component_type=component_type,
+                component_name=component_name,
+                sub_component_type=sub_component_type,
+                sub_component_metadata=sub_component_metadata,
             )
         if delete:
+            if sub_component_type == SubLevelSiteGroups.TRANSPONDERS:
+                name = sub_component_metadata["address"]
+            elif sub_component_type == SubLevelSiteGroups.SURVEYS:
+                name = sub_component_metadata["id"]
+
             self._delete_sub_component(
-                component_type,
-                component_name,
-                sub_component_type,
-                sub_component_metadata["name"],
+                component_type=component_type,
+                component_name=component_name,
+                sub_component_type=sub_component_type,
+                sub_component_name=name,
             )
 
     def _new_sub_component(
