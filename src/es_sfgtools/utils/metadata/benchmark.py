@@ -46,10 +46,25 @@ class Location(AttributeUpdater, BaseModel):
     )
 
 
+class TAT(AttributeUpdater, BaseModel):
+    # Required
+    value: float = Field(..., description="Turn around time (TAT) in ms", gt=0)
+
+    # Optional
+    timeIntervals: Optional[List[Dict[str, datetime]]] = Field(
+        default_factory=list,
+        description="List of time intervals with start and end times for TAT",
+    )
+
+    _parse_datetime = field_validator("timeIntervals", mode="before")(parse_datetime)
+
+
 class Transponder(AttributeUpdater, BaseModel):
     # Required
     address: str = Field(..., description="The address of the transponder")
-    tat: float = Field(..., description="Turn around time (TAT) in ms", gt=0)
+    tat: List[TAT] = Field(
+        ..., description="The turn around time (TAT) of the transponder"
+    )
     start: datetime = Field(
         ..., description="The start date of the transponder", gt=datetime(1901, 1, 1)
     )

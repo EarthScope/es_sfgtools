@@ -371,6 +371,30 @@ class Site(BaseModel):
                                     f"Added battery voltage to transponder {transponder.address}."
                                 )
 
+                            elif "new_tat" in sub_component_metadata:
+                                for tat in transponder.tat:
+                                    if (
+                                        tat.value
+                                        == sub_component_metadata["new_tat"]["value"]
+                                    ):
+                                        # Only add start and end times to original tat
+                                        tat.timeIntervals.append(
+                                            sub_component_metadata["new_tat"][
+                                                "timeIntervals"
+                                            ]
+                                        )
+                                        print(
+                                            f"Added time intervals to TAT {tat.value} for transponder {transponder.address}."
+                                        )
+                                        return
+
+                                transponder.tat.append(
+                                    sub_component_metadata["new_tat"]
+                                )
+                                print(
+                                    f"Added new TAT to transponder {transponder.address}."
+                                )
+
                             else:
                                 transponder.update_attributes(sub_component_metadata)
                                 print(f"Updated Transponder {transponder.address}.")
@@ -410,3 +434,9 @@ class Site(BaseModel):
                         if survey.id == sub_component_name:
                             equipment.surveys.remove(survey)
                             print(f"Deleted survey {sub_component_name}.")
+
+
+if __name__ == "__main__":
+    example_json_filepath = "json_schemas/site_example.json"
+    site = Site.from_json(example_json_filepath)
+    site.print_json()
