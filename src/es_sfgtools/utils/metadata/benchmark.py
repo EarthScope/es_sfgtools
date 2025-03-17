@@ -59,8 +59,8 @@ class TAT(AttributeUpdater, BaseModel):
     @field_validator("timeIntervals", mode="before")
     def validate_time_intervals(cls, time_intervals):
         for interval in time_intervals:
-            start = interval.get("start")
-            end = interval.get("end")
+            start = interval["start"]
+            end = interval["end"]
             if not start or not end:
                 raise ValueError("Each time interval must have 'start' and 'end' times")
             if start >= end:

@@ -3,7 +3,7 @@ import json
 from datetime import datetime
 from typing import Any, ClassVar, Optional, Union, Dict, List
 
-from es_sfgtools.utils.metadata.benchmark import Benchmark, Transponder
+from es_sfgtools.utils.metadata.benchmark import TAT, Benchmark, Transponder
 from es_sfgtools.utils.metadata.campaign import Campaign, Survey
 from es_sfgtools.utils.metadata.utils import (
     AttributeUpdater,
@@ -409,25 +409,20 @@ class Site(BaseModel):
                                 )
 
                             elif "new_tat" in sub_component_metadata:
+
+                                new_tat: TAT = sub_component_metadata["new_tat"]
                                 for tat in transponder.tat:
-                                    if (
-                                        tat.value
-                                        == sub_component_metadata["new_tat"]["value"]
-                                    ):
+                                    if tat.value == new_tat.value:
                                         # Only add start and end times to original tat
                                         tat.timeIntervals.append(
-                                            sub_component_metadata["new_tat"][
-                                                "timeIntervals"
-                                            ]
+                                            new_tat.timeIntervals[0]
                                         )
                                         print(
-                                            f"Added time intervals to TAT {tat.value} for transponder {transponder.address}."
+                                            f"Added time interval to TAT {tat.value} for transponder {transponder.address}."
                                         )
                                         return
 
-                                transponder.tat.append(
-                                    sub_component_metadata["new_tat"]
-                                )
+                                transponder.tat.append(new_tat)
                                 print(
                                     f"Added new TAT to transponder {transponder.address}."
                                 )
