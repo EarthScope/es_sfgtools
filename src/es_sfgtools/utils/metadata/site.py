@@ -117,6 +117,43 @@ class Site(BaseModel):
     def print_json(self):
         print(self.model_dump_json(indent=2))
 
+    def validate_components(self):
+        """
+        If there are no benchmarks, transponders, campaigns, or surveys, print a warning.
+        """
+        num_of_invalid_components = 0
+        if not self.benchmarks:
+            num_of_invalid_components += 1
+            print("WARNING: No benchmarks found in the site.")
+        else:
+            for benchmark in self.benchmarks:
+                if not benchmark.transponders:
+                    num_of_invalid_components += 1
+                    print("WARNING: No transponders found in benchmark", benchmark.name)
+
+        if not self.campaigns:
+            num_of_invalid_components += 1
+            print("WARNING: No campaigns found in the site.")
+        else:
+            for campaign in self.campaigns:
+                if not campaign.surveys:
+                    num_of_invalid_components += 1
+                    print("WARNING: No surveys found in campaign", campaign.name)
+                else:
+                    try:
+                        campaign.check_survey_times()
+                    except ValueError as e:
+                        print(e)
+                        num_of_invalid_components += 1
+
+        if num_of_invalid_components == 0:
+            print("All components are valid.")
+        else:
+            print(
+                f"Please check the {num_of_invalid_components} warnings above and add required information prior to submitting to Earthscope."
+                + "You can still write out to JSON file and come back to work on the other components in the notebook later."
+            )
+
     def run_component(
         self,
         component_type: TopLevelSiteGroups,

@@ -81,7 +81,9 @@ class Campaign(AttributeUpdater, BaseModel):
         description="The 4 digit vessel code, associated with a vessel metadata file",
     )
     start: datetime = Field(
-        ..., description="The start date & time of the campaign", gt=datetime(1901, 1, 1)
+        ...,
+        description="The start date & time of the campaign",
+        gt=datetime(1901, 1, 1),
     )
     end: datetime = Field(
         ..., description="The end date & time of the campaign", gt=datetime(1901, 1, 1)
@@ -108,8 +110,8 @@ class Campaign(AttributeUpdater, BaseModel):
     )(check_fields_for_empty_strings)
 
     def check_survey_times(self):
-        """ Check that survey times do not overlap with each other """
-        #TODO test this
+        """Check that survey times do not overlap with each other"""
+        # TODO test this
 
         # Sort surveys by start time
         sorted_surveys = sorted(self.surveys, key=lambda survey: survey.start)

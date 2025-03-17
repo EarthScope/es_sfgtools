@@ -53,6 +53,8 @@ class AttributeUpdater:
     def update_attributes(self, additional_data: Dict[str, Any]):
         """
         Update the class attributes based on the provided dictionary. Handles nested objects with the AttributeUpdater (e.g Location) class.
+        This class is helpful for the notebook where the user will be passing empty strings if they don't want to update a field. This
+        function will only reset the value if not empty. If other keys are provided in the dictionary, it will print a warning.
 
         Args:
             additional_data (Dict[str, Any]): A dictionary of additional attributes to update.
