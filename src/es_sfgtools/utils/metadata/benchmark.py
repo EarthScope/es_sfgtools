@@ -48,7 +48,7 @@ class Location(AttributeUpdater, BaseModel):
 
 class TAT(AttributeUpdater, BaseModel):
     # Required
-    value: float = Field(..., description="Turn around time (TAT) in ms", gt=0)
+    value: float = Field(..., description="Turn around time (TAT) in ms", ge=0, le=1000)
 
     # Optional
     timeIntervals: Optional[List[Dict[str, datetime]]] = Field(
