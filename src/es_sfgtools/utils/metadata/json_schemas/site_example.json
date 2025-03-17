@@ -30,6 +30,15 @@
           "end": "2025-01-15T00:00:00",
           "notes": "Survey notes",
           "commands": "Survey commands"
+        },
+        {
+          "id": "Survey2",
+          "type": "circle",
+          "benchmarkIDs": ["B001"],
+          "start": "2025-01-16T00:00:00",
+          "end": "2025-01-20T00:00:00",
+          "notes": "Survey notes",
+          "commands": "Survey commands"
         }
       ]
     }

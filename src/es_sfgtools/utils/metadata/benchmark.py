@@ -56,7 +56,18 @@ class TAT(AttributeUpdater, BaseModel):
         description="List of time intervals with start and end times for TAT",
     )
 
-    _parse_datetime = field_validator("timeIntervals", mode="before")(parse_datetime)
+    @field_validator("timeIntervals", mode="before")
+    def validate_time_intervals(cls, time_intervals):
+        for interval in time_intervals:
+            start = interval.get("start")
+            end = interval.get("end")
+            if not start or not end:
+                raise ValueError("Each time interval must have 'start' and 'end' times")
+            if start >= end:
+                raise ValueError(
+                    "'end' time must be after 'start' time in each interval"
+                )
+        return time_intervals
 
 
 class Transponder(AttributeUpdater, BaseModel):

@@ -477,3 +477,4 @@ if __name__ == "__main__":
     example_json_filepath = "json_schemas/site_example.json"
     site = Site.from_json(example_json_filepath)
     site.print_json()
+    site.validate_components()
