@@ -327,9 +327,6 @@ def import_vessel(filepath: str) -> Vessel:
 
 
 if __name__ == "__main__":
-    vessel_json_file_path = (
-        "/Users/terry/repos/seafloor_geodesy_notebooks/notebooks/1126.json"
-    )
-    vessel_data = json.load(open(vessel_json_file_path))
-
+    vessel_json_file_path = "json_schemas/vessel_example.json"
     vessel_class = import_vessel(vessel_json_file_path)
+    vessel_class.print_json()
