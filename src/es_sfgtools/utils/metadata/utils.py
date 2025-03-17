@@ -129,26 +129,3 @@ def convert_custom_objects_to_dict(d: dict) -> dict:
             d[key] = convert_custom_objects_to_dict(value)
     return d
 
-
-# TODO: add this functionality to the site class in the future
-# def existing_atd_offsets(self, primary_vessel_name: str, atd_data_input: dict, output, event=None):
-#     with output:
-#         print("Updating acoustic to transducer offsets on survey vessel..")
-#         if not atd_data_input['x'] or not atd_data_input['y'] or not atd_data_input['z']:
-#             print("Offsets not provided, please provide all offsets..")
-#             return
-
-#         vessel = next((primary_vessel for primary_vessel in self.site["surveyVessels"] if primary_vessel["name"] == primary_vessel_name), None)
-#         if vessel is None:
-#             print("Primary survey vessel {} not found, ensure you have the correct vessel name".format(primary_vessel_name))
-#             return
-
-#         if "atdOffsets" not in vessel:
-#             print("No acoustic to transducer offsets found on survey vessel..")
-#             return
-
-
-# SUBDUCTION_ZONE_PATH_INDEX = 1
-# STATION_NAME_PATH_INDEX = 2
-# YYYY_A_CAMPAIGN_PATH_INDEX = 3
-# RAW_FILES_PATH_INDEX = 4
