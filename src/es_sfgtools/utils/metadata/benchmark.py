@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 from datetime import datetime
 from pydantic import BaseModel, Field, field_validator
 
@@ -51,7 +51,7 @@ class TAT(AttributeUpdater, BaseModel):
     value: float = Field(..., description="Turn around time (TAT) in ms", ge=0, le=1000)
 
     # Optional
-    timeIntervals: Optional[List[Dict[str, datetime]]] = Field(
+    timeIntervals: Optional[List[Dict[str, Union[str, datetime, None]]]] = Field(
         default_factory=list,
         description="List of time intervals with start and end times for TAT",
     )
@@ -61,8 +61,15 @@ class TAT(AttributeUpdater, BaseModel):
         for interval in time_intervals:
             start = interval["start"]
             end = interval["end"]
+
+            start = parse_datetime(cls, start)
+            end = parse_datetime(cls, end)
+
             if not start or not end:
-                raise ValueError("Each time interval must have 'start' and 'end' times")
+                interval["start"] = start
+                interval["end"] = end
+                continue
+
             if start >= end:
                 raise ValueError(
                     "'end' time must be after 'start' time in each interval"
