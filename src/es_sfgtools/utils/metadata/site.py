@@ -151,7 +151,7 @@ class Site(BaseModel):
         else:
             print(
                 f"Please check the {num_of_invalid_components} warnings above and add required information prior to submitting to Earthscope."
-                + "You can still write out to JSON file and come back to work on the other components in the notebook later."
+                + "\n You can still write out to JSON file and come back to work on the other components in the notebook later."
             )
 
     def run_component(
