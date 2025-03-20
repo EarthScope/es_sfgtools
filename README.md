@@ -1,7 +1,6 @@
 # EarthScope Seafloor Geodesy Tools
 
-This repo contains a python library `es_sfgtools` designed to enable users to preprocess raw GNSS-A data from SV2 and SV3 wavegliders, as well as run GNSS-A processing using [GARPOS](https://github.com/s-watanabe-jhod/garpos)
-
+This repo contains a python library `es_sfgtools` designed to enable users to preprocess raw GNSS-A data from Liquid Robotics SV2 and SV3 wavegliders, as well as run GNSS-A processing using [GARPOS](https://github.com/s-watanabe-jhod/garpos)
 
 Due to a dependency of GARPOS, the library currently is only installable via conda.  Also GARPOS installation requires gfortran, which (if you dont already have it) can be installed on a mac with the command
 > brew install gfortran
@@ -13,29 +12,37 @@ clone the library and enter the repo
 
 > cd es_sfgtools
 
-create and activate conda environment
-> conda env create -f environment.yml
+create and activate conda environment (use the correct environment file for your OS)
+i.e. on mac:
+> conda env create -f environment_mac.yml
 
-> conda activate seafloor_geodesy
+> conda activate seafloor_geodesy_mac
 
-In order to run parts of the library dependent on TileDB, you will also need to set the following environmental variable (use the correct path to your conda environment lib folder)
+In order to run parts of the library dependent on TileDB, you may also need to set the following environmental variable (use the correct path to your conda environment lib folder)
 
 > export DYLD_LIBRARY_PATH=/Users/gottlieb/miniconda3/envs/seafloor_geodesy/lib
 
+
 ## In development... [ReadTheDocs](https://es-sfgtools.readthedocs.io/en/latest/)
 
+### notes on dependency files
 
-# Deprecated install, doesn't work due to scikit-sparse dependency
 
-The plan is to make this library will be published on PyPi, and installable as follows
+environment.yml
+- conda dependencies file for linux
 
-> pip install es_sfgtools
+environment_mac.yml
+- conda dependencies file for mac
 
-For now, you need to clone the repo and install in your python environment from the repo base directory using
+pyproject.toml
+- used to pip install this library into the conda environment. 
 
-> pip install .
+requirements.txt
+- not used currently
 
-or in editable mode for development work using
+requirements-dev.txt
+- dev requirements pointed to by pyproj.toml
 
-> pip install -e .
+docs/requirements.txt
+- requirements currently pointed to by pyproj.toml.  currently contains sphynx/RTD dependencies only, untested if that works.
 

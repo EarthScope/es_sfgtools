@@ -1,0 +1,48 @@
+name: seafloor_geodesy_mac
+channels:
+  - defaults
+  - conda-forge
+dependencies: 
+  - python=3.11
+  - pip
+  - numpy
+  - scipy
+  - pandas
+  - matplotlib
+  - scikit-learn
+  - gfortran
+  - julian
+  - pandera
+  - pyarrow
+  - pydantic
+  # - libtiff
+  - pyproj
+  - pymap3d
+  - boto3
+  - botocore
+  - tqdm
+  - ipykernel
+  # - ipywidgets
+  - seaborn
+  - sqlalchemy
+  - go
+  - go-cgo 
+  - make
+  - tiledb=2.27
+  - tiledb-py
+  - clang
+  - scikit-sparse
+  - sphinx
+  - sphinx-rtd-theme
+  - myst-parser
+  - sphinxcontrib-apidoc
+  - pip:
+    - -e .
+    - garpos @ git+https://github.com/EarthScope/garpos.git
+    - earthscope-sdk
+    - earthscope-cli
+    # - multipledispatch
+    # - multiprocessing_logging
+    - sphinx_pyproject
+variables:
+  CGO_ENABLED: 1
