@@ -49,3 +49,10 @@ This section includes utility modules in the `es_sfgtools` package.
    :maxdepth: 1
 
    api/es_sfgtools.utils.*
+
+.. toctree::
+   :glob:
+   :maxdepth: 1
+   :caption: Metadata
+
+   api/es_sfgtools.utils.metadata.*
