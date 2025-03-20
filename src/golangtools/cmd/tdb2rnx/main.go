@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sort"
-	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -18,17 +16,15 @@ import (
 	"gitlab.com/earthscope/gnsstools/pkg/encoding/tiledbgnss"
 )
 
+
 type BodyParameters struct {
 	URI         string                    `json:"uri"`
 	Region      string                    `json:"region"`
 	QueryParams tiledbgnss.ObsQueryParams `json:"query"`
 }
 
-func processDailyEpoch(epochs []observation.Epoch, settings *rinex.Settings) error {
-	// sort epochs by time
-	sort.Slice(epochs, func(i, j int) bool {
-		return epochs[i].Time.Before(epochs[j].Time)
-	})
+func writeFirstEpochBatch(epochs []observation.Epoch, settings *rinex.Settings) (string,error) {
+
 
 	if settings.RinexVersion.Major == rinex.RinexMajorVersion3 || settings.RinexVersion.Major == rinex.RinexMajorVersion4 {
 	// Write the RINEX header
@@ -47,18 +43,27 @@ func processDailyEpoch(epochs []observation.Epoch, settings *rinex.Settings) err
 	filename := fmt.Sprintf("%s%03d0.%02do", settings.MarkerName, dayOfYear, yy)
 	log.Infof("Generating Daily RINEX File For Year %d, Month %d, Day %d To %s",startYear,startMonth,startDay,filename)
 	
+	// Check if the file already exists
+	if _, err := os.Stat(filename); err == nil {
+		log.Warnf("File Already Exists: %s",filename)
+		// delete the file
+		err := os.Remove(filename)
+		if err != nil {
+			return filename,fmt.Errorf("failed deleting existing file: %s", err)
+		}
+	}
 	outFile, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0644)
 
 	if err != nil {
-		return fmt.Errorf("failed creating output file: %s", err)
+		return filename,fmt.Errorf("failed creating output file: %s", err)
 	}
 	header, err := rinex.NewHeader(settings)
 	if err != nil {
-		return fmt.Errorf("failed creating RINEX header: %s", err)
+		return filename,fmt.Errorf("failed creating RINEX header: %s", err)
 	}
 	err = header.Write(outFile)
 	if err != nil {
-		return fmt.Errorf("failed writing RINEX header: %s", err)
+		return filename,fmt.Errorf("failed writing RINEX header: %s", err)
 	}
 
 	for _, epoch := range epochs {
@@ -83,8 +88,27 @@ func processDailyEpoch(epochs []observation.Epoch, settings *rinex.Settings) err
 	}
 	defer outFile.Close()
 	
+	return filename,nil
+}
+
+// writeEpochs appends the provided epochs to the given file
+func writeEpochs(epochs []observation.Epoch,filename string,settings *rinex.Settings) error {
+	log.Infof("Writing Epochs To File: %s",filename)
+	outFile, err := os.OpenFile(filename, os.O_RDWR|os.O_APPEND, 0644)
+	if err != nil {
+		return fmt.Errorf("failed creating output file:%s %s", filename,err)
+	}
+	defer outFile.Close()
+	
+	for _, epoch := range epochs {
+		err = rinex.SerializeRnxObs(outFile, epoch, settings)
+		if err != nil {
+			log.Warnf("failed writing observation: %s", err)
+		}
+	}
 	return nil
 }
+
 
 // Helper function to parse metadata from the JSON file
 func parseSettings(path string) (*rinex.Settings, error) {
@@ -104,12 +128,37 @@ func parseSettings(path string) (*rinex.Settings, error) {
 	return settings, nil
 }
 	
+func getHourSlice(daySlice tiledbgnss.TimeRange,interval int) ([]tiledbgnss.TimeRange) {
+	if interval < 1 {
+		log.Warn("Invalid interval (%d), defaulting to 1 hour from ", interval)
+		interval = 1
+	} else if interval > 24 {
+		log.Warn("Invalid interval (%d), defaulting to 24 hour from ", interval)
+		interval = 24
+	}
+	// break daySlice into 1 hour slices
+	hourSlices := []tiledbgnss.TimeRange{}
+	prevTime := daySlice.Start
+	for i := interval; i <= 24; i += interval {
+		log.Debugf("PrevTime: %s, Interval: %d",prevTime,i)
+	
+		endTime := prevTime.Add(time.Duration(interval) * time.Hour)
+		// If the end time is exactly a day after the start time, set the end time to the end of the day
+		if endTime.After(daySlice.End) {
+			endTime = daySlice.End
+		}
+		hourSlices = append(hourSlices, tiledbgnss.TimeRange{Start: prevTime, End: endTime})
+		prevTime = endTime
+	}
+	return hourSlices
+}
 
 func main() {
 	startTime := time.Now()
 	tdbPathPtr := flag.String("tdb", "", "Path to the TileDB array")
 	metaPtr := flag.String("settings", "", "settings file")
-	numProcsPtr := flag.Int("procs", 10, "Number of concurrent processes")
+	timeIntervals := flag.Int("timeint", 1, "Break array queries into intervals of N hours")
+	processingYear := flag.Int("year", 0, "If set, only process data for the given year")
 
 	flag.Parse()
 	log.SetOutput(os.Stdout)
@@ -126,21 +175,32 @@ func main() {
 		log.Fatalln(err)
 	}
 	log.Infof("Time Range: %s - %s Found At %s",timeStart,timeEnd,*tdbPathPtr)
-	timeSlices := tiledbgnss.GetDateArranged(timeStart,timeEnd)
+	daySlices := tiledbgnss.GetDateArranged(timeStart,timeEnd)
+	if *processingYear != 0 {
+		daySlicesModified := []tiledbgnss.TimeRange{}
+		for _,slice := range daySlices {
+			if slice.Start.Year() == *processingYear {
+				daySlicesModified = append(daySlicesModified,slice)
+			}
+		}
+		daySlices = daySlicesModified
+	}
+	if len(daySlices) == 0 {
+		log.Warn("No Day Slices Found For The Year ",*processingYear)
+		return
+	}
 
-	var wg sync.WaitGroup
-	var mu sync.Mutex
-	sem := make(chan struct{}, *numProcsPtr) // Limit to 10 concurrent goroutines
-
-	for _,timeSlice := range timeSlices {
-		wg.Add(1)
-		go func(timeSlice tiledbgnss.TimeRange) {
-			defer wg.Done()
-			sem <- struct{}{}
-			defer func() { <-sem }()
+	for _,daySlice := range daySlices {
+	
+		
+		// break daySlice into 1 hour slices
+		hourSlices := getHourSlice(daySlice,*timeIntervals)
+		batchNum := 0
+		var currentFile string
+		for _, hourSlice := range hourSlices {
 			// Read the epochs from the TDB
 			queryParams := tiledbgnss.ObsQueryParams{
-				Time: []tiledbgnss.TimeRange{timeSlice},
+				Time: []tiledbgnss.TimeRange{hourSlice},
 			}
 			epochs, err := tiledbgnss.ReadObsV3Array(
 				*tdbPathPtr, "us-east-2", queryParams)
@@ -150,23 +210,36 @@ func main() {
 			
 			if len(epochs) == 0 {
 				log.Debug("No epochs found for the given time slice")
-				return
+				continue
 			}
-			mu.Lock()
-			log.Infof("Found %d Epochs From Array Within Timespan: %s",len(epochs),timeSlice)
-		
-			settings.TimeOfFirst = epochs[0].Time
-			settings.TimeOfLast = epochs[len(epochs)-1].Time	
-			err = processDailyEpoch(epochs, settings)
+			log.Infof("Found %d Epochs From Array Within Timespan: %s",len(epochs),hourSlice)
+
+			if batchNum == 0 {
+				settings.TimeOfFirst = epochs[0].Time
+				settings.TimeOfLast = daySlice.End// TODO find a way to update time of last OBS 
+				filename,err := writeFirstEpochBatch(epochs,settings)
+				if err != nil {
+					log.Warnf("Error Writing First Epoch Batch: %s",err)
+					break
+				}
+				log.Infof("Wrote First Epoch Batch To: %s",filename)
+				currentFile = filename
+				
+			} else {
+				err := writeEpochs(epochs,currentFile,settings)
+				if err != nil {
+					log.Warnf("Error Writing Epochs: %s",err)
+					break
+				}
+				log.Infof("Wrote Epochs To: %s",currentFile)
+			}
+			batchNum++
 			epochs = nil // Clear the epochs list
-			if err != nil {
-				fmt.Print("Error Processing Daily Epoch: ",err)
-			}
-			log.Infof("==================== COMPLETE ====================")
-			mu.Unlock()
-		}(timeSlice)
+		}
+		log.Infof("==================== COMPLETE ====================")
+
 	}
-	wg.Wait()
+	
 	log.Infof("Total Time Elapsed: %s",time.Since(startTime))
 }
 

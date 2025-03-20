@@ -25,7 +25,7 @@ from es_sfgtools.processing.assets.tiledb_temp import (
     TDBShotDataArray,
     TDBGNSSObsArray
 )
-from es_sfgtools.processing.assets.tiledb_temp import TDBAcousticArray,TDBGNSSArray,TDBPositionArray,TDBShotDataArray
+from es_sfgtools.processing.assets.tiledb_temp import TDBAcousticArray,TDBGNSSArray,TDBPositionArray,TDBShotDataArray,TDBGNSSObsArray
 from es_sfgtools.processing.operations.utils import (
     get_merge_signature_shotdata,
     merge_shotdata_gnss,
@@ -42,6 +42,7 @@ class RinexConfig(BaseModel):
     override_products_download: bool = Field(False, title="Flag to Override Existing Products Download")
     n_processes: int = Field(default_factory=cpu_count, title="Number of Processes to Use")
     settings_path: Optional[Path] = Field("", title="Settings Path")
+    time_interval: Optional[int] = Field(1, title="Tile to Rinex Time Interval [s]")
     class Config:
         arbitrary_types_allowed = True
     @field_serializer("settings_path")
@@ -67,6 +68,7 @@ class SV3PipelineConfig(BaseModel):
     class Config:
         title = "SV3 Pipeline Configuration"
         arbitrary_types_allowed = True
+
 
     def to_yaml(self,filepath:Path):
         with open(filepath,"w") as f:
@@ -210,6 +212,7 @@ class SV3Pipeline:
                 settings=self.config.rinex_config.settings_path,
                 writedir=self.inter_dir,
                 n_procs=self.config.rinex_config.n_processes,
+
             )
 
             # If campaign start and end dates are set, filter out rinex assets that are outside of the range. 
