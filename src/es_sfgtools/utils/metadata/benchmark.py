@@ -1,143 +1,149 @@
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, Union
 from datetime import datetime
+from pydantic import BaseModel, Field, field_validator
 
-from es_sfgtools.utils.metadata.utils import AttributeUpdater, Location, convert_to_datetime
+from es_sfgtools.utils.metadata.utils import (
+    AttributeUpdater,
+    check_fields_for_empty_strings,
+    parse_datetime,
+    check_dates,
+    if_zero_than_none,
+)
 
 
+class ExtraSensors(AttributeUpdater, BaseModel):
+    # Required
+    type: str = Field(..., description="The type of the extra sensor")
+    serialNumber: str = Field(..., description="The serial number of the extra sensor")
+    model: str = Field(..., description="The model of the extra sensor")
 
-class Benchmark(AttributeUpdater):
-    def __init__(self, name: str = None, additional_data: Dict[str, Any] = None, existing_benchmark: Dict[str, Any] = None):
 
-        if existing_benchmark:
-            self.import_exisiting_benchmark(existing_benchmark)
-            return
-        
-        self.name: str = name
-        self.benchmarkID: str = ""  
-        self.dropPointLocation = Location()
-        self.aPrioriLocation = Location()
-        self.start: datetime = None
-        self.end: datetime = None
-        self.transponders: List[Transponder] = []
+class BatteryVoltage(AttributeUpdater, BaseModel):
+    # Required
+    date: datetime = Field(
+        ...,
+        description="The date of the battery voltage reading",
+        ge=datetime(1901, 1, 1),
+    )
+    voltage: float = Field(..., description="The battery voltage reading", ge=0, le=20)
 
-        if additional_data:
-            self.update_attributes(additional_data)
+    _parse_datetime = field_validator("date", mode="before")(parse_datetime)
 
-    def import_exisiting_benchmark(self, existing_benchmark: Dict[str, Any]):
-        """
-        Import an existing benchmark from a dictionary.
 
-        Args:
-            existing_benchmark (Dict[str, Any]): A dictionary containing the existing benchmark data.
-        """
-        self.name = existing_benchmark.get("name")  # Required
-        self.benchmarkID = existing_benchmark.get("benchmarkID", "")
+class Location(AttributeUpdater, BaseModel):
+    latitude: Optional[float] = Field(
+        default=None, description="The latitude of the location.", ge=-90, le=90
+    )
+    longitude: Optional[float] = Field(
+        default=None, description="The longitude of the location.", ge=-180, le=180
+    )
+    elevation: Optional[float] = Field(
+        default=None, description="The elevation of the location."
+    )
 
-        drop_point_location_data = existing_benchmark.get("dropPointLocation", {})
-        if isinstance(drop_point_location_data, dict):
-            self.dropPointLocation = Location(additional_data=drop_point_location_data)
-    
-        a_priori_location_data = existing_benchmark.get("aPrioriLocation", {})
-        if isinstance(a_priori_location_data, dict):
-            self.aPrioriLocation = Location(additional_data=a_priori_location_data)
+    _if_zero_than_none = field_validator("latitude", "longitude", "elevation")(
+        if_zero_than_none
+    )
 
-        start_time = existing_benchmark.get("start", "")
-        if start_time:
-            self.start = convert_to_datetime(start_time)
-        else:
-            self.start = None
 
-        end_time = existing_benchmark.get("end", "")
-        if end_time:
-            self.end = convert_to_datetime(end_time)
-        else:
-            self.end = None
+class TAT(AttributeUpdater, BaseModel):
+    # Required
+    value: float = Field(..., description="Turn around time (TAT) in ms", ge=0, le=1000)
 
-        self.transponders = [Transponder(existing_transponder=tran) for tran in existing_benchmark.get("transponders", [])]
+    # Optional
+    timeIntervals: Optional[List[Dict[str, Union[str, datetime, None]]]] = Field(
+        default_factory=list,
+        description="List of time intervals with start and end times for TAT",
+    )
 
-    def to_dict(self) -> Dict[str, Any]:
-        """
-        Convert the Benchmark instance to a dictionary.
+    @field_validator("timeIntervals", mode="before")
+    def validate_time_intervals(cls, time_intervals):
+        for interval in time_intervals:
+            start = interval["start"]
+            end = interval["end"]
 
-        Returns:
-            Dict[str, Any]: A dictionary representation of the Benchmark instance.
-        """
-        return {
-            "name": self.name,
-            "benchmarkID": self.benchmarkID if self.benchmarkID else "",
-            "dropPointLocation": self.dropPointLocation.to_dict() if self.dropPointLocation else {}, 
-            "aPrioriLocation": self.aPrioriLocation.to_dict() if self.aPrioriLocation else {},
-            "start": self.start.strftime('%Y-%m-%dT%H:%M:%S') if self.start else "",
-            "end": self.end.strftime('%Y-%m-%dT%H:%M:%S') if self.end else "",
-            "transponders": [transponder.to_dict() for transponder in self.transponders]
-        }
-    
-class Transponder(AttributeUpdater):
-    def __init__(self, address: str = None, additional_data: Dict[str, Any] = None, existing_transponder: Dict[str, Any] = None):
-        if existing_transponder:
-            self.import_existing_transponder(existing_transponder)
-            return
-        
-        self.address: str = address
-        self.uid: str = ""
-        self.model: str = ""
-        self.serialNumber: str = ""
-        self.batteryCapacity: str = ""
-        self.tat: float = 0.0
-        self.start: datetime = None
-        self.end: datetime = None
-        self.notes: str = ""
-        self.batteryVoltage: List[Any] = []
-        self.extraSensors: List[Any]  = []
+            start = parse_datetime(cls, start)
+            end = parse_datetime(cls, end)
 
-        if additional_data:
-            self.update_attributes(additional_data)
+            if not start or not end:
+                interval["start"] = start
+                interval["end"] = end
+                continue
 
-    def import_existing_transponder(self, existing_transponder: Dict[str, Any]):
-        """
-        Import an existing transponder from a dictionary.
-        """
-        self.address = existing_transponder.get("address", "")
-        self.uid = existing_transponder.get("uid", "")
-        self.model = existing_transponder.get("model", "")
-        self.serialNumber = existing_transponder.get("serialNumber", "")    
-        self.batteryCapacity = existing_transponder.get("batteryCapacity", "")
-        self.tat = existing_transponder.get("tat", 0.0)
+            if start >= end:
+                raise ValueError(
+                    "'end' time must be after 'start' time in each interval"
+                )
+        return time_intervals
 
-        start_time = existing_transponder.get("start", "")
-        if start_time:
-            self.start = convert_to_datetime(start_time)
-        else:
-            self.start = None
 
-        end_time = existing_transponder.get("end", "")
-        if end_time:
-            self.end = convert_to_datetime(end_time)
-        else:
-            self.end = None
+class Transponder(AttributeUpdater, BaseModel):
+    # Required
+    address: str = Field(..., description="The address of the transponder")
+    tat: List[TAT] = Field(
+        ..., description="The turn around time (TAT) of the transponder"
+    )
+    start: datetime = Field(
+        ..., description="The start date of the transponder", gt=datetime(1901, 1, 1)
+    )
 
-        self.notes = existing_transponder.get("notes", "")
-        self.batteryVoltage = existing_transponder.get("batteryVoltage", [])
-        self.extraSensors = existing_transponder.get("extraSensors", [])
+    # Optional
+    end: Optional[datetime] = Field(
+        default=None,
+        description="The end date of the transponder (if removed)",
+        gt=datetime(1901, 1, 1),
+    )  # TODO Check if this is works (maybe don't need to check if end is after start)
+    uid: Optional[str] = Field(default=None, description="The UID of the transponder")
+    model: Optional[str] = Field(
+        default=None, description="The model of the transponder"
+    )
+    serialNumber: Optional[str] = Field(
+        default=None, description="The serial number of the transponder"
+    )
+    batteryCapacity: Optional[str] = Field(
+        default=None, description="The battery capacity of the transponder, e.g 4 Ah"
+    )
+    notes: Optional[str] = Field(
+        default=None, description="Additional notes about the transponder or deployment"
+    )
+    batteryVoltage: Optional[List[BatteryVoltage]] = Field(
+        default_factory=list,
+        description="The battery voltage of the transponder, including date and voltage",
+    )
+    extraSensors: Optional[List[ExtraSensors]] = Field(
+        default_factory=list, description="Extra sensors attached to the transponder"
+    )
 
-    def to_dict(self) -> Dict[str, Any]:
-        """
-        Convert the Transponder instance to a dictionary.
+    _check_for_empty_strings = field_validator(
+        "uid", "model", "serialNumber", "batteryCapacity", "notes"
+    )(check_fields_for_empty_strings)
+    _parse_datetime = field_validator("start", "end", mode="before")(parse_datetime)
+    _check_dates = field_validator("end")(check_dates)
 
-        Returns:
-            Dict[str, Any]: A dictionary representation of the Transponder instance.
-        """
-        return {
-            "address": str(self.address),
-            "uid": str(self.uid) if self.uid else "",
-            "model": str(self.model) if self.model else "",
-            "serialNumber": str(self.serialNumber) if self.serialNumber else "",
-            "batteryCapacity": str(self.batteryCapacity) if self.batteryCapacity is not None else "",
-            "tat": float(self.tat) if self.tat is not None else 0.0,
-            "start": self.start.strftime('%Y-%m-%dT%H:%M:%S') if self.start else "",
-            "end": self.end.strftime('%Y-%m-%dT%H:%M:%S') if self.end else "",
-            "notes": str(self.notes) if self.notes else "",
-            "batteryVoltage": self.batteryVoltage,
-            "extraSensors": self.extraSensors
-        }
 
+class Benchmark(AttributeUpdater, BaseModel):
+    # Required
+    name: str = Field(..., description="The name of the benchmark")
+    benchmarkID: str = Field(..., description="The benchmark ID")
+    aPrioriLocation: Location = Field(
+        ..., description="The a priori location of the benchmark"
+    )
+    start: datetime = Field(
+        ..., description="The start date of the benchmark", gt=datetime(1901, 1, 1)
+    )
+
+    # Optional
+    end: Optional[datetime] = Field(
+        default=None,
+        description="The end date of the benchmark",
+        gt=datetime(1901, 1, 1),
+    )
+    dropPointLocation: Optional[Location] = Field(
+        default=None, description="The drop point location of the benchmark"
+    )
+    transponders: Optional[List[Transponder]] = Field(
+        default_factory=list, description="The transponders attached to the benchmark"
+    )
+
+    _parse_datetime = field_validator("start", "end", mode="before")(parse_datetime)
+    _check_dates = field_validator("end")(check_dates)

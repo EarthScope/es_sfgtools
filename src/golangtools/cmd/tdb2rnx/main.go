@@ -26,6 +26,14 @@ type BodyParameters struct {
 func writeFirstEpochBatch(epochs []observation.Epoch, settings *rinex.Settings) (string,error) {
 
 
+	if settings.RinexVersion.Major == rinex.RinexMajorVersion3 || settings.RinexVersion.Major == rinex.RinexMajorVersion4 {
+	// Write the RINEX header
+		for _, epoch := range epochs {
+
+			settings.ObservationsBySystem.AddEpoch(epoch)
+		}
+	} 
+
 	startYear,startMonth,startDay := epochs[0].Time.Date()
 
 	currentDate := time.Date(startYear,startMonth,startDay,0,0,0,0,time.UTC)

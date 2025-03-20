@@ -3,7 +3,7 @@ go 1.23.3
 require (
 	github.com/TileDB-Inc/TileDB-Go v0.35.0
 	github.com/sirupsen/logrus v1.9.3
-	gitlab.com/earthscope/gnsstools v0.18.1
+	gitlab.com/earthscope/gnsstools v0.18.6
 )
 
 require (
