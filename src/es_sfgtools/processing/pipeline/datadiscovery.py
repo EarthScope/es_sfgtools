@@ -20,6 +20,7 @@ pattern_map = {
     re.compile(r"\.pin$"): AssetType.QCPIN,
     re.compile("CTD"): AssetType.CTD,
     re.compile("svpavg"): AssetType.SEABIRD,
+    re.compile(r"\.res$"):AssetType.KINRESIDUALS
 }
 
 def _get_time(line):

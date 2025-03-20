@@ -1,0 +1,47 @@
+name: seafloor_geodesy_linux
+channels:
+  - defaults
+  - conda-forge
+dependencies: 
+  - python=3.11
+  - pip
+  - numpy
+  - scipy
+  - pandas
+  - matplotlib
+  - scikit-learn
+  - gfortran
+  - julian
+  - pandera
+  - pyarrow
+  - pydantic
+  - libtiff
+  - pyproj
+  - pymap3d
+  - boto3
+  - botocore
+  - tqdm
+  - nodejs
+  - nbgitpuller
+  - jupyterlab
+  - jupyterhub-singleuser
+  - ipykernel
+  - ipywidgets
+  - seaborn
+  - sqlalchemy
+  - go
+  - go-cgo 
+  - conda-forge::gcc
+  - make
+  - conda-forge::tiledb
+  - libstdcxx-ng
+  - clang
+  - pip:
+    - -e .
+    - scikit-sparse
+    - garpos @ git+https://github.com/EarthScope/garpos.git
+    - earthscope-sdk
+    - earthscope-cli
+    - multiprocessing_logging
+variables:
+  CGO_ENABLED: 1

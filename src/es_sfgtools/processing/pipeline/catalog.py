@@ -42,7 +42,14 @@ class Catalog:
                    network: str,
                    station: str,
                    campaign: str,
-                   type: AssetType) -> List[AssetEntry]:
+                   type: AssetType|str) -> List[AssetEntry]:
+        
+        if isinstance(type,str):
+            try:
+                type = AssetType[type]
+            except KeyError:
+                logger.logerr(f"Invalid asset type {type}")
+                return []
 
         logger.logdebug(f"Getting assets for {network} {station} {campaign} {str(type)}")
 
