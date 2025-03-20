@@ -1,0 +1,41 @@
+campaign: 2024_A_1126
+catalog_path: /Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain/catalog.sqlite
+dfop00_config:
+  override: false
+end_date: null
+gnss_data_dest: /Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain/cascadia-gorda/NCC1/TileDB/gnss_db.tdb
+inter_dir: /Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain/cascadia-gorda/NCC1/2024_A_1126/intermediate
+network: cascadia-gorda
+novatel_config:
+  n_processes: 14
+  override: false
+position_update_config:
+  override: false
+  plot: false
+pride_dir: /Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain/Pride
+rangea_data_dest: /Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain/cascadia-gorda/NCC1/TileDB/rangea_db.tdb
+rinex_config:
+  n_processes: 14
+  override: false
+  override_products_download: false
+  pride_config:
+    cutoff_elevation: 7
+    end: null
+    frequency:
+    - G12
+    - R12
+    - E15
+    - C26
+    - J12
+    high_ion: null
+    interval: null
+    local_pdp3_path: null
+    loose_edit: true
+    sample_frequency: 1
+    start: null
+    system: GREC23J
+    tides: SOP
+  settings_path: /Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain/cascadia-gorda/NCC1/rinex_metav2.json
+shot_data_dest: /Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain/cascadia-gorda/NCC1/TileDB/shotdata_db.tdb
+start_date: null
+station: NCC1
