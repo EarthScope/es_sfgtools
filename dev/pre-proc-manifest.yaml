@@ -1,5 +1,25 @@
 main_dir: /Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain
 
+# prevent typos 
+# instances:
+#   networks: 
+#     - cascadia-gorda
+
+#   stations: 
+#     - NDP1
+
+#   campaigns: 
+#     - 2023_from_john
+  
+ingestion:
+  jobs:
+    - network: cascadia-gorda
+      station: NDP1
+      campaign: 2023_from_john
+      directory: /Users/franklyndunbar/Project/SeaFloorGeodesy/Data/Cascadia2023/NDP1/HR
+
+
+
 processing:
   jobs:
     - network: cascadia-gorda
@@ -15,9 +35,10 @@ processing:
       config:
         rinex_config:
           time_interval: 2
-          override: true
+          override: false
 
-config:
+
+global_config:
   dfop00_config:
     override: false
   novatel_config:

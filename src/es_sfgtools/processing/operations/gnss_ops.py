@@ -28,10 +28,10 @@ from .pride_utils import get_nav_file,get_gnss_products
 from es_sfgtools.utils.loggers import GNSSLogger as logger
 
 
-env = os.environ.copy()
-env["DYLD_LIBRARY_PATH"] = env["CONDA_PREFIX"] + os.pathsep + "lib"
-env["LD_LIBRARY_PATH"] = env["DYLD_LIBRARY_PATH"]
-os.environ = env 
+ENV = os.environ.copy()
+ENV["DYLD_LIBRARY_PATH"] = ENV["CONDA_PREFIX"] + "/lib"
+ENV["LD_LIBRARY_PATH"] = ENV["DYLD_LIBRARY_PATH"]
+
 
 RINEX_BINARIES = "src/golangtools/build"
 SELF_PATH = Path(__file__).resolve()
@@ -1002,7 +1002,7 @@ def nov0002tile(files:List[AssetEntry],rangea_tdb:Path,n_procs:int=10) -> None:
         cmd.append(str(file.local_path))
 
     logger.loginfo(f"Running NOV0002TILE on {len(files)} files")
-    result = subprocess.run(cmd, check=True, capture_output=True)
+    result = subprocess.run(cmd, check=True, capture_output=True,env=ENV)
 
     if result.stdout:
         logger.logdebug(result.stdout.decode("utf-8"))
@@ -1043,7 +1043,7 @@ def nova2tile(files:List[AssetEntry],rangea_tdb:Path,n_procs:int=10) -> None:
         cmd.append(str(file.local_path))
 
     logger.loginfo(f"Running NOVA2TILE on {len(files)} files")
-    result = subprocess.run(cmd, check=True, capture_output=True)
+    result = subprocess.run(cmd, check=True, capture_output=True,env=ENV)
 
     if result.stdout:
         logger.logdebug(result.stdout.decode("utf-8"))
@@ -1083,7 +1083,8 @@ def novb2tile(files:List[AssetEntry],rangea_tdb:Path,n_procs:int=10) -> None:
     for file in files:
         cmd.append(str(file.local_path))
     logger.loginfo(f"Running NOVB2TILE on {len(files)} files")
-    result = subprocess.run(cmd, check=True, capture_output=True)
+
+    result = subprocess.run(cmd, check=True, capture_output=True,env=ENV)
 
     if result.stdout:
         logger.logdebug(result.stdout.decode("utf-8"))
@@ -1132,9 +1133,7 @@ def tile2rinex(rangea_tdb:Path,settings:Path,writedir:Path,time_interval:int=1,p
     with tempfile.TemporaryDirectory(dir="/tmp/") as workdir:
         # Use a temp dir so as to only return newly created rinex files
         cmd = [str(binary_path), "-tdb", str(rangea_tdb),"-settings",str(settings),"-timeint",str(time_interval),"-year",str(processing_year)]
-        print("Command")
-        print(" ".join(cmd))
-        result = subprocess.run(cmd, check=True, capture_output=True,cwd=workdir,env=env)
+        result = subprocess.run(cmd, check=True, capture_output=True,cwd=workdir,env=ENV)
 
         if result.stdout:
             logger.logdebug(result.stdout.decode("utf-8"))

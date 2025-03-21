@@ -6,11 +6,12 @@ import datetime
 from ..assets.file_schemas import AssetType,AssetEntry
 
 pattern_map = {
+    re.compile(r"\.\d{2}O$"): AssetType.RINEX,
     re.compile("sonardyne"): AssetType.SONARDYNE,
     re.compile(r"^(?=.*novatel)(?!.*pin).*$", re.IGNORECASE): AssetType.NOVATELPIN,
     re.compile(f"novatel"): AssetType.NOVATEL,
     re.compile("kin"): AssetType.KIN,
-    re.compile("NOV000") : AssetType.NOVATEL000,
+    re.compile("NOV000"): AssetType.NOVATEL000,
     # re.compile("rinex"): AssetType.RINEX,
     re.compile(r"\.\d{2}o$"): AssetType.RINEX,
     re.compile("NOV770"): AssetType.NOVATEL770,
@@ -20,7 +21,7 @@ pattern_map = {
     re.compile(r"\.pin$"): AssetType.QCPIN,
     re.compile("CTD"): AssetType.CTD,
     re.compile("svpavg"): AssetType.SEABIRD,
-    re.compile(r"\.res$"):AssetType.KINRESIDUALS
+    re.compile(r"\.res$"): AssetType.KINRESIDUALS,
 }
 
 def _get_time(line):
@@ -50,7 +51,6 @@ def _rinex_get_meta(data:AssetType) -> AssetType:
                 data.timestamp_data_end = end_time
                 break
     return data
-
 
 
 def get_file_type_local(file_path: Path) -> Union[AssetType, int]:

@@ -405,3 +405,5 @@ class TDBGNSSObsArray(TBDArray):
     def __init__(self,uri:Path|str):
         super().__init__(uri)
 
+    def get_unique_dates(self, field:str="time"):
+        return super().get_unique_dates(field)

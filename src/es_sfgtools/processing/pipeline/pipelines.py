@@ -200,59 +200,54 @@ class SV3Pipeline:
 
     def get_rinex_files(self) -> None:
 
-        gnss_logger.loginfo(f"Gathering Rinex Files for {self.network} {self.station} {self.campaign}. This may take a few minutes...")
-        parent_ids = f"N-{self.network}|ST-{self.station}|SV-{self.campaign}|TDB-{self.rangea_data_dest.uri}"
-        merge_signature = {
-            "parent_type": AssetType.RANGEATDB.value,
-            "child_type": AssetType.RINEX.value,
-            "parent_ids": [parent_ids],
-        }
+        gnss_logger.loginfo(f"Generating Rinex Files for {self.network} {self.station} {self.campaign}. This may take a few minutes...")
 
-        if self.config.rinex_config.override or not self.catalog.is_merge_complete(**merge_signature):
-            rinex_entries: List[AssetEntry] = gnss_ops.tile2rinex(
-                rangea_tdb=self.rangea_data_dest.uri,
-                settings=self.config.rinex_config.settings_path,
-                writedir=self.inter_dir,
-                time_interval=self.config.rinex_config.time_interval,
-                processing_year=0 # TODO pass down
+        unique_dates = self.rangea_data_dest.get_unique_dates().tolist()
+        unique_years = [x.year for x in unique_dates]
+        if hasattr(self.config, "start_date"):
+            unique_years = [x for x in unique_years if x >= self.config.start_date.year]
+        if hasattr(self.config, "end_date"):
+            unique_years = [x for x in unique_years if x <= self.config.end_date.year]
 
-            )
 
-            # If campaign start and end dates are set, filter out rinex assets that are outside of the range.
-            # TODO: Need to provide start/end date arguments to the golang code at some point
-            if hasattr(self.config, "start_date") and hasattr(
-                self.config, "end_date"
-            ):
-                rinex_entries = [
-                    rnx
-                    for rnx in rinex_entries
-                    if rnx.timestamp_data_start > self.config.start_date
-                    and rnx.timestamp_data_end > self.config.end_date
-                ]
-                merge_signature["parent_ids"].append(
-                    f"{self.config.start_date}|{self.config.end_date}"
+
+        for year in unique_years:
+            parent_ids = f"N-{self.network}|ST-{self.station}|SV-{self.campaign}|TDB-{self.rangea_data_dest.uri}|YEAR-{year}"
+            merge_signature = {
+                "parent_type": AssetType.RANGEATDB.value,
+                "child_type": AssetType.RINEX.value,
+                "parent_ids": [parent_ids],
+            }
+
+            if self.config.rinex_config.override or not self.catalog.is_merge_complete(**merge_signature):
+                rinex_entries: List[AssetEntry] = gnss_ops.tile2rinex(
+                    rangea_tdb=self.rangea_data_dest.uri,
+                    settings=self.config.rinex_config.settings_path,
+                    writedir=self.inter_dir,
+                    time_interval=self.config.rinex_config.time_interval,
+                    processing_year=year # TODO pass down
+
                 )
+                if len(rinex_entries) == 0:
+                    gnss_logger.loginfo(f"No Rinex Files Found to Process for {self.network} {self.station} {self.campaign}")
+                    return
 
-            if len(rinex_entries) == 0:
-                gnss_logger.loginfo(f"No Rinex Files Found to Process for {self.network} {self.station} {self.campaign}")
-                return
-
-            self.catalog.add_merge_job(**merge_signature)
-            # TODO: Sort the rinex entries by date so span log is correct
-            # currently gave "Generated 29 Rinex Entries spanning 2024-10-03 15:06:07 to 2024-09-30 15:53:07"
-            gnss_logger.loginfo(f"Generated {len(rinex_entries)} Rinex Entries spanning {rinex_entries[0].timestamp_data_start} to {rinex_entries[-1].timestamp_data_end}")
-            uploadCount = 0
-            for rinex_entry in rinex_entries:
-                rinex_entry.network = self.network
-                rinex_entry.station = self.station
-                rinex_entry.campaign = self.campaign
-                if self.catalog.add_entry(rinex_entry):
-                    uploadCount += 1
-            gnss_logger.loginfo(f"Added {uploadCount} out of {len(rinex_entries)} Rinex Entries to the catalog")
-        else:
-            rinex_entries = self.catalog.get_local_assets(self.network,self.station,self.campaign,AssetType.RINEX)
-            num_rinex_entries = len(rinex_entries)
-            gnss_logger.loginfo(f"Rinex Files Already Processed for {self.network} {self.station} {self.campaign}, Found {num_rinex_entries} Entries")
+                self.catalog.add_merge_job(**merge_signature)
+                # TODO: Sort the rinex entries by date so span log is correct
+                # currently gave "Generated 29 Rinex Entries spanning 2024-10-03 15:06:07 to 2024-09-30 15:53:07"
+                gnss_logger.loginfo(f"Generated {len(rinex_entries)} Rinex Entries spanning {rinex_entries[0].timestamp_data_start} to {rinex_entries[-1].timestamp_data_end}")
+                uploadCount = 0
+                for rinex_entry in rinex_entries:
+                    rinex_entry.network = self.network
+                    rinex_entry.station = self.station
+                    rinex_entry.campaign = self.campaign
+                    if self.catalog.add_entry(rinex_entry):
+                        uploadCount += 1
+                gnss_logger.loginfo(f"Added {uploadCount} out of {len(rinex_entries)} Rinex Entries to the catalog")
+            else:
+                rinex_entries = self.catalog.get_local_assets(self.network,self.station,self.campaign,AssetType.RINEX)
+                num_rinex_entries = len(rinex_entries)
+                gnss_logger.loginfo(f"Rinex Files Already Processed for {self.network} {self.station} {self.campaign}, Found {num_rinex_entries} Entries")
 
     def process_rinex(self) -> None:
         """
@@ -492,10 +487,26 @@ class PipelineProcessJob(BaseModel):
     campaign: str = Field(..., title="Campaign Name")
     config: SV3PipelineConfig = Field(..., title="Pipeline Configuration")
 
+class PipelineIngestJob(BaseModel):
+    network: str = Field(..., title="Network Name")
+    station: str = Field(..., title="Station Name")
+    campaign: str = Field(..., title="Campaign Name")
+    directory: Path = Field(...,title="Directory Data Path")
+
+    class Config:
+        arbitrary_types_allowed = True
+
+    @field_serializer("directory")
+    def _directory_s(cls,v:Path):
+        return str(v)
+    @field_validator("directory")
+    def _directory_v(cls,v:str):
+        return Path(v)
 
 class PipelineManifest(BaseModel):
     main_dir: Path = Field(..., title="Main Directory")
-    jobs: List[PipelineProcessJob] = Field(..., title="List of Pipeline Jobs")
+    ingestion_jobs: List[PipelineIngestJob] = Field(...,title='List of Pipeline Ingestion Jobs')
+    process_jobs: List[PipelineProcessJob] = Field(..., title="List of Pipeline Jobs")
     global_config: SV3PipelineConfig = Field(...,title="Global Config")
     class Config:
         arbitrary_types_allowed = True
@@ -505,21 +516,28 @@ class PipelineManifest(BaseModel):
         with open(filepath,"r") as f:
             data = yaml.safe_load(f)
 
-        config_loaded = SV3PipelineConfig(**data["config"])
-        jobs = []
+        config_loaded = SV3PipelineConfig(**data["global_config"])
+        process_jobs = []
+        ingestion_jobs = []
         for job in data["processing"]["jobs"]:
             job_config = SV3PipelineConfig(**job["config"])
             # update config_loaded with job_config
             job_config = config_loaded.model_copy(update=dict(job_config))
-            jobs.append(PipelineProcessJob(
+            process_jobs.append(PipelineProcessJob(
                 network=job["network"],
                 station=job["station"],
                 campaign=job["campaign"],
                 config=job_config)
             )
+        for job in data["ingestion"]["jobs"]:
+            ingestion_jobs.append(
+                PipelineIngestJob(**job)
+            )
+
         return cls(
             main_dir = Path(data["main_dir"]),
-            jobs = jobs,
+            process_jobs=process_jobs,
+            ingestion_jobs=ingestion_jobs,
             global_config = config_loaded
 
         )
