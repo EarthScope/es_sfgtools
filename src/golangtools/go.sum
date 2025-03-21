@@ -31,6 +31,8 @@ gitlab.com/earthscope/gnsstools v0.18.1 h1:/QjgpgcdhgkaAH9145SUhxaxFh7w1WlFmAU1k
 gitlab.com/earthscope/gnsstools v0.18.1/go.mod h1:DHORCkHnP+u1mpwm8YBOEulcSI4lMnNtkuOh1FcNdec=
 gitlab.com/earthscope/gnsstools v0.18.6 h1:wXpQidoZPKau3fyIz/fevh2krl7EU9V/poEL2P2mQ7Q=
 gitlab.com/earthscope/gnsstools v0.18.6/go.mod h1:DHORCkHnP+u1mpwm8YBOEulcSI4lMnNtkuOh1FcNdec=
+gitlab.com/earthscope/gnsstools v0.18.7 h1:Wv15GZxuvmBQSgGdYKYGAq3yyb0rcCY6qQpsxe9kNB8=
+gitlab.com/earthscope/gnsstools v0.18.7/go.mod h1:JfT14HlOgWSEmmkNQiXoZGSFxlIz2zefi4CFaZw3Pcc=
 go4.org/unsafe/assume-no-moving-gc v0.0.0-20231121144256-b99613f794b6 h1:lGdhQUN/cnWdSH3291CUuxSEqc+AsGTiDxPP3r2J0l4=
 go4.org/unsafe/assume-no-moving-gc v0.0.0-20231121144256-b99613f794b6/go.mod h1:FftLjUGFEDu5k8lt0ddY+HcrH/qU/0qk+H8j9/nTl3E=
 golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa h1:FRnLl4eNAQl8hwxVVC17teOw8kdjVDVAiFMtgUdTSRQ=

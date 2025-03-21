@@ -12,7 +12,7 @@ dependencies:
   - scikit-learn
   - gfortran
   - julian
-  - pandera
+  - pandera=0.20.3
   - pyarrow
   - pydantic
   # - libtiff

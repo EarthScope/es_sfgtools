@@ -93,7 +93,7 @@ class PrepSiteData(BaseModel):
     class Config:
         arbitrary_types_allowed = True
 
-    @model_serializer("inter_dir","rangea_data_dest","gnss_data_dest","shot_data_dest","pride_dir")
+    @field_serializer("inter_dir","rangea_data_dest","gnss_data_dest","shot_data_dest","pride_dir")
     def _s_path(self,v):
         if isinstance(v,Path):
             return str(v)
@@ -112,19 +112,21 @@ class SV3Pipeline:
         if self.catalog is None:
             self.catalog = Catalog(self.config.catalog_path)
 
-    @overload
-    def set_site_data(self,**kwargs) -> None:
+    def set_site_data(self,data:dict | PrepSiteData ) -> None:
         """
         Set the site data for the pipeline.
 
         Args:
             kwargs: Keyword arguments containing site data.
         """
-        site_data = PrepSiteData(**kwargs)
-        self.set_site_data(site_data)
+        if isinstance(data,dict):
+            site_data = PrepSiteData(**data)
+            self._set_site_data(site_data)
+            return
+        elif isinstance(data,PrepSiteData):
+            self._set_site_data(data)
 
-    @overload
-    def set_site_data(self,site_data:PrepSiteData) -> None:
+    def _set_site_data(self,site_data:PrepSiteData) -> None:
         """
         Set the site data for the pipeline.
 
@@ -136,7 +138,7 @@ class SV3Pipeline:
         self.campaign = site_data.campaign
         self.inter_dir = site_data.inter_dir
         self.pride_dir = site_data.pride_dir
-        self.rangea_data_dest = site_data.rangea_data_dest
+        self.rangea_data_dest = TDBGNSSObsArray(site_data.rangea_data_dest)
         self.gnss_data_dest = TDBGNSSArray(site_data.gnss_data_dest)
         self.shot_data_dest = TDBShotDataArray(site_data.shot_data_dest)
 
@@ -211,13 +213,16 @@ class SV3Pipeline:
                 rangea_tdb=self.rangea_data_dest.uri,
                 settings=self.config.rinex_config.settings_path,
                 writedir=self.inter_dir,
-                n_procs=self.config.rinex_config.n_processes,
+                time_interval=self.config.rinex_config.time_interval,
+                processing_year=0 # TODO pass down
 
             )
 
-            # If campaign start and end dates are set, filter out rinex assets that are outside of the range. 
+            # If campaign start and end dates are set, filter out rinex assets that are outside of the range.
             # TODO: Need to provide start/end date arguments to the golang code at some point
-            if self.config.start_date != None and self.config.end_date != None:
+            if hasattr(self.config, "start_date") and hasattr(
+                self.config, "end_date"
+            ):
                 rinex_entries = [
                     rnx
                     for rnx in rinex_entries
@@ -299,7 +304,7 @@ class SV3Pipeline:
             writedir=self.inter_dir,
             pridedir=self.pride_dir,
             site = self.station,
-            pride_config=self.config.rinex_config.pride_config,
+            pride_config=self.config.pride_config,
         )
         kin_entries = []
         resfile_entries = []
@@ -374,7 +379,6 @@ class SV3Pipeline:
 
         response = f"Generated {count} GNSS Dataframes From {len(kin_entries)} Kin Files, Added {uploadCount} to the Catalog"
         gnss_logger.loginfo(response)
-
 
     def process_dfop00(self) -> None:
 
@@ -481,3 +485,41 @@ class SV2Pipeline:
             logger.loginfo(response)
             # if self.config.novatel_config.show_details:
             #     print(response)
+
+class PipelineProcessJob(BaseModel):
+    network: str = Field(..., title="Network Name")
+    station: str = Field(..., title="Station Name")
+    campaign: str = Field(..., title="Campaign Name")
+    config: SV3PipelineConfig = Field(..., title="Pipeline Configuration")
+
+
+class PipelineManifest(BaseModel):
+    main_dir: Path = Field(..., title="Main Directory")
+    jobs: List[PipelineProcessJob] = Field(..., title="List of Pipeline Jobs")
+    global_config: SV3PipelineConfig = Field(...,title="Global Config")
+    class Config:
+        arbitrary_types_allowed = True
+    
+    @classmethod
+    def from_yaml(cls,filepath:Path) -> 'PipelineManifest':
+        with open(filepath,"r") as f:
+            data = yaml.safe_load(f)
+
+        config_loaded = SV3PipelineConfig(**data["config"])
+        jobs = []
+        for job in data["processing"]["jobs"]:
+            job_config = SV3PipelineConfig(**job["config"])
+            # update config_loaded with job_config
+            job_config = config_loaded.model_copy(update=dict(job_config))
+            jobs.append(PipelineProcessJob(
+                network=job["network"],
+                station=job["station"],
+                campaign=job["campaign"],
+                config=job_config)
+            )
+        return cls(
+            main_dir = Path(data["main_dir"]),
+            jobs = jobs,
+            global_config = config_loaded
+
+        )

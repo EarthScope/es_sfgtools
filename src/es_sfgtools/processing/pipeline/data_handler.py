@@ -21,7 +21,7 @@ from es_sfgtools.utils.archive_pull import download_file_from_archive
 from es_sfgtools.processing.assets.file_schemas import AssetEntry, AssetType
 from es_sfgtools.processing.assets.tiledb_temp import TDBAcousticArray,TDBGNSSArray,TDBPositionArray,TDBShotDataArray,TDBGNSSObsArray
 from es_sfgtools.processing.pipeline.catalog import Catalog
-from es_sfgtools.processing.pipeline.pipelines import SV3Pipeline, SV3PipelineConfig
+from es_sfgtools.processing.pipeline.pipelines import SV3Pipeline, SV3PipelineConfig,PrepSiteData
 from es_sfgtools.processing.operations.gnss_ops import get_metadata,get_metadatav2
 from es_sfgtools.processing.pipeline.constants import REMOTE_TYPE, FILE_TYPES
 from es_sfgtools.processing.pipeline.datadiscovery import scrape_directory_local, get_file_type_local, get_file_type_remote
@@ -530,20 +530,20 @@ class DataHandler:
         """
         
        
-        config = SV3PipelineConfig(network=self.network, 
-                                 station=self.station, 
-                                 campaign=self.campaign,
-                                 inter_dir=self.inter_dir,
-                                 pride_dir=self.pride_dir,
-                                 shot_data_dest=self.shotdata_tdb,
-                                 gnss_data_dest=self.gnss_tdb,
-                                 rangea_data_dest=self.rangea_tdb,
-                                 catalog_path=self.db_path,
-                                 start_date=self.date_range[0],
-                                 end_date=self.date_range[1])
+        config = SV3PipelineConfig()
         config.rinex_config.settings_path = self.rinex_metav2
         pipeline = SV3Pipeline(catalog=self.catalog, config=config)
-
+        site_data = PrepSiteData(
+            network=self.network,
+            station=self.station,
+            campaign=self.campaign,
+            inter_dir=self.inter_dir,
+            pride_dir=self.pride_dir,
+            shot_data_dest=self.shotdata_tdb.uri,
+            gnss_data_dest=self.gnss_tdb.uri,
+            rangea_data_dest=self.rangea_tdb.uri
+        )
+        pipeline.set_site_data(site_data)
         return pipeline, config
     
     @check_network_station_campaign

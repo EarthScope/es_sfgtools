@@ -27,6 +27,12 @@ from .pride_utils import get_nav_file,get_gnss_products
 
 from es_sfgtools.utils.loggers import GNSSLogger as logger
 
+
+env = os.environ.copy()
+env["DYLD_LIBRARY_PATH"] = env["CONDA_PREFIX"] + os.pathsep + "lib"
+env["LD_LIBRARY_PATH"] = env["DYLD_LIBRARY_PATH"]
+os.environ = env 
+
 RINEX_BINARIES = "src/golangtools/build"
 SELF_PATH = Path(__file__).resolve()
 # find src
@@ -217,12 +223,12 @@ class PridePdpConfig(BaseModel):
     frequency: list = ["G12", "R12", "E15", "C26", "J12"]
     loose_edit: bool = True 
     cutoff_elevation: int = 7
-    start: datetime = None
-    end: datetime = None
-    interval: float = None
-    high_ion: bool = None
+    start: Optional[datetime] = None
+    end: Optional[datetime] = None
+    interval: Optional[float] = None
+    high_ion: Optional[bool] = None
     tides: str = "SOP"
-    local_pdp3_path: str = None
+    local_pdp3_path: Optional[str] = None
 
     def __post_init__(self):
         # Check if system is valid
@@ -298,7 +304,7 @@ def get_metadatav2(
     # TODO: these are placeholder values, need to use real metadata
 
     return {
-        "rinex_version": 2.11,
+        "rinex_version": "2.11",
         "rinex_type": "O",
         "rinex_system": "G",
         "marker_name": site,
@@ -1120,12 +1126,15 @@ def tile2rinex(rangea_tdb:Path,settings:Path,writedir:Path,time_interval:int=1,p
     if not binary_path:
         raise FileNotFoundError(f"TILE2RINEX binary not found for {system} {arch}")
 
+    env = os.environ.copy()
+    env["DYLD_LIBRARY_PATH"] = env["CONDA_PREFIX"] + "/lib"
+
     with tempfile.TemporaryDirectory(dir="/tmp/") as workdir:
         # Use a temp dir so as to only return newly created rinex files
         cmd = [str(binary_path), "-tdb", str(rangea_tdb),"-settings",str(settings),"-timeint",str(time_interval),"-year",str(processing_year)]
         print("Command")
         print(" ".join(cmd))
-        result = subprocess.run(cmd, check=True, capture_output=True,cwd=workdir)
+        result = subprocess.run(cmd, check=True, capture_output=True,cwd=workdir,env=env)
 
         if result.stdout:
             logger.logdebug(result.stdout.decode("utf-8"))
