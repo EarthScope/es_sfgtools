@@ -287,6 +287,14 @@ class TBDArray:
                 print(e)
                 return None
 
+    def consolidate(self):
+        ctx = tiledb.Ctx()
+        config = tiledb.Config()
+        config["sm.consolidation.steps"] = 3
+        uri = tiledb.consolidate(uri=str(self.uri),ctx=ctx,config=config)
+        print(f"Consolidate to {uri}")
+        tiledb.vacuum(str(self.uri))
+
     def view(self, network: str = "", station: str = ""):
         dates = self.get_unique_dates()
         if dates.shape[0] == 0:
@@ -405,5 +413,12 @@ class TDBGNSSObsArray(TBDArray):
     def __init__(self,uri:Path|str):
         super().__init__(uri)
 
-    def get_unique_dates(self, field:str="time"):
-        return super().get_unique_dates(field)
+    def get_unique_dates(self, field: str="time") -> np.ndarray:
+        with tiledb.open(str(self.uri), mode="r") as array:
+            values = array[:][field]
+            try:
+                values = values.astype("datetime64[ms]")
+                return np.unique(values)
+            except Exception as e:
+                print(e)
+                return None

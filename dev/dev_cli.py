@@ -24,7 +24,7 @@ if __name__ == "__main__":
     # config.to_yaml(yaml_path)
 
     manifest_path = Path(
-        "/Users/franklyndunbar/Project/SeaFloorGeodesy/es_sfgtools/dev/pre-proc-manifest.yaml"
+        "/Users/franklyndunbar/Project/SeaFloorGeodesy/es_sfgtools/app/pre-proc-manifest.yaml"
     )
 
     manifest_object = PipelineManifest.from_yaml(manifest_path)

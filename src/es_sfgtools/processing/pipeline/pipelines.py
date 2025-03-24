@@ -12,6 +12,7 @@ import signal
 from pydantic import BaseModel, Field, ValidationError,model_serializer,field_serializer,field_validator,validator
 import yaml
 import concurrent.futures
+import numpy as np 
 
 from es_sfgtools.processing.pipeline.catalog import Catalog
 from es_sfgtools.processing.assets.file_schemas import AssetEntry,AssetType
@@ -199,11 +200,11 @@ class SV3Pipeline:
             return
 
     def get_rinex_files(self) -> None:
-
+        self.rangea_data_dest.consolidate()
         gnss_logger.loginfo(f"Generating Rinex Files for {self.network} {self.station} {self.campaign}. This may take a few minutes...")
 
         unique_dates = self.rangea_data_dest.get_unique_dates().tolist()
-        unique_years = [x.year for x in unique_dates]
+        unique_years = np.unique([x.year for x in unique_dates]).tolist()
         if hasattr(self.config, "start_date"):
             unique_years = [x for x in unique_years if x >= self.config.start_date.year]
         if hasattr(self.config, "end_date"):
