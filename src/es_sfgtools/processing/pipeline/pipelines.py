@@ -504,14 +504,20 @@ class PipelineIngestJob(BaseModel):
     def _directory_v(cls,v:str):
         return Path(v)
 
+class ArchiveDownloadJob(BaseModel):
+    network: str = Field(..., title="Network Name")
+    station: str = Field(..., title="Station Name")
+    campaign: str = Field(..., title="Campaign Name")
+
 class PipelineManifest(BaseModel):
     main_dir: Path = Field(..., title="Main Directory")
     ingestion_jobs: List[PipelineIngestJob] = Field(...,title='List of Pipeline Ingestion Jobs')
     process_jobs: List[PipelineProcessJob] = Field(..., title="List of Pipeline Jobs")
+    download_jobs: Optional[List[ArchiveDownloadJob]] = Field(...,title='List of Archive Download Jobs')
     global_config: SV3PipelineConfig = Field(...,title="Global Config")
     class Config:
         arbitrary_types_allowed = True
-    
+
     @classmethod
     def from_yaml(cls,filepath:Path) -> 'PipelineManifest':
         with open(filepath,"r") as f:
@@ -520,6 +526,8 @@ class PipelineManifest(BaseModel):
         config_loaded = SV3PipelineConfig(**data["global_config"])
         process_jobs = []
         ingestion_jobs = []
+        download_jobs = []
+
         for job in data["processing"]["jobs"]:
             job_config = SV3PipelineConfig(**job["config"])
             # update config_loaded with job_config
@@ -535,10 +543,19 @@ class PipelineManifest(BaseModel):
                 PipelineIngestJob(**job)
             )
 
+        for job in data["download"]["jobs"]:
+            download_jobs.append(
+                ArchiveDownloadJob(
+                    network=job["network"],
+                    station=job["station"],
+                    campaign=job["campaign"]
+                )
+            )
         return cls(
             main_dir = Path(data["main_dir"]),
             process_jobs=process_jobs,
             ingestion_jobs=ingestion_jobs,
+            download_jobs=download_jobs,
             global_config = config_loaded
 
         )

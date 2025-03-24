@@ -1,4 +1,5 @@
 from es_sfgtools.processing.pipeline.pipelines import SV3PipelineConfig,PipelineManifest,SV3Pipeline
+from es_sfgtools.utils.archive_pull import list_survey_files
 from pathlib import Path
 from es_sfgtools.processing.pipeline.data_handler import DataHandler
 import os
@@ -35,6 +36,14 @@ if __name__ == "__main__":
         assert ingest_job.directory.exists(), "Directory listed does not exist"
         dh.discover_data_and_add_files(ingest_job.directory)
 
+    for job in manifest_object.download_jobs:
+        urls = list_survey_files(**job.model_dump())
+        if not urls:
+            print(f"No Remote Assets Found For {job.model_dump()}")
+        dh.change_working_station(**job.model_dump())
+        dh.add_data_remote(remote_filepaths=urls)
+        dh.download_data()
+        
     for job in manifest_object.process_jobs:
         dh.change_working_station(network=job.network,station=job.station,campaign=job.campaign)
         pipeline,config = dh.get_pipeline_sv3()

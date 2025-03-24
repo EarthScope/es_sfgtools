@@ -7,6 +7,12 @@ ingestion:
       campaign: 2023_from_john
       directory: /Users/franklyndunbar/Project/SeaFloorGeodesy/Data/Cascadia2023/NDP1/HR
 
+download: 
+  jobs:
+    - network: cascadia-gorda
+      station: GCC1 
+      campaign: 2023_A_1063
+  
 
 processing:
   jobs:
@@ -17,7 +23,7 @@ processing:
         rinex_config:
           time_interval: 24
           override: false
-          
+
     - network: cascadia-gorda
       station: NCC1
       campaign: 2024_A_1126
@@ -32,7 +38,7 @@ processing:
       config:
         rinex_config:
           time_interval: 24
-          override: true
+          override: false
           
 
 

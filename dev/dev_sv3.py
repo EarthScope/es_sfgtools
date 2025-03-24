@@ -24,7 +24,7 @@ if __name__ == "__main__":
     
     dh.change_working_station(network=network,station=station,campaign=campaign)
     
-    survey_files = list_survey_files(network=network, station=station, survey=campaign, show_details=True)
+    survey_files = list_survey_files(network=network, station=station, campaign=campaign, show_details=True)
     dh.add_data_remote(survey_files)
     dh.download_data()
      
