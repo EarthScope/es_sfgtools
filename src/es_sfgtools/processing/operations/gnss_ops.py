@@ -245,10 +245,13 @@ class PridePdpConfig(BaseModel):
                 Tides.print_options()
                 raise ValueError(f"Invalid tide character: {char}")
 
-    def generate_pdp_command(self, site: str, local_file_path: str) -> List[str]:
+    def generate_pdp_command(self, site: str, local_file_path: str,start:datetime,end:datetime) -> List[str]:
         """
         Generate the command to run pdp3 with the given parameters
         """
+
+        self.start = start if start is not None else self.start
+        self.end = end if end is not None else self.end
 
         if self.local_pdp3_path:
             if 'pdp3' in self.local_pdp3_path:
@@ -275,10 +278,10 @@ class PridePdpConfig(BaseModel):
             command.extend(["--cutoff-elev", str(self.cutoff_elevation)])
 
         if self.start:
-            command.extend(["--start", self.start.strftime("%Y/%m/%d %H:%M:%S")])
+            command.extend(["--start", self.start.strftime("%Y-%m-%d %H:%M:%S")])
 
         if self.end:
-            command.extend(["--end", self.end.strftime("%Y/%m/%d %H:%M:%S")])
+            command.extend(["--end", self.end.strftime("%Y-%m-%d %H:%M:%S")])
 
         if self.interval:
             command.extend(["--interval", str(self.interval)])
@@ -398,7 +401,15 @@ def rinex_get_meta(source:AssetEntry) ->AssetEntry:
                             source.timestamp_data_end = current_date
                     except Exception as e:
                         pass
-
+    if source.timestamp_data_start is not None and source.timestamp_data_end == source.timestamp_data_start:
+        source.timestamp_data_end = datetime(
+            year=source.timestamp_data_start.year,
+            month=source.timestamp_data_start.month,
+            day=source.timestamp_data_start.day,
+            hour=23,
+            minute=59,
+            second=59,
+        )
     return source
 
 
@@ -657,7 +668,9 @@ def rinex_to_kin(
     if pride_config is None:
         pride_config = PridePdpConfig()
     pdp_command = pride_config.generate_pdp_command(site=site, 
-                                                        local_file_path=source.local_path)
+                                                        local_file_path=source.local_path,
+                                                        start=source.timestamp_data_start,
+                                                        end=source.timestamp_data_end)
 
     # Run pdp3 in the pride directory
     result = subprocess.run(
@@ -706,7 +719,7 @@ def rinex_to_kin(
 
     if kin_file_path.exists():
         kin_file_new = writedir / (kin_file_path.name + ".kin")
-        shutil.copy(src=kin_file_path,dst=kin_file_new)
+        shutil.move(src=kin_file_path,dst=kin_file_new)
         kin_file = AssetEntry(
             type=AssetType.KIN,
             parent_id=source.id,

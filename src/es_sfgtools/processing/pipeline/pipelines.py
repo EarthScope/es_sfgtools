@@ -511,9 +511,9 @@ class ArchiveDownloadJob(BaseModel):
 
 class PipelineManifest(BaseModel):
     main_dir: Path = Field(..., title="Main Directory")
-    ingestion_jobs: List[PipelineIngestJob] = Field(...,title='List of Pipeline Ingestion Jobs')
-    process_jobs: List[PipelineProcessJob] = Field(..., title="List of Pipeline Jobs")
-    download_jobs: Optional[List[ArchiveDownloadJob]] = Field(...,title='List of Archive Download Jobs')
+    ingestion_jobs: List[PipelineIngestJob] = Field(default=[],title='List of Pipeline Ingestion Jobs')
+    process_jobs: List[PipelineProcessJob] = Field(default=[], title="List of Pipeline Jobs")
+    download_jobs: Optional[List[ArchiveDownloadJob]] = Field(default=[],title='List of Archive Download Jobs')
     global_config: SV3PipelineConfig = Field(...,title="Global Config")
     class Config:
         arbitrary_types_allowed = True
@@ -528,7 +528,7 @@ class PipelineManifest(BaseModel):
         ingestion_jobs = []
         download_jobs = []
 
-        for job in data["processing"]["jobs"]:
+        for job in data.get("processing",{}).get("jobs",[]):
             job_config = SV3PipelineConfig(**job["config"])
             # update config_loaded with job_config
             job_config = config_loaded.model_copy(update=dict(job_config))
@@ -538,12 +538,12 @@ class PipelineManifest(BaseModel):
                 campaign=job["campaign"],
                 config=job_config)
             )
-        for job in data["ingestion"]["jobs"]:
+        for job in data.get("ingestion",{}).get("jobs",[]):
             ingestion_jobs.append(
                 PipelineIngestJob(**job)
             )
 
-        for job in data["download"]["jobs"]:
+        for job in data.get("download",{}).get("jobs",[]):
             download_jobs.append(
                 ArchiveDownloadJob(
                     network=job["network"],
