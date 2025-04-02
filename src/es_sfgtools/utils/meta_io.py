@@ -2,8 +2,9 @@ from typing import Union
 from pathlib import Path
 import re
 from datetime import datetime
+import yaml
 from .metadata.vessel import AtdOffset
-from .metadata.site import Site
+from .metadata.site import Site, ArrayCenter
 from .metadata.benchmark import Location, Benchmark, Transponder,TAT
 
 STATION_OFFSETS = {"5209": 200, "5210": 320, "5211": 440, "5212": 560}
@@ -82,7 +83,7 @@ def masterfile_to_siteconfig(
 
 
 def leverarmfile_to_atdoffset(
-    source: Union[str, Path], show_details: bool = True
+    source: Union[str, Path]
 ) -> AtdOffset:
     """
     Read the ATD offset from a "lever_arms" file
@@ -102,3 +103,53 @@ def leverarmfile_to_atdoffset(
 
     return AtdOffset(x=forward, y=rightward, z=downward)
 
+def update_from_yaml(site:Site, source: Union[str, Path]):
+    """
+    Update the Site instance with data from a YAML file.
+
+    Args:
+        yaml_file (Union[str, Path]): Path to the YAML file containing site metadata.
+    """
+    with open(source, "r") as file:
+        data = yaml.safe_load(file)
+
+    # Update site attributes
+    site.names = [data.get("site_id", site.names[0] if site.names else None)]
+    site.networks = [
+        data.get("campaign", site.networks[0] if site.networks else None)
+    ]
+    site.timeOrigin = datetime.fromisoformat(
+        data.get(
+            "time_origin", site.timeOrigin.isoformat() if site.timeOrigin else None
+        )
+    )
+
+    # Update array center
+    if "array_center" in data:
+        site.arrayCenter = ArrayCenter(
+            x=data["array_center"].get(
+                "lat", site.arrayCenter.x if site.arrayCenter else None
+            ),
+            y=data["array_center"].get(
+                "lon", site.arrayCenter.y if site.arrayCenter else None
+            ),
+            z=None,  # Assuming no z-coordinate in the YAML file
+        )
+
+    # Update transponders
+    if "transponders" in data:
+        site.benchmarks = []
+        for transponder_data in data["transponders"]:
+            transponder = Transponder(
+                lat=transponder_data["lat"],
+                lon=transponder_data["lon"],
+                height=transponder_data["height"],
+                internal_delay=transponder_data["internal_delay"],
+                sv_mean=transponder_data["sv_mean"],
+                pxp_id=transponder_data["pxp_id"],
+            )
+            benchmark = Benchmark(
+                name=transponder_data["pxp_id"],
+                transponders=[transponder],
+            )
+            site.benchmarks.append(benchmark)
