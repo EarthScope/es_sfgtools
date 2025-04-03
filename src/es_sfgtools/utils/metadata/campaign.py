@@ -1,16 +1,23 @@
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
-from es_sfgtools.utils.metadata.utils import AttributeUpdater, convert_to_datetime
+from es_sfgtools.utils.metadata.utils import (
+    AttributeUpdater,
+    check_dates,
+    check_fields_for_empty_strings,
+    parse_datetime,
+)
+from pydantic import BaseModel, Field, field_validator
+
 
 def campaign_checks(campaign_year, campaign_interval, vessel_code):
-    """ Check the campaign year, interval and vessel code 
-    
+    """Check the campaign year, interval and vessel code
+
     Args:
         campaign_year (str): The campaign year.
         campaign_interval (str): The campaign interval.
         vessel_code (str): The vessel code.
-        
+
     Returns:
         str: The campaign name.
         str: The vessel code.
@@ -21,141 +28,102 @@ def campaign_checks(campaign_year, campaign_interval, vessel_code):
         raise ValueError("Campaign interval must be a single letter")
     if not len(vessel_code) == 4:
         raise ValueError("Vessel code must be a 4 digit/letter code")
-    
-    campaign_name = campaign_year + "_" + campaign_interval.upper() + "_" + vessel_code.upper()
-    
+
+    campaign_name = (
+        campaign_year + "_" + campaign_interval.upper() + "_" + vessel_code.upper()
+    )
+
     print("Campaign name: " + campaign_name)
-    return campaign_name,  vessel_code.upper()
+    return campaign_name, vessel_code.upper()
 
 
-class Survey(AttributeUpdater):
-    def __init__(self, survey_id: str= None, additional_data: Dict[str, Any] = None, existing_survey: Dict[str, Any] = None):
-        if existing_survey:
-            self.import_existing_survey(existing_survey)
-            return
-        
-        self.survey_id = survey_id
-        self.type: str = ""
-        self.benchmarkIDs: List[str] = []
-        self.start: datetime = None
-        self.end: datetime = None
-        self.notes: str = ""
-        self.commands: str = ""
+class Survey(AttributeUpdater, BaseModel):
+    # Required
+    id: str = Field(
+        ..., description="The unique ID of the survey"
+    )  # Todo generate this
+    type: str = Field(
+        ..., description="The type of the survey (e.g. circle | fixed point | mixed)"
+    )
+    benchmarkIDs: List[str] = Field(
+        ..., description="Benchmark IDs associated with the survey"
+    )
+    start: datetime = Field(
+        ..., description="The start date & time of the survey", gt=datetime(1901, 1, 1)
+    )
+    end: datetime = Field(
+        ..., description="The end date & time of the survey", gt=datetime(1901, 1, 1)
+    )
 
-        if additional_data:
-            self.update_attributes(additional_data)
+    # Optional
+    notes: Optional[str] = Field(
+        default=None, description="Any additional notes about the survey"
+    )
+    commands: Optional[str] = Field(default=None, description="Log of commands")
 
-    def import_existing_survey(self, existing_survey: Dict[str, Any]):
-        """
-        Import an existing survey from a dictionary.
-
-        Args:
-            existing_survey (Dict[str, Any]): A dictionary containing the existing survey data.
-        """
-        self.survey_id = existing_survey.get("id", "")
-        self.type = existing_survey.get("type", "")
-        self.benchmarkIDs = existing_survey.get("benchmarkIDs", [])
-        start_time = existing_survey.get("start", "")
-        if start_time:
-            self.start = convert_to_datetime(start_time)
-        else:
-            self.start = None
-
-        end_time = existing_survey.get("end", "")
-        if end_time:
-            self.end = convert_to_datetime(end_time)
-        else:
-            self.end = None
-
-        self.notes = existing_survey.get("notes", "")
-        self.commands = existing_survey.get("commands", "")
-
-    def to_dict(self) -> Dict[str, Any]:
-        """
-        Convert the Survey instance to a dictionary.
-
-        Returns:
-            Dict[str, Any]: A dictionary representation of the Survey instance.
-        """
-        return {
-            "id": self.survey_id,
-            "type": self.type if self.type else "",
-            "benchmarkIDs": self.benchmarkIDs if self.benchmarkIDs else [],
-            "start": self.start.strftime('%Y-%m-%dT%H:%M:%S') if self.start else "",
-            "end": self.end.strftime('%Y-%m-%dT%H:%M:%S') if self.end else "",
-            "notes": self.notes if self.notes else "",
-            "commands": self.commands if self.commands else ""
-        }
+    _parse_datetime = field_validator("start", "end", mode="before")(parse_datetime)
+    _check_dates = field_validator("end", mode="after")(check_dates)
+    _check_for_empty_strings = field_validator("notes", "commands")(
+        check_fields_for_empty_strings
+    )
 
 
-class Campaign(AttributeUpdater):
+class Campaign(AttributeUpdater, BaseModel):
+    # Required
+    name: str = Field(
+        ..., description="The name of the campaign in the format YYYY_A_VVVV"
+    )
+    type: str = Field(
+        ..., description="The type of the campaign (deploy | measure | etc)"
+    )
+    vesselCode: str = Field(
+        ...,
+        description="The 4 digit vessel code, associated with a vessel metadata file",
+    )
+    start: datetime = Field(
+        ...,
+        description="The start date & time of the campaign",
+        gt=datetime(1901, 1, 1),
+    )
+    end: datetime = Field(
+        ..., description="The end date & time of the campaign", gt=datetime(1901, 1, 1)
+    )
 
-    def __init__(self, name: str = None, additional_data: Dict[str, Any] = None, existing_campaign: dict = None):
-        self.vesselCode: str = ""
-        self.type: str = ""
-        self.principalInvestigator: str = ""
-        self.launchVesselName: str = ""
-        self.recoveryVesselName: str = ""
-        self.cruiseName: str = ""
-        self.technicianName: str = ""
-        self.technicianContact: str = ""
-        self.start: datetime = None
-        self.end: datetime = None
-        self.surveys: List[Survey] = []
-        
-        if existing_campaign:
-            self.import_existing_campaign(existing_campaign)
-            return 
-        
-        self.name = name
+    # Optional
+    principalInvestigator: Optional[str] = Field(default=None)
+    launchVesselName: Optional[str] = Field(default=None)
+    recoveryVesselName: Optional[str] = Field(default=None)
+    cruiseName: Optional[str] = Field(default=None)
+    technicianName: Optional[str] = Field(default=None)
+    technicianContact: Optional[str] = Field(default=None)
+    surveys: List[Survey] = Field(default_factory=list)
 
-        if additional_data:
-            self.update_attributes(additional_data)
+    _parse_datetime = field_validator("start", "end", mode="before")(parse_datetime)
+    _check_dates = field_validator("end", mode="after")(check_dates)
+    _check_for_empty_strings = field_validator(
+        "principalInvestigator",
+        "launchVesselName",
+        "recoveryVesselName",
+        "cruiseName",
+        "technicianName",
+        "technicianContact",
+    )(check_fields_for_empty_strings)
 
-    def import_existing_campaign(self, existing_campaign: dict):
-        self.name = existing_campaign.get("name", "")
-        self.vesselCode = existing_campaign.get("vesselCode", "")
-        self.type = existing_campaign.get("type", "")
-        self.principalInvestigator = existing_campaign.get("principalInvestigator", "")
-        self.launchVesselName = existing_campaign.get("launchVesselName", "")
-        self.recoveryVesselName = existing_campaign.get("recoveryVesselName", "")
-        self.cruiseName = existing_campaign.get("cruiseName", "")
-        self.technicianName = existing_campaign.get("technicianName", "")
-        self.technicianContact = existing_campaign.get("technicianContact", "")
+    def check_survey_times(self):
+        """Check that survey times do not overlap with each other"""
+        # TODO test this
 
-        start = existing_campaign.get("start", "")
-        if start:
-            self.start = convert_to_datetime(start)
-        else:
-            self.start = None
+        # Sort surveys by start time
+        sorted_surveys = sorted(self.surveys, key=lambda survey: survey.start)
 
-        end = existing_campaign.get("end", "")
-        if end:
-            self.end = convert_to_datetime(end)
-        else:
-            self.end = None
+        # Check for overlapping times
+        for i in range(len(sorted_surveys) - 1):
+            current_survey = sorted_surveys[i]
+            next_survey = sorted_surveys[i + 1]
 
-        self.surveys = [Survey(survey_id=survey["id"], existing_survey=survey ) for survey in existing_campaign["surveys"]]
+            if current_survey.end > next_survey.start:
+                raise ValueError(
+                    f"Survey times overlap: {current_survey.id} ends at {current_survey.end} and {next_survey.id} starts at {next_survey.start}"
+                )
 
-
-    def to_dict(self) -> Dict[str, Any]:
-        """
-        Convert the Campaign instance to a dictionary.
-
-        Returns:
-            Dict[str, Any]: A dictionary representation of the Campaign instance.
-        """
-        return {
-            "name": self.name,
-            "vesselCode": self.vesselCode,
-            "type": self.type if self.type else "",
-            "launchVesselName": self.launchVesselName if self.launchVesselName else "",
-            "recoveryVesselName": self.recoveryVesselName if self.recoveryVesselName else "",
-            "cruiseName": self.cruiseName if self.cruiseName else "",
-            "technicianName": self.technicianName if self.technicianName else "",
-            "technicianContact": self.technicianContact if self.technicianContact else "",
-            "start": self.start.strftime('%Y-%m-%dT%H:%M:%S') if self.start else "",
-            "end": self.end.strftime('%Y-%m-%dT%H:%M:%S') if self.end else "",
-            "surveys": [survey.to_dict() for survey in self.surveys]    
-        }
-
+        print("No overlapping survey times found.")
