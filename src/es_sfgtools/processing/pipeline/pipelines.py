@@ -25,7 +25,7 @@ from es_sfgtools.processing.assets.tiledb_temp import (
     TDBShotDataArray,
     TDBGNSSObsArray
 )
-from es_sfgtools.processing.assets.tiledb_temp import TDBAcousticArray,TDBGNSSArray,TDBPositionArray,TDBShotDataArray
+from es_sfgtools.processing.assets.tiledb_temp import TDBAcousticArray,TDBGNSSArray,TDBPositionArray,TDBShotDataArray,TDBGNSSObsArray
 from es_sfgtools.processing.operations.utils import (
     get_merge_signature_shotdata,
     merge_shotdata_gnss,
@@ -43,6 +43,7 @@ class RinexConfig(BaseModel):
     override_products_download: bool = Field(False, title="Flag to Override Existing Products Download")
     n_processes: int = Field(default_factory=cpu_count, title="Number of Processes to Use")
     settings_path: Optional[Path] = Field("", title="Settings Path")
+    time_interval: Optional[int] = Field(1, title="Tile to Rinex Time Interval [s]")
     class Config:
         arbitrary_types_allowed = True
     @field_serializer("settings_path")
@@ -80,7 +81,9 @@ class SV3PipelineConfig(BaseModel):
         title = "SV3 Pipeline Configuration"
         arbitrary_types_allowed = True
 
-    @field_serializer("gnss_data_dest","shot_data_dest", "rangea_data_dest")
+
+    @field_serializer("gnss_data_dest","shot_data_dest","rangea_data_dest")
+
     def _s_shotdata(self,v):
         return str(v.uri)
     # @field_serializer("shot_data_dest")
@@ -201,7 +204,9 @@ class SV3Pipeline:
                 rangea_tdb=self.config.rangea_data_dest.uri,
                 settings=self.config.rinex_config.settings_path,
                 writedir=self.config.inter_dir,
-                n_procs=self.config.rinex_config.n_processes,
+                time_interval=self.config.rinex_config.time_interval,
+                processing_year=self.config.start_date.year if self.config.start_date is not None else 0,
+                
             )
 
             # If campaign start and end dates are set, filter out rinex assets that are outside of the range. 
