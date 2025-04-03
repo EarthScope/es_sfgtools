@@ -120,6 +120,22 @@ class Transponder(AttributeUpdater, BaseModel):
     _parse_datetime = field_validator("start", "end", mode="before")(parse_datetime)
     _check_dates = field_validator("end")(check_dates)
 
+    def get_tat(self, datetime: datetime) -> Optional[float]:
+        """
+        Get the turn around time (TAT) for a given date and time.
+        If no TAT is found, return None.
+        """
+        for tat in self.tat:
+            if tat.timeIntervals:
+                for interval in tat.timeIntervals:
+                    start = parse_datetime(self, interval["start"])
+                    end = parse_datetime(self, interval["end"])
+                    if start <= datetime <= end:
+                        return tat.value
+            else:
+                return tat.value
+        return None
+
 
 class Benchmark(AttributeUpdater, BaseModel):
     # Required
