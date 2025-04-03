@@ -179,8 +179,8 @@ class GarposHandler:
                 self.current_campaign_dir = self.working_dir / self.current_campaign.name
                 self.current_campaign_dir.mkdir(exist_ok=True)
                 self.coord_transformer = CoordTransformer(
-                    latitude=self.site.arrayCenter.y,
-                    longitude=self.site.arrayCenter.x,
+                    latitude=self.site.arrayCenter.latitude,
+                    longitude=self.site.arrayCenter.longitude,
                     elevation=-float(self.site.localGeoidHeight) # use negatiive value to account for garpos error "ys is shallower than layer"
                 )
                 self.current_survey = None
@@ -316,8 +316,8 @@ class GarposHandler:
                 campaign_id=self.current_campaign.name ,
                 survey_id=survey.id ,
                 site_center_llh=GPPositionLLH(
-                    latitude=self.site.arrayCenter.y,# ["latitude"],
-                    longitude=self.site.arrayCenter.x,#["longitude"],
+                    latitude=self.site.arrayCenter.latitude,
+                    longitude=self.site.arrayCenter.longitude,
                     height=float(self.site.localGeoidHeight)
                 ),
                 array_center_enu=GPPositionENU(
@@ -339,8 +339,8 @@ class GarposHandler:
                 n_shot=len(shot_data_rectified)
             )
             garpos_input.to_datafile(obsfile_path)
-            # with open(survey_dir/"survey_meta.json",'w') as file:
-            #     json.dump(survey.to_dict(),file)
+            with open(survey_dir/"survey_meta.json",'w') as file:
+                file.write(survey.model_dump_json(indent=2))
 
     def set_inversion_params(self, parameters: dict | InversionParams):
         """
