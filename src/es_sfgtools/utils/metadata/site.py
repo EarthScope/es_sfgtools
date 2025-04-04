@@ -68,15 +68,15 @@ class ArrayCenter(BaseModel, AttributeUpdater):
 
 class Site(BaseModel):
     # Required
-    names: List[str] = Field(
-        ..., description="The names of the site, including the 4 character ID"
+    names: Optional[List[str]] = Field(
+        [], description="The names of the site, including the 4 character ID"
     )
-    networks: List[str] = Field(..., description="A list networks the site is part of")
-    timeOrigin: datetime = Field(
-        ..., description="The time origin of the site", ge=datetime(1901, 1, 1)
+    networks: Optional[List[str]] = Field([], description="A list networks the site is part of")
+    timeOrigin: Optional[datetime] = Field(
+        None, description="The time origin of the site", ge=datetime(1901, 1, 1)
     )
-    localGeoidHeight: float = Field(
-        ..., description="The local geoid height of the site"
+    localGeoidHeight: Optional[float] = Field(
+        0, description="The local geoid height of the site"
     )
 
     # Optional

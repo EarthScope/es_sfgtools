@@ -1,8 +1,9 @@
 # Description: Utility functions for metadata classes.
 from datetime import datetime
 from typing import Union, Dict, Any
-
+from pathlib import Path
 from pydantic import BaseModel
+import re
 
 
 def parse_datetime(cls, value):

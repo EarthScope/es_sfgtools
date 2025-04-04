@@ -25,8 +25,8 @@ class EquipmentType(str, Enum):
 class AtdOffset(AttributeUpdater, BaseModel):
     """The offset of the transducer from the GNSS antenna"""
 
-    serialNumber: str = Field(
-        ..., description="The transducer serial number associated with the offset"
+    serialNumber: Optional[str] = Field(
+        "", description="The transducer serial number associated with the offset"
     )
     x: float = Field(
         ...,

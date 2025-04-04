@@ -382,8 +382,10 @@ class SV3ReplyData(BaseModel):
         if NOV_INS is None:
 
             if GNSS is None or GNSS == "ERR3":
+                logger.logerr("GNSS data not found")
                 return None
             if AHRS is None or AHRS == "ERR3":
+                logger.logerr("AHRS data not found")
                 return None
             positionData = PositionData.from_sv3_gnss_ahrs(GNSS, AHRS)
         else:
