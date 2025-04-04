@@ -139,13 +139,13 @@ class Transponder(AttributeUpdater, BaseModel):
 
 class Benchmark(AttributeUpdater, BaseModel):
     # Required
-    name: str = Field(..., description="The name of the benchmark")
-    benchmarkID: str = Field(..., description="The benchmark ID")
-    aPrioriLocation: Location = Field(
-        ..., description="The a priori location of the benchmark"
+    name: Optional[str] = Field("", description="The name of the benchmark")
+    benchmarkID: Optional[str] = Field("", description="The benchmark ID")
+    aPrioriLocation: Optional[Location] = Field(
+       None, description="The a priori location of the benchmark"
     )
-    start: datetime = Field(
-        ..., description="The start date of the benchmark", gt=datetime(1901, 1, 1)
+    start: Optional[datetime] = Field(
+        None, description="The start date of the benchmark", gt=datetime(1901, 1, 1)
     )
 
     # Optional

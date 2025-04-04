@@ -41,7 +41,7 @@ from es_sfgtools.utils.metadata.site import Site as MetaSite
 from es_sfgtools.utils.metadata.vessel import Vessel as MetaVessel
 from es_sfgtools.utils.loggers import GarposLogger as logger
 
-from ...processing.assets.tiledb_temp import TDBShotDataArray
+from ...processing.assets.tiledb import TDBShotDataArray
 
 from garpos import drive_garpos
 

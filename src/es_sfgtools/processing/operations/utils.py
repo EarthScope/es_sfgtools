@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import logging
 from typing import List,Tuple
 # Local imports
-from es_sfgtools.processing.assets.tiledb_temp import TDBPositionArray,TDBGNSSArray,TDBAcousticArray,TDBShotDataArray
+from es_sfgtools.processing.assets.tiledb import TDBPositionArray,TDBGNSSArray,TDBAcousticArray,TDBShotDataArray
 from es_sfgtools.utils.loggers import GNSSLogger as logger
 
 

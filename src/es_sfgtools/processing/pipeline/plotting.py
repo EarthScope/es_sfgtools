@@ -4,7 +4,7 @@ import numpy as np
 import datetime
 from typing import List
 
-from ..assets.tiledb_temp import TDBGNSSArray   
+from ..assets.tiledb import TDBGNSSArray   
 from ..assets.file_schemas import AssetEntry
 from ..pipeline.catalog import Catalog
 

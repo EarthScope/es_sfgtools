@@ -35,6 +35,7 @@ dependencies:
   - tiledb-py
   - libstdcxx-ng
   - clang
+  - python-dotenv
   - scikit-sparse
   - sphinx
   - sphinx-rtd-theme

@@ -46,6 +46,10 @@ def dev_dfop00_to_shotdata(source: Union[AssetEntry,str,Path]) -> DataFrame[Shot
                 range_data = SV3ReplyData.from_DFOP00_line(data)
                 if range_data is not None:
                     processed.append((dict(interrogation) | dict(range_data)))
+                else:
+                    logger.logdebug(
+                        f"Range data not found"
+                    )
     if not processed:
         return None
     df = pd.DataFrame(processed)
