@@ -36,6 +36,7 @@ dependencies:
   - sphinx-rtd-theme
   - myst-parser
   - sphinxcontrib-apidoc
+  - python-dotenv
   - pip:
     - -e .
     - garpos @ git+https://github.com/EarthScope/garpos.git
