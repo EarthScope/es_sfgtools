@@ -587,6 +587,7 @@ def get_gnss_products(
         logger.logerr("No TIME OF FIRST OBS found in RINEX file.")
         return
     year = str(start_date.year)
+    doy = str(start_date.timetuple().tm_yday)
     common_product_dir = pride_dir/year/"product"/"common"
     common_product_dir.mkdir(exist_ok=True,parents=True)
     cp_dir_list = list(common_product_dir.glob("*"))
@@ -623,6 +624,14 @@ def get_gnss_products(
                 download(remote_resource,local_path)
                 logger.logdebug(f"\n Succesfully downloaded {product_type} FROM {str(remote_resource)} TO {str(local_path)}\n")
                 product_status[product_type] = str(local_path)
+                try:
+                    # Symlink from common products to $year/$DOY
+                    target_path = pride_dir/year/doy/local_path.name
+                    target_path.unlink(missing_ok=True)
+                    local_path.symlink_to(target_path, target_is_directory=False)
+                    logger.logdebug(f"Symlinked {str(local_path)} to {str(target_path)}")
+                except FileExistsError:
+                    pass
                 break
             except Exception as e:
                 logger.logerr(f"Failed to download {str(remote_resource)} | {e}")
