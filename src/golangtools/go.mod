@@ -5,7 +5,7 @@ toolchain go1.24.1
 require (
 	github.com/TileDB-Inc/TileDB-Go v0.35.0
 	github.com/sirupsen/logrus v1.9.3
-	gitlab.com/earthscope/gnsstools v0.18.9
+	gitlab.com/earthscope/gnsstools v0.18.11
 )
 
 require (
@@ -14,6 +14,7 @@ require (
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-playground/validator/v10 v10.25.0 // indirect
+	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/labstack/gommon v0.4.2 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect

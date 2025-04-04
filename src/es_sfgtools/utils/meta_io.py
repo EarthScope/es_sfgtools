@@ -7,7 +7,6 @@ from .metadata.vessel import AtdOffset
 from .metadata.site import Site, ArrayCenter
 from .metadata.benchmark import Location, Benchmark, Transponder,TAT
 
-STATION_OFFSETS = {"5209": 200, "5210": 320, "5211": 440, "5212": 560}
 MASTER_STATION_ID = {"0": "5209", "1": "5210", "2": "5211", "3": "5212"}
 
 
@@ -138,7 +137,6 @@ def update_from_yaml(site:Site, source: Union[str, Path]):
 
     # Update transponders
     if "transponders" in data:
-        site.benchmarks = []
         for transponder_data in data["transponders"]:
             transponder = Transponder(
                 lat=transponder_data["lat"],

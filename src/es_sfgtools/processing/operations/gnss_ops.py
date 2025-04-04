@@ -21,6 +21,7 @@ import numpy as np
 import uuid
 from warnings import warn
 import matplotlib.pyplot as plt
+from dotenv import load_dotenv
 from ..assets.file_schemas import AssetEntry,AssetType
 from ..assets.observables import GNSSDataFrame
 from .pride_utils import get_nav_file,get_gnss_products
@@ -28,9 +29,7 @@ from .pride_utils import get_nav_file,get_gnss_products
 from es_sfgtools.utils.loggers import GNSSLogger as logger
 
 
-ENV = os.environ.copy()
-ENV["DYLD_LIBRARY_PATH"] = ENV["CONDA_PREFIX"] + "/lib"
-ENV["LD_LIBRARY_PATH"] = ENV["DYLD_LIBRARY_PATH"]
+load_dotenv() # Load environment variables from .env file
 
 
 RINEX_BINARIES = "src/golangtools/build"
@@ -985,7 +984,6 @@ def plot_kin_results_wrms(kin_df, title=None, save_as=None):
     fig.tight_layout()
     if save_as is not None:
         plt.savefig(save_as)
-    
 
 
 def nov0002tile(files:List[AssetEntry],rangea_tdb:Path,n_procs:int=10) -> None:
@@ -1116,17 +1114,33 @@ def novb2tile(files:List[AssetEntry],rangea_tdb:Path,n_procs:int=10) -> None:
                 logger.loginfo(message)
 
 def tile2rinex(rangea_tdb:Path,settings:Path,writedir:Path,time_interval:int=1,processing_year:int=0) -> List[AssetEntry]:
-    """Given a tdb file, convert it to rinex files
+    
+    """
+    Converts GNSS tile data to RINEX format using the TILE2RINEX binary.
 
     Args:
-        rangea_tdb (Path): Path to the rangea tiledb array
-        settings (Path): _description_
-        writedir (Path): _description_
-        n_procs (int, optional): _description_. Defaults to 10.
+        rangea_tdb (Path): Path to the GNSS tiledb array.
+        settings (Path): Path to the RINEX settings file.
+        writedir (Path): Directory where the generated RINEX files will be written.
+        time_interval (int, optional): Time interval (hours) of GNSS epochs loaded into memory from the tiledb array found at rangea_tdb.
+        processing_year (int, optional): Year of GNSS observations used to generate RINEX files from the tiledb array found at rangea_tdb. Defaults to 0.
 
     Returns:
-        List[AssetEntry]: _description_
+        List[AssetEntry]: A list of AssetEntry objects representing the generated RINEX files.
+
+    Raises:
+        ValueError: If the platform or architecture is unsupported.
+        FileNotFoundError: If the TILE2RINEX binary is not found for the current platform and architecture.
+        subprocess.CalledProcessError: If the TILE2RINEX command fails during execution.
+
+    Notes:
+        - The function uses a temporary directory to ensure only newly created RINEX files are returned.
+        - Logs are captured from the TILE2RINEX binary's stdout and stderr for debugging and informational purposes.
+        - The generated RINEX files are moved to the specified `writedir` and metadata is extracted for each file.
+        - time_interval is used to control the tradeoff between memory usage and speed. The larger the time_interval, the more memory is used, but the faster the generation.
+        - processing_year is used to prevent RINEX generation from years outside of a given campaign. When set to 0, all found observations are used to generate daily RINEX files.
     """
+
     system = platform.system().lower()
     arch = platform.machine().lower()
     if arch == "x86_64":
@@ -1140,13 +1154,13 @@ def tile2rinex(rangea_tdb:Path,settings:Path,writedir:Path,time_interval:int=1,p
     if not binary_path:
         raise FileNotFoundError(f"TILE2RINEX binary not found for {system} {arch}")
 
-    env = os.environ.copy()
-    env["DYLD_LIBRARY_PATH"] = env["CONDA_PREFIX"] + "/lib"
 
     with tempfile.TemporaryDirectory(dir="/tmp/") as workdir:
         # Use a temp dir so as to only return newly created rinex files
         cmd = [str(binary_path), "-tdb", str(rangea_tdb),"-settings",str(settings),"-timeint",str(time_interval),"-year",str(processing_year)]
-        result = subprocess.run(cmd, check=True, capture_output=True,cwd=workdir,env=ENV)
+        result = subprocess.run(
+            cmd, check=True, capture_output=True, cwd=workdir, env=os.environ.copy()
+        )
 
         if result.stdout:
             logger.logdebug(result.stdout.decode("utf-8"))
@@ -1163,7 +1177,7 @@ def tile2rinex(rangea_tdb:Path,settings:Path,writedir:Path,time_interval:int=1,p
                 message = log_line.split("\n")[0]
                 if "Generating" in message or "Found" in message:
                     logger.loginfo(message)
-        
+
         rinex_files = list(Path(workdir).rglob("*"))
         rinex_assets = []
         for rinex_file_path in rinex_files:

@@ -19,7 +19,7 @@ seaborn.set_theme(style="whitegrid")
 
 from es_sfgtools.utils.archive_pull import download_file_from_archive
 from es_sfgtools.processing.assets.file_schemas import AssetEntry, AssetType
-from es_sfgtools.processing.assets.tiledb_temp import TDBAcousticArray,TDBGNSSArray,TDBPositionArray,TDBShotDataArray,TDBGNSSObsArray
+from es_sfgtools.processing.assets.tiledb import TDBAcousticArray,TDBGNSSArray,TDBPositionArray,TDBShotDataArray,TDBGNSSObsArray
 from es_sfgtools.processing.pipeline.catalog import Catalog
 from es_sfgtools.processing.pipeline.pipelines import SV3Pipeline, SV3PipelineConfig,PrepSiteData
 from es_sfgtools.processing.operations.gnss_ops import get_metadata,get_metadatav2

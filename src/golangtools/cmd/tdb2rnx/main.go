@@ -3,13 +3,14 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"os"
 	"time"
 
+	"github.com/EarthScope/es_sfgtools/src/golangtools/pkg/sfg_utils"
 	log "github.com/sirupsen/logrus"
-
 	"gitlab.com/earthscope/gnsstools/pkg/common/gnss/observation"
 	"gitlab.com/earthscope/gnsstools/pkg/encoding/rinex"
 	"gitlab.com/earthscope/gnsstools/pkg/encoding/tiledbgnss"
@@ -152,172 +153,107 @@ func GetHourSlice(daySlice tiledbgnss.TimeRange,interval int) ([]tiledbgnss.Time
 	return hourSlices
 }
 
-// func main() {
-// 	startTime := time.Now()
-// 	tdbPathPtr := flag.String("tdb", "", "Path to the TileDB array")
-// 	metaPtr := flag.String("settings", "", "settings file")
-// 	timeIntervals := flag.Int("timeint", 1, "Break array queries into intervals of N hours")
-// 	processingYear := flag.Int("year", 0, "If set, only process data for the given year")
-
-// 	flag.Parse()
-// 	log.SetOutput(os.Stdout)
-
-// 	// Parse settings from JSON
-// 	settings, err := ParseSettings(*metaPtr)
-// 	if err != nil {
-// 		log.Fatalf("failed parsing settings: %s", err)
-// 	}
-
-
-// 	timeStart,timeEnd,err := tiledbgnss.GetTimeRange(*tdbPathPtr,"us-east-2")
-// 	if err != nil {
-// 		log.Fatalln(err)
-// 	}
-// 	log.Infof("Time Range: %s - %s Found At %s",timeStart,timeEnd,*tdbPathPtr)
-// 	daySlices := tiledbgnss.GetDateArranged(timeStart,timeEnd)
-// 	if *processingYear != 0 {
-// 		daySlicesModified := []tiledbgnss.TimeRange{}
-// 		for _,slice := range daySlices {
-// 			if slice.Start.Year() == *processingYear {
-// 				daySlicesModified = append(daySlicesModified,slice)
-// 			}
-// 		}
-// 		daySlices = daySlicesModified
-// 	}
-// 	if len(daySlices) == 0 {
-// 		log.Warn("No Day Slices Found For The Year ",*processingYear)
-// 		return
-// 	}
-
-// 	for _,daySlice := range daySlices {
-	
-		
-// 		// break daySlice into 1 hour slices
-// 		hourSlices := GetHourSlice(daySlice,*timeIntervals)
-// 		batchNum := 0
-// 		var currentFile string
-// 		for _, hourSlice := range hourSlices {
-// 			// Read the epochs from the TDB
-// 			queryParams := tiledbgnss.ObsQueryParams{
-// 				Time: []tiledbgnss.TimeRange{hourSlice},
-// 			}
-// 			epochs, err := tiledbgnss.ReadObsV3Array(
-// 				*tdbPathPtr, "us-east-2", queryParams)
-// 			if err != nil {
-// 				log.Debug("Error Reading TDB: ",err)
-// 			}
-			
-// 			if len(epochs) == 0 {
-// 				log.Debug("No epochs found for the given time slice")
-// 				continue
-// 			}
-// 			log.Infof("Found %d Epochs From Array Within Timespan: %s",len(epochs),hourSlice)
-
-// 			if batchNum == 0 {
-// 				settings.TimeOfFirst = epochs[0].Time
-// 				settings.TimeOfLast = daySlice.End// TODO find a way to update time of last OBS 
-// 				filename,err := WriteFirstEpochBatch(epochs,settings)
-// 				if err != nil {
-// 					log.Warnf("Error Writing First Epoch Batch: %s",err)
-// 					break
-// 				}
-// 				log.Infof("Wrote First Epoch Batch To: %s",filename)
-// 				currentFile = filename
-				
-// 			} else {
-// 				err := WriteEpochs(epochs,currentFile,settings)
-// 				if err != nil {
-// 					log.Warnf("Error Writing Epochs: %s",err)
-// 					break
-// 				}
-// 				log.Infof("Wrote Epochs To: %s",currentFile)
-// 			}
-// 			batchNum++
-// 			epochs = nil // Clear the epochs list
-// 		}
-// 		log.Infof("==================== COMPLETE ====================")
-
-// 	}
-	
-// 	log.Infof("Total Time Elapsed: %s",time.Since(startTime))
-// }
-
-func main(){
-	metaPtr := "/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain/cascadia-gorda/NCL1/rinex_metav2.json"
-	tdbPtr := "/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain/cascadia-gorda/NCL1/TileDB/rangea_db.tdb"
-	timeIntPtr := 24
-	yearPtr := 2023
-	settings,err := ParseSettings(metaPtr)
-	if err != nil {
-		log.Fatalf("Error parsing settings: %s", err)
+func FilterDaySlices(daySlices []tiledbgnss.TimeRange, year int) (daySlicesModified []tiledbgnss.TimeRange,err error) {
+	if len(daySlices) == 0 {
+		log.Warn("No Day Slices Found")
+		return nil,fmt.Errorf("No Day Slices Found")
 	}
-	timeStart,timeEnd,err := tiledbgnss.GetTimeRange(tdbPtr,"us-east-2")
+	if year <= 0 {
+		log.Warn("Year not specified, generating daily RINEX for all years")
+		return daySlices,nil
+	}
+	daySlicesModified = []tiledbgnss.TimeRange{}
+	for _,slice := range daySlices {
+		if slice.Start.Year() == year {
+			daySlicesModified = append(daySlicesModified,slice)
+		}
+	}
+	if len(daySlicesModified) == 0 {
+		err = fmt.Errorf("No Day Slices Found For The Year %d",year)
+		return nil,err
+	}
+	return daySlicesModified,nil
+}
+
+func ProcessDaySlice(daySlice tiledbgnss.TimeRange, tdbPath string, interval int,settings *rinex.Settings) {
+	// break daySlice into 1 hour slices
+	hourSlices := GetHourSlice(daySlice,interval)
+	batchNum := 0
+	var currentFile string
+	for _, hourSlice := range hourSlices {
+		// Read the epochs from the TDB
+		queryParams := tiledbgnss.ObsQueryParams{
+			Time: []tiledbgnss.TimeRange{hourSlice},
+		}
+		epochs, err := tiledbgnss.ReadObsV3Array(
+			tdbPath, "us-east-2", queryParams)
+		if err != nil {
+			log.Debug("Error Reading TDB: ",err)
+		}
+		
+		if len(epochs) == 0 {
+			log.Debug("No epochs found for the given time slice")
+			continue
+		}
+		log.Infof("Found %d Epochs From Array Within Timespan: %s",len(epochs),hourSlice)
+
+		if batchNum == 0 {
+			settings.TimeOfFirst = epochs[0].Time
+			settings.TimeOfLast = daySlice.End// TODO find a way to update time of last OBS 
+			filename,err := WriteFirstEpochBatch(epochs,settings)
+			if err != nil {
+				log.Warnf("Error Writing First Epoch Batch: %s",err)
+				break
+			}
+			log.Infof("Wrote First Epoch Batch To: %s",filename)
+			currentFile = filename
+			
+		} else {
+			err := WriteEpochs(epochs,currentFile,settings)
+			if err != nil {
+				log.Warnf("Error Writing Epochs: %s",err)
+				break
+			}
+			log.Infof("Wrote Epochs To: %s",currentFile)
+		}
+		batchNum++
+	}
+	log.Infof("==================== COMPLETE ====================")
+
+}
+
+func main() {
+	sfg_utils.LoadEnv()
+	tdbPathPtr := flag.String("tdb", "", "Path to the TileDB array")
+	metaPtr := flag.String("settings", "", "settings file")
+	timeIntervals := flag.Int("timeint", 1, "Break array queries into intervals of N hours")
+	processingYear := flag.Int("year", 0, "If set, only process data for the given year")
+
+	flag.Parse()
+	log.SetOutput(os.Stdout)
+
+	// Parse settings from JSON
+	settings, err := ParseSettings(*metaPtr)
+	if err != nil {
+		log.Fatalf("failed parsing settings: %s", err)
+	}
+
+
+	timeStart,timeEnd,err := tiledbgnss.GetTimeRange(*tdbPathPtr,"us-east-2")
 	if err != nil {
 		log.Fatalln(err)
 	}
-	log.Infof("Time Range: %s - %s Found At %s",timeStart,timeEnd,tdbPtr)
+	log.Infof("Time Range: %s - %s Found At %s",timeStart,timeEnd,*tdbPathPtr)
 	daySlices := tiledbgnss.GetDateArranged(timeStart,timeEnd)
-	if yearPtr != 0 {
-		daySlicesModified := []tiledbgnss.TimeRange{}
-		for _,slice := range daySlices {
-			if slice.Start.Year() == yearPtr {
-				daySlicesModified = append(daySlicesModified,slice)
-			}
-		}
-		daySlices = daySlicesModified
-	}
-	if len(daySlices) == 0 {
-		log.Warn("No Day Slices Found For The Year ",yearPtr)
+	daySlices,err = FilterDaySlices(daySlices,*processingYear)
+	if err != nil {
+		log.Warnf("Error Filtering Day Slices: %s",err)
 		return
 	}
 
 	for _,daySlice := range daySlices {
 	
-		
-		// break daySlice into 1 hour slices
-		hourSlices := GetHourSlice(daySlice,timeIntPtr)
-		batchNum := 0
-		var currentFile string
-		for _, hourSlice := range hourSlices {
-			// Read the epochs from the TDB
-			queryParams := tiledbgnss.ObsQueryParams{
-				Time: []tiledbgnss.TimeRange{hourSlice},
-			}
-			epochs, err := tiledbgnss.ReadObsV3Array(
-				tdbPtr, "us-east-2", queryParams)
-			if err != nil {
-				log.Debug("Error Reading TDB: ",err)
-			}
-			
-			if len(epochs) == 0 {
-				log.Debug("No epochs found for the given time slice")
-				continue
-			}
-			log.Infof("Found %d Epochs From Array Within Timespan: %s",len(epochs),hourSlice)
-
-			if batchNum == 0 {
-				settings.TimeOfFirst = epochs[0].Time
-				settings.TimeOfLast = daySlice.End// TODO find a way to update time of last OBS 
-				filename,err := WriteFirstEpochBatch(epochs,settings)
-				if err != nil {
-					log.Warnf("Error Writing First Epoch Batch: %s",err)
-					break
-				}
-				log.Infof("Wrote First Epoch Batch To: %s",filename)
-				currentFile = filename
-				
-			} else {
-				err := WriteEpochs(epochs,currentFile,settings)
-				if err != nil {
-					log.Warnf("Error Writing Epochs: %s",err)
-					break
-				}
-				log.Infof("Wrote Epochs To: %s",currentFile)
-			}
-			batchNum++
-			epochs = nil // Clear the epochs list
-		}
-		log.Infof("==================== COMPLETE ====================")
-
+		ProcessDaySlice(daySlice,*tdbPathPtr,*timeIntervals,settings)
 	}
 }
+

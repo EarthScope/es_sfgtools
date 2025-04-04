@@ -19,14 +19,14 @@ from es_sfgtools.processing.assets.file_schemas import AssetEntry,AssetType
 from es_sfgtools.processing.operations import sv2_ops, sv3_ops, gnss_ops, site_ops
 from es_sfgtools.processing.operations.gnss_ops import PridePdpConfig,rinex_to_kin,kin_to_gnssdf
 from es_sfgtools.processing.operations.pride_utils import get_nav_file,get_gnss_products
-from es_sfgtools.processing.assets.tiledb_temp import (
+from es_sfgtools.processing.assets.tiledb import (
     TDBAcousticArray,
     TDBGNSSArray,
     TDBPositionArray,
     TDBShotDataArray,
     TDBGNSSObsArray
 )
-from es_sfgtools.processing.assets.tiledb_temp import TDBAcousticArray,TDBGNSSArray,TDBPositionArray,TDBShotDataArray,TDBGNSSObsArray
+from es_sfgtools.processing.assets.tiledb import TDBAcousticArray,TDBGNSSArray,TDBPositionArray,TDBShotDataArray,TDBGNSSObsArray
 from es_sfgtools.processing.operations.utils import (
     get_merge_signature_shotdata,
     merge_shotdata_gnss,

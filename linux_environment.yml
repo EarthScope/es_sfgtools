@@ -36,6 +36,7 @@ dependencies:
   - conda-forge::tiledb
   - libstdcxx-ng
   - clang
+  - python-dotenv
   - pip:
     - -e .
     - scikit-sparse

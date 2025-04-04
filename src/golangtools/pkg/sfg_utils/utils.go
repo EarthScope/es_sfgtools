@@ -2,8 +2,10 @@ package sfg_utils
 
 import (
 	tiledb "github.com/TileDB-Inc/TileDB-Go"
+	"github.com/joho/godotenv"
 	log "github.com/sirupsen/logrus"
 )
+
 func ArrayExists(arrayPath string) bool {
 	ctx, err := tiledb.NewContext(nil)
 	if err != nil {
@@ -20,5 +22,12 @@ func ArrayExists(arrayPath string) bool {
 		return false
 	} else {
 		return true
+	}
+}
+
+func LoadEnv() {
+	err := godotenv.Load("../../../.env")
+	if err != nil {
+		log.Warn("Error loading .env file", err)
 	}
 }
