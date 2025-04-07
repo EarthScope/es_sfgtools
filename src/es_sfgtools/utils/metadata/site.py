@@ -374,8 +374,8 @@ class Site(BaseModel):
                     print(new_survey.model_dump_json(indent=2))
                     print(f"New survey added successfully.")
                     return
-            else:
-                print(f"ERROR: {component_type} {component_name} not found..")
+
+        print(f"ERROR: {component_type} {component_name} not found..")
 
     def _update_existing_sub_component(
         self,
