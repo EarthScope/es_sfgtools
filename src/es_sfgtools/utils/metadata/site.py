@@ -154,6 +154,37 @@ class Site(BaseModel):
                 + "\n You can still write out to JSON file and come back to work on the other components in the notebook later."
             )
 
+    def return_tats_for_campaign(
+        self, campaign_name: str
+    ) -> Optional[List[Dict[str, Any]]]:
+        """
+        Return all TATs for a given campaign
+
+        Args:
+            campaign_name (str): The name of the campaign
+        Returns:
+            List[Dict[str, Any]]: A list of dictionaries containing Benchmark name, Transponder address, and TAT
+
+        """
+
+        tat_list = []
+        tat_info = {}
+        for campaign in self.campaigns:
+            if campaign.name == campaign_name:
+
+                for benchmark in self.benchmarks:
+                    for transponder in benchmark.transponders:
+                        TAT = transponder.get_tat_by_datetime(campaign.start)
+                        tat_info["Benchmark"] = benchmark.name
+                        tat_info["Transponder"] = transponder.address
+                        tat_info["TAT"] = TAT
+                        tat_list.append(tat_info)
+
+                return tat_list
+
+        print(f"ERROR: Campaign {campaign_name} not found..")
+        return None
+
     def run_component(
         self,
         component_type: TopLevelSiteGroups,
@@ -478,3 +509,16 @@ if __name__ == "__main__":
     site = Site.from_json(example_json_filepath)
     site.print_json()
     site.validate_components()
+
+    # test_time = datetime(year=2025, month=1, day=1, hour=1, minute=0, second=0)
+    # for benchmark in site.benchmarks:
+    #     for transponder in benchmark.transponders:
+    #         tat = transponder.get_tat_by_datetime(test_time)
+    #         print(tat)
+
+    # for campaign in site.campaigns:
+    #     survey = campaign.get_survey_by_datetime(test_time)
+    #     print(survey)
+
+    tat_list = site.return_tats_for_campaign("Campaign1")
+    print(tat_list)
