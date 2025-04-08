@@ -11,7 +11,6 @@ from es_sfgtools.utils.metadata.utils import (
     check_dates,
     only_one_is_true,
     parse_datetime,
-    if_zero_than_none,
 )
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
@@ -51,7 +50,6 @@ class ReferenceFrame(AttributeUpdater, BaseModel):
 
     _parse_datetime = field_validator("start", "end", mode="before")(parse_datetime)
     _check_dates = field_validator("end", mode="after")(check_dates)
-
 
 
 class Site(BaseModel):
