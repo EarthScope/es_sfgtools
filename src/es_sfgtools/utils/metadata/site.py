@@ -53,17 +53,17 @@ class ReferenceFrame(AttributeUpdater, BaseModel):
 
 
 class ArrayCenter(BaseModel, AttributeUpdater):
-    x: Optional[float] = Field(
-        default=None, description="The x coordinate of the array center"
+    latitude: Optional[float] = Field(
+        default=None, description="The latitude of the array center"
     )
-    y: Optional[float] = Field(
-        default=None, description="The y coordinate of the array center"
+    longitude: Optional[float] = Field(
+        default=None, description="The longitude of the array center"
     )
-    z: Optional[float] = Field(
-        default=None, description="The z coordinate of the array center"
+    elevation: Optional[float] = Field(
+        default=None, description="The elevation (m) of the array center"
     )
 
-    _if_zero_than_none = field_validator("x", "y", "z")(if_zero_than_none)
+    _if_zero_than_none = field_validator("latitude", "longitude", "elevation")(if_zero_than_none)
 
 
 class Site(BaseModel):

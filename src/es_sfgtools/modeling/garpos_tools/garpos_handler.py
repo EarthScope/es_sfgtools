@@ -179,8 +179,8 @@ class GarposHandler:
                 self.current_campaign_dir = self.working_dir / self.current_campaign.name
                 self.current_campaign_dir.mkdir(exist_ok=True)
                 self.coord_transformer = CoordTransformer(
-                    latitude=self.site.arrayCenter["latitude"],
-                    longitude=self.site.arrayCenter["longitude"],
+                    latitude=self.site.arrayCenter.latitude,
+                    longitude=self.site.arrayCenter.longitude,
                     elevation=-float(self.site.localGeoidHeight) # use negatiive value to account for garpos error "ys is shallower than layer"
                 )
                 self.current_survey = None
@@ -192,7 +192,7 @@ class GarposHandler:
 
     def set_survey(self, name: str):
         for survey in self.current_campaign.surveys:
-            if survey.survey_id == name:
+            if survey.id == name:
                 self.current_survey = survey
                 return
         raise ValueError(
@@ -205,142 +205,142 @@ class GarposHandler:
         return obs_path
 
     def prep_shotdata(self, overwrite: bool = False):
-        for campaign in self.site.campaigns:
-            self.set_campaign(campaign.name)
-            for survey in self.current_campaign.surveys:
-                obsfile_path = self.get_obsfile_path(
-                    campaign_name=self.current_campaign.name, survey_id=survey.survey_id
+        #for campaign in self.site.campaigns:
+        #    self.set_campaign(campaign.name)
+        for survey in self.current_campaign.surveys:
+            obsfile_path = self.get_obsfile_path(
+                campaign_name=self.current_campaign.name, survey_id=survey.id
+            )
+            if obsfile_path.exists() and not overwrite:
+                continue
+            shot_data_queried: pd.DataFrame = self.shotdata.read_df(
+                    start=survey.start, end=survey.end
                 )
-                if obsfile_path.exists() and not overwrite:
-                    continue
-                shot_data_queried: pd.DataFrame = self.shotdata.read_df(
-                        start=survey.start, end=survey.end
-                    )
-                if shot_data_queried.empty:
-                    print(
-                        f"No shot data found for survey {survey.survey_id}"
-                    )
-                    continue
-                survey_dir = self.current_campaign_dir / survey.survey_id
-                survey_dir.mkdir(exist_ok=True)
-
-                benchmarks = []
-                for benchmark in self.site.benchmarks:
-                    if benchmark.name in survey.benchmarkIDs:
-                        benchmarks.append(benchmark)
-                GPtransponders = []
-                for benchmark in benchmarks:
-                    # Find correct transponder, default to first
-                    current_transponder = benchmark.transponders[-1]
-                    # for transponder in benchmark.transponders:
-                    #     if survey.start > transponder.start:
-                    #         current_transponder = transponder
-
-                    gp_transponder = GPTransponder(
-                        position_llh=GPPositionLLH(
-                            latitude=benchmark.aPrioriLocation.latitude,
-                            longitude=benchmark.aPrioriLocation.longitude,
-                            height=float(benchmark.aPrioriLocation.elevation)
-                        ),
-                        tat_offset=current_transponder.tat, 
-                        id = current_transponder.address,
-                        name= benchmark.benchmarkID
-                    )
-                    # Rectify to local coordinates
-                    gp_transponder_enu:Tuple = self.coord_transformer.LLH2ENU(
-                        lat=gp_transponder.position_llh.latitude,
-                        lon=gp_transponder.position_llh.longitude,
-                        hgt=gp_transponder.position_llh.height
-                    )
-                    gp_transponder_enu = GPPositionENU(
-                        east = gp_transponder_enu[0],
-                        north=gp_transponder_enu[1],
-                        up=gp_transponder_enu[2]
-                    )
-                    gp_transponder.position_enu = gp_transponder_enu
-                    GPtransponders.append(gp_transponder)
-                if len(GPtransponders) == 0:
-                    print(f"No transponders found for survey {survey.id}")
-                    continue
-
-                # Get average transponder position
-                _,array_center_llh = avg_transponder_position(GPtransponders)
-                array_dpos_center = self.coord_transformer.LLH2ENU(
-                    lat=array_center_llh.latitude,
-                    lon=array_center_llh.longitude,
-                    hgt=array_center_llh.height
+            if shot_data_queried.empty:
+                print(
+                    f"No shot data found for survey {survey.id}"
                 )
+                continue
+            survey_dir = self.current_campaign_dir / survey.id
+            survey_dir.mkdir(exist_ok=True)
 
-                survey_type = survey.type.replace(" ", "")
-                start_doy = survey.start.timetuple().tm_yday
-                end_doy = survey.end.timetuple().tm_yday
+            benchmarks = []
+            for benchmark in self.site.benchmarks:
+                if benchmark.name in survey.benchmarkIDs:
+                    benchmarks.append(benchmark)
+            GPtransponders = []
+            for benchmark in benchmarks:
+                # Find correct transponder, default to first
+                current_transponder = benchmark.transponders[-1]
+                # for transponder in benchmark.transponders:
+                #     if survey.start > transponder.start:
+                #         current_transponder = transponder
 
-                shot_data_path = (
-                    survey_dir
-                    / f"{survey.survey_id}_{survey_type}.csv"
-                )
-
-                logger.loginfo("Preparing shot data")
-
-                shot_data_rectified = rectify_shotdata(self.coord_transformer,shot_data_queried)
-                transponder_ids = [x.id for x in GPtransponders]
-                try:
-                    shot_data_rectified = ShotDataFrame.validate(
-                        shot_data_rectified, lazy=True
-                    )
-                    # Only use shotdata for transponders in the survey
-                    shot_data_rectified = shot_data_rectified[
-                        shot_data_rectified.MT.isin([x.id for x in GPtransponders])
-                    ]
-
-                    shot_data_rectified.MT = shot_data_rectified.MT.apply(
-                        lambda x: "M" + str(x) if str(x)[0].isdigit() else str(x)
-                    )
-
-                    shot_data_rectified.to_csv(str(shot_data_path))
-                except Exception as e:
-                    logger.logerr(
-                        f"Shot data for {str(year)}_{str(doy)} failed validation. Error: {e}"
-                    )
-                    raise ValueError(
-                        f"Shot data for {survey.id} {survey_type} {start_doy} {end_doy} failed validation."
-                    ) from e 
-
-                logger.loginfo(f"Shot data prepared and saved to {str(shot_data_path)}")
-                # get soundspeed relative path
-                rel_depth = len(shot_data_path.relative_to(self.sound_speed_path.parent).parts) -1
-                ss_path = "../"*rel_depth + self.sound_speed_path.name 
-          
-                garpos_input = GarposInput(
-                    site_name=self.site.names[0],
-                    campaign_id=self.current_campaign.name ,
-                    survey_id=survey.survey_id ,
-                    site_center_llh=GPPositionLLH(
-                        latitude=self.site.arrayCenter["latitude"],
-                        longitude=self.site.arrayCenter["longitude"],
-                        height=float(self.site.localGeoidHeight)
+                gp_transponder = GPTransponder(
+                    position_llh=GPPositionLLH(
+                        latitude=benchmark.aPrioriLocation.latitude,
+                        longitude=benchmark.aPrioriLocation.longitude,
+                        height=float(benchmark.aPrioriLocation.elevation)
                     ),
-                    array_center_enu=GPPositionENU(
-                        east=array_dpos_center[0],
-                        north=array_dpos_center[1],
-                        up=array_dpos_center[2]
-                    ),
-                    transponders=GPtransponders,
-                    atd_offset=GPATDOffset(
-                        forward=float(self.vessel_meta.atd_offsets[0].x),
-                        rightward=float(self.vessel_meta.atd_offsets[0].y),
-                        downward=float(self.vessel_meta.atd_offsets[0].z),
-                    ),
-                    start_date=survey.start,
-                    end_date=survey.end,
-                    shot_data="./"+shot_data_path.name,
-                    delta_center_position=self.garpos_fixed.inversion_params.delta_center_position,
-                    sound_speed_data=ss_path,
-                    n_shot=len(shot_data_rectified)
+                    tat_offset=current_transponder.get_tat(survey.start), 
+                    id = current_transponder.address,
+                    name= benchmark.benchmarkID
                 )
-                garpos_input.to_datafile(obsfile_path)
-                with open(survey_dir/"survey_meta.json",'w') as file:
-                    json.dump(survey.to_dict(),file)
+                # Rectify to local coordinates
+                gp_transponder_enu:Tuple = self.coord_transformer.LLH2ENU(
+                    lat=gp_transponder.position_llh.latitude,
+                    lon=gp_transponder.position_llh.longitude,
+                    hgt=gp_transponder.position_llh.height
+                )
+                gp_transponder_enu = GPPositionENU(
+                    east = gp_transponder_enu[0],
+                    north=gp_transponder_enu[1],
+                    up=gp_transponder_enu[2]
+                )
+                gp_transponder.position_enu = gp_transponder_enu
+                GPtransponders.append(gp_transponder)
+            if len(GPtransponders) == 0:
+                print(f"No transponders found for survey {survey.id}")
+                continue
+
+            # Get average transponder position
+            _,array_center_llh = avg_transponder_position(GPtransponders)
+            array_dpos_center = self.coord_transformer.LLH2ENU(
+                lat=array_center_llh.latitude,
+                lon=array_center_llh.longitude,
+                hgt=array_center_llh.height
+            )
+
+            survey_type = survey.type.replace(" ", "")
+            start_doy = survey.start.timetuple().tm_yday
+            end_doy = survey.end.timetuple().tm_yday
+
+            shot_data_path = (
+                survey_dir
+                / f"{survey.id}_{survey_type}.csv"
+            )
+
+            logger.loginfo("Preparing shot data")
+
+            shot_data_rectified = rectify_shotdata(self.coord_transformer,shot_data_queried)
+            transponder_ids = [x.id for x in GPtransponders]
+            try:
+                shot_data_rectified = ShotDataFrame.validate(
+                    shot_data_rectified, lazy=True
+                )
+                # Only use shotdata for transponders in the survey
+                shot_data_rectified = shot_data_rectified[
+                    shot_data_rectified.MT.isin([x.id for x in GPtransponders])
+                ]
+
+                shot_data_rectified.MT = shot_data_rectified.MT.apply(
+                    lambda x: "M" + str(x) if str(x)[0].isdigit() else str(x)
+                )
+
+                shot_data_rectified.to_csv(str(shot_data_path))
+            except Exception as e:
+                logger.logerr(
+                    f"Shot data for {str(survey.id)} failed validation. Error: {e}"
+                )
+                raise ValueError(
+                    f"Shot data for {survey.id} {survey_type} {start_doy} {end_doy} failed validation."
+                ) from e 
+
+            logger.loginfo(f"Shot data prepared and saved to {str(shot_data_path)}")
+            # get soundspeed relative path
+            rel_depth = len(shot_data_path.relative_to(self.sound_speed_path.parent).parts) -1
+            ss_path = "../"*rel_depth + self.sound_speed_path.name 
+        
+            garpos_input = GarposInput(
+                site_name=self.site.names[0],
+                campaign_id=self.current_campaign.name ,
+                survey_id=survey.id ,
+                site_center_llh=GPPositionLLH(
+                    latitude=self.site.arrayCenter.latitude,
+                    longitude=self.site.arrayCenter.longitude,
+                    height=float(self.site.localGeoidHeight)
+                ),
+                array_center_enu=GPPositionENU(
+                    east=array_dpos_center[0],
+                    north=array_dpos_center[1],
+                    up=array_dpos_center[2]
+                ),
+                transponders=GPtransponders,
+                atd_offset=GPATDOffset(
+                    forward=float(self.vessel_meta.atdOffsets[0].x),
+                    rightward=float(self.vessel_meta.atdOffsets[0].y),
+                    downward=float(self.vessel_meta.atdOffsets[0].z),
+                ),
+                start_date=survey.start,
+                end_date=survey.end,
+                shot_data="./"+shot_data_path.name,
+                delta_center_position=self.garpos_fixed.inversion_params.delta_center_position,
+                sound_speed_data=ss_path,
+                n_shot=len(shot_data_rectified)
+            )
+            garpos_input.to_datafile(obsfile_path)
+            with open(survey_dir/"survey_meta.json",'w') as file:
+                file.write(survey.model_dump_json(indent=2))
 
     def set_inversion_params(self, parameters: dict | InversionParams):
         """
@@ -460,14 +460,14 @@ class GarposHandler:
         if campaign_id != self.current_campaign.name:
             self.set_campaign(campaign_id)
 
-        if survey_id is None:
-            for survey in self.current_campaign.surveys:
-                self._run_garpos_survey(survey.survey_id, run_id, override=override)
+        # if survey_id is None:
+        #     for survey in self.current_campaign.surveys:
+        #         self._run_garpos_survey(survey.survey_id, run_id, override=override)
 
         logger.loginfo(f"Running GARPOS model for date(s) provided. Run ID: {run_id}")
         if survey_id is None:
             for survey in self.current_campaign.surveys:
-                self._run_garpos_survey(survey.survey_id, run_id, override=override)
+                self._run_garpos_survey(survey.id, run_id, override=override)
         else:
             self._run_garpos_survey(survey_id, run_id, override=override)
 
@@ -499,7 +499,7 @@ class GarposHandler:
         if campaign_name is not None:
             self.set_campaign(campaign_name)
         self.set_survey(survey_id)
-        obsfile_path = self.get_obsfile_path(self.current_campaign.name,self.current_survey.survey_id)
+        obsfile_path = self.get_obsfile_path(self.current_campaign.name,self.current_survey.id)
 
         results_dir = obsfile_path.parent / "results"
         results_path = results_dir / f"_{run_id}_results.json"
