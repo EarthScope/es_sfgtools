@@ -43,21 +43,21 @@ class TAT(AttributeUpdater, BaseModel):
     @field_validator("timeIntervals", mode="before")
     def validate_time_intervals(cls, time_intervals):
         for interval in time_intervals:
-            start = interval["start"]
-            end = interval["end"]
+            start = interval.get("start")
+            end = interval.get("end")
 
-            start = parse_datetime(cls, start)
-            end = parse_datetime(cls, end)
+            # Parse start and end times if they exist
+            if start:
+                interval["start"] = parse_datetime(cls, start)
+            if end:
+                interval["end"] = parse_datetime(cls, end)
 
-            if not start or not end:
-                interval["start"] = start
-                interval["end"] = end
-                continue
-
-            if start >= end:
+            # Validate that start is before end
+            if start and end and start >= end:
                 raise ValueError(
                     "'end' time must be after 'start' time in each interval"
                 )
+
         return time_intervals
 
 

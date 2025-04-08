@@ -99,6 +99,70 @@
           ]
         }
       ]
+    },
+    {
+      "name": "Benchmark2",
+      "benchmarkID": "B002",
+      "aPrioriLocation": {
+        "latitude": 34.05,
+        "longitude": -118.25,
+        "elevation": 100.0
+      },
+      "start": "2025-01-01T00:00:00",
+      "end": "2025-12-31T23:59:59",
+      "dropPointLocation": {
+        "latitude": 34.05,
+        "longitude": -118.25,
+        "elevation": 100.0
+      },
+      "transponders": [
+        {
+          "address": "Transponder2",
+          "tat": [
+            {
+              "value": 200.0,
+              "timeIntervals": [
+                {
+                  "start": "2025-01-01T00:00:00",
+                  "end": "2025-01-15T00:00:00"
+                },
+                {
+                  "start": "2025-02-01T00:00:00",
+                  "end": "2025-02-15T00:00:00"
+                }
+              ]
+            },
+            {
+              "value": 250.0,
+              "timeIntervals": [
+                {
+                  "start": "2025-01-16T00:00:00"
+                }
+              ]
+            }
+          ],
+          "start": "2025-01-01T00:00:00",
+          "end": "2025-12-31T23:59:59",
+          "uid": "UID1",
+          "model": "Model1",
+          "serialNumber": "SN1",
+          "batteryCapacity": "4 Ah",
+          "notes": "Transponder notes",
+          "batteryVoltage": [
+            {
+              "date": "2025-01-01T00:00:00",
+              "voltage": 12.5
+            }
+          ],
+          "extraSensors": [
+            {
+              "type": "Temperature",
+              "serialNumber": "TSN1",
+              "model": "TModel1"
+            }
+          ]
+        }
+      ]
     }
   ],
   "referenceFrames": [
