@@ -7,6 +7,7 @@ from es_sfgtools.utils.metadata.benchmark import TAT, Benchmark, Transponder
 from es_sfgtools.utils.metadata.campaign import Campaign, Survey
 from es_sfgtools.utils.metadata.utils import (
     AttributeUpdater,
+    Location,
     check_dates,
     only_one_is_true,
     parse_datetime,
@@ -52,19 +53,6 @@ class ReferenceFrame(AttributeUpdater, BaseModel):
     _check_dates = field_validator("end", mode="after")(check_dates)
 
 
-class ArrayCenter(BaseModel, AttributeUpdater):
-    x: Optional[float] = Field(
-        default=None, description="The x coordinate of the array center"
-    )
-    y: Optional[float] = Field(
-        default=None, description="The y coordinate of the array center"
-    )
-    z: Optional[float] = Field(
-        default=None, description="The z coordinate of the array center"
-    )
-
-    _if_zero_than_none = field_validator("x", "y", "z")(if_zero_than_none)
-
 
 class Site(BaseModel):
     # Required
@@ -80,9 +68,9 @@ class Site(BaseModel):
     )
 
     # Optional
-    arrayCenter: Optional[ArrayCenter] = Field(
-        default_factory=dict, description="The array center of the site"
-    )
+    arrayCenter: Location = Field(..., description="The array center of the site")
+    # TODO change this in metadata notebook and in all metadata files
+
     campaigns: List[Campaign] = Field(
         default_factory=list, description="The campaigns associated with the site"
     )

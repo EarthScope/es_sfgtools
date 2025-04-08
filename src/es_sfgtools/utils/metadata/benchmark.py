@@ -4,10 +4,10 @@ from pydantic import BaseModel, Field, field_validator
 
 from es_sfgtools.utils.metadata.utils import (
     AttributeUpdater,
+    Location,
     check_fields_for_empty_strings,
     parse_datetime,
     check_dates,
-    if_zero_than_none,
 )
 
 
@@ -28,22 +28,6 @@ class BatteryVoltage(AttributeUpdater, BaseModel):
     voltage: float = Field(..., description="The battery voltage reading", ge=0, le=20)
 
     _parse_datetime = field_validator("date", mode="before")(parse_datetime)
-
-
-class Location(AttributeUpdater, BaseModel):
-    latitude: Optional[float] = Field(
-        default=None, description="The latitude of the location.", ge=-90, le=90
-    )
-    longitude: Optional[float] = Field(
-        default=None, description="The longitude of the location.", ge=-180, le=180
-    )
-    elevation: Optional[float] = Field(
-        default=None, description="The elevation of the location."
-    )
-
-    _if_zero_than_none = field_validator("latitude", "longitude", "elevation")(
-        if_zero_than_none
-    )
 
 
 class TAT(AttributeUpdater, BaseModel):
@@ -125,7 +109,7 @@ class Transponder(AttributeUpdater, BaseModel):
         # If there is only 1 TAT available, return that TAT
         if len(self.tat) == 1:
             return self.tat[0].value
-        
+
         # If there are multiple TATs, check if the datetime is within the time intervals
         for tat in self.tat:
             for interval in tat.timeIntervals:
@@ -133,7 +117,6 @@ class Transponder(AttributeUpdater, BaseModel):
                     return tat.value
 
         return None
-
 
 
 class Benchmark(AttributeUpdater, BaseModel):
