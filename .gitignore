@@ -35,5 +35,6 @@ src/garpos_tools/build/
 build/*
 .vscode/
 
+.vscode
 docs/build
 sso_tokens.json

@@ -228,7 +228,7 @@ def get_survey_file_dict(url:str) -> dict:
 
 def list_survey_files(network: str, 
                       station: str, 
-                      survey: str,
+                      campaign: str,
                       show_details: bool=True) -> list:
     """
     Returns a list of files for a given survey in the archive.  Optionally displays a summary of file counts by type
@@ -243,7 +243,7 @@ def list_survey_files(network: str,
         list: list of file locations in archive
     """
 
-    url = generate_archive_survey_url(network, station, survey)
+    url = generate_archive_survey_url(network, station, campaign)
     logger.loginfo(f"Listing survey files from url {url}")
     file_list = list_files_from_archive(url)
     file_list += list_files_from_archive(f'{url}/ctd')

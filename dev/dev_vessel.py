@@ -1,4 +1,6 @@
 from es_sfgtools.utils.metadata.vessel import Vessel
+from es_sfgtools.utils.meta_io import masterfile_to_siteconfig, leverarmfile_to_atdoffset
+from pathlib import Path
 test_meta = {
     "type": "waveglider",
     "name": "1126",
@@ -44,4 +46,11 @@ test_meta = {
     ],
 }
 
-instance = Vessel(existing_vessel=test_meta)
+#instance = Vessel(**test_meta)
+
+masterfile = Path("/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SEM1Test/SEM1.master")
+leverarms = Path("/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SEM1Test/lever_arms")
+site = masterfile_to_siteconfig(masterfile)
+print(site)
+atd = leverarmfile_to_atdoffset(leverarms)
+print(atd)

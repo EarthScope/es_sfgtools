@@ -72,6 +72,7 @@ func processFileNOVB(file string) ([]observation.Epoch,error) {
 
 
 func main() {
+	sfg_utils.LoadEnv()
 	tdbPathPtr := flag.String("tdb", "", "Path to the TileDB array")
 	numProcsPtr := flag.Int("procs", 10, "Number of concurrent processes")
 	flag.Parse()

@@ -13,7 +13,6 @@ Submodules
    :maxdepth: 4
 
    es_sfgtools.modeling.garpos_tools.functions
-   es_sfgtools.modeling.garpos_tools.hyper_params
-   es_sfgtools.modeling.garpos_tools.model_io
-   es_sfgtools.modeling.garpos_tools.observation
+   es_sfgtools.modeling.garpos_tools.garpos_handler
+   es_sfgtools.modeling.garpos_tools.plotting
    es_sfgtools.modeling.garpos_tools.schemas

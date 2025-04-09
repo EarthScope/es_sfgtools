@@ -1,0 +1,30 @@
+dfop00_config:
+  override: false
+novatel_config:
+  n_processes: 14
+  override: false
+position_update_config:
+  override: false
+pride_config:
+  cutoff_elevation: 7
+  end: null
+  frequency:
+  - G12
+  - R12
+  - E15
+  - C26
+  - J12
+  high_ion: null
+  interval: null
+  local_pdp3_path: null
+  loose_edit: true
+  sample_frequency: 1
+  start: null
+  system: GREC23J
+  tides: SOP
+rinex_config:
+  n_processes: 14
+  override: false
+  override_products_download: false
+  settings_path: /Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain/cascadia-gorda/NCC1/rinex_metav2.json
+  time_interval: 1
