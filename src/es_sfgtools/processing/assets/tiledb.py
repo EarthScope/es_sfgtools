@@ -142,6 +142,9 @@ config = tiledb.Config()
 
 # Set configuration parameters
 config["vfs.s3.region"] = "us-east-2"
+config["vfs.s3.scheme"] = "https"
+config["vfs.s3.endpoint_override"] = ""
+config["vfs.s3.use_virtual_addressing"] = "true"
 
 ctx = tiledb.Ctx(config=config)
 
@@ -230,11 +233,9 @@ class TBDArray:
     dataframe_schema = None
     array_schema = None 
     def __init__(self,uri:Path|str):
-        if isinstance(uri,str):
-            uri = Path(uri)
         self.uri = uri
-        if not uri.exists():
-            tiledb.Array.create(str(uri),self.array_schema)
+        if not tiledb.array_exists(uri=str(uri), ctx=ctx):
+            tiledb.Array.create(uri=str(uri),schema=self.array_schema, ctx=ctx)
 
     def write_df(self,df:pd.DataFrame,validate:bool=True):
         """

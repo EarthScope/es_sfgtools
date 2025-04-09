@@ -27,6 +27,7 @@ dependencies:
   - seaborn
   # - folium
   - sqlalchemy
+  - sqlite=3.45.3
   - go
   - go-cgo 
   - gcc
