@@ -87,9 +87,9 @@ class PrepSiteData(BaseModel):
     campaign: str = Field(..., title="Campaign Name")
     inter_dir: Path = Field(..., title="Intermediate Directory")
     pride_dir: Path = Field(..., title="Pride Directory")
-    rangea_data_dest:Path = Field(..., title="GNSS Data Destination")
-    gnss_data_dest:Path = Field(..., title="GNSS Data Destination")
-    shot_data_dest:Path = Field(..., title="Shot Data Destination")
+    rangea_data_dest:str|Path = Field(..., title="GNSS Data Destination")
+    gnss_data_dest:str|Path = Field(..., title="GNSS Data Destination")
+    shot_data_dest:str|Path = Field(..., title="Shot Data Destination")
 
     class Config:
         arbitrary_types_allowed = True
@@ -99,7 +99,7 @@ class PrepSiteData(BaseModel):
         if isinstance(v,Path):
             return str(v)
         return v
-    @field_validator("inter_dir","rangea_data_dest","gnss_data_dest","shot_data_dest","pride_dir")
+    @field_validator("inter_dir","pride_dir")
     def _v_path(cls,v:str|Path):
         if isinstance(v,str):
             return Path(v)
