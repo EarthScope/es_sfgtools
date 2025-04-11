@@ -139,6 +139,11 @@ class DataHandler:
         self.shotdata_tdb = TDBShotDataArray(self.tileb_dir/"shotdata_db.tdb")
         self.rangea_tdb = TDBGNSSObsArray(self.tileb_dir/"rangea_db.tdb") # golang binaries will be used to interact with this array
 
+        self.acoustic_tdb.consolidate()
+        self.gnss_tdb.consolidate()
+        self.position_tdb.consolidate()
+        self.shotdata_tdb.consolidate()
+        self.rangea_tdb.consolidate()
     def _build_rinex_meta(self) -> None:
         """
         Build the RINEX metadata for a station.

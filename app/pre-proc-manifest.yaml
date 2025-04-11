@@ -24,23 +24,23 @@ processing:
     #       time_interval: 24
     #       override: false
 
-    - network: cascadia-gorda
-      station: NCC1
-      campaign: 2024_A_1126
-      config:
-        rinex_config:
-          time_interval: 24
-          override: false
-          override_products_download: true
-        dfop00_config:
-          override: false
     # - network: cascadia-gorda
-    #   station: NCL1
-    #   campaign: 2023_from_john
+    #   station: NCC1
+    #   campaign: 2024_A_1126
     #   config:
     #     rinex_config:
     #       time_interval: 24
-    #       override: true
+    #       override: false
+    #       override_products_download: true
+    #     dfop00_config:
+    #     override: false
+    - network: cascadia-gorda
+      station: NCL1
+      campaign: 2023_from_john
+      config:
+        rinex_config:
+          time_interval: 24
+          override: true
           
 
 

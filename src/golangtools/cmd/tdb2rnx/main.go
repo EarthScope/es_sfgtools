@@ -223,6 +223,7 @@ func ProcessDaySlice(daySlice tiledbgnss.TimeRange, tdbPath string, interval int
 }
 
 func main() {
+	log.Println("Starting TDB2Rnx")
 	sfg_utils.LoadEnv()
 	tdbPathPtr := flag.String("tdb", "", "Path to the TileDB array")
 	metaPtr := flag.String("settings", "", "settings file")
@@ -231,7 +232,7 @@ func main() {
 
 	flag.Parse()
 	log.SetOutput(os.Stdout)
-
+	
 	// Parse settings from JSON
 	settings, err := ParseSettings(*metaPtr)
 	if err != nil {

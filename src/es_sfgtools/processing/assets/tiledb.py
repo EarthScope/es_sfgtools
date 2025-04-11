@@ -232,6 +232,7 @@ for roll_period, tile_value in roll_periods.items():
 class TBDArray:
     dataframe_schema = None
     array_schema = None 
+    name = "TBD Array"
     def __init__(self,uri:Path|str):
         self.uri = uri
         if not tiledb.array_exists(uri=str(uri), ctx=ctx):
@@ -293,7 +294,7 @@ class TBDArray:
         config = tiledb.Config()
         config["sm.consolidation.steps"] = 3
         uri = tiledb.consolidate(uri=str(self.uri),ctx=ctx,config=config)
-        print(f"Consolidate to {uri}")
+        print(f"Consolidated {self.name} to {uri}")
         tiledb.vacuum(str(self.uri))
 
     def view(self, network: str = "", station: str = ""):
