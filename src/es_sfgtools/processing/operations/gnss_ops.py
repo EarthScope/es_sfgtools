@@ -28,10 +28,6 @@ from .pride_utils import get_nav_file,get_gnss_products
 
 from es_sfgtools.utils.loggers import GNSSLogger as logger
 
-
-() # Load environment variables from .env file
-
-
 RINEX_BINARIES = "src/golangtools/build"
 SELF_PATH = Path(__file__).resolve()
 # find src
