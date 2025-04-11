@@ -21,7 +21,7 @@ import numpy as np
 import uuid
 from warnings import warn
 import matplotlib.pyplot as plt
-from dotenv import load_dotenv
+
 from ..assets.file_schemas import AssetEntry,AssetType
 from ..assets.observables import GNSSDataFrame
 from .pride_utils import get_nav_file,get_gnss_products
@@ -29,7 +29,7 @@ from .pride_utils import get_nav_file,get_gnss_products
 from es_sfgtools.utils.loggers import GNSSLogger as logger
 
 
-##load_dotenv() # Load environment variables from .env file
+() # Load environment variables from .env file
 
 
 RINEX_BINARIES = "src/golangtools/build"
