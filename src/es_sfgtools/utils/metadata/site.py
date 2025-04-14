@@ -54,12 +54,12 @@ class ReferenceFrame(AttributeUpdater, BaseModel):
 
 class Site(BaseModel):
     # Required
-    names: Optional[List[str]] = Field(
-        [], description="The names of the site, including the 4 character ID"
+    names: List[str] = Field(
+        ..., description="The names of the site, including the 4 character ID"
     )
-    networks: Optional[List[str]] = Field([], description="A list networks the site is part of")
-    timeOrigin: Optional[datetime] = Field(
-        None, description="The time origin of the site", ge=datetime(1901, 1, 1)
+    networks: List[str] = Field(..., description="A list networks the site is part of")
+    timeOrigin: datetime = Field(
+        ..., description="The time origin of the site", ge=datetime(1901, 1, 1)
     )
     localGeoidHeight: Optional[float] = Field(
         0, description="The local geoid height of the site"
@@ -67,7 +67,6 @@ class Site(BaseModel):
 
     # Optional
     arrayCenter: Location = Field(..., description="The array center of the site")
-    # TODO change this in metadata notebook and in all metadata files
 
     campaigns: List[Campaign] = Field(
         default_factory=list, description="The campaigns associated with the site"

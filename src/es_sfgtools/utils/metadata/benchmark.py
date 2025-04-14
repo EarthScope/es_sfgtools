@@ -121,7 +121,7 @@ class Transponder(AttributeUpdater, BaseModel):
 
 class Benchmark(AttributeUpdater, BaseModel):
     # Required
-    name: Optional[str] = Field("", description="The name of the benchmark")
+    name: str = Field(..., description="The name of the benchmark")
     benchmarkID: Optional[str] = Field("", description="The benchmark ID")
     aPrioriLocation: Optional[Location] = Field(
        None, description="The a priori location of the benchmark"
