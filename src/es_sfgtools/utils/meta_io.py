@@ -4,7 +4,7 @@ import re
 from datetime import datetime
 import yaml
 from .metadata.vessel import AtdOffset
-from .metadata.site import Site, ArrayCenter
+from .metadata.site import Site
 from .metadata.benchmark import Location, Benchmark, Transponder, TAT
 
 MASTER_STATION_ID = {"0": "5209", "1": "5210", "2": "5211", "3": "5212"}
@@ -26,7 +26,7 @@ def masterfile_to_siteconfig(
     non_alphabet = re.compile("[a-c,e-z,A-Z]")
     geoid_undulation_pat = re.compile(r"Geoid undulation at sea surface point")
 
-    benchmark = Benchmark()
+    # benchmark = Benchmark()
     geoid_undulation = None
 
     # Read the master file
@@ -35,7 +35,7 @@ def masterfile_to_siteconfig(
 
         for index, line in enumerate(lines):
             if index == 0:
-                """ get date  ex. 2018-05-18 00:00:00"""
+                """get date  ex. 2018-05-18 00:00:00"""
                 date = line.strip()
                 start_date = datetime.strptime(date, "%Y-%m-%d %H:%M:%S")
                 site = Site(
@@ -50,6 +50,7 @@ def masterfile_to_siteconfig(
 
                 line_processed = line.strip().split()
                 transponder_address_id = line_processed[0]
+                benchmark_number = int(transponder_address_id) + 1
                 lat = float(line_processed[2])
                 lon = float(line_processed[3])
                 height = float(line_processed[4])
@@ -70,6 +71,7 @@ def masterfile_to_siteconfig(
                     latitude=lat, longitude=lon, elevation=height
                 )
                 benchmark = Benchmark(
+                    name=f"{site_name}_{benchmark_number}",
                     aPrioriLocation=transponder_position,
                     start=site.timeOrigin,
                     transponders=[transponder],
@@ -78,7 +80,7 @@ def masterfile_to_siteconfig(
                 site.benchmarks.append(benchmark)
 
             elif geoid_undulation_pat.search(line):
-                """ "+10.300d0           ! Geoid undulation at sea surface point """
+                """ "+10.300d0           ! Geoid undulation at sea surface point"""
                 geoid_undulation = float(
                     line.split()[0].replace("d0", "")
                 )  # TODO verify sign
@@ -140,14 +142,14 @@ def update_from_yaml(site: Site, source: Union[str, Path]):
 
     # Update array center
     if "array_center" in data:
-        site.arrayCenter = ArrayCenter(
-            x=data["array_center"].get(
+        site.arrayCenter = Location(
+            latitude=data["array_center"].get(
                 "lat", site.arrayCenter.x if site.arrayCenter else None
             ),
-            y=data["array_center"].get(
+            longitude=data["array_center"].get(
                 "lon", site.arrayCenter.y if site.arrayCenter else None
             ),
-            z=None,  # Assuming no z-coordinate in the YAML file
+            elevaion=None,  # Assuming no z-coordinate in the YAML file
         )
 
     # Update transponders

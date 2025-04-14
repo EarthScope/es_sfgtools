@@ -66,7 +66,9 @@ class Site(BaseModel):
     )
 
     # Optional
-    arrayCenter: Location = Field(..., description="The array center of the site")
+    arrayCenter: Optional[Location] = Field(
+        default=None, description="The array center of the site"
+    )
 
     campaigns: List[Campaign] = Field(
         default_factory=list, description="The campaigns associated with the site"
