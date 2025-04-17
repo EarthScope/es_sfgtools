@@ -1,6 +1,8 @@
 import os
 from pathlib import Path
 
+os.environ["GARPOS_PATH"] = str(Path("/Users/franklyndunbar/Project/garpos").resolve())
+
 from es_sfgtools.processing.pipeline.data_handler import DataHandler
 
 from es_sfgtools.processing.operations.site_ops import (
@@ -14,7 +16,7 @@ pride_path = Path.home() / ".PRIDE_PPPAR_BIN"
 os.environ["PATH"] += os.pathsep + str(pride_path)
 
 if __name__ == "__main__":
-
+    
     main_dir = Path("/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain")
     BaseLogger.route_to_console()
     network = "cascadia-gorda"
