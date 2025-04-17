@@ -12,8 +12,12 @@ from configparser import ConfigParser
 from ...processing.assets.observables import SoundVelocityDataFrame
 from es_sfgtools.utils.loggers import GarposLogger as logger
 import julian
+from .load_utils import load_lib
 
-from garpos import LIB_DIRECTORY,LIB_RAYTRACE
+try:
+    LIB_DIRECTORY,LIB_RAYTRACE = load_lib()
+except Exception as e:
+    from garpos import LIB_DIRECTORY,LIB_RAYTRACE
 
 
 class GPPositionLLH(BaseModel):

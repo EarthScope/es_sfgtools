@@ -45,8 +45,14 @@ from es_sfgtools.utils.metadata.site import Site as MetaSite
 from es_sfgtools.utils.loggers import GarposLogger as logger
 
 
-from garpos import drive_garpos
+from .load_utils import load_drive_garpos
 
+try:
+    drive_garpos = load_drive_garpos()
+
+except Exception as e:
+
+    from garpos import drive_garpos
 
 colors = [
     "blue",

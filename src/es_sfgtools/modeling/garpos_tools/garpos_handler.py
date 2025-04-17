@@ -42,8 +42,14 @@ from es_sfgtools.utils.metadata.vessel import Vessel as MetaVessel
 from es_sfgtools.utils.loggers import GarposLogger as logger
 
 from ...processing.assets.tiledb import TDBShotDataArray
+from .load_utils import load_drive_garpos
 
-from garpos import drive_garpos
+try:
+    drive_garpos = load_drive_garpos()
+
+except Exception as e:
+
+    from garpos import drive_garpos
 
 
 colors = [
