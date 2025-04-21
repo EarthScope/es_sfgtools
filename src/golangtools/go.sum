@@ -51,6 +51,8 @@ gitlab.com/earthscope/gnsstools v0.18.11 h1:y6IW2MFkgwLuDJ/v4pHvkxM8XxdpTPMAKB2p
 gitlab.com/earthscope/gnsstools v0.18.11/go.mod h1:JfT14HlOgWSEmmkNQiXoZGSFxlIz2zefi4CFaZw3Pcc=
 gitlab.com/earthscope/gnsstools v0.18.14 h1:SCBihzJB4TDqZj2jRj5KjmjSGPtSgJhHc2X7J7tiZrQ=
 gitlab.com/earthscope/gnsstools v0.18.14/go.mod h1:JfT14HlOgWSEmmkNQiXoZGSFxlIz2zefi4CFaZw3Pcc=
+gitlab.com/earthscope/gnsstools v0.18.17 h1:zBypIsiWNTGlWFeA2/bul2Y8v4AY5110K4MFMQ1Lp4A=
+gitlab.com/earthscope/gnsstools v0.18.17/go.mod h1:JfT14HlOgWSEmmkNQiXoZGSFxlIz2zefi4CFaZw3Pcc=
 go4.org/unsafe/assume-no-moving-gc v0.0.0-20231121144256-b99613f794b6 h1:lGdhQUN/cnWdSH3291CUuxSEqc+AsGTiDxPP3r2J0l4=
 go4.org/unsafe/assume-no-moving-gc v0.0.0-20231121144256-b99613f794b6/go.mod h1:FftLjUGFEDu5k8lt0ddY+HcrH/qU/0qk+H8j9/nTl3E=
 golang.org/x/crypto v0.36.0 h1:AnAEvhDddvBdpY+uR+MyHmuZzzNqXSe/GvuDeob5L34=
