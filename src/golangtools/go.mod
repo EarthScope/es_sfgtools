@@ -5,7 +5,7 @@ toolchain go1.24.1
 require (
 	github.com/TileDB-Inc/TileDB-Go v0.35.0
 	github.com/sirupsen/logrus v1.9.3
-	gitlab.com/earthscope/gnsstools v0.18.14
+	gitlab.com/earthscope/gnsstools v0.18.17
 )
 
 require (

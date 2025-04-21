@@ -58,6 +58,7 @@ class DFOP00Config(BaseModel):
 
 class PositionUpdateConfig(BaseModel):
     override: bool = Field(False, title="Flag to Override Existing Data")
+    plot: bool = Field(False)
 
 class SV3PipelineConfig(BaseModel):
     pride_config: PridePdpConfig = PridePdpConfig()
@@ -529,9 +530,13 @@ class PipelineManifest(BaseModel):
         download_jobs = []
 
         for job in data.get("processing",{}).get("jobs",[]):
-            job_config = SV3PipelineConfig(**job["config"])
-            # update config_loaded with job_config
-            job_config = config_loaded.model_copy(update=dict(job_config))
+
+            if hasattr(job,"config"):
+                job_config = SV3PipelineConfig(**job["config"])
+                # update config_loaded with job_config
+                job_config = config_loaded.model_copy(update=dict(job_config))
+            else:
+                job_config = config_loaded
             process_jobs.append(PipelineProcessJob(
                 network=job["network"],
                 station=job["station"],
