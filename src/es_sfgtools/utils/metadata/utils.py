@@ -1,9 +1,8 @@
 # Description: Utility functions for metadata classes.
 from datetime import datetime
-from typing import Union, Dict, Any
-from pathlib import Path
-from pydantic import BaseModel
-import re
+from typing import Optional, Union, Dict, Any
+
+from pydantic import BaseModel, Field, field_validator
 
 
 def parse_datetime(cls, value):
@@ -130,3 +129,18 @@ def convert_custom_objects_to_dict(d: dict) -> dict:
             d[key] = convert_custom_objects_to_dict(value)
     return d
 
+
+class Location(AttributeUpdater, BaseModel):
+    latitude: Optional[float] = Field(
+        default=None, description="The latitude of the location.", ge=-90, le=90
+    )
+    longitude: Optional[float] = Field(
+        default=None, description="The longitude of the location.", ge=-180, le=180
+    )
+    elevation: Optional[float] = Field(
+        default=None, description="The elevation of the location."
+    )
+
+    _if_zero_than_none = field_validator("latitude", "longitude", "elevation")(
+        if_zero_than_none
+    )

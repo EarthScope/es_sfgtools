@@ -4,10 +4,10 @@ from pydantic import BaseModel, Field, field_validator
 
 from es_sfgtools.utils.metadata.utils import (
     AttributeUpdater,
+    Location,
     check_fields_for_empty_strings,
     parse_datetime,
     check_dates,
-    if_zero_than_none,
 )
 
 
@@ -30,22 +30,6 @@ class BatteryVoltage(AttributeUpdater, BaseModel):
     _parse_datetime = field_validator("date", mode="before")(parse_datetime)
 
 
-class Location(AttributeUpdater, BaseModel):
-    latitude: Optional[float] = Field(
-        default=None, description="The latitude of the location.", ge=-90, le=90
-    )
-    longitude: Optional[float] = Field(
-        default=None, description="The longitude of the location.", ge=-180, le=180
-    )
-    elevation: Optional[float] = Field(
-        default=None, description="The elevation of the location."
-    )
-
-    _if_zero_than_none = field_validator("latitude", "longitude", "elevation")(
-        if_zero_than_none
-    )
-
-
 class TAT(AttributeUpdater, BaseModel):
     # Required
     value: float = Field(..., description="Turn around time (TAT) in ms", ge=0, le=1000)
@@ -59,21 +43,21 @@ class TAT(AttributeUpdater, BaseModel):
     @field_validator("timeIntervals", mode="before")
     def validate_time_intervals(cls, time_intervals):
         for interval in time_intervals:
-            start = interval["start"]
-            end = interval["end"]
+            start = interval.get("start")
+            end = interval.get("end")
 
-            start = parse_datetime(cls, start)
-            end = parse_datetime(cls, end)
+            # Parse start and end times if they exist
+            if start:
+                interval["start"] = parse_datetime(cls, start)
+            if end:
+                interval["end"] = parse_datetime(cls, end)
 
-            if not start or not end:
-                interval["start"] = start
-                interval["end"] = end
-                continue
-
-            if start >= end:
+            # Validate that start is before end
+            if start and end and start >= end:
                 raise ValueError(
                     "'end' time must be after 'start' time in each interval"
                 )
+
         return time_intervals
 
 
@@ -120,26 +104,24 @@ class Transponder(AttributeUpdater, BaseModel):
     _parse_datetime = field_validator("start", "end", mode="before")(parse_datetime)
     _check_dates = field_validator("end")(check_dates)
 
-    def get_tat(self, datetime: datetime) -> Optional[float]:
-        """
-        Get the turn around time (TAT) for a given date and time.
-        If no TAT is found, return None.
-        """
+    def get_tat_by_datetime(self, dt: datetime) -> Optional[TAT]:
+
+        # If there is only 1 TAT available, return that TAT
+        if len(self.tat) == 1:
+            return self.tat[0].value
+
+        # If there are multiple TATs, check if the datetime is within the time intervals
         for tat in self.tat:
-            if tat.timeIntervals:
-                for interval in tat.timeIntervals:
-                    start = parse_datetime(self, interval["start"])
-                    end = parse_datetime(self, interval["end"])
-                    if start <= datetime <= end:
-                        return tat.value
-            else:
-                return tat.value
+            for interval in tat.timeIntervals:
+                if interval["start"] <= dt <= interval["end"]:
+                    return tat.value
+
         return None
 
 
 class Benchmark(AttributeUpdater, BaseModel):
     # Required
-    name: Optional[str] = Field("", description="The name of the benchmark")
+    name: str = Field(..., description="The name of the benchmark")
     benchmarkID: Optional[str] = Field("", description="The benchmark ID")
     aPrioriLocation: Optional[Location] = Field(
        None, description="The a priori location of the benchmark"

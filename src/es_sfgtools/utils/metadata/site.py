@@ -7,10 +7,10 @@ from es_sfgtools.utils.metadata.benchmark import TAT, Benchmark, Transponder
 from es_sfgtools.utils.metadata.campaign import Campaign, Survey
 from es_sfgtools.utils.metadata.utils import (
     AttributeUpdater,
+    Location,
     check_dates,
     only_one_is_true,
     parse_datetime,
-    if_zero_than_none,
 )
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
@@ -52,37 +52,24 @@ class ReferenceFrame(AttributeUpdater, BaseModel):
     _check_dates = field_validator("end", mode="after")(check_dates)
 
 
-class ArrayCenter(BaseModel, AttributeUpdater):
-    latitude: Optional[float] = Field(
-        default=None, description="The latitude of the array center"
-    )
-    longitude: Optional[float] = Field(
-        default=None, description="The longitude of the array center"
-    )
-    elevation: Optional[float] = Field(
-        default=None, description="The elevation (m) of the array center"
-    )
-
-    _if_zero_than_none = field_validator("latitude", "longitude", "elevation")(if_zero_than_none)
-
-
 class Site(BaseModel):
     # Required
-    names: Optional[List[str]] = Field(
-        [], description="The names of the site, including the 4 character ID"
+    names: List[str] = Field(
+        ..., description="The names of the site, including the 4 character ID"
     )
-    networks: Optional[List[str]] = Field([], description="A list networks the site is part of")
-    timeOrigin: Optional[datetime] = Field(
-        None, description="The time origin of the site", ge=datetime(1901, 1, 1)
+    networks: List[str] = Field(..., description="A list networks the site is part of")
+    timeOrigin: datetime = Field(
+        ..., description="The time origin of the site", ge=datetime(1901, 1, 1)
     )
     localGeoidHeight: Optional[float] = Field(
         0, description="The local geoid height of the site"
     )
 
     # Optional
-    arrayCenter: Optional[ArrayCenter] = Field(
-        default_factory=dict, description="The array center of the site"
+    arrayCenter: Optional[Location] = Field(
+        default=None, description="The array center of the site"
     )
+
     campaigns: List[Campaign] = Field(
         default_factory=list, description="The campaigns associated with the site"
     )
@@ -153,6 +140,37 @@ class Site(BaseModel):
                 f"Please check the {num_of_invalid_components} warnings above and add required information prior to submitting to Earthscope."
                 + "\n You can still write out to JSON file and come back to work on the other components in the notebook later."
             )
+
+    def return_tats_for_campaign(
+        self, campaign_name: str
+    ) -> Optional[List[Dict[str, Any]]]:
+        """
+        Return all TATs for a given campaign
+
+        Args:
+            campaign_name (str): The name of the campaign
+        Returns:
+            List[Dict[str, Any]]: A list of dictionaries containing Benchmark name, Transponder address, and TAT
+
+        """
+
+        tat_list = []
+        tat_info = {}
+        for campaign in self.campaigns:
+            if campaign.name == campaign_name:
+
+                for benchmark in self.benchmarks:
+                    for transponder in benchmark.transponders:
+                        TAT = transponder.get_tat_by_datetime(campaign.start)
+                        tat_info["Benchmark"] = benchmark.name
+                        tat_info["Transponder"] = transponder.address
+                        tat_info["TAT"] = TAT
+                        tat_list.append(tat_info)
+
+                return tat_list
+
+        print(f"ERROR: Campaign {campaign_name} not found..")
+        return None
 
     def run_component(
         self,
@@ -374,8 +392,8 @@ class Site(BaseModel):
                     print(new_survey.model_dump_json(indent=2))
                     print(f"New survey added successfully.")
                     return
-            else:
-                print(f"ERROR: {component_type} {component_name} not found..")
+
+        print(f"ERROR: {component_type} {component_name} not found..")
 
     def _update_existing_sub_component(
         self,
@@ -478,3 +496,16 @@ if __name__ == "__main__":
     site = Site.from_json(example_json_filepath)
     site.print_json()
     site.validate_components()
+
+    # test_time = datetime(year=2025, month=1, day=1, hour=1, minute=0, second=0)
+    # for benchmark in site.benchmarks:
+    #     for transponder in benchmark.transponders:
+    #         tat = transponder.get_tat_by_datetime(test_time)
+    #         print(tat)
+
+    # for campaign in site.campaigns:
+    #     survey = campaign.get_survey_by_datetime(test_time)
+    #     print(survey)
+
+    tat_list = site.return_tats_for_campaign("Campaign1")
+    print(tat_list)

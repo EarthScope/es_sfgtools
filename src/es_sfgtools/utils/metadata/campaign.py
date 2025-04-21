@@ -127,3 +127,12 @@ class Campaign(AttributeUpdater, BaseModel):
                 )
 
         print("No overlapping survey times found.")
+
+    def get_survey_by_datetime(self, dt: datetime) -> Survey:
+        """Return the survey that contains the given datetime"""
+        for survey in self.surveys:
+            if survey.start <= dt <= survey.end:
+                return survey
+
+        raise ValueError(f"No survey found for datetime {dt}")
+    
