@@ -1091,7 +1091,7 @@ def novb2tile(files:List[AssetEntry],rangea_tdb:Path,n_procs:int=10) -> None:
         cmd.append(str(file.local_path))
     logger.loginfo(f"Running NOVB2TILE on {len(files)} files")
 
-    result = subprocess.run(cmd, check=True, capture_output=True)
+    result = subprocess.run(cmd)
 
     if result.stdout:
         logger.logdebug(result.stdout.decode("utf-8"))
