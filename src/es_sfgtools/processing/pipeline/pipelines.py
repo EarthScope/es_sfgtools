@@ -537,7 +537,7 @@ class PipelineManifest(BaseModel):
             else:
                 job_config = config_loaded
             if job_config.rinex_config.processing_year == -1:
-                # Infer from campaign name using re
+                # Infer the campaign year from the campaign name using string splitting
                 try:
                     year = int(job["campaign"].split("_")[0])
                     job_config.rinex_config.processing_year = year
