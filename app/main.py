@@ -6,9 +6,12 @@ from es_sfgtools.processing.pipeline.pipelines import (
 )
 from es_sfgtools.processing.pipeline.data_handler import DataHandler
 from es_sfgtools.utils.archive_pull import list_campaign_files
+from es_sfgtools.utils.loggers import ProcessLogger
 
 pride_path = Path.home() / ".PRIDE_PPPAR_BIN"
 os.environ["PATH"] += os.pathsep + str(pride_path)
+
+ProcessLogger.route_to_console()
 
 app = typer.Typer()
 
@@ -18,6 +21,8 @@ def run(file: Path):
     manifest_object = PipelineManifest.from_yaml(file)
 
     dh = DataHandler(manifest_object.main_dir)
+    if not manifest_object.ingestion_jobs:
+        print("No Manifest Jobs Found")
     for ingest_job in manifest_object.ingestion_jobs:
         dh.change_working_station(
             network=ingest_job.network,
@@ -26,7 +31,8 @@ def run(file: Path):
         )
         assert ingest_job.directory.exists(), "Directory listed does not exist"
         dh.discover_data_and_add_files(ingest_job.directory)
-
+    if not manifest_object.download_jobs:
+        print("No Download Jobs Found")
     for job in manifest_object.download_jobs:
         urls = list_campaign_files(**job.model_dump())
         if not urls:
@@ -34,7 +40,8 @@ def run(file: Path):
         dh.change_working_station(**job.model_dump())
         dh.add_data_remote(remote_filepaths=urls)
         dh.download_data()
-
+    if not manifest_object.process_jobs:
+        print("No Process Jobs Found")
     for job in manifest_object.process_jobs:
         dh.change_working_station(
             network=job.network, station=job.station, campaign=job.campaign
