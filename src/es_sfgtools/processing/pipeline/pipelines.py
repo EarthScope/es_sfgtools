@@ -538,8 +538,11 @@ class PipelineManifest(BaseModel):
                 job_config = config_loaded
             if job_config.rinex_config.processing_year == -1:
                 # Infer from campaign name using re
-                year = int(job["campaign"].split("_")[0])
-                job_config.rinex_config.processing_year = year
+                try:
+                    year = int(job["campaign"].split("_")[0])
+                    job_config.rinex_config.processing_year = year
+                except (ValueError, IndexError):
+                    raise ValueError(f"Invalid campaign format: {job['campaign']}. Expected format: '<year>_<details>'.")
                 
             process_jobs.append(PipelineProcessJob(
                 network=job["network"],
