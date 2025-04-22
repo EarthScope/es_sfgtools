@@ -44,6 +44,7 @@ class RinexConfig(BaseModel):
     n_processes: int = Field(default_factory=cpu_count, title="Number of Processes to Use")
     settings_path: Optional[Path] = Field("", title="Settings Path")
     time_interval: Optional[int] = Field(1, title="Tile to Rinex Time Interval [s]")
+    processing_year: Optional[int] = Field(default=-1,description="Processing year to query tiledb",le=2100)
     class Config:
         arbitrary_types_allowed = True
     @field_serializer("settings_path")
@@ -206,10 +207,8 @@ class SV3Pipeline:
 
         unique_dates = self.rangea_data_dest.get_unique_dates().tolist()
         unique_years = np.unique([x.year for x in unique_dates]).tolist()
-        if hasattr(self.config, "start_date"):
-            unique_years = [x for x in unique_years if x >= self.config.start_date.year]
-        if hasattr(self.config, "end_date"):
-            unique_years = [x for x in unique_years if x <= self.config.end_date.year]
+        if self.config.rinex_config.processing_year != -1:
+            unique_years = [x for x in unique_years if x == self.config.rinex_config.processing_year ]
 
 
 
@@ -537,6 +536,11 @@ class PipelineManifest(BaseModel):
                 job_config = config_loaded.model_copy(update=dict(job_config))
             else:
                 job_config = config_loaded
+            if job_config.rinex_config.processing_year == -1:
+                # Infer from campaign name using re
+                year = int(job["campaign"].split("_")[0])
+                job_config.rinex_config.processing_year = year
+                
             process_jobs.append(PipelineProcessJob(
                 network=job["network"],
                 station=job["station"],
