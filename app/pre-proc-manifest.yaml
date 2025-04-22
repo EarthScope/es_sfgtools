@@ -38,6 +38,11 @@ processing:
     - network: cascadia-gorda
       station: GCC1
       campaign: 2024_A_1126
+      # config:
+      #   rinex_config:
+      #     override: true
+      #     processing_year: 2024
+    
 
 
 global_config:
