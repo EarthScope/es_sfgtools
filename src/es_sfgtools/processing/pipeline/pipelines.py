@@ -315,23 +315,17 @@ class SV3Pipeline:
                 results, total=len(rinex_entries), desc="Processing Rinex Files",mininterval=0.5
             )):
                 if kinfile is not None:
-                    kin_entries.append(kinfile)
-                    if resfile is not None:
-                        resfile_entries.append(resfile)
-
-        for idx, (kinfile, resfile) in enumerate(zip(kin_entries, resfile_entries)):
-            if kinfile is not None:
-                count += 1
-            if self.catalog.add_or_update(kinfile):
-                uploadCount += 1
-
-            if resfile is not None:
-                count += 1
-                if self.catalog.add_or_update(resfile):
+                    count += 1
+                if self.catalog.add_or_update(kinfile):
                     uploadCount += 1
-                    resfile_entries.append(resfile)
-            rinex_entries[idx].is_processed = True
-            self.catalog.add_or_update(rinex_entries[idx])
+
+                if resfile is not None:
+                    count += 1
+                    if self.catalog.add_or_update(resfile):
+                        uploadCount += 1
+                        resfile_entries.append(resfile)
+                rinex_entries[idx].is_processed = True
+                self.catalog.add_or_update(rinex_entries[idx])
 
         response = f"Generated {count} Kin Files From {len(rinex_entries)} Rinex Files, Added {uploadCount} to the Catalog"
         gnss_logger.loginfo(response)
