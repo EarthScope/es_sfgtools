@@ -165,13 +165,34 @@ def generate_archive_campaign_url(network, station, campaign):
     Args:
         network (str): The network name
         station (str): The station name
-        campaign (str): The campaign name
+        campaign (str): The campaign name (e.g YYYY_A_WVGL)
 
     Returns:
         str: The URL of the campaign directory
     """
 
-    return f"https://gage-data.earthscope.org/archive/seafloor/{network}/{station}/{campaign}/raw"
+    # Grab the year out of the campaign name
+    year = campaign.split("_")[0]
+
+    return f"https://data.earthscope.org/archive/seafloor/{network}/{year}/{station}/{campaign}/raw"
+
+def generate_archive_campaign_metadata_url(network, station, campaign):
+    """
+    Generate a URL for campaign metadata in the public archive
+
+    Args:
+        network (str): The network name
+        station (str): The station name
+        campaign (str): The campaign name (e.g YYYY_A_WVGL)
+
+    Returns:
+        str: The URL of the campaign directory
+    """
+
+    # Grab the year out of the campaign name
+    year = campaign.split("_")[0]
+
+    return f"https://data.earthscope.org/archive/seafloor/{network}/{year}/{station}/{campaign}/metadata"
 
 
 def list_file_counts_by_type(file_list: list, url: str = None) -> dict:
@@ -217,12 +238,13 @@ def list_file_counts_by_type(file_list: list, url: str = None) -> dict:
 
 
 def get_survey_file_dict(url: str) -> dict:
-    """gets
+    """
 
-    :param url: location in archive
-    :type url: str
-    :return: dictionary of file locations by type
-    :rtype: dict
+    Args:
+        url (str): location in archive
+
+    Returns:
+        dict: dictionary of file locations by type
     """
 
     file_list = list_files_from_archive(url)
@@ -242,11 +264,21 @@ def list_campaign_files(network: str, station: str, campaign: str) -> list:
         list: list of file locations in archive
     """
 
-    url = generate_archive_campaign_url(network, station, campaign)
-    logger.loginfo(f"Listing campaign files from url {url}")
-    file_list = list_files_from_archive(url)
-    file_list += list_files_from_archive(f"{url}/ctd")
-    list_file_counts_by_type(file_list=file_list, url=url)
+    # Generate the URLs for raw data & metadata
+    raw_url = generate_archive_campaign_url(network, station, campaign)
+    metadata_url = generate_archive_campaign_metadata_url(network, station, campaign)
+
+    logger.loginfo(f"Listing raw campaign files from url {raw_url}")
+    raw_file_list = list_files_from_archive(raw_url)
+    list_file_counts_by_type(file_list=raw_file_list, url=raw_url)
+
+    logger.loginfo(f"Listing metadata campaign files from url {metadata_url}")
+    metadata_file_list = list_files_from_archive(metadata_url)
+    metadata_file_list += list_files_from_archive(f"{metadata_url}/ctd")
+    list_file_counts_by_type(file_list=metadata_file_list, url=metadata_url)
+
+    # Concatenate the two lists
+    file_list = raw_file_list + metadata_file_list
 
     return file_list
 
@@ -277,13 +309,18 @@ def list_s3_directory_files(bucket_name: str, prefix: str) -> List[str]:
 if __name__ == "__main__":
     # Example usage
 
-    # Download file from public arhive
-    url = "https://gage-data.earthscope.org/archive/gnss/L1/rinex/1998/300/cal13000.98S"
-    download_file_from_archive(url, dest_dir="./files")
+    files = list_campaign_files(network="alaska-shumagins", 
+                        station="SPT1",
+                        campaign="2022_A_1049")
+    print(files)
 
-    # List files from public arhive
-    url = "https://gage-data.earthscope.org/archive/gnss/rinex/met/2021/072"
-    file_list = list_files_from_archive(url)
+    # # Download file from public arhive
+    # url = ""
+    # download_file_from_archive(url, dest_dir="./files")
 
-    # Download a list of files
-    download_file_list_from_archive(file_list)
+    # # List files from public arhive
+    # url = "https://data.earthscope.org/archive/gnss/rinex/met/2021/072"
+    # file_list = list_files_from_archive(url)
+
+    # # Download a list of files
+    # download_file_list_from_archive(file_list)
