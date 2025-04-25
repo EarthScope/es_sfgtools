@@ -14,7 +14,7 @@ import yaml
 import concurrent.futures
 import numpy as np 
 
-from es_sfgtools.processing.pipeline.catalog import Catalog
+from es_sfgtools.processing.pipeline.catalog import PreProcessCatalog
 from es_sfgtools.processing.assets.file_schemas import AssetEntry,AssetType
 from es_sfgtools.processing.operations import sv2_ops, sv3_ops, gnss_ops, site_ops
 from es_sfgtools.processing.operations.gnss_ops import PridePdpConfig,rinex_to_kin,kin_to_gnssdf
@@ -33,6 +33,8 @@ from es_sfgtools.processing.operations.utils import (
 )
 
 from es_sfgtools.utils.loggers import ProcessLogger as logger, GNSSLogger as gnss_logger   
+from es_sfgtools.utils.metadata.catalogs import Catalog 
+
 
 class NovatelConfig(BaseModel):
     override: bool = Field(False, title="Flag to Override Existing Data")
@@ -109,47 +111,41 @@ class PrepSiteData(BaseModel):
 
 class SV3Pipeline:
 
-    def __init__(self,catalog:Catalog=None,config:SV3PipelineConfig=None):
-        self.catalog = catalog
+    def __init__(self,
+                 asset_catalog:PreProcessCatalog=None,
+                 data_catalog:Catalog=None,
+                 config:SV3PipelineConfig=None):
+        
+        self.asset_catalog = asset_catalog
+        self.data_catalog = data_catalog
         self.config = config
-        if self.catalog is None:
-            self.catalog = Catalog(self.config.catalog_path)
 
-    def set_site_data(self,data:dict | PrepSiteData ) -> None:
+    def set_site_data(self,
+                      network:str,
+                      station:str,
+                      campaign:str,
+                      inter_dir:Path,
+                      pride_dir:Path) -> None:
         """
         Set the site data for the pipeline.
 
         Args:
             kwargs: Keyword arguments containing site data.
         """
-        if isinstance(data,dict):
-            site_data = PrepSiteData(**data)
-            self._set_site_data(site_data)
-            return
-        elif isinstance(data,PrepSiteData):
-            self._set_site_data(data)
-
-    def _set_site_data(self,site_data:PrepSiteData) -> None:
-        """
-        Set the site data for the pipeline.
-
-        Args:
-            site_data (SiteData): The site data to set.
-        """
-        self.network = site_data.network
-        self.station = site_data.station
-        self.campaign = site_data.campaign
-        self.inter_dir = site_data.inter_dir
-        self.pride_dir = site_data.pride_dir
-        self.rangea_data_dest = TDBGNSSObsArray(site_data.rangea_data_dest)
-        self.gnss_data_dest = TDBGNSSArray(site_data.gnss_data_dest)
-        self.shot_data_dest = TDBShotDataArray(site_data.shot_data_dest)
+        self.network = network
+        self.station = station
+        self.campaign = campaign
+        self.inter_dir = inter_dir
+        self.pride_dir = pride_dir
+        self.rangea_data_dest = TDBGNSSObsArray(self.data_catalog.networks[network].stations[station].gnssobsdata)
+        self.gnss_data_dest = TDBGNSSArray(self.data_catalog.networks[network].stations[station].gnssdata)
+        self.shot_data_dest = TDBShotDataArray(self.data_catalog.networks[network].stations[station].shotdata)
+    
 
     def pre_process_novatel(
         self
     ) -> None:
-
-        novatel_770_entries: List[AssetEntry] = self.catalog.get_local_assets(
+        novatel_770_entries: List[AssetEntry] = self.asset_catalog.get_local_assets(
             network=self.network,
             station=self.station,
             campaign=self.campaign,
@@ -162,10 +158,10 @@ class SV3Pipeline:
                 "child_type": AssetType.RANGEATDB.value,
                 "parent_ids": [x.id for x in novatel_770_entries],
             }
-            if self.config.novatel_config.override or not self.catalog.is_merge_complete(**merge_signature):
+            if self.config.novatel_config.override or not self.asset_catalog.is_merge_complete(**merge_signature):
                 gnss_ops.novb2tile(files=novatel_770_entries,rangea_tdb=self.rangea_data_dest.uri,n_procs=self.config.novatel_config.n_processes)
 
-                self.catalog.add_merge_job(**merge_signature)
+                self.asset_catalog.add_merge_job(**merge_signature)
                 response = f"Added {len(novatel_770_entries)} Novatel 770 Entries to the catalog"
                 gnss_logger.loginfo(response)
                 # if self.config.novatel_config.show_details:
@@ -177,7 +173,7 @@ class SV3Pipeline:
             gnss_logger.loginfo(f"No Novatel 770 Files Found to Process for {self.network} {self.station} {self.campaign}")
 
         gnss_logger.loginfo(f"Processing Novatel 000 data for {self.network} {self.station} {self.campaign}")
-        novatel_000_entries: List[AssetEntry] = self.catalog.get_local_assets(
+        novatel_000_entries: List[AssetEntry] = self.asset_catalog.get_local_assets(
             network=self.network,
             station=self.station,
             campaign=self.campaign,
@@ -190,10 +186,10 @@ class SV3Pipeline:
                 "child_type": AssetType.RANGEATDB.value,
                 "parent_ids": [x.id for x in novatel_000_entries],
             }
-            if self.config.novatel_config.override or not self.catalog.is_merge_complete(**merge_signature):
+            if self.config.novatel_config.override or not self.asset_catalog.is_merge_complete(**merge_signature):
                 gnss_ops.nov0002tile(files=novatel_000_entries,rangea_tdb=self.rangea_data_dest.uri,n_procs=self.config.novatel_config.n_processes)
 
-                self.catalog.add_merge_job(**merge_signature)
+                self.asset_catalog.add_merge_job(**merge_signature)
                 gnss_logger.loginfo(f"Added {len(novatel_000_entries)} Novatel 000 Entries to the catalog")
                 # if self.config.novatel_config.show_details:
                 #     print(response) # TODO: should the logger handle this?
@@ -220,7 +216,7 @@ class SV3Pipeline:
                 "parent_ids": [parent_ids],
             }
 
-            if self.config.rinex_config.override or not self.catalog.is_merge_complete(**merge_signature):
+            if self.config.rinex_config.override or not self.asset_catalog.is_merge_complete(**merge_signature):
                 rinex_entries: List[AssetEntry] = gnss_ops.tile2rinex(
                     rangea_tdb=self.rangea_data_dest.uri,
                     settings=self.config.rinex_config.settings_path,
@@ -233,7 +229,7 @@ class SV3Pipeline:
                     gnss_logger.loginfo(f"No Rinex Files Found to Process for {self.network} {self.station} {self.campaign}")
                     return
 
-                self.catalog.add_merge_job(**merge_signature)
+                self.asset_catalog.add_merge_job(**merge_signature)
                 # TODO: Sort the rinex entries by date so span log is correct
                 # currently gave "Generated 29 Rinex Entries spanning 2024-10-03 15:06:07 to 2024-09-30 15:53:07"
                 gnss_logger.loginfo(f"Generated {len(rinex_entries)} Rinex Entries spanning {rinex_entries[0].timestamp_data_start} to {rinex_entries[-1].timestamp_data_end}")
@@ -242,11 +238,11 @@ class SV3Pipeline:
                     rinex_entry.network = self.network
                     rinex_entry.station = self.station
                     rinex_entry.campaign = self.campaign
-                    if self.catalog.add_entry(rinex_entry):
+                    if self.asset_catalog.add_entry(rinex_entry):
                         uploadCount += 1
                 gnss_logger.loginfo(f"Added {uploadCount} out of {len(rinex_entries)} Rinex Entries to the catalog")
             else:
-                rinex_entries = self.catalog.get_local_assets(self.network,self.station,self.campaign,AssetType.RINEX)
+                rinex_entries = self.asset_catalog.get_local_assets(self.network,self.station,self.campaign,AssetType.RINEX)
                 num_rinex_entries = len(rinex_entries)
                 gnss_logger.loginfo(f"Rinex Files Already Processed for {self.network} {self.station} {self.campaign}, Found {num_rinex_entries} Entries")
 
@@ -262,7 +258,7 @@ class SV3Pipeline:
         gnss_logger.loginfo(response)
 
         rinex_entries: List[AssetEntry] = (
-            self.catalog.get_single_entries_to_process(
+            self.asset_catalog.get_single_entries_to_process(
                 network=self.network,
                 station=self.station,
                 campaign=self.campaign,
@@ -316,30 +312,30 @@ class SV3Pipeline:
             )):
                 if kinfile is not None:
                     count += 1
-                if self.catalog.add_or_update(kinfile):
+                if self.asset_catalog.add_or_update(kinfile):
                     uploadCount += 1
 
                 if resfile is not None:
                     count += 1
-                    if self.catalog.add_or_update(resfile):
+                    if self.asset_catalog.add_or_update(resfile):
                         uploadCount += 1
                         resfile_entries.append(resfile)
                 rinex_entries[idx].is_processed = True
-                self.catalog.add_or_update(rinex_entries[idx])
+                self.asset_catalog.add_or_update(rinex_entries[idx])
 
         response = f"Generated {count} Kin Files From {len(rinex_entries)} Rinex Files, Added {uploadCount} to the Catalog"
         gnss_logger.loginfo(response)
 
     def process_kin(self):
         gnss_logger.loginfo(f"Looking for Kin Files to Process for {self.network} {self.station} {self.campaign}")
-        kin_entries: List[AssetEntry] = self.catalog.get_single_entries_to_process(
+        kin_entries: List[AssetEntry] = self.asset_catalog.get_single_entries_to_process(
             network=self.network,
             station=self.station,
             campaign=self.campaign,
             parent_type=AssetType.KIN,
             override=self.config.rinex_config.override,
         )
-        res_entries: List[AssetEntry] = self.catalog.get_single_entries_to_process(
+        res_entries: List[AssetEntry] = self.asset_catalog.get_single_entries_to_process(
             network=self.network,
             station=self.station,
             campaign=self.campaign,
@@ -358,13 +354,13 @@ class SV3Pipeline:
         uploadCount = 0
         for kin_entry in tqdm(kin_entries, total=len(kin_entries), desc="Processing Kin Files"):
             if not kin_entry.local_path.exists():
-                self.catalog.delete_entry(kin_entry)
+                self.asset_catalog.delete_entry(kin_entry)
                 continue
             gnss_df = gnss_ops.kin_to_gnssdf(kin_entry)
             if gnss_df is not None:
                 count += 1
                 kin_entry.is_processed = True
-                self.catalog.add_or_update(kin_entry)
+                self.asset_catalog.add_or_update(kin_entry)
                 self.gnss_data_dest.write_df(gnss_df)           
 
         response = f"Generated {count} GNSS Dataframes From {len(kin_entries)} Kin Files, Added {uploadCount} to the Catalog"
@@ -373,7 +369,7 @@ class SV3Pipeline:
     def process_dfop00(self) -> None:
 
         # TODO need a way to mark the dfopoo files as processed
-        dfop00_entries: List[AssetEntry] = self.catalog.get_single_entries_to_process(
+        dfop00_entries: List[AssetEntry] = self.asset_catalog.get_single_entries_to_process(
             network=self.network,
             station=self.station,
             campaign=self.campaign,
@@ -398,7 +394,7 @@ class SV3Pipeline:
                     self.shot_data_dest.write_df(shotdata_df)
                     count += 1
                     dfo_entry.is_processed = True
-                    self.catalog.add_or_update(dfo_entry)
+                    self.asset_catalog.add_or_update(dfo_entry)
                     logger.logdebug(f"Processed {dfo_entry.local_path}")
                 else:
                     logger.logerr(f"Failed to Process {dfo_entry.local_path}")
@@ -422,12 +418,12 @@ class SV3Pipeline:
             "child_type": AssetType.SHOTDATA.value,
             "parent_ids": merge_signature,
         }
-        if not self.catalog.is_merge_complete(**merge_job) or self.config.position_update_config.override:
+        if not self.asset_catalog.is_merge_complete(**merge_job) or self.config.position_update_config.override:
             dates.append(dates[-1]+datetime.timedelta(days=1))
             merge_shotdata_gnss(
                 shotdata=self.shot_data_dest, gnss=self.gnss_data_dest, dates=dates, plot=self.config.position_update_config.plot
             )
-            self.catalog.add_merge_job(**merge_job)
+            self.asset_catalog.add_merge_job(**merge_job)
 
     def run_pipeline(self):
         self.pre_process_novatel()
@@ -439,11 +435,11 @@ class SV3Pipeline:
 
 class SV2Pipeline:
     #TODO this doesnt not work yet
-    def __init__(self,catalog:Catalog=None,config:SV3PipelineConfig=None):
+    def __init__(self,catalog:PreProcessCatalog=None,config:SV3PipelineConfig=None):
         self.catalog = catalog
         self.config = config
         if self.catalog is None:
-            self.catalog = Catalog(self.config.catalog_path)
+            self.catalog = PreProcessCatalog(self.config.catalog_path)
 
     def process_novatel(self) -> None:
 

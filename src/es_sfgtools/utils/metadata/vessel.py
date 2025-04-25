@@ -4,7 +4,7 @@ import json
 from typing import Any, ClassVar, Dict, List, Optional
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
-from es_sfgtools.utils.metadata.utils import (
+from .utils import (
     AttributeUpdater,
     check_fields_for_empty_strings,
     only_one_is_true,

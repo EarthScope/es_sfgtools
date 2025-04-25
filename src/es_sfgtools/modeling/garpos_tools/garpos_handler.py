@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
 import numpy as np
 import pymap3d as pm
-import julian
 from scipy.stats import hmean as harmonic_mean
 from scipy.stats import norm as normal_dist
 import json
@@ -16,6 +15,9 @@ from matplotlib.colors import Normalize
 from matplotlib.collections import LineCollection
 import matplotlib.dates as mdates
 import seaborn as sns
+
+from es_sfgtools.utils.metadata.site import Site 
+from es_sfgtools.utils.metadata.catalogs import Catalog,CatalogType,StationData
 
 sns.set_theme()
 import shutil
@@ -42,7 +44,7 @@ from es_sfgtools.utils.metadata.vessel import Vessel as MetaVessel
 from es_sfgtools.utils.loggers import GarposLogger as logger
 
 from ...processing.assets.tiledb import TDBShotDataArray
-from .load_utils import load_drive_garpos
+from .load_utils import load_drive_garpos,load_lib
 
 try:
     drive_garpos = load_drive_garpos()
@@ -141,11 +143,9 @@ class GarposHandler:
     """
 
     def __init__(self, 
-                 shotdata: TDBShotDataArray, 
-                 working_dir: Path,
-                 site_path:Path,
-                 sound_speed_path:Path,
-                 vessel_path:Path):
+                 station_data:StationData,
+                 site_data:Site,
+                 working_dir: Path):
         """
         Initializes the class with shot data, site configuration, and working directory.
         Args:
@@ -154,8 +154,8 @@ class GarposHandler:
             working_dir (Path): The working directory path.
         """
         self.garpos_fixed = GarposFixed()
-        
-        self.shotdata = shotdata
+        self.shotdata = TDBShotDataArray(station_data.shotdata)
+        self.site = site_data
         self.working_dir = working_dir
         self.shotdata_dir = working_dir / "shotdata"
         self.shotdata_dir.mkdir(exist_ok=True, parents=True)
@@ -165,18 +165,8 @@ class GarposHandler:
         self.current_campaign = None
         self.current_survey = None
         self.coord_transformer = None
-        self.set_site_data(site_path=site_path,sound_speed_path=sound_speed_path,vessel_path=vessel_path)
-        self.garpos_fixed._to_datafile(path=self.working_dir/"default_settings.ini")
 
-    def set_site_data(
-        self, site_path: Path | str, sound_speed_path: Path | str, vessel_path: Path|str
-    ):
-        self.site = MetaSite.from_json(site_path)
-        self.vessel_meta = MetaVessel.from_json(vessel_path)
-        # copy sound speed data to the working directory
-        new_ss_path = self.working_dir / sound_speed_path.name
-        shutil.copy(src=sound_speed_path,dst=new_ss_path)
-        self.sound_speed_path = new_ss_path
+        self.garpos_fixed._to_datafile(path=self.working_dir/"default_settings.ini")
 
     def set_campaign(self, name: str):
         for campaign in self.site.campaigns:
@@ -188,6 +178,10 @@ class GarposHandler:
                     latitude=self.site.arrayCenter.latitude,
                     longitude=self.site.arrayCenter.longitude,
                     elevation=-float(self.site.localGeoidHeight) # use negatiive value to account for garpos error "ys is shallower than layer"
+                )
+                self.sound_speed_path = self.current_campaign_dir / "svp.csv"
+                self.current_campaign.soundSpeedProfile.to_csv(
+                    self.sound_speed_path, index=False
                 )
                 self.current_survey = None
 
@@ -211,7 +205,7 @@ class GarposHandler:
         return obs_path
 
     def prep_shotdata(self, overwrite: bool = False):
-        #for campaign in self.site.campaigns:
+        # for campaign in self.site.campaigns:
         #    self.set_campaign(campaign.name)
         for survey in self.current_campaign.surveys:
             obsfile_path = self.get_obsfile_path(
@@ -246,11 +240,11 @@ class GarposHandler:
                     position_llh=GPPositionLLH(
                         latitude=benchmark.aPrioriLocation.latitude,
                         longitude=benchmark.aPrioriLocation.longitude,
-                        height=float(benchmark.aPrioriLocation.elevation)
+                        height=float(benchmark.aPrioriLocation.elevation),
                     ),
-                    tat_offset=current_transponder.get_tat(survey.start), 
-                    id = current_transponder.address,
-                    name= benchmark.benchmarkID
+                    tat_offset=current_transponder.tat[0].value,
+                    id=current_transponder.address,
+                    name=benchmark.benchmarkID,
                 )
                 # Rectify to local coordinates
                 gp_transponder_enu:Tuple = self.coord_transformer.LLH2ENU(
@@ -276,24 +270,20 @@ class GarposHandler:
                 lon=array_center_llh.longitude,
                 hgt=array_center_llh.height
             )
-
             survey_type = survey.type.replace(" ", "")
             start_doy = survey.start.timetuple().tm_yday
             end_doy = survey.end.timetuple().tm_yday
-
             shot_data_path = (
                 survey_dir
                 / f"{survey.id}_{survey_type}.csv"
             )
-
             logger.loginfo("Preparing shot data")
-
             shot_data_rectified = rectify_shotdata(self.coord_transformer,shot_data_queried)
-            transponder_ids = [x.id for x in GPtransponders]
+
             try:
-                shot_data_rectified = ShotDataFrame.validate(
-                    shot_data_rectified, lazy=True
-                )
+                # shot_data_rectified = ShotDataFrame.validate(
+                #     shot_data_rectified.reset_index(drop=True), lazy=True
+                # )
                 # Only use shotdata for transponders in the survey
                 shot_data_rectified = shot_data_rectified[
                     shot_data_rectified.MT.isin([x.id for x in GPtransponders])
@@ -316,7 +306,7 @@ class GarposHandler:
             # get soundspeed relative path
             rel_depth = len(shot_data_path.relative_to(self.sound_speed_path.parent).parts) -1
             ss_path = "../"*rel_depth + self.sound_speed_path.name 
-        
+
             garpos_input = GarposInput(
                 site_name=self.site.names[0],
                 campaign_id=self.current_campaign.name ,
@@ -333,9 +323,9 @@ class GarposHandler:
                 ),
                 transponders=GPtransponders,
                 atd_offset=GPATDOffset(
-                    forward=float(self.vessel_meta.atdOffsets[0].x),
-                    rightward=float(self.vessel_meta.atdOffsets[0].y),
-                    downward=float(self.vessel_meta.atdOffsets[0].z),
+                    forward=float(self.current_campaign.vessel.atdOffsets[0].x),
+                    rightward=float(self.current_campaign.vessel.atdOffsets[0].y),
+                    downward=float(self.current_campaign.vessel.atdOffsets[0].z),
                 ),
                 start_date=survey.start,
                 end_date=survey.end,
@@ -438,21 +428,19 @@ class GarposHandler:
     def _run_garpos_survey(
         self, survey_id: str, run_id: int | str = 0, override: bool = False
     ) -> None:
-        
+
         self.set_survey(name=survey_id)
         results_dir = self.current_campaign_dir / survey_id / "results"
         results_dir.mkdir(exist_ok=True, parents=True)
         obsfile_path = self.get_obsfile_path(campaign_name=self.current_campaign.name,survey_id=survey_id)
         if not obsfile_path.exists():
             raise ValueError("Obsfile Not Found")
-        
+
         self._run_garpos(obs_file_path=obsfile_path,results_dir=results_dir,run_id=run_id,override=override)
 
     def run_garpos(
         self, campaign_id:str,survey_id: str = None, run_id: int | str = 0, override: bool = False
     ) -> None:
-
-
 
         """
         Run the GARPOS model for a specific date or for all dates.

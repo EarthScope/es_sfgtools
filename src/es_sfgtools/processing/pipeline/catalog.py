@@ -1,7 +1,7 @@
 import logging
 import os
 import sqlalchemy as sa
-from typing import List,Dict
+from typing import List,Dict,Union
 from datetime import datetime
 from pathlib import Path
 import pandas as pd
@@ -11,7 +11,7 @@ from .database import Base, Assets, ModelResults, MergeJobs
 from es_sfgtools.utils.loggers import ProcessLogger as logger
 
 
-class Catalog:
+class PreProcessCatalog:
     def __init__(self, db_path:Path):
         self.db_path = db_path
         self.engine = self.engine = sa.create_engine(
@@ -43,7 +43,7 @@ class Catalog:
                    station: str,
                    campaign: str,
                    type: AssetType|str) -> List[AssetEntry]:
-        
+
         if isinstance(type,str):
             try:
                 type = AssetType[type]
@@ -70,7 +70,7 @@ class Catalog:
                 except Exception as e:
                     logger.logerr("Unable to add row, error: {}".format(e))
             return out
-    
+
     def get_local_assets(self,
                    network: str,
                    station: str,
@@ -116,12 +116,11 @@ class Catalog:
         parent_id_map = {entry.id:entry for entry in parent_entries}
         if not override:
             [parent_id_map.pop(child_entry.parent_id) for child_entry in child_entries if child_entry.parent_id in parent_id_map]
-    
+
         return list(parent_id_map.values())
 
-
     def find_entry(self,entry:AssetEntry ) -> AssetEntry | None:
-       
+
         with self.engine.connect() as conn:
             results = conn.execute(sa.select(Assets).where(
                 Assets.parent_id == ",".join([str(x) for x in entry.parent_id]),
@@ -178,10 +177,10 @@ class Catalog:
                 Assets.type == type.value,
                 Assets.local_path.like(f"%{remote_file_name}%")
             ))).fetchone()
-            
+
             if results:
                 return True
-            
+
         return False
 
     def add_or_update(self, entry: AssetEntry ) -> bool:
@@ -207,7 +206,7 @@ class Catalog:
                     logger.logerr(f"Error adding or updating entry {entry} to catalog: {e}")
                     pass
         return False
-    
+
     def query_catalog(self, query: str) -> pd.DataFrame:
         with self.engine.begin() as conn:
             try:
@@ -237,7 +236,7 @@ class Catalog:
             except Exception as e:
                 logger.error(f"Error deleting entry {entry} | {e}")
         return False
-        
+
     def add_merge_job(self,parent_type:str,child_type:str,parent_ids:List[int],**kwargs):
         # sort parent_ids to ensure that the order is consistent
         parent_ids.sort()
@@ -261,3 +260,4 @@ class Catalog:
             if results:
                 return True
         return False
+
