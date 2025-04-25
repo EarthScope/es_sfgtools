@@ -2,7 +2,7 @@ from typing import Any, Dict, List, Optional, Union
 from datetime import datetime
 from pydantic import BaseModel, Field, field_validator
 
-from es_sfgtools.utils.metadata.utils import (
+from .utils import (
     AttributeUpdater,
     Location,
     check_fields_for_empty_strings,

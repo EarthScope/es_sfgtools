@@ -20,7 +20,7 @@ seaborn.set_theme(style="whitegrid")
 from es_sfgtools.utils.archive_pull import download_file_from_archive
 from es_sfgtools.processing.assets.file_schemas import AssetEntry, AssetType
 from es_sfgtools.processing.assets.tiledb import TDBAcousticArray,TDBGNSSArray,TDBPositionArray,TDBShotDataArray,TDBGNSSObsArray
-from es_sfgtools.processing.pipeline.catalog import Catalog
+from es_sfgtools.processing.pipeline.catalog import PreProcessCatalog
 from es_sfgtools.processing.pipeline.pipelines import SV3Pipeline, SV3PipelineConfig,PrepSiteData
 from es_sfgtools.processing.operations.gnss_ops import get_metadata,get_metadatav2
 from es_sfgtools.processing.pipeline.constants import REMOTE_TYPE, FILE_TYPES
@@ -29,6 +29,7 @@ from es_sfgtools.processing.pipeline.datadiscovery import scrape_directory_local
 from es_sfgtools.modeling.garpos_tools.garpos_handler import GarposHandler
 
 from es_sfgtools.utils.loggers import ProcessLogger as logger, change_all_logger_dirs
+from es_sfgtools.utils.metadata.catalogs import Catalog, NetworkData, StationData
 
 
 def check_network_station_campaign(func: Callable):
@@ -37,15 +38,101 @@ def check_network_station_campaign(func: Callable):
     def wrapper(self, *args, **kwargs):
         if self.network is None:
             raise ValueError("Network name not set, use change_working_station")
-        
+
         if self.station is None:
             raise ValueError("Station name not set, use change_working_station")
-        
+
         if self.campaign is None:
             raise ValueError("campaign name not set, use change_working_station")
-        
+
         return func(self, *args, **kwargs)
     return wrapper
+
+
+class CatalogHandler:
+    def __init__(self, file_path: Union[str, Path],name:str="new catalog",catalog:Catalog=None):
+        """
+        Initialize the CatalogHandler with a file path to persist the catalog.
+
+        Args:
+            file_path (Union[str, Path]): Path to the .json file for the catalog.
+        """
+        self.file_path = Path(file_path)
+        if catalog is not None:
+            self.catalog = catalog
+        else:
+            self.catalog = self._load_catalog(name=name)
+
+    def _load_catalog(self,name:str) -> Catalog:
+        """
+        Load the catalog from the .json file or create a new one if the file doesn't exist.
+
+        Returns:
+            Catalog: The loaded or newly created catalog.
+        """
+        if self.file_path.exists() and self.file_path.__sizeof__() > 0:
+            with open(self.file_path, "r") as file:
+                data = json.load(file)
+            return Catalog.load_data(data)
+        else:
+            return Catalog(name=name, type="Data", networks={})
+
+    def save(self):
+        """
+        Save the current state of the catalog to the .json file.
+        """
+        with open(self.file_path, "w") as file:
+            json.dump(self.catalog.model_dump(), file, indent=2)
+
+    def add_network(self, network_name: str):
+        """
+        Add a new network to the catalog.
+
+        Args:
+            network_name (str): The name of the network to add.
+        """
+        if network_name in self.catalog.networks:
+            return
+        self.catalog.networks[network_name] = NetworkData(
+            name=network_name, stations={}
+        )
+        self.save()
+
+    def add_station(self, network_name: str, station_name: str, station_data: dict|StationData):
+        """
+        Add a new station to a network.
+
+        Args:
+            network_name (str): The name of the network to add the station to.
+            station_name (str): The name of the station to add.
+            station_data (dict): The station data to add.
+        """
+        if network_name not in self.catalog.networks:
+            self.add_network(network_name)
+        network = self.catalog.networks[network_name]      
+        station_data = station_data if isinstance(station_data, StationData) else StationData(**station_data)
+        network.stations[station_name] = station_data
+        self.save()
+
+    def update_station(self, network_name: str, station_name: str, updated_data: dict):
+        """
+        Update the data for an existing station.
+
+        Args:
+            network_name (str): The name of the network containing the station.
+            station_name (str): The name of the station to update.
+            updated_data (dict): The updated station data.
+        """
+        if network_name not in self.catalog.networks:
+            raise ValueError(f"Network '{network_name}' does not exist.")
+        network = self.catalog.networks[network_name]
+        if station_name not in network.stations:
+            raise ValueError(
+                f"Station '{station_name}' does not exist in network '{network_name}'."
+            )
+        for key, value in updated_data.items():
+            setattr(network.stations[station_name], key, value)
+        self.save()
 
 
 class DataHandler:
@@ -55,6 +142,7 @@ class DataHandler:
 
     def __init__(self,
                  directory: Path | str,
+                 data_catalog: Catalog = None,
                  ) -> None:
         """
         Initialize the DataHandler object.
@@ -67,7 +155,7 @@ class DataHandler:
         self.network = None
         self.station = None
         self.campaign = None
-     
+
         # Create the directory structures
         self.main_directory = Path(directory)
         logger.set_dir(self.main_directory)
@@ -80,7 +168,10 @@ class DataHandler:
         self.db_path = self.main_directory / "catalog.sqlite"
         if not self.db_path.exists():
             self.db_path.touch()
-        self.catalog = Catalog(self.db_path)
+        self.catalog = PreProcessCatalog(self.db_path)
+
+        self.data_catalog_path = self.main_directory / "data_catalog.json"
+        self.data_catalog = CatalogHandler(self.data_catalog_path,name="Data Catalog",catalog=data_catalog)
 
     def _build_station_dir_structure(self, network: str, station: str, campaign: str):
 
@@ -139,11 +230,24 @@ class DataHandler:
         self.shotdata_tdb = TDBShotDataArray(self.tileb_dir/"shotdata_db.tdb")
         self.rangea_tdb = TDBGNSSObsArray(self.tileb_dir/"rangea_db.tdb") # golang binaries will be used to interact with this array
 
+        self.data_catalog.add_station(
+            network_name=self.network,
+            station_name=self.station,
+            station_data=StationData(
+                name=self.station,
+                shotdata=str(self.shotdata_tdb.uri),
+                gnssdata=str(self.gnss_tdb.uri),
+                gnssobsdata=str(self.rangea_tdb.uri),
+                positiondata=str(self.position_tdb.uri),
+                acousticdata=str(self.acoustic_tdb.uri),
+            ),
+        )
         self.acoustic_tdb.consolidate()
         self.gnss_tdb.consolidate()
         self.position_tdb.consolidate()
         self.shotdata_tdb.consolidate()
         self.rangea_tdb.consolidate()
+
     def _build_rinex_meta(self) -> None:
         """
         Build the RINEX metadata for a station.
@@ -195,7 +299,6 @@ class DataHandler:
 
         logger.loginfo(f"Changed working station to {network} {station}")
 
-
     @check_network_station_campaign
     def get_dtype_counts(self):
         """ 
@@ -223,7 +326,7 @@ class DataHandler:
         if len(files) == 0:
             logger.logerr(f"No files found in {directory_path}, ensure the directory is correct.")
             return
-        
+
         logger.loginfo(f"Found {len(files)} files in {directory_path}")
 
         self.add_data_to_catalog(files)
@@ -281,8 +384,7 @@ class DataHandler:
                 remote_type = REMOTE_TYPE(remote_type)
             except:
                 raise ValueError(f"Remote type {remote_type} must be one of {REMOTE_TYPE.__members__.keys()}")
-            
-        
+
         # Create an AssetEntry for each file and append to a list
         file_data_list = []
         not_recognized = []
@@ -300,7 +402,7 @@ class DataHandler:
                                                   campaign=self.campaign,
                                                   type=file_type,
                                                   remote_path=file):
-                
+
                 file_data = AssetEntry(
                     remote_path=file,
                     remote_type=remote_type,
@@ -344,7 +446,7 @@ class DataHandler:
                     file_types[file_types.index(type)] = AssetType(type)
                 except:
                     raise ValueError(f"File type {type} must be one of {AssetType.__members__.keys()}")
-                
+
         # Pull files from the catalog by type
         for type in file_types:
             assets = self.catalog.get_assets(network=self.network,
@@ -355,7 +457,7 @@ class DataHandler:
             if len(assets) == 0:
                 logger.logerr(f"No matching data found in catalog")
                 continue
-            
+
             # Find files that we need to download based on the catalog output. If override is True, download all files.
             if override:
                 assets_to_download = assets
@@ -371,7 +473,7 @@ class DataHandler:
 
             if len(assets_to_download) == 0:
                 logger.loginfo(f"No new {type} files to download")
-            
+
             # split the entries into s3 and http
             s3_assets = [file for file in assets_to_download if file.remote_type == REMOTE_TYPE.S3.value]
             http_assets = [file for file in assets_to_download if file.remote_type == REMOTE_TYPE.HTTP.value]
@@ -385,7 +487,7 @@ class DataHandler:
                 for file in s3_assets:
                     if file.local_path is not None:
                         self.catalog.update_local_path(file.id, file.local_path)
-            
+
             if len(http_assets) > 0:
                 self.download_HTTP_files(http_assets=http_assets)
 
@@ -428,7 +530,6 @@ class DataHandler:
             local_path (Path): The local path where the file was downloaded, or None if the download failed.
         """
 
-
         local_path = self.raw_dir / Path(prefix).name
 
         try:
@@ -461,7 +562,6 @@ class DataHandler:
                 self.catalog.update_local_path(id=file_asset.id, 
                                                local_path=file_asset.local_path)
 
-
     def _HTTP_download_file(self, remote_url: Path, token_path='.') -> Path:
         """
         Downloads a file from the specified https url on gage-data
@@ -480,7 +580,7 @@ class DataHandler:
                                        dest_dir=self.raw_dir, 
                                        token_path=token_path,
                                        )
-            
+
             if not local_path.exists(): 
                 raise Exception
 
@@ -492,20 +592,20 @@ class DataHandler:
 
         finally:
             return local_path
-    
+
     @check_network_station_campaign
     def view_data(self):
         shotdata_dates = self.shotdata_tdb.get_unique_dates().tolist()
         gnss_dates = self.gnss_tdb.get_unique_dates().tolist()
         date_set = shotdata_dates + gnss_dates
         date_set = sorted(list(set(date_set)))
-       
+
         date_tick_map = {date:i for i, date in enumerate(date_set)}
         fig, ax = plt.subplots()
         # plot the gnss dates with red vertical line
         gnss_x = [date_tick_map[date] for date in gnss_dates]
         gnss_y = [1 for _ in gnss_dates]
-   
+
         ax.scatter(x=gnss_x,y=gnss_y,c='r', marker='o',label='Pride GNSS Positions')
         # plot the shotdata dates with blue vertical line
         shotdata_x = [date_tick_map[date] for date in shotdata_dates]
@@ -520,7 +620,7 @@ class DataHandler:
         fig.legend()
         fig.suptitle(f"Found Dates For {self.network} {self.station}")
         plt.show()
-  
+
     @check_network_station_campaign
     def get_pipeline_sv3(self) -> Tuple[SV3Pipeline,SV3PipelineConfig]:
         """
@@ -533,29 +633,21 @@ class DataHandler:
             Tuple[SV3Pipeline, SV3PipelineConfig]: A tuple containing the 
             SV3Pipeline object and its configuration.
         """
-        
-       
+
         config = SV3PipelineConfig()
         config.rinex_config.settings_path = self.rinex_metav2
-        pipeline = SV3Pipeline(catalog=self.catalog, config=config)
-        site_data = PrepSiteData(
-            network=self.network,
-            station=self.station,
-            campaign=self.campaign,
-            inter_dir=self.inter_dir,
-            pride_dir=self.pride_dir,
-            shot_data_dest=self.shotdata_tdb.uri,
-            gnss_data_dest=self.gnss_tdb.uri,
-            rangea_data_dest=self.rangea_tdb.uri
-        )
-        pipeline.set_site_data(site_data)
+        pipeline = SV3Pipeline(asset_catalog=self.catalog, data_catalog=self.data_catalog,config=config)
+        pipeline.set_site_data(network=self.network,
+                               station=self.station,
+                               campaign=self.campaign,
+                               inter_dir=self.inter_dir,
+                               pride_dir=self.pride_dir)
         return pipeline, config
-    
+
     @check_network_station_campaign
     def get_garpos_handler(self, 
-                           site_config: Path,
-                           sound_speed_data:Path,
-                           vessel_data:Path) -> GarposHandler:
+                           site_data
+                            ) -> GarposHandler:
         """
         Creates and returns a GarposHandler object.
         This method initializes a GarposHandler object using the instance
@@ -567,12 +659,9 @@ class DataHandler:
         Returns:
             GarposHandler: A GarposHandler object.
         """
-        return GarposHandler(shotdata=self.shotdata_tdb,
-                             working_dir=self.station_dir/'GARPOS',
-                             site_path=site_config,
-                             sound_speed_path=sound_speed_data,
-                             vessel_path=vessel_data)
-    
+        station_data = self.data_catalog.catalog.networks[self.network].stations[self.station]
+        return GarposHandler(site_data=site_data,station_data=station_data,working_dir=self.station_dir)
+
     def print_logs(self,log:Literal['base','gnss','process']):
         """
         Print logs to console.

@@ -1,13 +1,14 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-
-from es_sfgtools.utils.metadata.utils import (
+from pandas import DataFrame
+from .utils import (
     AttributeUpdater,
     check_dates,
     check_fields_for_empty_strings,
     parse_datetime,
 )
-from pydantic import BaseModel, Field, field_validator
+from .vessel import Vessel
+from pydantic import BaseModel, Field, field_validator,model_serializer
 
 
 def campaign_checks(campaign_year, campaign_interval, vessel_code):
@@ -90,6 +91,11 @@ class Campaign(AttributeUpdater, BaseModel):
     )
 
     # Optional
+    soundSpeedCode: Optional[str] = Field(default=None,description="Sound speed code")
+    soundSpeedProfile: Optional[DataFrame] = Field(
+        default=None, description="Sound speed profile"
+    )
+    vessel: Optional[Vessel] = Field(default=None, description="Instatiate Vessel object",)
     principalInvestigator: Optional[str] = Field(default=None)
     launchVesselName: Optional[str] = Field(default=None)
     recoveryVesselName: Optional[str] = Field(default=None)
@@ -128,6 +134,11 @@ class Campaign(AttributeUpdater, BaseModel):
 
         print("No overlapping survey times found.")
 
+    @model_serializer
+    def _serialize(self):
+        to_omit = ["vessel"]
+        return {k:v for k,v in self if k not in to_omit}
+
     def get_survey_by_datetime(self, dt: datetime) -> Survey:
         """Return the survey that contains the given datetime"""
         for survey in self.surveys:
@@ -135,4 +146,6 @@ class Campaign(AttributeUpdater, BaseModel):
                 return survey
 
         raise ValueError(f"No survey found for datetime {dt}")
-    
+
+    class Config:
+        arbitrary_types_allowed = True

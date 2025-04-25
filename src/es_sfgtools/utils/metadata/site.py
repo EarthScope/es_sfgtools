@@ -3,9 +3,9 @@ import json
 from datetime import datetime
 from typing import Any, ClassVar, Optional, Union, Dict, List
 
-from es_sfgtools.utils.metadata.benchmark import TAT, Benchmark, Transponder
-from es_sfgtools.utils.metadata.campaign import Campaign, Survey
-from es_sfgtools.utils.metadata.utils import (
+from .benchmark import TAT, Benchmark, Transponder
+from .campaign import Campaign, Survey
+from .utils import (
     AttributeUpdater,
     Location,
     check_dates,
