@@ -27,7 +27,7 @@ class NetworkData(BaseModel):
     stations: Dict[str, StationData|Site] = Field(default={}, description="Stations in the network")
 
 class Catalog(BaseModel):
-    name: str = Field(...,description="The catalog name")
+    name: Optional[str] = Field(default="",description="The catalog name")
     networks : Dict[str,NetworkData] = Field(default={},description="Network catalog")
     info: Optional[str] = Field(default="",description="Optional catalog meta")
     type: CatalogType = Field(description="Catalog Type (meta-data or data)")
@@ -51,12 +51,12 @@ class Catalog(BaseModel):
                     stations={
                         station_id: StationData(
                             name=station_id,  
-                            shotdata=station_info.get("shotdata"),
+                            shotdata=station_info.get("shotdata",""),
                         )
                         for station_id, station_info in station_dict.items()
                     },
                 )
-                for network_name, station_dict in raw_data.items()
+                for network_name, station_dict in raw_data.items() if network_name not in ["name","info"] and isinstance(station_dict,dict)
             }
         )
 
