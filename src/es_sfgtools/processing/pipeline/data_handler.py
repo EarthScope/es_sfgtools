@@ -660,7 +660,8 @@ class DataHandler:
             GarposHandler: A GarposHandler object.
         """
         station_data = self.data_catalog.catalog.networks[self.network].stations[self.station]
-        return GarposHandler(site_data=site_data,station_data=station_data,working_dir=self.station_dir)
+
+        return GarposHandler(site_data=site_data,station_data=station_data,working_dir=self.station_dir/"GARPOS")
 
     def print_logs(self,log:Literal['base','gnss','process']):
         """

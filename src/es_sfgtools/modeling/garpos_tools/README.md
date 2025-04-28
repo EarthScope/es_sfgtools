@@ -6,7 +6,7 @@ to inject a cloned garpos repository as a dependency, use the env variable "GARP
 ```python
     from es_sfgtools.utils.loggers import BaseLogger
     BaseLogger.route_to_console()
-    from sfg_metadata import META_DATA
+    from sfg_metadata import META_DATA,GEOLAB_DATA
 
     main_dir = Path("/Path/to/data/SFGMain")
 
@@ -14,7 +14,7 @@ to inject a cloned garpos repository as a dependency, use the env variable "GARP
     station = "NCC1"
     campaign = "2024_A_1126"
 
-    dh = DataHandler(main_dir)
+    dh = DataHandler(main_dir,GEOLAB_DATA)
     dh.change_working_station(network=network, station=station, campaign=campaign)
 
     gp_handler_ncc1 = dh.get_garpos_handler(
