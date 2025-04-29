@@ -420,7 +420,7 @@ class GarposHandler:
             str(input_path),
             str(fixed_path),
             str(results_dir) + "/",
-            self.current_survey.id + f"_{run_id}",
+            f"{self.current_survey.id}_{run_id}",
             13,
         )
 
