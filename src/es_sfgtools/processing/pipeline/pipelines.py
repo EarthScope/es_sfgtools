@@ -137,9 +137,9 @@ class SV3Pipeline:
         self.campaign = campaign
         self.inter_dir = inter_dir
         self.pride_dir = pride_dir
-        self.rangea_data_dest = TDBGNSSObsArray(self.data_catalog.networks[network].stations[station].gnssobsdata)
-        self.gnss_data_dest = TDBGNSSArray(self.data_catalog.networks[network].stations[station].gnssdata)
-        self.shot_data_dest = TDBShotDataArray(self.data_catalog.networks[network].stations[station].shotdata)
+        self.rangea_data_dest = TDBGNSSObsArray(self.data_catalog.catalog.networks[network].stations[station].gnssobsdata)
+        self.gnss_data_dest = TDBGNSSArray(self.data_catalog.catalog.networks[network].stations[station].gnssdata)
+        self.shot_data_dest = TDBShotDataArray(self.data_catalog.catalog.networks[network].stations[station].shotdata)
     
 
     def pre_process_novatel(
