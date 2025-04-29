@@ -196,7 +196,7 @@ class GarposHandler:
                 self.current_survey = survey
                 return
         raise ValueError(
-            f"Survey {name} not found among: {[x.survey_id for x in self.current_campaign.surveys]}"
+            f"Survey {name} not found among: {[x.id for x in self.current_campaign.surveys]}"
         )
 
     def get_obsfile_path(self,campaign_name:str,survey_id:str) -> Path:
@@ -433,7 +433,7 @@ class GarposHandler:
         self.set_survey(name=survey_id)
         results_dir = self.current_campaign_dir / survey_id / "results"
         results_dir.mkdir(exist_ok=True, parents=True)
-        obsfile_path = self.get_obsfile_path(campaign_name=self.current_campaign.name,survey_id=id)
+        obsfile_path = self.get_obsfile_path(campaign_name=self.current_campaign.name,survey_id=survey_id)
         if not obsfile_path.exists():
             raise ValueError("Obsfile Not Found")
 
@@ -459,7 +459,7 @@ class GarposHandler:
         #     for survey in self.current_campaign.surveys:
         #         self._run_garpos_survey(survey.survey_id, run_id, override=override)
 
-        logger.loginfo(f"Running GARPOS model for date(s) provided. Run ID: {run_id}")
+        logger.loginfo(f"Running GARPOS model. Run ID: {run_id}")
         if survey_id is None:
             for survey in self.current_campaign.surveys:
                 self._run_garpos_survey(survey.id, run_id, override=override)
@@ -467,7 +467,12 @@ class GarposHandler:
             self._run_garpos_survey(survey_id, run_id, override=override)
 
     def plot_ts_results(
-        self, campaign_name:str = None, survey_id: str= None, run_id: int | str = 0, res_filter: float = 10
+        self, 
+        campaign_name:str = None, 
+        survey_id: str= None, 
+        run_id: int | str = 0, 
+        res_filter: float = 10,
+        savefig: bool = False
     ) -> None:
         """
         Plots the time series results for a given survey.
@@ -617,3 +622,10 @@ class GarposHandler:
         )
         ax4.legend()
         plt.show()
+        if savefig:
+            plt.savefig(
+                results_dir / f"_{run_id}_results.png",
+                dpi=300,
+                bbox_inches="tight",
+                pad_inches=0.1,
+            )
