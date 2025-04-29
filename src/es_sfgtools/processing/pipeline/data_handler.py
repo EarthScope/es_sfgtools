@@ -224,11 +224,23 @@ class DataHandler:
         Build the TileDB arrays for the current station. TileDB directory is /network/station/TileDB.
         """
         logger.loginfo(f"Building TileDB arrays for {self.station}")
-        self.acoustic_tdb = TDBAcousticArray(self.tileb_dir/"acoustic_db.tdb")
-        self.gnss_tdb = TDBGNSSArray(self.tileb_dir/"gnss_db.tdb")
-        self.position_tdb = TDBPositionArray(self.tileb_dir/"position_db.tdb")
-        self.shotdata_tdb = TDBShotDataArray(self.tileb_dir/"shotdata_db.tdb")
-        self.rangea_tdb = TDBGNSSObsArray(self.tileb_dir/"rangea_db.tdb") # golang binaries will be used to interact with this array
+        
+        try:
+            station_data = self.data_catalog.catalog.networks[self.network].stations[self.station]
+        except KeyError:
+            station_data = {}
+        acoustic_tdb_uri = self.tileb_dir/"acoustic_db.tdb" if not hasattr(station_data, 'acousticdata') else station_data.acousticdata
+        self.acoustic_tdb = TDBAcousticArray(acoustic_tdb_uri)
+
+        gnss_tdb_uri = self.tileb_dir/"gnss_db.tdb" if not hasattr(station_data, 'gnssdata') else station_data.gnssdata
+        self.gnss_tdb = TDBGNSSArray(gnss_tdb_uri)
+
+        position_tdb_uri = self.tileb_dir/"position_db.tdb" if not hasattr(station_data, 'positiondata') else station_data.positiondata
+        self.position_tdb = TDBPositionArray(position_tdb_uri)
+        shotdata_tdb_uri = self.tileb_dir/"shotdata_db.tdb" if not hasattr(station_data, 'shotdata') else station_data.shotdata
+        self.shotdata_tdb = TDBShotDataArray(shotdata_tdb_uri)
+        rangea_tdb_uri = self.tileb_dir/"rangea_db.tdb" if not hasattr(station_data, 'gnssobsdata') else station_data.gnssobsdata
+        self.rangea_tdb = TDBGNSSObsArray(rangea_tdb_uri) # golang binaries will be used to interact with this array
 
         self.data_catalog.add_station(
             network_name=self.network,
