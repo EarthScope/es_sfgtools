@@ -167,6 +167,7 @@ class GarposHandler:
         self.coord_transformer = None
 
         self.garpos_fixed._to_datafile(path=self.working_dir/"default_settings.ini")
+        logger.loginfo(f"Garpos Handler initialized with working directory: {self.working_dir}")
 
     def set_campaign(self, name: str):
         for campaign in self.site.campaigns:
@@ -184,7 +185,9 @@ class GarposHandler:
                     self.sound_speed_path, index=False
                 )
                 self.current_survey = None
-
+                logger.loginfo(
+                    f"Campaign {name} set. Current campaign directory: {self.current_campaign_dir}"
+                )
                 return
         raise ValueError(
             f"campaign {name} not found among: {[x.name for x in self.site.campaigns]}"
@@ -194,6 +197,9 @@ class GarposHandler:
         for survey in self.current_campaign.surveys:
             if survey.id == name:
                 self.current_survey = survey
+                logger.loginfo(
+                    f"Current survey set to: {self.current_survey.id}"
+                )
                 return
         raise ValueError(
             f"Survey {name} not found among: {[x.id for x in self.current_campaign.surveys]}"
@@ -398,7 +404,7 @@ class GarposHandler:
             return
 
         logger.loginfo(
-            f"Running GARPOS model for {garpos_input.campaign_id}, {garpos_input.survey_id}. Run ID: {run_id}"
+            f"Running GARPOS model for {garpos_input.campaign_id}, {self.survey_id}. Run ID: {run_id}"
         )
 
         results_dir.mkdir(exist_ok=True, parents=True)
@@ -409,12 +415,12 @@ class GarposHandler:
         garpos_input.to_datafile(input_path)
         self.garpos_fixed._to_datafile(fixed_path)
 
-        print(f"Running GARPOS for {garpos_input.campaign_id}, {garpos_input.survey_id}")
+        print(f"Running GARPOS for {garpos_input.campaign_id}, {self.survey_id}")
         rf = drive_garpos(
             str(input_path),
             str(fixed_path),
             str(results_dir) + "/",
-            garpos_input.campaign_id+"_"+garpos_input.survey_id + f"_{run_id}",
+            self.survey_id + f"_{run_id}",
             13,
         )
 
