@@ -404,7 +404,7 @@ class GarposHandler:
             return
 
         logger.loginfo(
-            f"Running GARPOS model for {garpos_input.campaign_id}, {self.survey_id}. Run ID: {run_id}"
+            f"Running GARPOS model for {garpos_input.site_name}, {self.current_survey.id}. Run ID: {run_id}"
         )
 
         results_dir.mkdir(exist_ok=True, parents=True)
@@ -415,12 +415,12 @@ class GarposHandler:
         garpos_input.to_datafile(input_path)
         self.garpos_fixed._to_datafile(fixed_path)
 
-        print(f"Running GARPOS for {garpos_input.campaign_id}, {self.survey_id}")
+        #print(f"Running GARPOS for {garpos_input.site_name}, {self.current_survey.id}")
         rf = drive_garpos(
             str(input_path),
             str(fixed_path),
             str(results_dir) + "/",
-            self.survey_id + f"_{run_id}",
+            self.current_survey.id + f"_{run_id}",
             13,
         )
 
