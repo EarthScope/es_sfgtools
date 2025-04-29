@@ -311,6 +311,15 @@ class InversionParams(BaseModel):
         default=GPPositionENU(east_sigma=1,north_sigma=1), description="Delta center position"
     )
 
+    def show_params(self) -> None:
+        logger.loginfo("Inversion Parameters:")
+        for param in self.inversion_params:
+            if param[0] == 'delta_center_position':
+                logger.loginfo(f"  {param[0]} : ")
+                for param2 in param[1]:
+                    logger.loginfo(f"    {param2[0]} : {param2[1]}")  
+            else:
+                logger.loginfo(f"  {param[0]} : {param[1]}")
 
     class Config:
         coerce = True
