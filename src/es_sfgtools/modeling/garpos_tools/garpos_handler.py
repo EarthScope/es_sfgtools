@@ -337,6 +337,7 @@ class GarposHandler:
             garpos_input.to_datafile(obsfile_path)
             with open(survey_dir/"survey_meta.json",'w') as file:
                 file.write(survey.model_dump_json(indent=2))
+        
 
     def set_inversion_params(self, parameters: dict | InversionParams):
         """
@@ -432,7 +433,7 @@ class GarposHandler:
         self.set_survey(name=survey_id)
         results_dir = self.current_campaign_dir / survey_id / "results"
         results_dir.mkdir(exist_ok=True, parents=True)
-        obsfile_path = self.get_obsfile_path(campaign_name=self.current_campaign.name,survey_id=survey_id)
+        obsfile_path = self.get_obsfile_path(campaign_name=self.current_campaign.name,survey_id=id)
         if not obsfile_path.exists():
             raise ValueError("Obsfile Not Found")
 
