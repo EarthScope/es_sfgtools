@@ -273,7 +273,7 @@ class TBDArray:
             try:
                 df = array.df[slice(np.datetime64(start), np.datetime64(end))]
             except IndexError as e:
-                print(e)
+                logger.logerr(e)
                 return None
         if validate:
             df = self.dataframe_schema.validate(df,lazy=True)
@@ -286,7 +286,7 @@ class TBDArray:
                 values = values.astype("datetime64[D]")
                 return np.unique(values)
             except Exception as e:
-                print(e)
+                logger.logerr(e)
                 return None
 
     def consolidate(self):
@@ -294,7 +294,7 @@ class TBDArray:
         config = tiledb.Config()
         config["sm.consolidation.steps"] = 3
         uri = tiledb.consolidate(uri=str(self.uri),ctx=ctx,config=config)
-        print(f"Consolidated {self.name} to {uri}")
+        logger.logdebug(f"Consolidated {self.name} to {uri}")
         tiledb.vacuum(str(self.uri))
 
     def view(self, network: str = "", station: str = ""):
@@ -389,7 +389,7 @@ class TDBShotDataArray(TBDArray):
             try:
                 df = array.df[slice(np.datetime64(start), np.datetime64(end)),:]
             except IndexError as e:
-                print(e)
+                logger.logerr(e)
                 return None
         # self.dataframe_schema.validate(df, lazy=True)
         return df
@@ -422,5 +422,5 @@ class TDBGNSSObsArray(TBDArray):
                 values = values.astype("datetime64[ms]")
                 return np.unique(values)
             except Exception as e:
-                print(e)
+                logger.logerr(e)
                 return None
