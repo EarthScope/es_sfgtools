@@ -229,12 +229,11 @@ class DataHandler:
             station_data = self.data_catalog.catalog.networks[self.network].stations[self.station]
         except KeyError:
             station_data = {}
+
         acoustic_tdb_uri = self.tileb_dir/"acoustic_db.tdb" if not hasattr(station_data, 'acousticdata') else station_data.acousticdata
         self.acoustic_tdb = TDBAcousticArray(acoustic_tdb_uri)
-
         gnss_tdb_uri = self.tileb_dir/"gnss_db.tdb" if not hasattr(station_data, 'gnssdata') else station_data.gnssdata
         self.gnss_tdb = TDBGNSSArray(gnss_tdb_uri)
-
         position_tdb_uri = self.tileb_dir/"position_db.tdb" if not hasattr(station_data, 'positiondata') else station_data.positiondata
         self.position_tdb = TDBPositionArray(position_tdb_uri)
         shotdata_tdb_uri = self.tileb_dir/"shotdata_db.tdb" if not hasattr(station_data, 'shotdata') else station_data.shotdata
@@ -247,11 +246,11 @@ class DataHandler:
             station_name=self.station,
             station_data=StationData(
                 name=self.station,
-                shotdata=str(self.shotdata_tdb.uri),
-                gnssdata=str(self.gnss_tdb.uri),
-                gnssobsdata=str(self.rangea_tdb.uri),
-                positiondata=str(self.position_tdb.uri),
-                acousticdata=str(self.acoustic_tdb.uri),
+                shotdata=str(shotdata_tdb_uri),
+                gnssdata=str(gnss_tdb_uri),
+                gnssobsdata=str(rangea_tdb_uri),
+                positiondata=str(position_tdb_uri),
+                acousticdata=str(acoustic_tdb_uri),
             ),
         )
         self.acoustic_tdb.consolidate()
