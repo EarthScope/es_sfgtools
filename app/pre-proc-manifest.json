@@ -1,0 +1,56 @@
+{
+  "projectDir": "/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain",
+  "jobs": [
+    {
+      "network": "cascadia-gorda",
+      "station": "NCC1",
+      "campaign": "2024_A_1126",
+      "operations": [
+        {
+          "type": "ingestion",
+          "args": {
+            "directory": "path/to/local/data/directory"
+          }
+        },
+        {
+          "type": "processing",
+          "args": {
+            "rinex_config": { "override": true, "time_interval": 24 },
+            "pride_config": { "sample_frequency": 1 }
+          }
+        }
+      ]
+    }
+  ],
+  "globalConfig": {
+    "dfop00_config": {
+      "override": false
+    },
+    "novatel_config": {
+      "n_processes": 14,
+      "override": false
+    },
+    "position_update_config": {
+      "override": true
+    },
+    "pride_config": {
+      "cutoff_elevation": 7,
+      "end": null,
+      "frequency": ["G12", "R12", "E15", "C26", "J12"],
+      "high_ion": null,
+      "interval": null,
+      "local_pdp3_path": null,
+      "loose_edit": true,
+      "sample_frequency": 1,
+      "start": null,
+      "system": "GREC23J",
+      "tides": "SOP"
+    },
+    "rinex_config": {
+      "n_processes": 14,
+      "override": true,
+      "override_products_download": false,
+      "time_interval": 24
+    }
+  }
+}
