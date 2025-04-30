@@ -198,7 +198,7 @@ class GarposHandler:
             if survey.id == name:
                 self.current_survey = survey
                 logger.loginfo(
-                    f"Current survey set to: {self.current_survey.id}"
+                    f"Current survey set to: {self.current_survey.id} {self.current_survey.start} - {self.current_survey.end}"
                 )
                 return
         raise ValueError(
@@ -343,7 +343,6 @@ class GarposHandler:
             garpos_input.to_datafile(obsfile_path)
             with open(survey_dir/"survey_meta.json",'w') as file:
                 file.write(survey.model_dump_json(indent=2))
-        
 
     def set_inversion_params(self, parameters: dict | InversionParams):
         """
@@ -409,7 +408,7 @@ class GarposHandler:
 
         results_dir.mkdir(exist_ok=True, parents=True)
         garpos_input.shot_data = results_dir.parent / garpos_input.shot_data.name
-        garpos_input.sound_speed_data = obs_file_path.parent.parent.parent / garpos_input.sound_speed_data.name
+        garpos_input.sound_speed_data = self.sound_speed_path#obs_file_path.parent.parent.parent / garpos_input.sound_speed_data.name
         input_path = results_dir / f"_{run_id}_observation.ini"
         fixed_path = results_dir / f"_{run_id}_settings.ini"
         garpos_input.to_datafile(input_path)
