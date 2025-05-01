@@ -4,13 +4,14 @@ import os
 from es_sfgtools.processing.pipeline.data_handler import DataHandler
 from es_sfgtools.utils.archive_pull import list_campaign_files
 from .manifest import PipelineManifest
-
+from .utils import display_pipelinemanifest
 
 def run_manifest(manifest_object: PipelineManifest):
-  
+
+    display_pipelinemanifest(manifest_object)
     dh = DataHandler(manifest_object.main_dir)
     if not manifest_object.ingestion_jobs:
-        print("No Manifest Jobs Found")
+        print("No Ingestion Jobs Found")
     for ingest_job in manifest_object.ingestion_jobs:
         dh.change_working_station(
             network=ingest_job.network,

@@ -230,15 +230,15 @@ class DataHandler:
         except KeyError:
             station_data = {}
 
-        acoustic_tdb_uri = station_data.acousticdata if station_data.acousticdata is not None else self.tileb_dir/"acoustic_db.tdb" 
+        acoustic_tdb_uri = station_data.acousticdata if hasattr(station_data,"acousticdata") else self.tileb_dir/"acoustic_db.tdb" 
         self.acoustic_tdb = TDBAcousticArray(acoustic_tdb_uri)
-        gnss_tdb_uri = station_data.gnssdata if station_data.gnssdata is not None else self.tileb_dir/"gnss_db.tdb"
+        gnss_tdb_uri = station_data.gnssdata if hasattr(station_data,"gnssdata") else self.tileb_dir/"gnss_db.tdb"
         self.gnss_tdb = TDBGNSSArray(gnss_tdb_uri)
-        position_tdb_uri = station_data.positiondata if station_data.positiondata is not None else self.tileb_dir/"position_db.tdb"
+        position_tdb_uri = station_data.positiondata if hasattr(station_data,"positiondata") else self.tileb_dir/"position_db.tdb"
         self.position_tdb = TDBPositionArray(position_tdb_uri)
-        shotdata_tdb_uri = station_data.shotdata if station_data.shotdata is not None else self.tileb_dir/"shotdata_db.tdb"
+        shotdata_tdb_uri = station_data.shotdata if hasattr(station_data,"shotdata") else self.tileb_dir/"shotdata_db.tdb"
         self.shotdata_tdb = TDBShotDataArray(shotdata_tdb_uri)
-        rangea_tdb_uri = station_data.gnssobsdata if station_data.gnssobsdata is not None else self.tileb_dir/"rangea_db.tdb"
+        rangea_tdb_uri = station_data.gnssobsdata if hasattr(station_data,"gnssobsdata") else self.tileb_dir/"rangea_db.tdb"
         self.rangea_tdb = TDBGNSSObsArray(rangea_tdb_uri) # golang binaries will be used to interact with this array
 
         self.data_catalog.add_station(

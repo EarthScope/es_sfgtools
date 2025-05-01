@@ -5,7 +5,7 @@ from enum import Enum
 import json
 from pydantic import BaseModel, Field, field_serializer, field_validator
 from es_sfgtools.processing.pipeline.pipelines import SV3PipelineConfig
-
+from rich import table
 
 class PipelineJobType(str, Enum):
     PROCESSING = "processing"
@@ -16,7 +16,7 @@ class PipelineProcessJob(BaseModel):
     network: str = Field(..., title="Network Name")
     station: str = Field(..., title="Station Name")
     campaign: str = Field(..., title="Campaign Name")
-    config: SV3PipelineConfig = Field(..., title="Pipeline Configuration")
+    config: Optional[SV3PipelineConfig] = Field(..., title="Pipeline Configuration")
 
 
 class PipelineIngestJob(BaseModel):
@@ -32,9 +32,12 @@ class PipelineIngestJob(BaseModel):
     def _directory_s(cls, v: Path):
         return str(v)
 
-    @field_validator("directory")
+    @field_validator("directory",mode="before")
     def _directory_v(cls, v: str):
-        return Path(v)
+        directory = Path(v.strip())
+        if not directory.exists():
+            raise ValueError(f"Directory {directory} does not exist")
+        return directory
 
 
 class ArchiveDownloadJob(BaseModel):
@@ -60,61 +63,6 @@ class PipelineManifest(BaseModel):
         arbitrary_types_allowed = True
 
     @classmethod
-    def from_yaml(cls, filepath: Path) -> "PipelineManifest":
-        with open(filepath, "r") as f:
-            data = yaml.safe_load(f)
-
-        config_loaded = SV3PipelineConfig(**data["global_config"])
-        process_jobs = []
-        ingestion_jobs = []
-        download_jobs = []
-
-        for job in data.get("processing", {}).get("jobs", []):
-
-            if hasattr(job, "config"):
-                job_config = SV3PipelineConfig(**job["config"])
-                # update config_loaded with job_config
-                job_config = config_loaded.model_copy(update=dict(job_config))
-            else:
-                job_config = config_loaded
-            if job_config.rinex_config.processing_year == -1:
-                # Infer the campaign year from the campaign name using string splitting
-                try:
-                    year = int(job["campaign"].split("_")[0])
-                    job_config.rinex_config.processing_year = year
-                except (ValueError, IndexError):
-                    raise ValueError(
-                        f"Invalid campaign format: {job['campaign']}. Expected format: '<year>_<details>'."
-                    )
-
-            process_jobs.append(
-                PipelineProcessJob(
-                    network=job["network"],
-                    station=job["station"],
-                    campaign=job["campaign"],
-                    config=job_config,
-                )
-            )
-        for job in data.get("ingestion", {}).get("jobs", []):
-            ingestion_jobs.append(PipelineIngestJob(**job))
-
-        for job in data.get("download", {}).get("jobs", []):
-            download_jobs.append(
-                ArchiveDownloadJob(
-                    network=job["network"],
-                    station=job["station"],
-                    campaign=job["campaign"],
-                )
-            )
-        return cls(
-            main_dir=Path(data["main_dir"]),
-            process_jobs=process_jobs,
-            ingestion_jobs=ingestion_jobs,
-            download_jobs=download_jobs,
-            global_config=config_loaded,
-        )
-
-    @classmethod
     def from_json(cls, json_data:Path) -> 'PipelineManifest':
         """
         Instantiates a PipelineManifest object from a JSON schema.
@@ -138,13 +86,20 @@ class PipelineManifest(BaseModel):
 
         # Parse operations
         for operation in json_data.get("operations", []):
-            network = operation["network"]
-            station = operation["station"]
-            campaign = operation["campaign"]
-
-            
+            # Extract network, station, and campaign
+            try:
+                network = operation["network"]
+                station = operation["station"]
+                campaign = operation["campaign"]
+            except KeyError as e:
+                raise ValueError(f"Missing key in operations: {e}")     
+                   
             for job in operation.get("jobs", []):
-                job_type = PipelineJobType(job["type"])
+                # Validate job type
+                try:
+                    job_type = PipelineJobType(job["type"])
+                except (KeyError,ValueError) as e:
+                    raise ValueError(f"Invalid job type: {job['type']}") from e
                 
                 match job_type:
                     case PipelineJobType.INGESTION:
@@ -153,7 +108,7 @@ class PipelineManifest(BaseModel):
                                 network=network,
                                 station=station,
                                 campaign=campaign,
-                                directory=Path(job["directory"]) # need to validate this
+                                directory=job["directory"] # need to validate this
                             )
                         )
                     case PipelineJobType.PROCESSING:
