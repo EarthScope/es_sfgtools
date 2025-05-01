@@ -8,11 +8,11 @@ from es_sfgtools.processing.pipeline.pipelines import SV3PipelineConfig
 from rich import table
 
 class PipelineJobType(str, Enum):
-    PROCESSING = "processing"
+    PREPROCESSING = "preprocessing"
     INGESTION = "ingestion"
     DOWNLOAD = "download"
 
-class PipelineProcessJob(BaseModel):
+class PipelinePreprocessJob(BaseModel):
     network: str = Field(..., title="Network Name")
     station: str = Field(..., title="Station Name")
     campaign: str = Field(..., title="Campaign Name")
@@ -51,7 +51,7 @@ class PipelineManifest(BaseModel):
     ingestion_jobs: List[PipelineIngestJob] = Field(
         default=[], title="List of Pipeline Ingestion Jobs"
     )
-    process_jobs: List[PipelineProcessJob] = Field(
+    process_jobs: List[PipelinePreprocessJob] = Field(
         default=[], title="List of Pipeline Jobs"
     )
     download_jobs: Optional[List[ArchiveDownloadJob]] = Field(
@@ -111,12 +111,12 @@ class PipelineManifest(BaseModel):
                                 directory=job["directory"] # need to validate this
                             )
                         )
-                    case PipelineJobType.PROCESSING:
+                    case PipelineJobType.PREPROCESSING:
                         # Merge job-specific config with global config
                         job_config = SV3PipelineConfig(**job["config"]) if "config" in job else global_config
                         job_config = global_config.model_copy(update=dict(job_config))
                         process_jobs.append(
-                            PipelineProcessJob(
+                            PipelinePreprocessJob(
                                 network=network,
                                 station=station,
                                 campaign=campaign,

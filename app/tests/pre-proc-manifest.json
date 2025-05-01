@@ -11,7 +11,7 @@
           "directory": " /Users/franklyndunbar/Project/SeaFloorGeodesy/Data/Cascadia2023/NDP1/HR"
         },
         {
-          "type": "processing",
+          "type": "preprocessing",
           "config": {
             "rinex_config": { "override": true, "time_interval": 24 },
             "pride_config": { "sample_frequency": 1 }
@@ -23,7 +23,7 @@
       "network": "cascadia-gorda",
       "station": "NCC1",
       "campaign": "2024_A_1126",
-      "jobs": [{ "type": "processing" }]
+      "jobs": [{ "type": "preprocessing" }]
     }
   ],
   "globalConfig": {
@@ -35,7 +35,7 @@
       "override": false
     },
     "position_update_config": {
-      "override": true
+      "override": false
     },
     "pride_config": {
       "cutoff_elevation": 7,
@@ -52,7 +52,7 @@
     },
     "rinex_config": {
       "n_processes": 14,
-      "override": true,
+      "override": false,
       "override_products_download": false,
       "time_interval": 24
     }

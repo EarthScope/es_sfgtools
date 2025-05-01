@@ -1,0 +1,30 @@
+{
+  "projectDir": "",
+  "operations": [
+    {
+      "network": "",
+      "station": "",
+      "campaign": "",
+      "jobs": []
+    }
+    
+  ],
+  "globalConfig": {
+    "pride_config": {
+      "cutoff_elevation": 7,
+      "end": null,
+      "frequency": ["G12", "R12", "E15", "C26", "J12"],
+      "high_ion": null,
+      "interval": null,
+      "local_pdp3_path": null,
+      "loose_edit": true,
+      "sample_frequency": 1,
+      "start": null,
+      "system": "GREC23J",
+      "tides": "SOP"
+    },
+    "rinex_config": {
+      "time_interval": 1
+    }
+  }
+}

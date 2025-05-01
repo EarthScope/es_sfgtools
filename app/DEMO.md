@@ -45,14 +45,46 @@ This document provides an overview of the key fields in the configuration file u
 
 #### `jobs`
 There are types of jobs that the pipeline can handle. They are:
-  - processing
+  - preprocessing
   - ingestion
   - download
 
 ##### `ingestion`
+- **Description**: Specifies the data ingestion jobs, defining where raw data files are located before being processed.
+- **Usage**: The application processes the data from the specified directory and adds it to the appropriate project location.
+- **Example**:
+```json
+{
+  "type": "ingestion",
+  "directory": " /Users/user/Project/SeaFloorGeodesy/Data/Cascadia2023/NDP1/HR"
+}
+```
 
+##### `download`
+- **Description**: Defines jobs for downloading remote data assets.
+- **Usage**: The application checks for available remote assets and downloads them to the corresponding directory.
+- **Example**:
+  ```json
+    {
+      "type":"download"
+    }
+  ```
+##### `preprocessing`
+- **Description**: Defines processing jobs that run on the ingested or downloaded data.
+- **Usage**: The application applies specific processing pipelines based on the configuration settings for each station and campaign.
+- **Example**:
+  ```json
 
+    {
+      "type": "processing",
+      "config": {
+        "rinex_config": { "override": true, "time_interval": 24 },
+        "pride_config": { "sample_frequency": 1 }
+      }
+    }
+  ```
 
+## Putting it all togeather
 - **Example**:
   ```json
 
@@ -89,61 +121,7 @@ There are types of jobs that the pipeline can handle. They are:
     }
     
   ```
-### `ingestion`
-- **Description**: Specifies the data ingestion jobs, defining where raw data files are located before being processed.
-- **Usage**: The application processes the data from the specified directory and adds it to the appropriate project location.
-- **Structure**:
-  - `network`: Defines the network associated with the station.
-  - `station`: Identifies the specific station in the network.
-  - `campaign`: Names the campaign related to the data collection.
-  - `directory`: Specifies the location of the data files to be ingested.
-- **Example**:
-  ```yaml
-  ingestion:
-    jobs:
-      - network: cascadia-gorda
-        station: NDP1
-        campaign: 2023_from_john
-        directory: /Users/franklyndunbar/Project/SeaFloorGeodesy/Data/Cascadia2023/NDP1/HR
-  ```
 
-### `download`
-- **Description**: Defines jobs for downloading remote data assets.
-- **Usage**: The application checks for available remote assets and downloads them to the corresponding directory.
-- **Structure**:
-  - `network`: Defines the network associated with the station.
-  - `station`: Identifies the specific station in the network.
-  - `campaign`: Names the campaign related to the data collection.
-- **Example**:
-  ```yaml
-  download:
-    jobs:
-      - network: cascadia-gorda
-        station: GCC1
-        campaign: 2023_A_1063
-  ```
-
-### `processing`
-- **Description**: Defines processing jobs that run on the ingested or downloaded data.
-- **Usage**: The application applies specific processing pipelines based on the configuration settings for each station and campaign.
-- **Structure**:
-  - `network`: Defines the network associated with the station.
-  - `station`: Identifies the specific station in the network.
-  - `campaign`: Names the campaign related to the data collection.
-  - `config`: Contains processing parameters such as `rinex_config`.
-    - `rinex_config`: Holds settings related to RINEX data processing, including time interval and override options.
-- **Example**:
-  ```yaml
-  processing:
-    jobs:
-      - network: cascadia-gorda
-        station: NDP1
-        campaign: 2023_from_john
-        config:
-          rinex_config:
-            time_interval: 24
-            override: false
-  ```
 
 
 ## Configuration
