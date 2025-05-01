@@ -1,3 +1,25 @@
+# Useage
+
+**CLI**
+```bash
+
+$ python3 path/to/es_sfgtools/app/main.py your_config.json
+```
+
+**Python Scripting**
+```python
+
+from es_sfgtools.app.src import run_manifest,PipelineManifest
+
+configPath = '/path/to/your_config.json'
+
+pipelineManifest = PipelineManifest.from_json(configPath)
+
+run_manifest(piplineManifest)
+
+```
+
+
 # Configuration File Overview
 
 This document provides an overview of the key fields in the configuration file used for the command-line application. The configuration file defines the main working directory and specifies jobs for data ingestion, downloading, and processing.
