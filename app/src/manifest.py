@@ -18,7 +18,6 @@ class PipelinePreprocessJob(BaseModel):
     campaign: str = Field(..., title="Campaign Name")
     config: Optional[SV3PipelineConfig] = Field(..., title="Pipeline Configuration")
 
-
 class PipelineIngestJob(BaseModel):
     network: str = Field(..., title="Network Name")
     station: str = Field(..., title="Station Name")
