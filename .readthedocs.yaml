@@ -11,7 +11,7 @@ build:
     python: "mambaforge-latest"
 
 conda:
-  environment: environment.yml
+  environment: linux_environment.yml
 
 # Build documentation in the "docs/" directory with Sphinx
 sphinx:
