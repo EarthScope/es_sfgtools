@@ -228,7 +228,8 @@ class DataHandler:
         try:
             station_data = self.data_catalog.catalog.networks[self.network].stations[self.station]
         except KeyError:
-            station_data = {}
+            station_data = StationData(name=self.station)
+                                    
 
         acoustic_tdb_uri = station_data.acousticdata if hasattr(station_data,"acousticdata") else self.tileb_dir/"acoustic_db.tdb" 
         self.acoustic_tdb = TDBAcousticArray(acoustic_tdb_uri)
