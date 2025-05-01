@@ -266,7 +266,7 @@ class GarposHandler:
                 gp_transponder.position_enu = gp_transponder_enu
                 GPtransponders.append(gp_transponder)
             if len(GPtransponders) == 0:
-                print(f"No transponders found for survey {survey.id}")
+                logger.logwarn(f"No transponders found for survey {survey.id}")
                 continue
 
             # Get average transponder position
