@@ -1,25 +1,26 @@
 {
   "projectDir": "/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain",
-  "jobs": [
+  "operations": [
     {
       "network": "cascadia-gorda",
-      "station": "NCC1",
-      "campaign": "2024_A_1126",
-      "operations": [
+      "station": "NDP1",
+      "campaign": "2023_from_john",
+      "jobs": [
         {
           "type": "ingestion",
-          "args": {
-            "directory": "path/to/local/data/directory"
-          }
+          "directory": " /Users/franklyndunbar/Project/SeaFloorGeodesy/Data/Cascadia2023/NDP1/HR"
         },
         {
           "type": "processing",
-          "args": {
+          "config": {
             "rinex_config": { "override": true, "time_interval": 24 },
             "pride_config": { "sample_frequency": 1 }
           }
         }
       ]
+    },
+    {"network":"cascadia-gorda","station":"NCC1","campaign":"2024_A_1126",
+        "jobs":[{"type":"processing"}]
     }
   ],
   "globalConfig": {

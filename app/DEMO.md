@@ -9,7 +9,7 @@ This document provides an overview of the key fields in the configuration file u
 - **Usage**: The application reads and writes data from/to this directory during execution.
 - **Example**:
   ```yaml
-  main_dir: /Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain
+  main_dir: /Users/user/Project/SeaFloorGeodesy/Data/SFGMain
   ```
 
 ### `ingestion`
