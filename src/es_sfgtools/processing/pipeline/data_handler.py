@@ -17,19 +17,18 @@ from datetime import date
 import seaborn 
 seaborn.set_theme(style="whitegrid")
 
+from sfg_metadata.metadata.src.catalogs import Catalog, NetworkData, StationData
+
 from es_sfgtools.utils.archive_pull import download_file_from_archive
+from es_sfgtools.utils.loggers import ProcessLogger as logger, change_all_logger_dirs
 from es_sfgtools.processing.assets.file_schemas import AssetEntry, AssetType
 from es_sfgtools.processing.assets.tiledb import TDBAcousticArray,TDBGNSSArray,TDBPositionArray,TDBShotDataArray,TDBGNSSObsArray
 from es_sfgtools.processing.pipeline.catalog import PreProcessCatalog
 from es_sfgtools.processing.pipeline.pipelines import SV3Pipeline, SV3PipelineConfig,PrepSiteData
-from es_sfgtools.processing.operations.gnss_ops import get_metadata,get_metadatav2
+from es_sfgtools.processing.operations.gnss_ops import get_metadata, get_metadatav2
 from es_sfgtools.processing.pipeline.constants import REMOTE_TYPE, FILE_TYPES
 from es_sfgtools.processing.pipeline.datadiscovery import scrape_directory_local, get_file_type_local, get_file_type_remote
-
 from es_sfgtools.modeling.garpos_tools.garpos_handler import GarposHandler
-
-from es_sfgtools.utils.loggers import ProcessLogger as logger, change_all_logger_dirs
-from es_sfgtools.utils.metadata.catalogs import Catalog, NetworkData, StationData
 
 
 def check_network_station_campaign(func: Callable):
@@ -50,7 +49,7 @@ def check_network_station_campaign(func: Callable):
 
 
 class CatalogHandler:
-    def __init__(self, file_path: Union[str, Path],name:str="new catalog",catalog:Catalog=None):
+    def __init__(self, file_path: Union[str, Path], name: str = "new catalog", catalog: Catalog = None):
         """
         Initialize the CatalogHandler with a file path to persist the catalog.
 
@@ -277,7 +276,7 @@ class DataHandler:
             with open(self.rinex_metav1, "w") as f:
                 json.dump(get_metadata(site=self.station), f)
 
-    def change_working_station(self, network: str, station: str, campaign: str = None,start_date:date=None,end_date:date=None):
+    def change_working_station(self, network: str, station: str, campaign: str = None, start_date: date = None, end_date: date = None):
         """
         Change the working station.
         
@@ -285,6 +284,8 @@ class DataHandler:
             network (str): The network name.
             station (str): The station name.
             campaign (str): The campaign name. Default is None.
+            start_date (date): The start date for the data. Default is None.
+            end_date (date): The end date for the data. Default is None.
         """
 
         # Set class attributes & create the directory structure
@@ -673,7 +674,7 @@ class DataHandler:
         """
         station_data = self.data_catalog.catalog.networks[self.network].stations[self.station]
 
-        return GarposHandler(site_data=site_data,station_data=station_data,working_dir=self.station_dir/"GARPOS")
+        return GarposHandler(site_data=site_data, station_data=station_data, working_dir=self.station_dir/"GARPOS")
 
     def print_logs(self,log:Literal['base','gnss','process']):
         """

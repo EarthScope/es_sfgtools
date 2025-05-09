@@ -16,8 +16,10 @@ from matplotlib.collections import LineCollection
 import matplotlib.dates as mdates
 import seaborn as sns
 
-from es_sfgtools.utils.metadata.site import Site 
-from es_sfgtools.utils.metadata.catalogs import Catalog,CatalogType,StationData
+from sfg_metadata.metadata.src.catalogs import StationData
+from sfg_metadata.metadata.src.site import Site
+from sfg_metadata.metadata.src.vessel import Vessel
+
 
 sns.set_theme()
 import shutil
@@ -37,22 +39,16 @@ from es_sfgtools.modeling.garpos_tools.schemas import (
     GPPositionENU,
     GPPositionLLH
 )
-from es_sfgtools.modeling.garpos_tools.functions import CoordTransformer,process_garpos_results,rectify_shotdata
-
-from es_sfgtools.utils.metadata.site import Site as MetaSite
-from es_sfgtools.utils.metadata.vessel import Vessel as MetaVessel
+from es_sfgtools.modeling.garpos_tools.functions import CoordTransformer, process_garpos_results, rectify_shotdata
 from es_sfgtools.utils.loggers import GarposLogger as logger
 
 from ...processing.assets.tiledb import TDBShotDataArray
-from .load_utils import load_drive_garpos,load_lib
+from .load_utils import load_drive_garpos, load_lib
 
 try:
     drive_garpos = load_drive_garpos()
-
 except Exception as e:
-
     from garpos import drive_garpos
-
 
 colors = [
     "blue",

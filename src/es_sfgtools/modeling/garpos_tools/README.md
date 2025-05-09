@@ -6,7 +6,7 @@ to inject a cloned garpos repository as a dependency, use the env variable "GARP
 ```python
     from es_sfgtools.utils.loggers import BaseLogger
     BaseLogger.route_to_console()
-    from sfg_metadata import META_DATA,GEOLAB_DATA
+    from sfg_metadata import META_DATA, GEOLAB_DATA
 
     main_dir = Path("/Path/to/data/SFGMain")
 
