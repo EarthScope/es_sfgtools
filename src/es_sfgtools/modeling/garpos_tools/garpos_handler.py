@@ -177,9 +177,9 @@ class GarposHandler:
                     elevation=-float(self.site.localGeoidHeight) # use negatiive value to account for garpos error "ys is shallower than layer"
                 )
                 self.sound_speed_path = self.current_campaign_dir / "svp.csv"
-                self.current_campaign.soundSpeedProfile.to_csv(
-                    self.sound_speed_path, index=False
-                )
+                # self.current_campaign.soundSpeedProfile.to_csv(
+                #     self.sound_speed_path, index=False
+                # )
                 self.current_survey = None
                 logger.loginfo(
                     f"Campaign {name} set. Current campaign directory: {self.current_campaign_dir}"
