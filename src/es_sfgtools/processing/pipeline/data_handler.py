@@ -7,7 +7,6 @@ from typing import List, Callable, Union, Generator, Tuple, LiteralString, Optio
 import logging
 import boto3
 import matplotlib.pyplot as plt
-from tqdm.auto import tqdm 
 from functools import partial
 import concurrent.futures
 import threading
@@ -438,7 +437,7 @@ class DataHandler:
         logger.loginfo(f"{len(not_recognized)} files not recognized and skipped")
         logger.loginfo(f"Added {uploadCount} out of {count} files to the catalog")
 
-    def download_data(self, file_types: List[AssetType] | List[str] | str = FILE_TYPES, override: bool=False):
+    def download_data(self, file_types: List[AssetType] | List[str] | str = DEFAULT_FILE_TYPES_TO_DOWNLOAD, override: bool=False):
         """
         Retrieves and catalogs data from the remote locations stored in the catalog.
 
@@ -502,7 +501,7 @@ class DataHandler:
                         self.catalog.update_local_path(file.id, file.local_path)
 
             if len(http_assets) > 0:
-                self.download_HTTP_files(http_assets=http_assets)
+                self.download_HTTP_files(http_assets=http_assets, file_type=type)
 
     def _download_S3_files(self, s3_assets: List[AssetEntry]):
         """ 
@@ -559,7 +558,7 @@ class DataHandler:
         finally:
             return local_path
 
-    def download_HTTP_files(self, http_assets: List[AssetEntry]):
+    def download_HTTP_files(self, http_assets: List[AssetEntry], file_type:AssetType = None):
         """ 
         Download HTTP files with progress bar and updates the catalog with the local path. 
         
@@ -567,7 +566,7 @@ class DataHandler:
             http_assets (List[AssetEntry]): A list of HTTP assets to download.
         """
 
-        for file_asset in tqdm(http_assets, desc="Downloading HTTP Files"):
+        for file_asset in tqdm(http_assets, desc=f"Downloading {file_type.value} files"):
             if (local_path := self._HTTP_download_file(file_asset.remote_path)) is not None:
                 # Update the local path in the AssetEntry
                 file_asset.local_path = str(local_path)
