@@ -212,6 +212,8 @@ def list_file_counts_by_type(file_list: list, url: str = None) -> dict:
             file_dict.setdefault("master", []).append(file)
         elif "lever_arms" in file:
             file_dict.setdefault("lever_arms", []).append(file)
+        elif "config.yaml" in file:
+            file_dict.setdefault("config", []).append(file)
         elif "bcsonardyne" in file:
             file_dict.setdefault("sonardyne", []).append(file)
         elif "bcnovatel" in file:

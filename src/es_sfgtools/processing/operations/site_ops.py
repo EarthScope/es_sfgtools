@@ -36,7 +36,7 @@ def ctd_to_soundvelocity(source: Union[AssetEntry,str,Path]) -> DataFrame[SoundV
     return df
 
 
-@pa.check_types
+@pa.check_types(lazy=True)
 def seabird_to_soundvelocity(
     source: Union[AssetEntry,str,Path], show_details: bool = True
 ) -> DataFrame[SoundVelocityDataFrame]:

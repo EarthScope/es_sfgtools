@@ -7,7 +7,6 @@ class REMOTE_TYPE(Enum):
     S3 = "s3"
     HTTP = "http"
 
-
 class FILE_TYPE(Enum):
     SONARDYNE = "sonardyne"
     NOVATEL = "novatel"
@@ -27,10 +26,22 @@ class FILE_TYPE(Enum):
     def to_schema(cls):
         return [x.name for x in cls]
 
-
 FILE_TYPES = [x for x in FILE_TYPE]
 ALIAS_MAP = {"nov770": "novatel770"}
 ALIAS_MAP = ALIAS_MAP | {x: x for x in FILE_TYPES}
+
+class DOWNLOAD_TYPES(Enum):
+    SONARDYNE = "sonardyne"
+    NOVATEL = "novatel"
+    NOVATEL770 = "novatel770"
+    DFPO00 =  "dfop00"
+    CTD = "ctd"
+    SEABIRD = "svpavg"
+    @classmethod
+    def to_schema(cls):
+        return [x.name for x in cls]
+
+DEFAULT_FILE_TYPES_TO_DOWNLOAD = [x for x in DOWNLOAD_TYPES]
 
 
 class DATA_TYPE(Enum):
