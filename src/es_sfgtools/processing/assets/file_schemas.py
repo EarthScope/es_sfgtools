@@ -71,7 +71,7 @@ class AssetType(Enum):
     RINEX = "rinex"
     KIN = "kin"
     SEABIRD = "seabird"
-    CTD = "ctd"
+    CTD = "ctd"             # 2 column data
     LEVERARM = "leverarm"
     MASTER = "master"
     QCPIN = "qcpin"
@@ -80,7 +80,7 @@ class AssetType(Enum):
     ACOUSTIC = "acoustic"
     SITECONFIG = "siteconfig"
     ATDOFFSET = "atdoffset"
-    SVP = "svp"
+    SVP = "svp"             # maybe doesn't work
     SHOTDATA = "shotdata"
     POSITION = "position"
     KINRESIDUALS = "kinresiduals"

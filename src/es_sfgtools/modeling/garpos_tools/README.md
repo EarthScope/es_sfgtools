@@ -1,8 +1,10 @@
 ### NOTES:
+
 to inject a cloned garpos repository as a dependency, use the env variable "GARPOS_PATH"
 
 
 ### Garpos Handler
+
 ```python
     from es_sfgtools.utils.loggers import BaseLogger
     BaseLogger.route_to_console()

@@ -454,7 +454,7 @@ def process_garpos_results(results: GarposInput) -> Tuple[GarposInput, pd.DataFr
     logger.loginfo("GARPOS results processed, returning results tuple")
     return results, results_df
 
-def rectify_shotdata(coord_transformer:CoordTransformer, shot_data: pd.DataFrame) -> pd.DataFrame:
+def rectify_shotdata(coord_transformer: CoordTransformer, shot_data: pd.DataFrame) -> pd.DataFrame:
     """
     Rectifies the shot data to the site local coordinate system by transforming coordinates and renaming columns.
     This method performs the following operations on the input shot data:
