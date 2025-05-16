@@ -232,6 +232,8 @@ class GarposHandler:
 
         logger.loginfo(f"Checking catalog database for CTD files related to campaign {campaign_name}..")
         catalog = PreProcessCatalog(db_path=catalog_db_path)
+
+        # Get the CTD files related to the current campaign
         ctd_assets: List[AssetEntry] = catalog.get_ctds(station=self.site.names[0], campaign=campaign_name)
 
         if not ctd_assets:
@@ -240,8 +242,8 @@ class GarposHandler:
 
         logger.loginfo(f"Found {len(ctd_assets)} CTD files related to campaign {campaign_name}")
 
-        # Prioritize a version, then ctd  # TODO: ask which is preferred
-        preferred_types = [AssetType.CTD, AssetType.SEABIRD]       
+        # Prioritize SVP then CTD then Seabird  # TODO: ask which is preferred (ctd vs seabird)
+        preferred_types = [AssetType.SVP, AssetType.CTD, AssetType.SEABIRD]       
         for preferred in preferred_types:
             for file in ctd_assets:
                 if file.type == preferred:
@@ -264,13 +266,28 @@ class GarposHandler:
                         continue
 
                     # Convert to sound velocity profile
-                    logger.loginfo(f"Converting {local_path} to sound velocity profile")
-                    if preferred == AssetType.SEABIRD:
+                    if preferred == AssetType.SVP:
+                        logger.loginfo(f"Using local sound speed profile found at {local_path}..")
+                        self.sound_speed_path = local_path
+                        return 
+                    elif preferred == AssetType.SEABIRD:
+                        logger.loginfo(f"Converting seabird file: {local_path} to sound velocity profile")
                         df = seabird_to_soundvelocity(source=local_path)
-                    else:
+                    elif preferred == AssetType.CTD:
+                        logger.loginfo(f"Converting CTD file: {local_path} to sound velocity profile")
                         df = ctd_to_soundvelocity(source=local_path)
+                    else:
+                        raise ValueError(f"Unknown file type {file.type} for file {local_path}")
 
                     df.to_csv(self.sound_speed_path, index=False)
+                    logger.loginfo(f"Converted {local_path} to sound velocity profile at {self.sound_speed_path}, adding to catalog")
+                    catalog.add_entry(AssetEntry(local_path=str(self.sound_speed_path), 
+                                                 timestamp_created=datetime.now(), 
+                                                 type=AssetType.SVP,
+                                                 network=file.network,
+                                                 station=file.station,
+                                                 campaign=file.campaign,
+                                                 ))
                     return  # Only process the first preferred file found
     
 

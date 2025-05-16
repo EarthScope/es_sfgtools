@@ -73,7 +73,7 @@ class PreProcessCatalog:
         
     def get_ctds(self, station: str, campaign: str) -> List[AssetEntry]:
         """
-        Get all ctd assets for a given station and campaign.
+        Get all svp, ctd and seabird assets for a given station and campaign.
         
         Args:
             station (str): The station.
@@ -90,7 +90,7 @@ class PreProcessCatalog:
                 sa.and_(
                     Assets.station == station,
                     Assets.campaign == campaign,
-                    Assets.type.in_([AssetType.CTD.value, AssetType.SEABIRD.value])
+                    Assets.type.in_([AssetType.CTD.value, AssetType.SEABIRD.value, AssetType.SVP.value])
                 )
             )
             result = conn.execute(query).fetchall()
