@@ -10,12 +10,13 @@ from ..assets.observables import SoundVelocityDataFrame
 
 from es_sfgtools.utils.loggers import ProcessLogger as logger
 
-@pa.check_types
+@pa.check_types(lazy=True)
 def ctd_to_soundvelocity(source: Union[AssetEntry,str,Path]) -> DataFrame[SoundVelocityDataFrame]:
-    if isinstance(source,AssetEntry):
+    if isinstance(source, AssetEntry):
         assert source.type == AssetType.CTD
     else:
         source = AssetEntry(local_path=source,type=AssetType.CTD)
+        
     df = pd.read_csv(
         source.local_path,
         sep=" ",
@@ -34,9 +35,7 @@ def ctd_to_soundvelocity(source: Union[AssetEntry,str,Path]) -> DataFrame[SoundV
 
 
 @pa.check_types(lazy=True)
-def seabird_to_soundvelocity(
-    source: Union[AssetEntry,str,Path], show_details: bool = True
-) -> DataFrame[SoundVelocityDataFrame]:
+def seabird_to_soundvelocity(source: Union[AssetEntry,str,Path]) -> DataFrame[SoundVelocityDataFrame]:
     """
     Read the sound velocity profile from a file
     fmt = [ Depth [m], Latitude [deg],Longitude [deg],Temperatures [deg C], Salinity [PSU] ,Speed [m/s]]
@@ -69,6 +68,7 @@ def seabird_to_soundvelocity(
             line = lines.pop(0)
             if data_start.match(line):
                 break
+
         if not lines:
             logger.logerr(f"No data found in the sound speed profile file {source.local_path}")
             return None
@@ -83,11 +83,11 @@ def seabird_to_soundvelocity(
                 }
             )
         df = pd.DataFrame(data)
-        response = f"Found SS data down to max depth of {df['depth'].max()} m\n"
-        response += f"SS ranges from {df['speed'].min()} to {df['speed'].max()} m/s"
-        logger.loginfo(response)
-        if show_details:
-            print(response)
+        logger.loginfo(
+            f"Found SS data down to max depth of {df['depth'].max()} m\n"
+            f"SS ranges from {df['speed'].min()} to {df['speed'].max()} m/s"
+        )
+
     return df
 
 
