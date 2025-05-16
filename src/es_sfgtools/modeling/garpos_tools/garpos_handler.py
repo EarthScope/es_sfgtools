@@ -2,6 +2,8 @@
 
 from pathlib import Path
 from typing import List, Tuple, Union
+from es_sfgtools.processing.operations.site_ops import ctd_to_soundvelocity, seabird_to_soundvelocity
+from es_sfgtools.utils.archive_pull import download_file_from_archive
 import pandas as pd
 import matplotlib.pyplot as plt
 from datetime import datetime
@@ -13,6 +15,7 @@ import matplotlib.dates as mdates
 import seaborn as sns
 sns.set_theme()
 import matplotlib.gridspec as gridspec
+import os
 
 from sfg_metadata.metadata.src.catalogs import StationData
 from sfg_metadata.metadata.src.site import Site
@@ -34,6 +37,8 @@ from es_sfgtools.utils.loggers import GarposLogger as logger
 
 from ...processing.assets.tiledb import TDBShotDataArray
 from .load_utils import load_drive_garpos
+from es_sfgtools.processing.pipeline.catalog import PreProcessCatalog
+from es_sfgtools.processing.assets.file_schemas import AssetEntry, AssetType
 
 try:
     drive_garpos = load_drive_garpos()
@@ -161,13 +166,16 @@ class GarposHandler:
         self.coord_transformer = None
 
         self.garpos_fixed._to_datafile(path=self.working_dir/DEFAULT_SETTINGS_FILE_NAME)
+
         logger.loginfo(f"Garpos Handler initialized with working directory: {self.working_dir}")
 
-    def set_campaign(self, name: str):
+    def set_campaign(self, name: str, catalog_db_path: Path = None, local_svp: Path = None):
         """
         Set the current campaign to the one with the given name.
         Args:
             name (str): The name of the campaign to set as current.
+            catalog_db_path (Path): The path to the catalog database. Default is None.
+            local_svp (Path): The path to the local sound speed profile file. Default is None.
         Raises:
             ValueError: If the campaign with the given name is not found in the site data.
         """
@@ -181,20 +189,90 @@ class GarposHandler:
                     longitude=self.site.arrayCenter.longitude,
                     elevation=-float(self.site.localGeoidHeight) # use negatiive value to account for garpos error "ys is shallower than layer"
                 )
-                # TODO if not sound speed, download and save to DF
-                self.sound_speed_path = self.current_campaign_dir / SVP_FILE_NAME
-                # self.current_campaign.soundSpeedProfile.to_csv(
-                #     self.sound_speed_path, index=False
-                # )
                 self.current_survey = None
+
+                # Set the path to the sound speed profile file
+                self.sound_speed_path = self.current_campaign_dir / SVP_FILE_NAME
+                
+                # If sound speed profile exists, use it, otherwise grab it from the catalog or the archive
+                if not self.sound_speed_path.exists():
+                    if local_svp: # TODO what if local CTD.. make them convert to use
+                        logger.loginfo(f"Using local sound speed profile found at {local_svp}..")
+                        self.sound_speed_path = local_svp
+                    else: 
+                        self._check_CTDs_in_catalog(campaign_name=name, catalog_db_path=catalog_db_path)
+
                 logger.loginfo(
                     f"Campaign {name} set. Current campaign directory: {self.current_campaign_dir}"
                 )
+
                 return
             
         raise ValueError(
             f"campaign {name} not found among: {[x.name for x in self.site.campaigns]}"
         )
+    
+    def _check_CTDs_in_catalog(self, campaign_name: str, catalog_db_path: Path = None):
+        """
+        Check the catalog database for CTD files related to the current campaign. If found, download them and convert to sound speed profile.
+        
+        Args:
+            catalog_db_path (Path): The path to the catalog database. Default is None. Will check in local working directory if not provided.
+        """
+
+        if not catalog_db_path:
+            # Check if we can find it first based on the classic working directory structure, if not, raise error
+            catalog_db_path = self.working_dir.parents[2]/"catalog.sqlite"
+            logger.logwarn(f"Catalog database path not provided, checking for local catalog database at: {str(catalog_db_path)}")
+            if not catalog_db_path.exists():
+                raise ValueError("No local SVP found and no catalog database path provided, " \
+                "\n please provide the catalog database path to check for the CTD files or a local SVP file")
+            else:
+                logger.loginfo(f"Using local catalog database found at {catalog_db_path}..")
+
+        logger.loginfo(f"Checking catalog database for CTD files related to campaign {campaign_name}..")
+        catalog = PreProcessCatalog(db_path=catalog_db_path)
+        ctd_assets: List[AssetEntry] = catalog.get_ctds(station=self.site.names[0], campaign=campaign_name)
+
+        if not ctd_assets:
+            raise ValueError(f"No CTD files found for campaign {campaign_name} in the catalog, " \
+                             "use the data handler to download the CTD files or provide a local SVP file")
+
+        logger.loginfo(f"Found {len(ctd_assets)} CTD files related to campaign {campaign_name}")
+
+        # Prioritize a version, then ctd  # TODO: ask which is preferred
+        preferred_types = [AssetType.CTD, AssetType.SEABIRD]       
+        for preferred in preferred_types:
+            for file in ctd_assets:
+                if file.type == preferred:
+                    # Check if the file is local or remote only
+                    if file.local_path is None and file.remote_path is not None:
+                        logger.loginfo(f"Downloading {file.remote_path} to {self.current_campaign_dir}")
+                        local_path = self.current_campaign_dir / file.remote_path.split("/")[-1]
+                        download_file_from_archive(url=file.remote_path, dest_dir=self.current_campaign_dir)
+                        
+                        if not local_path.exists():
+                            raise ValueError(f"File {local_path} not downloaded")
+                        
+                        logger.loginfo(f"Downloaded {file.remote_path} to {local_path}")
+                        catalog.update_local_path(id=file.id, local_path=str(local_path))
+
+                    elif file.local_path is not None:
+                        local_path = file.local_path
+                        
+                    else:
+                        continue
+
+                    # Convert to sound velocity profile
+                    logger.loginfo(f"Converting {local_path} to sound velocity profile")
+                    if preferred == AssetType.SEABIRD:
+                        df = seabird_to_soundvelocity(source=local_path)
+                    else:
+                        df = ctd_to_soundvelocity(source=local_path)
+
+                    df.to_csv(self.sound_speed_path, index=False)
+                    return  # Only process the first preferred file found
+    
 
     def set_survey(self, name: str):
         """
@@ -230,7 +308,8 @@ class GarposHandler:
 
         return obs_path
     
-    def _get_array_dpos_center(self, GPtransponders: List[GPTransponder]):
+
+    def _get_array_dpos_center(self, transponders: List[GPTransponder]):
         """
         Get the average transponder position in ENU coordinates.
         Args:
@@ -238,7 +317,7 @@ class GarposHandler:
         Returns:
             Tuple[GPPositionENU, GPPositionLLH]: Average transponder position in ENU and LLH coordinates.
         """
-        _, array_center_llh = avg_transponder_position(GPtransponders)
+        _, array_center_llh = avg_transponder_position(transponders)
         array_dpos_center = self.coord_transformer.LLH2ENU(
             lat=array_center_llh.latitude,
             lon=array_center_llh.longitude,
@@ -478,7 +557,7 @@ class GarposHandler:
 
         results_dir.mkdir(exist_ok=True, parents=True)
         garpos_input.shot_data = results_dir.parent / garpos_input.shot_data.name
-        garpos_input.sound_speed_data = self.sound_speed_path#obs_file_path.parent.parent.parent / garpos_input.sound_speed_data.name
+        garpos_input.sound_speed_data = self.sound_speed_path #obs_file_path.parent.parent.parent / garpos_input.sound_speed_data.name
         input_path = results_dir / f"_{run_id}_observation.ini"
         fixed_path = results_dir / f"_{run_id}_settings.ini"
         garpos_input.to_datafile(input_path)
