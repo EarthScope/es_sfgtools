@@ -12,7 +12,7 @@ from es_sfgtools.utils.loggers import ProcessLogger as logger
 
 
 class PreProcessCatalog:
-    def __init__(self, db_path:Path):
+    def __init__(self, db_path: Path):
         self.db_path = db_path
         self.engine = self.engine = sa.create_engine(
             f"sqlite+pysqlite:///{self.db_path}", poolclass=sa.pool.NullPool
@@ -70,12 +70,56 @@ class PreProcessCatalog:
                 except Exception as e:
                     logger.logerr("Unable to add row, error: {}".format(e))
             return out
+        
+    def get_ctds(self, station: str, campaign: str) -> List[AssetEntry]:
+        """
+        Get all ctd assets for a given station and campaign.
+        
+        Args:
+            station (str): The station.
+            campaign (str): The campaign.
+            
+        Returns:
+            List[AssetEntry]: A list of AssetEntry objects.    
+        """
+
+        logger.logdebug(f"Getting ctds for {station} {campaign}")
+
+        with self.engine.connect() as conn:
+            query = sa.select(Assets).where(
+                sa.and_(
+                    Assets.station == station,
+                    Assets.campaign == campaign,
+                    Assets.type.in_([AssetType.CTD.value, AssetType.SEABIRD.value])
+                )
+            )
+            result = conn.execute(query).fetchall()
+            out = []
+            for row in result:
+                try:
+                    entry = AssetEntry(**row._mapping)
+                    out.append(entry)
+                except Exception as e:
+                    logger.logerr("Unable to add row, error: {}".format(e))
+            return out
 
     def get_local_assets(self,
                    network: str,
                    station: str,
                    campaign: str,
                    type: AssetType) -> List[AssetEntry]:
+        """
+        Get local assets for a given network, station, campaign, and type.
+        
+        Args:
+            network (str): The network.
+            station (str): The station.
+            campaign (str): The campaign.
+            type (AssetType): The asset type.
+            
+        Returns:
+            List[AssetEntry]: A list of AssetEntry objects.    
+        """
 
         logger.logdebug(f"Getting local assets for {network} {station} {campaign} {str(type)}")
 
@@ -119,7 +163,7 @@ class PreProcessCatalog:
 
         return list(parent_id_map.values())
 
-    def find_entry(self,entry:AssetEntry ) -> AssetEntry | None:
+    def find_entry(self, entry: AssetEntry ) -> AssetEntry | None:
 
         with self.engine.connect() as conn:
             results = conn.execute(sa.select(Assets).where(
