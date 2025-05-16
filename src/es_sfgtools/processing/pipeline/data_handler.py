@@ -28,6 +28,7 @@ from es_sfgtools.processing.operations.gnss_ops import get_metadata, get_metadat
 from es_sfgtools.processing.pipeline.constants import REMOTE_TYPE, FILE_TYPES
 from es_sfgtools.processing.pipeline.datadiscovery import scrape_directory_local, get_file_type_local, get_file_type_remote
 from es_sfgtools.modeling.garpos_tools.garpos_handler import GarposHandler
+from es_sfgtools.processing.pipeline.constants import DEFAULT_FILE_TYPES_TO_DOWNLOAD
 
 
 def check_network_station_campaign(func: Callable):
@@ -169,7 +170,7 @@ class DataHandler:
         self.catalog = PreProcessCatalog(self.db_path)
 
         self.data_catalog_path = self.main_directory / "data_catalog.json"
-        self.data_catalog = CatalogHandler(self.data_catalog_path,name="Data Catalog",catalog=data_catalog)
+        self.data_catalog = CatalogHandler(self.data_catalog_path, name="Data Catalog", catalog=data_catalog)
 
     def _build_station_dir_structure(self, network: str, station: str, campaign: str):
 
@@ -380,7 +381,7 @@ class DataHandler:
     @check_network_station_campaign
     def add_data_remote(self, 
                         remote_filepaths: List[str],
-                        remote_type:Union[REMOTE_TYPE,str] = REMOTE_TYPE.HTTP
+                        remote_type: Union[REMOTE_TYPE,str] = REMOTE_TYPE.HTTP
                         ) -> None:
         """
         Add campaign data to the catalog.
@@ -404,6 +405,7 @@ class DataHandler:
             # Get the file type, If the file type is not recognized, it returns None
             file_type = get_file_type_remote(file)
 
+
             if file_type is None: # If the file type is not recognized, skip it
                 logger.logdebug(f"File type not recognized for {file}")
                 not_recognized.append(file)
@@ -414,7 +416,6 @@ class DataHandler:
                                                   campaign=self.campaign,
                                                   type=file_type,
                                                   remote_path=file):
-
                 file_data = AssetEntry(
                     remote_path=file,
                     remote_type=remote_type,
@@ -425,35 +426,44 @@ class DataHandler:
                 )
                 file_data_list.append(file_data)
             else:
-                logger.logdebug(f"File {file} already exists in the catalog")
+                # Count the file as already existing in the catalog
+                logger.logdebug(f"File {file} already exists in the catalog and has a local path")
 
         # Add each file (AssetEntry) to the catalog
-        count = len(file_data_list)
+        file_count = len(file_data_list)
         uploadCount = 0
         for file_assest in file_data_list:
             if self.catalog.add_entry(file_assest):
                 uploadCount += 1
 
+        already_existed_in_catalog = file_count - uploadCount
+
         logger.loginfo(f"{len(not_recognized)} files not recognized and skipped")
-        logger.loginfo(f"Added {uploadCount} out of {count} files to the catalog")
+        logger.loginfo(f"{already_existed_in_catalog} files already exist in the catalog")
+        logger.loginfo(f"Added {uploadCount} out of {file_count} files to the catalog")
 
     def download_data(self, file_types: List[AssetType] | List[str] | str = DEFAULT_FILE_TYPES_TO_DOWNLOAD, override: bool=False):
         """
         Retrieves and catalogs data from the remote locations stored in the catalog.
 
         Args:
-            file_type (str): The type of file to download
+            file_types (list/str): the type of files to download.
             override (bool): Whether to download the data even if it already exists. Default is False.
         """
 
         # Grab assests from the catalog that match the network, station, campaign, and file type
-        if not isinstance(file_types,list):
+        if not isinstance(file_types, list):
             file_types = [file_types]
+
+        # Convert all string file_types to lowercase
+        file_types = [ft.lower() if isinstance(ft, str) else ft for ft in file_types]
 
         # Remove duplicates
         file_types = list(set(file_types)) 
+
+        # Check that the file types are valid, default is all file types
         for type in file_types:
-            if isinstance(type,str):
+            if isinstance(type, str):
                 try:
                     file_types[file_types.index(type)] = AssetType(type)
                 except:
@@ -558,7 +568,7 @@ class DataHandler:
         finally:
             return local_path
 
-    def download_HTTP_files(self, http_assets: List[AssetEntry], file_type:AssetType = None):
+    def download_HTTP_files(self, http_assets: List[AssetEntry], file_type: AssetType = None):
         """ 
         Download HTTP files with progress bar and updates the catalog with the local path. 
         
@@ -648,7 +658,7 @@ class DataHandler:
 
         config = SV3PipelineConfig()
         config.rinex_config.settings_path = self.rinex_metav2
-        pipeline = SV3Pipeline(asset_catalog=self.catalog, data_catalog=self.data_catalog,config=config)
+        pipeline = SV3Pipeline(asset_catalog=self.catalog, data_catalog=self.data_catalog, config=config)
         pipeline.set_site_data(network=self.network,
                                station=self.station,
                                campaign=self.campaign,
