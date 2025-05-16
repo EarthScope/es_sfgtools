@@ -171,11 +171,14 @@ class GarposHandler:
 
     def set_campaign(self, name: str, catalog_db_path: Path = None, local_svp: Path = None):
         """
-        Set the current campaign to the one with the given name.
+        Set the current campaign to the one with the given name, create the working directory for the campaign, 
+        initialize the coordinate transformer, and set the sound speed profile file.
+
         Args:
             name (str): The name of the campaign to set as current.
             catalog_db_path (Path): The path to the catalog database. Default is None.
             local_svp (Path): The path to the local sound speed profile file. Default is None.
+
         Raises:
             ValueError: If the campaign with the given name is not found in the site data.
         """
@@ -214,10 +217,17 @@ class GarposHandler:
     
     def _check_CTDs_in_catalog(self, campaign_name: str, catalog_db_path: Path = None):
         """
-        Check the catalog database for CTD files related to the current campaign. If found, download them and convert to sound speed profile.
+        This function will check the catalog database for SVP or CTD files related to the current campaign. If found and local, set as sound 
+        speed file or convert to SVP. If only remote, download it first and then set or convert to sound speed profile. 
+
+        If no files are found in catalog, raise an error.
         
         Args:
+            campaign_name (str): The name of the campaign to check for CTD files.
             catalog_db_path (Path): The path to the catalog database. Default is None. Will check in local working directory if not provided.
+
+        Raises:
+            ValueError: If no CTD files are found for the campaign in the catalog or if the catalog database path is not found or provided.
         """
 
         if not catalog_db_path:
