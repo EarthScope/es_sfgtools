@@ -195,7 +195,7 @@ def generate_archive_campaign_metadata_url(network, station, campaign):
     return f"https://data.earthscope.org/archive/seafloor/{network}/{year}/{station}/{campaign}/metadata"
 
 
-def list_file_counts_by_type(file_list: list, url: str = None) -> dict:
+def list_file_counts_by_type(file_list: list, url: str = None, show_logs=True) -> dict:
     """
     Counts files by type, and builds a dictionary.
 
@@ -229,17 +229,18 @@ def list_file_counts_by_type(file_list: list, url: str = None) -> dict:
         elif "ctd" in file:
             file_dict.setdefault("ctd", []).append(file)
 
-    if url is not None:
-        logger.loginfo(f"Found under {url}:")
-    else:
-        logger.loginfo("Found:")
-    for k, v in file_dict.items():
-        logger.loginfo(f"    {len(v)} {k} file(s)")
+    if show_logs:
+        if url is not None:
+            logger.loginfo(f"Found under {url}:")
+        else:
+            logger.loginfo("Found:")
+        for k, v in file_dict.items():
+            logger.loginfo(f"    {len(v)} {k} file(s)")
 
     return file_dict
 
 
-def get_survey_file_dict(url: str) -> dict:
+def get_campaign_file_dict(url: str) -> dict:
     """
 
     Args:
@@ -269,8 +270,8 @@ def list_campaign_files(network: str, station: str, campaign: str) -> list:
     # Generate the URLs for raw data & metadata
     raw_url = generate_archive_campaign_url(network, station, campaign)
     metadata_url = generate_archive_campaign_metadata_url(network, station, campaign)
-
     logger.loginfo(f"Listing raw campaign files from url {raw_url}")
+    
     raw_file_list = list_files_from_archive(raw_url)
     list_file_counts_by_type(file_list=raw_file_list, url=raw_url)
 
@@ -283,7 +284,41 @@ def list_campaign_files(network: str, station: str, campaign: str) -> list:
     file_list = raw_file_list + metadata_file_list
 
     return file_list
+    
 
+def list_campaign_files_by_type(network: str, station: str, campaign: str, show_logs: bool=True) -> dict:
+    """
+
+    Args:
+        network (str): network name
+        station (str): station name
+        campaign (str): campaign name
+        show_logs (bool): whether to show logs containing file counts
+
+    Returns:
+        dict: dictionary of file locations by type
+    """
+
+    # Generate the URLs for raw data & metadata
+    raw_url = generate_archive_campaign_url(network, station, campaign)
+    metadata_url = generate_archive_campaign_metadata_url(network, station, campaign)
+
+    if show_logs:
+        logger.loginfo(f"Listing raw campaign files from url {raw_url}")
+    raw_file_list = list_files_from_archive(raw_url)
+    raw_file_dict = list_file_counts_by_type(file_list=raw_file_list, url=raw_url, show_logs=show_logs)
+
+    if show_logs:
+        logger.loginfo(f"Listing metadata campaign files from url {metadata_url}")
+    metadata_file_list = list_files_from_archive(metadata_url)
+    metadata_file_list += list_files_from_archive(f"{metadata_url}/ctd")
+    metadata_file_dict = list_file_counts_by_type(file_list=metadata_file_list, url=metadata_url, show_logs=show_logs)
+
+    # Concatenate the two lists
+    file_dict = raw_file_dict | metadata_file_dict
+
+    return file_dict
+    
 
 def list_s3_directory_files(bucket_name: str, prefix: str) -> List[str]:
     """
