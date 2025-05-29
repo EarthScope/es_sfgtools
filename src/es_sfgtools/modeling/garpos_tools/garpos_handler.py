@@ -198,8 +198,8 @@ class GarposHandler:
                 )
                 self.current_survey = None
 
-                # # Set the path to the sound speed profile file
-                # self.sound_speed_path = self.current_campaign_dir / SVP_FILE_NAME
+                # Set the path to the sound speed profile file
+                self.sound_speed_path = self.current_campaign_dir / SVP_FILE_NAME
                 
                 # # If sound speed profile exists, use it, otherwise grab it from the catalog or the archive
                 # if not self.sound_speed_path.exists():
