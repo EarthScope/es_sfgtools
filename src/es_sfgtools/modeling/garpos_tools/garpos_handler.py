@@ -141,6 +141,8 @@ class GarposHandler:
     """
 
     def __init__(self, 
+                 network: str,
+                 station: str,
                  station_data: StationData,
                  site_data: Site,
                  working_dir: Path):
@@ -161,6 +163,8 @@ class GarposHandler:
         self.results_dir = working_dir / RESULTS_DIR_NAME
         self.results_dir.mkdir(exist_ok=True, parents=True)
 
+        self.network = network
+        self.station = station
         self.current_campaign = None
         self.current_survey = None
         self.coord_transformer = None
@@ -169,7 +173,7 @@ class GarposHandler:
 
         logger.loginfo(f"Garpos Handler initialized with working directory: {self.working_dir}")
 
-    def set_campaign(self, name: str, catalog_db_path: Path = None, local_svp: Path = None):
+    def set_campaign(self, name: str, catalog_db_path: Path = None):
         """
         Set the current campaign to the one with the given name, create the working directory for the campaign, 
         initialize the coordinate transformer, and set the sound speed profile file.
@@ -197,13 +201,13 @@ class GarposHandler:
                 # Set the path to the sound speed profile file
                 self.sound_speed_path = self.current_campaign_dir / SVP_FILE_NAME
                 
-                # If sound speed profile exists, use it, otherwise grab it from the catalog or the archive
-                if not self.sound_speed_path.exists():
-                    if local_svp: # TODO what if local CTD.. make them convert to use
-                        logger.loginfo(f"Using local sound speed profile found at {local_svp}..")
-                        self.sound_speed_path = local_svp
-                    else: 
-                        self._check_CTDs_in_catalog(campaign_name=name, catalog_db_path=catalog_db_path)
+                # # If sound speed profile exists, use it, otherwise grab it from the catalog or the archive
+                # if not self.sound_speed_path.exists():
+                #     if local_svp: # TODO what if local CTD.. make them convert to use
+                #         logger.loginfo(f"Using local sound speed profile found at {local_svp}..")
+                #         self.sound_speed_path = local_svp
+                #     else: 
+                #         self._check_CTDs_in_catalog(campaign_name=name, catalog_db_path=catalog_db_path)
 
                 logger.loginfo(
                     f"Campaign {name} set. Current campaign directory: {self.current_campaign_dir}"
@@ -214,6 +218,18 @@ class GarposHandler:
         raise ValueError(
             f"campaign {name} not found among: {[x.name for x in self.site.campaigns]}"
         )
+    
+    def load_sound_speed_data(self, local_svp: Path = None):
+        """
+        Load the sound speed profile from a local file or from the catalog.
+        Args:
+            local_svp (Path): The path to the local sound speed profile file. Default is None.
+        """
+        if local_svp:
+            self.sound_speed_path = local_svp
+            logger.loginfo(f"Using local sound speed profile found at {local_svp}..")
+        else:
+            self._check_CTDs_in_catalog(campaign_name=self.current_campaign.name)
     
     def _check_CTDs_in_catalog(self, campaign_name: str, catalog_db_path: Path = None):
         """
@@ -233,24 +249,25 @@ class GarposHandler:
         if not catalog_db_path:
             # Check if we can find it first based on the classic working directory structure, if not, raise error
             catalog_db_path = self.working_dir.parents[2]/"catalog.sqlite"
-            logger.logwarn(f"Catalog database path not provided, checking for local catalog database at: {str(catalog_db_path)}")
+            logger.logdebug(f"Catalog database path not provided, checking for local catalog database at: {str(catalog_db_path)}")
             if not catalog_db_path.exists():
                 raise ValueError("No local SVP found and no catalog database path provided, " \
                 "\n please provide the catalog database path to check for the CTD files or a local SVP file")
             else:
-                logger.loginfo(f"Using local catalog database found at {catalog_db_path}..")
+                logger.logdebug(f"Using local catalog database found at {catalog_db_path}..")
 
-        logger.loginfo(f"Checking catalog database for CTD files related to campaign {campaign_name}..")
+        logger.loginfo(f"Checking catalog database for SVP, CTD, and SEABIRD files related to campaign {campaign_name}..")
         catalog = PreProcessCatalog(db_path=catalog_db_path)
 
         # Get the CTD files related to the current campaign
         ctd_assets: List[AssetEntry] = catalog.get_ctds(station=self.site.names[0], campaign=campaign_name)
 
         if not ctd_assets:
-            raise ValueError(f"No CTD files found for campaign {campaign_name} in the catalog, " \
-                             "use the data handler to download the CTD files or provide a local SVP file")
+            raise ValueError(f"No SVP, CTD, or SEABIRD files found for campaign {campaign_name} in the catalog, " \
+                             "use the data handler add_ctds_to_catalog() to catalog available CTD files, or provide a local SVP file")
 
-        logger.loginfo(f"Found {len(ctd_assets)} CTD files related to campaign {campaign_name}")
+        for file in ctd_assets:
+            logger.loginfo(f"Found {file.type} files related to campaign {campaign_name}")
 
         # Prioritize SVP then CTD then Seabird  # TODO: ask which is preferred (ctd vs seabird)
         preferred_types = [AssetType.SVP, AssetType.CTD, AssetType.SEABIRD]       
@@ -259,7 +276,6 @@ class GarposHandler:
                 if file.type == preferred:
                     # Check if the file is local or remote only
                     if file.local_path is None and file.remote_path is not None:
-                        logger.loginfo(f"Downloading {file.remote_path} to {self.current_campaign_dir}")
                         local_path = self.current_campaign_dir / file.remote_path.split("/")[-1]
                         download_file_from_archive(url=file.remote_path, dest_dir=self.current_campaign_dir)
                         
@@ -427,7 +443,8 @@ class GarposHandler:
             GPtransponders = []
             for benchmark in survey_benchmarks:
                 # Find correct transponder, default to first
-                current_transponder = benchmark.transponders[-1]    # TODO: this does not find a specifc transponder
+                current_transponder = benchmark.get_transponder_by_datetime(survey.start)
+                #current_transponder = benchmark.transponders[-1]    # TODO: this does not find a specifc transponder
                 # for transponder in benchmark.transponders:
                 #     if survey.start > transponder.start:
                 #         current_transponder = transponder

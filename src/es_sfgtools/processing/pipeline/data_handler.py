@@ -7,6 +7,7 @@ from typing import List, Callable, Union, Generator, Tuple, LiteralString, Optio
 import logging
 import boto3
 import matplotlib.pyplot as plt
+from tqdm.auto import tqdm 
 from functools import partial
 import concurrent.futures
 import threading
@@ -18,7 +19,7 @@ seaborn.set_theme(style="whitegrid")
 
 from sfg_metadata.metadata.src.catalogs import Catalog, NetworkData, StationData
 
-from es_sfgtools.utils.archive_pull import download_file_from_archive
+from es_sfgtools.utils.archive_pull import download_file_from_archive, list_campaign_files, list_campaign_files_by_type
 from es_sfgtools.utils.loggers import ProcessLogger as logger, change_all_logger_dirs
 from es_sfgtools.processing.assets.file_schemas import AssetEntry, AssetType
 from es_sfgtools.processing.assets.tiledb import TDBAcousticArray,TDBGNSSArray,TDBPositionArray,TDBShotDataArray,TDBGNSSObsArray
@@ -72,7 +73,7 @@ class CatalogHandler:
         if self.file_path.exists() and self.file_path.__sizeof__() > 0:
             with open(self.file_path, "r") as file:
                 data = json.load(file)
-            return Catalog.load_data(data)
+            return Catalog.load_data(data, name=name)
         else:
             return Catalog(name=name, type="Data", networks={})
 
@@ -616,6 +617,30 @@ class DataHandler:
             return local_path
 
     @check_network_station_campaign
+    def update_catalog_from_archive(self):
+        """
+        Updates the catalog with remote paths of files in the archive.
+        """
+        logger.loginfo(f"Updating catalog with remote paths of available data for {self.network} {self.station} {self.campaign}")
+        remote_filepaths = list_campaign_files(network=self.network, station=self.station, campaign=self.campaign)
+        self.add_data_remote(remote_filepaths=remote_filepaths, remote_type=REMOTE_TYPE.HTTP)
+    
+    @check_network_station_campaign
+    def add_ctds_to_catalog(self):
+        """
+        Adds CTD data to the catalog.  
+        This function does the following:
+        1) Looks for ctd data in the metadata/ctd directory of the archive.
+        2) If found, adds it to the catalog.
+       
+        """
+        logger.loginfo(f"Cataloging available sound speed data for {self.network} {self.station} {self.campaign}")
+        remote_filepath_dict = list_campaign_files_by_type(network=self.network, station=self.station, campaign=self.campaign, show_logs=False)
+        logger.loginfo(f"Found {len(remote_filepath_dict['ctd'])} CTD files in the archive")
+        self.add_data_remote(remote_filepaths=remote_filepath_dict['ctd'], remote_type=REMOTE_TYPE.HTTP)
+
+    
+    @check_network_station_campaign
     def view_data(self):
         shotdata_dates = self.shotdata_tdb.get_unique_dates().tolist()
         gnss_dates = self.gnss_tdb.get_unique_dates().tolist()
@@ -683,7 +708,11 @@ class DataHandler:
         """
         station_data = self.data_catalog.catalog.networks[self.network].stations[self.station]
 
-        return GarposHandler(site_data=site_data, station_data=station_data, working_dir=self.station_dir/"GARPOS")
+        return GarposHandler(network=self.network, 
+                             station=self.station,
+                             site_data=site_data, 
+                             station_data=station_data, 
+                             working_dir=self.station_dir/"GARPOS")
 
     def print_logs(self,log:Literal['base','gnss','process']):
         """

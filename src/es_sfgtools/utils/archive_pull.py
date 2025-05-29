@@ -5,6 +5,8 @@ import urllib.request
 import ssl
 from typing import List
 import boto3
+from enum import Enum
+from sfg_metadata.metadata.src.site import Site, import_site
 
 ssl._create_default_https_context = ssl._create_stdlib_context
 
@@ -12,6 +14,9 @@ from earthscope_sdk.auth.device_code_flow import DeviceCodeFlowSimple
 from earthscope_sdk.auth.auth_flow import NoTokensError
 from es_sfgtools.utils.loggers import ProcessLogger as logger
 
+class Environment(str, Enum):
+    PROD = "prod"
+    DEV = "dev"
 
 def retrieve_token(token_path="."):
     """
@@ -194,8 +199,57 @@ def generate_archive_campaign_metadata_url(network, station, campaign):
 
     return f"https://data.earthscope.org/archive/seafloor/{network}/{year}/{station}/{campaign}/metadata"
 
+def generate_archive_site_json_url(network, station, env = Environment.PROD):
+    """
+    Generate a URL for the site JSON file in the public archive
 
-def list_file_counts_by_type(file_list: list, url: str = None) -> dict:
+    Args:
+        network (str): The network name
+        station (str): The station name
+        env (Environment): The environment (PROD or STAGE)
+
+    Returns:
+        str: The URL of the site JSON file
+    """
+    if env == Environment.PROD:
+        return f"https://data.earthscope.org/archive/seafloor/{network}/{station}.json"
+    elif env == Environment.DEV:
+        return f"https://data.dev.earthscope.org/archive/seafloor/{network}/{station}.json"
+    else:
+        raise ValueError("Invalid environment specified.")
+
+
+def load_site_metadata(network: str, station: str, env: Environment = Environment.PROD, local_path: Path|str =None) -> Site:
+    """
+    Load the site metadata from the public archive.
+
+    Args:
+        network (str): The network name.
+        station (str): The station name.
+        env (Environment): The environment (PROD or STAGE).
+
+    Returns:
+        Site: An instance of the Site class with the metadata loaded.
+    """
+    if local_path is not None:
+        # If a local path is provided, load the site metadata from the local file
+        json_file_path = Path(local_path)
+        if not json_file_path.exists():
+            raise FileNotFoundError(f"Local site metadata file {json_file_path} does not exist.")
+        site = import_site(json_file_path)
+        return site
+    else:
+        url = generate_archive_site_json_url(network, station, env)
+        logger.loginfo(f"Loading site metadata from {url}")
+        
+        download_file_from_archive(url, dest_dir="./", show_details=False)
+        # Load the site metadata from the downloaded JSON file
+        json_file_path = Path(f"./{network}_{station}.json")
+        site = import_site(json_file_path)
+        json_file_path.unlink()  # Remove the JSON file after loading
+        return site
+
+def list_file_counts_by_type(file_list: list, url: str = None, show_logs=True) -> dict:
     """
     Counts files by type, and builds a dictionary.
 
@@ -229,17 +283,18 @@ def list_file_counts_by_type(file_list: list, url: str = None) -> dict:
         elif "ctd" in file:
             file_dict.setdefault("ctd", []).append(file)
 
-    if url is not None:
-        logger.loginfo(f"Found under {url}:")
-    else:
-        logger.loginfo("Found:")
-    for k, v in file_dict.items():
-        logger.loginfo(f"    {len(v)} {k} file(s)")
+    if show_logs:
+        if url is not None:
+            logger.loginfo(f"Found under {url}:")
+        else:
+            logger.loginfo("Found:")
+        for k, v in file_dict.items():
+            logger.loginfo(f"    {len(v)} {k} file(s)")
 
     return file_dict
 
 
-def get_survey_file_dict(url: str) -> dict:
+def get_campaign_file_dict(url: str) -> dict:
     """
 
     Args:
@@ -269,8 +324,8 @@ def list_campaign_files(network: str, station: str, campaign: str) -> list:
     # Generate the URLs for raw data & metadata
     raw_url = generate_archive_campaign_url(network, station, campaign)
     metadata_url = generate_archive_campaign_metadata_url(network, station, campaign)
-
     logger.loginfo(f"Listing raw campaign files from url {raw_url}")
+    
     raw_file_list = list_files_from_archive(raw_url)
     list_file_counts_by_type(file_list=raw_file_list, url=raw_url)
 
@@ -283,7 +338,41 @@ def list_campaign_files(network: str, station: str, campaign: str) -> list:
     file_list = raw_file_list + metadata_file_list
 
     return file_list
+    
 
+def list_campaign_files_by_type(network: str, station: str, campaign: str, show_logs: bool=True) -> dict:
+    """
+
+    Args:
+        network (str): network name
+        station (str): station name
+        campaign (str): campaign name
+        show_logs (bool): whether to show logs containing file counts
+
+    Returns:
+        dict: dictionary of file locations by type
+    """
+
+    # Generate the URLs for raw data & metadata
+    raw_url = generate_archive_campaign_url(network, station, campaign)
+    metadata_url = generate_archive_campaign_metadata_url(network, station, campaign)
+
+    if show_logs:
+        logger.loginfo(f"Listing raw campaign files from url {raw_url}")
+    raw_file_list = list_files_from_archive(raw_url)
+    raw_file_dict = list_file_counts_by_type(file_list=raw_file_list, url=raw_url, show_logs=show_logs)
+
+    if show_logs:
+        logger.loginfo(f"Listing metadata campaign files from url {metadata_url}")
+    metadata_file_list = list_files_from_archive(metadata_url)
+    metadata_file_list += list_files_from_archive(f"{metadata_url}/ctd")
+    metadata_file_dict = list_file_counts_by_type(file_list=metadata_file_list, url=metadata_url, show_logs=show_logs)
+
+    # Concatenate the two lists
+    file_dict = raw_file_dict | metadata_file_dict
+
+    return file_dict
+    
 
 def list_s3_directory_files(bucket_name: str, prefix: str) -> List[str]:
     """
