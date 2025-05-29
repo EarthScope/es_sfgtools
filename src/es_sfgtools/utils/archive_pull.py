@@ -3,52 +3,54 @@ from pathlib import Path
 import os
 import urllib.request
 import ssl
-from typing import List
+from typing import List, Optional
 import boto3
 from enum import Enum
+
 from sfg_metadata.metadata.src.site import Site, import_site
+from earthscope_sdk import EarthScopeClient
+from earthscope_sdk.config.settings import SdkSettings
+from earthscope_cli.login import login as es_login
+
+from es_sfgtools.utils.loggers import ProcessLogger as logger
+
 
 ssl._create_default_https_context = ssl._create_stdlib_context
 
-from earthscope_sdk.auth.device_code_flow import DeviceCodeFlowSimple
-from earthscope_sdk.auth.auth_flow import NoTokensError
-from es_sfgtools.utils.loggers import ProcessLogger as logger
 
 class Environment(str, Enum):
     PROD = "prod"
     DEV = "dev"
 
-def retrieve_token(token_path="."):
+def retrieve_token(profile=None):
     """
-    Retrieve or generate a token for the public archive using the EarthScope SDK.
+    Retrieve or generate a token for the public archive using the EarthScope SDK (new method).
 
     Args:
-        token_path (str): The path to the token file.
+        profile (str, optional): The profile to use for authentication (e.g., 'dev'). Default is None (prod).
+
+    Returns:
+        str: The access token.
     """
-    # instantiate the device code flow subclass
-    device_flow = DeviceCodeFlowSimple(Path(token_path))
+    es = EarthScopeClient()
+    settings = SdkSettings(profile_name=profile) if profile else SdkSettings()
+    es = EarthScopeClient(settings=settings)
+
     try:
-        # get access token from local path
-        device_flow.get_access_token_refresh_if_necessary()
-    except NoTokensError:
-        # if no token was found locally, do the device code flow
-        device_flow.do_flow()
-
-    token = device_flow.access_token
-
+        es.ctx.auth_flow.refresh_if_necessary()
+    except Exception as e:
+        logger.logerr(f"Failed to refresh token: {e} Attempting to login...")
+        es_login(sdk=es)
+    
+    token = es.ctx.auth_flow.access_token
     return token
 
-
-def download_file_from_archive(
-    url, dest_dir="./", token_path=".", show_details: bool = True
-) -> None:
+def download_file_from_archive(url, dest_dir="./", show_details: bool = True) -> None:
     """
     Download a file from the public archive using the EarthScope SDK.
     Args:
         url (str): The URL of the file to download.
         dest_dir (str): The directory to save the downloaded file.
-        token_path (str): The path to the token file.
-        logger (logging.Logger): The logger to use
         show_details (bool): log the file details
     """
 
@@ -56,8 +58,8 @@ def download_file_from_archive(
     if not os.path.exists(dest_dir):
         os.makedirs(dest_dir)
 
-    # generate a token
-    token = retrieve_token(token_path)
+    # retrieve the token
+    token = retrieve_token()
 
     file_name = Path(url).name
     destination_file = os.path.join(dest_dir, file_name)
@@ -76,16 +78,15 @@ def download_file_from_archive(
         )
 
 
-def list_files_from_archive(url, token_path=".") -> list:
+def list_files_from_archive(url) -> list:
     """
     List files from the public archive using urllib
 
     Args:
         url (str): The URL of the directory to list. This must be a directory that contains files
-        token_path (str): The path to the token file.
     """
 
-    token = retrieve_token(token_path)
+    token = retrieve_token()
 
     # Generate the list URL
     list_url = os.path.join(
@@ -131,16 +132,13 @@ def _parse_output(output) -> list:
     return files
 
 
-def download_file_list_from_archive(
-    file_urls: list, dest_dir="./files", token_path="."
-) -> None:
+def download_file_list_from_archive(file_urls: list, dest_dir="./files") -> None:
     """
     Download a list of files from the public archive
 
     Args:
         file_urls (list): A list of URLs to download
         dest_dir (str): The directory to save the downloaded files
-        token_path (str): The path to the token file
     """
 
     successful_files = []
@@ -149,9 +147,8 @@ def download_file_list_from_archive(
     logger.loginfo(f"Downloading {len(file_urls)} files to {dest_dir}")
     for url in file_urls:
         try:
-            download_file_from_archive(
-                url=url, dest_dir=dest_dir, token_path=token_path
-            )
+            download_file_from_archive(url=url, 
+                                       dest_dir=dest_dir)
             successful_files.append(url)
         except Exception as e:
             logger.logerr(f"Failed to download {url}: {e}")
@@ -219,7 +216,7 @@ def generate_archive_site_json_url(network, station, env = Environment.PROD):
         raise ValueError("Invalid environment specified.")
 
 
-def load_site_metadata(network: str, station: str, env: Environment = Environment.PROD, local_path: Path|str =None) -> Site:
+def load_site_metadata(network: str, station: str, env: Environment = Environment.PROD, local_path: Path|str = None) -> Site:
     """
     Load the site metadata from the public archive.
 
@@ -249,7 +246,8 @@ def load_site_metadata(network: str, station: str, env: Environment = Environmen
         json_file_path.unlink()  # Remove the JSON file after loading
         return site
 
-def list_file_counts_by_type(file_list: list, url: str = None, show_logs=True) -> dict:
+
+def list_file_counts_by_type(file_list: list, url: Optional[str] = None, show_logs=True) -> dict:
     """
     Counts files by type, and builds a dictionary.
 
@@ -400,14 +398,16 @@ def list_s3_directory_files(bucket_name: str, prefix: str) -> List[str]:
 if __name__ == "__main__":
     # Example usage
 
-    files = list_campaign_files(network="alaska-shumagins", 
-                        station="SPT1",
-                        campaign="2022_A_1049")
-    print(files)
+    # files = list_campaign_files(network="alaska-shumagins", 
+    #                     station="SPT1",
+    #                     campaign="2022_A_1049")
+    # print(files)
 
     # # Download file from public arhive
-    # url = ""
-    # download_file_from_archive(url, dest_dir="./files")
+    url = "https://data.dev.earthscope.org/archive/seafloor/alaska-shumagins/SEM1.json"
+    url="https://data.dev.earthscope.org/archive/seafloor/alaska-shumagins/IVB1/2018_A_SFG1/raw/bcnovatel_20180530184921.txt"
+    # url = "https://gage-data.earthscope.org/archive/seafloor/alaska-shumagins/2018/IVB1/2018_A_SFG1/metadata/IVB1.master"
+    download_file_from_archive(url, dest_dir=".")
 
     # # List files from public arhive
     # url = "https://data.earthscope.org/archive/gnss/rinex/met/2021/072"
