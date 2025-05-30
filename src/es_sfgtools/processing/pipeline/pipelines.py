@@ -9,15 +9,17 @@ from pathlib import Path
 import multiprocessing
 import datetime
 import signal
-from pydantic import BaseModel, Field, ValidationError,model_serializer,field_serializer,field_validator,validator
+from pydantic import BaseModel, Field, ValidationError,model_serializer,field_serializer,field_validator
 import yaml
 import concurrent.futures
 import numpy as np 
 
+from sfg_metadata.metadata.src.catalogs import Catalog
+
 from es_sfgtools.processing.pipeline.catalog import PreProcessCatalog
 from es_sfgtools.processing.assets.file_schemas import AssetEntry,AssetType
 from es_sfgtools.processing.operations import sv2_ops, sv3_ops, gnss_ops, site_ops
-from es_sfgtools.processing.operations.gnss_ops import PridePdpConfig,rinex_to_kin,kin_to_gnssdf
+from es_sfgtools.processing.operations.gnss_ops import PridePdpConfig, rinex_to_kin, kin_to_gnssdf
 from es_sfgtools.processing.operations.pride_utils import get_nav_file,get_gnss_products
 from es_sfgtools.processing.assets.tiledb import (
     TDBAcousticArray,
@@ -26,14 +28,9 @@ from es_sfgtools.processing.assets.tiledb import (
     TDBShotDataArray,
     TDBGNSSObsArray
 )
-from es_sfgtools.processing.assets.tiledb import TDBAcousticArray,TDBGNSSArray,TDBPositionArray,TDBShotDataArray,TDBGNSSObsArray
-from es_sfgtools.processing.operations.utils import (
-    get_merge_signature_shotdata,
-    merge_shotdata_gnss,
-)
-
+from es_sfgtools.processing.assets.tiledb import TDBAcousticArray, TDBGNSSArray, TDBPositionArray, TDBShotDataArray, TDBGNSSObsArray
+from es_sfgtools.processing.operations.utils import get_merge_signature_shotdata, merge_shotdata_gnss
 from es_sfgtools.utils.loggers import ProcessLogger as logger, GNSSLogger as gnss_logger   
-from es_sfgtools.utils.metadata.catalogs import Catalog 
 
 
 class NovatelConfig(BaseModel):

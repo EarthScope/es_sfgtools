@@ -3,47 +3,51 @@ from pathlib import Path
 import os
 import urllib.request
 import ssl
-from typing import List
+from typing import List, Optional
 import boto3
+from enum import Enum
 
-ssl._create_default_https_context = ssl._create_stdlib_context
+from sfg_metadata.metadata.src.site import Site, import_site
+from sfg_metadata.metadata.src.vessel import Vessel, import_vessel
+from earthscope_sdk import EarthScopeClient
+from earthscope_sdk.config.settings import SdkSettings
+from earthscope_cli.login import login as es_login
 
-from earthscope_sdk.auth.device_code_flow import DeviceCodeFlowSimple
-from earthscope_sdk.auth.auth_flow import NoTokensError
 from es_sfgtools.utils.loggers import ProcessLogger as logger
 
 
-def retrieve_token(token_path="."):
+ssl._create_default_https_context = ssl._create_stdlib_context
+
+
+def retrieve_token(profile=None):
     """
-    Retrieve or generate a token for the public archive using the EarthScope SDK.
+    Retrieve or generate a token for the public archive using the EarthScope SDK (new method).
 
     Args:
-        token_path (str): The path to the token file.
+        profile (str, optional): The profile to use for authentication (e.g., 'dev'). Default is None (prod).
+
+    Returns:
+        str: The access token.
     """
-    # instantiate the device code flow subclass
-    device_flow = DeviceCodeFlowSimple(Path(token_path))
+    es = EarthScopeClient()
+    settings = SdkSettings(profile_name=profile) if profile else SdkSettings()
+    es = EarthScopeClient(settings=settings)
+
     try:
-        # get access token from local path
-        device_flow.get_access_token_refresh_if_necessary()
-    except NoTokensError:
-        # if no token was found locally, do the device code flow
-        device_flow.do_flow()
-
-    token = device_flow.access_token
-
+        es.ctx.auth_flow.refresh_if_necessary()
+    except Exception as e:
+        logger.logerr(f"Failed to refresh token: {e} Attempting to login...")
+        es_login(sdk=es)
+    
+    token = es.ctx.auth_flow.access_token
     return token
 
-
-def download_file_from_archive(
-    url, dest_dir="./", token_path=".", show_details: bool = True
-) -> None:
+def download_file_from_archive(url, dest_dir="./", profile=None, show_details: bool = True) -> None:
     """
     Download a file from the public archive using the EarthScope SDK.
     Args:
         url (str): The URL of the file to download.
         dest_dir (str): The directory to save the downloaded file.
-        token_path (str): The path to the token file.
-        logger (logging.Logger): The logger to use
         show_details (bool): log the file details
     """
 
@@ -51,8 +55,8 @@ def download_file_from_archive(
     if not os.path.exists(dest_dir):
         os.makedirs(dest_dir)
 
-    # generate a token
-    token = retrieve_token(token_path)
+    # retrieve the token
+    token = retrieve_token(profile=profile)
 
     file_name = Path(url).name
     destination_file = os.path.join(dest_dir, file_name)
@@ -71,16 +75,15 @@ def download_file_from_archive(
         )
 
 
-def list_files_from_archive(url, token_path=".") -> list:
+def list_files_from_archive(url) -> list:
     """
     List files from the public archive using urllib
 
     Args:
         url (str): The URL of the directory to list. This must be a directory that contains files
-        token_path (str): The path to the token file.
     """
 
-    token = retrieve_token(token_path)
+    token = retrieve_token()
 
     # Generate the list URL
     list_url = os.path.join(
@@ -126,16 +129,13 @@ def _parse_output(output) -> list:
     return files
 
 
-def download_file_list_from_archive(
-    file_urls: list, dest_dir="./files", token_path="."
-) -> None:
+def download_file_list_from_archive(file_urls: list, dest_dir="./files") -> None:
     """
     Download a list of files from the public archive
 
     Args:
         file_urls (list): A list of URLs to download
         dest_dir (str): The directory to save the downloaded files
-        token_path (str): The path to the token file
     """
 
     successful_files = []
@@ -144,9 +144,8 @@ def download_file_list_from_archive(
     logger.loginfo(f"Downloading {len(file_urls)} files to {dest_dir}")
     for url in file_urls:
         try:
-            download_file_from_archive(
-                url=url, dest_dir=dest_dir, token_path=token_path
-            )
+            download_file_from_archive(url=url, 
+                                       dest_dir=dest_dir)
             successful_files.append(url)
         except Exception as e:
             logger.logerr(f"Failed to download {url}: {e}")
@@ -194,8 +193,119 @@ def generate_archive_campaign_metadata_url(network, station, campaign):
 
     return f"https://data.earthscope.org/archive/seafloor/{network}/{year}/{station}/{campaign}/metadata"
 
+def generate_archive_site_json_url(network, station, profile: str = None) -> str:
+    """
+    Generate a URL for the site JSON file in the public archive
 
-def list_file_counts_by_type(file_list: list, url: str = None) -> dict:
+    Args:
+        network (str): The network name
+        station (str): The station name
+        env (Environment): The environment (PROD or STAGE)
+
+    Returns:
+        str: The URL of the site JSON file
+    """
+    if profile == "prod" or profile is None:
+        return f"https://data.earthscope.org/archive/seafloor/metadata/{network}/{station}.json"
+    elif profile == "dev":
+        return f"https://data.dev.earthscope.org/archive/seafloor/metadata/{network}/{station}.json"
+    else:
+        raise ValueError("Invalid profile specified.")
+
+def generate_archive_vessel_json_url(vessel_code, profile: str = None) -> str:
+    """
+    Generate a URL for the site JSON file in the public archive
+
+    Args:
+        vessel_id (str): The vessel ID
+        env (Environment): The environment (PROD or STAGE)
+
+    Returns:
+        str: The URL of the vessel JSON file
+    """
+    if profile == "prod" or profile is None:
+        return f"https://data.earthscope.org/archive/seafloor/metadata/vessels/{vessel_code}.json"
+    elif profile == "dev":
+        return f"https://data.dev.earthscope.org/archive/seafloor/metadata/vessels/{vessel_code}.json"
+    else:
+        raise ValueError("Invalid profile specified.")
+
+def load_vessel_metadata(vessel_code: str, profile: str = None, local_path: Path|str = None) -> Vessel:
+    """
+    Load the vessel metadata from the s3 archive.  
+    
+    Note: to access the dev archive, you must 
+    - 1. set up ~/.earthscope/config.toml  
+    - 2. run `es login --profile dev`
+    - 3. be on the earthscope vpn
+
+    Args:
+        vessel_id (str): The vessel ID.
+        profile (str): The profile to use for the archive (e.g., 'prod', 'dev'). Default is None (prod).
+        local_path (Path|str, optional): Local path to a JSON file containing vessel metadata. If provided, this will be used instead of downloading from the archive.
+
+    Returns:
+        Vessel: An instance of the Vessel class with the metadata loaded.
+    """
+    if local_path is not None:
+        # If a local path is provided, load the vessel metadata from the local file
+        json_file_path = Path(local_path)
+        if not json_file_path.exists():
+            raise FileNotFoundError(f"Local vessel metadata file {json_file_path} does not exist.")
+        vessel = import_vessel(json_file_path)
+        return vessel
+    else:
+        vessel_json_url = generate_archive_vessel_json_url(vessel_code, profile)
+        logger.loginfo(f"Loading vessel metadata from {vessel_json_url}")
+        download_file_from_archive(vessel_json_url, dest_dir="./", profile=profile, show_details=False)
+        # Load the vessel metadata from the downloaded JSON file
+        vessel_file_path = Path(f"./{vessel_code}.json")
+        vessel = import_vessel(vessel_file_path)
+        
+        vessel_file_path.unlink()  # Remove the JSON file after loading
+        return vessel   
+
+def load_site_metadata(network: str, station: str, profile: str = None, local_path: Path|str = None) -> Site:
+    """
+    Load the site metadata from the s3 archive.  
+    
+    Note: to access the dev archive, you must 
+    - 1. set up ~/.earthscope/config.toml  
+    - 2. run `es login --profile dev`
+    - 3. be on the earthscope vpn
+
+    Args:
+        network (str): The network name.
+        station (str): The station name.
+        profile (str): The profile to use for the archive (e.g., 'prod', 'dev'). Default is None (prod).
+        local_path (Path|str, optional): Local path to a JSON file containing site metadata. If provided, this will be used instead of downloading from the archive.
+
+    Returns:
+        Site: An instance of the Site class with the metadata loaded.
+    """
+    if local_path is not None:
+        # If a local path is provided, load the site metadata from the local file.
+        # TODO: make this load the vessel metadata as well, needed to actually run garpos
+        json_file_path = Path(local_path)
+        if not json_file_path.exists():
+            raise FileNotFoundError(f"Local site metadata file {json_file_path} does not exist.")
+        site = import_site(json_file_path)
+        return site
+    else:
+        site_json_url = generate_archive_site_json_url(network, station, profile)
+        logger.loginfo(f"Loading site metadata from {site_json_url}")
+        download_file_from_archive(site_json_url, dest_dir="./", profile=profile, show_details=False)
+        # Load the site metadata from the downloaded JSON file
+        site_file_path = Path(f"./{station}.json")
+        site = import_site(site_file_path)
+        site_file_path.unlink()  # Remove the JSON file after loading
+        for campaign in site.campaigns:
+            campaign.vessel = load_vessel_metadata(campaign.vesselCode, profile=profile)
+        return site
+
+
+
+def list_file_counts_by_type(file_list: list, url: Optional[str] = None, show_logs=True) -> dict:
     """
     Counts files by type, and builds a dictionary.
 
@@ -229,17 +339,18 @@ def list_file_counts_by_type(file_list: list, url: str = None) -> dict:
         elif "ctd" in file:
             file_dict.setdefault("ctd", []).append(file)
 
-    if url is not None:
-        logger.loginfo(f"Found under {url}:")
-    else:
-        logger.loginfo("Found:")
-    for k, v in file_dict.items():
-        logger.loginfo(f"    {len(v)} {k} file(s)")
+    if show_logs:
+        if url is not None:
+            logger.loginfo(f"Found under {url}:")
+        else:
+            logger.loginfo("Found:")
+        for k, v in file_dict.items():
+            logger.loginfo(f"    {len(v)} {k} file(s)")
 
     return file_dict
 
 
-def get_survey_file_dict(url: str) -> dict:
+def get_campaign_file_dict(url: str) -> dict:
     """
 
     Args:
@@ -269,8 +380,8 @@ def list_campaign_files(network: str, station: str, campaign: str) -> list:
     # Generate the URLs for raw data & metadata
     raw_url = generate_archive_campaign_url(network, station, campaign)
     metadata_url = generate_archive_campaign_metadata_url(network, station, campaign)
-
     logger.loginfo(f"Listing raw campaign files from url {raw_url}")
+    
     raw_file_list = list_files_from_archive(raw_url)
     list_file_counts_by_type(file_list=raw_file_list, url=raw_url)
 
@@ -283,7 +394,41 @@ def list_campaign_files(network: str, station: str, campaign: str) -> list:
     file_list = raw_file_list + metadata_file_list
 
     return file_list
+    
 
+def list_campaign_files_by_type(network: str, station: str, campaign: str, show_logs: bool=True) -> dict:
+    """
+
+    Args:
+        network (str): network name
+        station (str): station name
+        campaign (str): campaign name
+        show_logs (bool): whether to show logs containing file counts
+
+    Returns:
+        dict: dictionary of file locations by type
+    """
+
+    # Generate the URLs for raw data & metadata
+    raw_url = generate_archive_campaign_url(network, station, campaign)
+    metadata_url = generate_archive_campaign_metadata_url(network, station, campaign)
+
+    if show_logs:
+        logger.loginfo(f"Listing raw campaign files from url {raw_url}")
+    raw_file_list = list_files_from_archive(raw_url)
+    raw_file_dict = list_file_counts_by_type(file_list=raw_file_list, url=raw_url, show_logs=show_logs)
+
+    if show_logs:
+        logger.loginfo(f"Listing metadata campaign files from url {metadata_url}")
+    metadata_file_list = list_files_from_archive(metadata_url)
+    metadata_file_list += list_files_from_archive(f"{metadata_url}/ctd")
+    metadata_file_dict = list_file_counts_by_type(file_list=metadata_file_list, url=metadata_url, show_logs=show_logs)
+
+    # Concatenate the two lists
+    file_dict = raw_file_dict | metadata_file_dict
+
+    return file_dict
+    
 
 def list_s3_directory_files(bucket_name: str, prefix: str) -> List[str]:
     """
@@ -311,14 +456,16 @@ def list_s3_directory_files(bucket_name: str, prefix: str) -> List[str]:
 if __name__ == "__main__":
     # Example usage
 
-    files = list_campaign_files(network="alaska-shumagins", 
-                        station="SPT1",
-                        campaign="2022_A_1049")
-    print(files)
+    # files = list_campaign_files(network="alaska-shumagins", 
+    #                     station="SPT1",
+    #                     campaign="2022_A_1049")
+    # print(files)
 
     # # Download file from public arhive
-    # url = ""
-    # download_file_from_archive(url, dest_dir="./files")
+    url = "https://data.dev.earthscope.org/archive/seafloor/alaska-shumagins/SEM1.json"
+    url="https://data.dev.earthscope.org/archive/seafloor/alaska-shumagins/IVB1/2018_A_SFG1/raw/bcnovatel_20180530184921.txt"
+    # url = "https://gage-data.earthscope.org/archive/seafloor/alaska-shumagins/2018/IVB1/2018_A_SFG1/metadata/IVB1.master"
+    download_file_from_archive(url, dest_dir=".")
 
     # # List files from public arhive
     # url = "https://data.earthscope.org/archive/gnss/rinex/met/2021/072"

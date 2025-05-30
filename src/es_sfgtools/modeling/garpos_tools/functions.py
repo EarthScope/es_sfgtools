@@ -19,10 +19,11 @@ from matplotlib.colors import Normalize
 from matplotlib.collections import LineCollection
 import matplotlib.dates as mdates
 import seaborn as sns
-
 sns.set_theme()
-
 import matplotlib.gridspec as gridspec
+
+from sfg_metadata.metadata.src.site import Site
+
 
 from es_sfgtools.processing.assets.observables import (
     ShotDataFrame,
@@ -41,17 +42,13 @@ from es_sfgtools.modeling.garpos_tools.schemas import (
     GPTransponder,
     GPPositionLLH,
 )
-from es_sfgtools.utils.metadata.site import Site as MetaSite
 from es_sfgtools.utils.loggers import GarposLogger as logger
-
 
 from .load_utils import load_drive_garpos
 
 try:
     drive_garpos = load_drive_garpos()
-
 except Exception as e:
-
     from garpos import drive_garpos
 
 colors = [
@@ -457,7 +454,7 @@ def process_garpos_results(results: GarposInput) -> Tuple[GarposInput, pd.DataFr
     logger.loginfo("GARPOS results processed, returning results tuple")
     return results, results_df
 
-def rectify_shotdata(coord_transformer:CoordTransformer, shot_data: pd.DataFrame) -> pd.DataFrame:
+def rectify_shotdata(coord_transformer: CoordTransformer, shot_data: pd.DataFrame) -> pd.DataFrame:
     """
     Rectifies the shot data to the site local coordinate system by transforming coordinates and renaming columns.
     This method performs the following operations on the input shot data:
