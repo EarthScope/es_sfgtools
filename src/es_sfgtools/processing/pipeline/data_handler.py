@@ -585,14 +585,13 @@ class DataHandler:
                 self.catalog.update_local_path(id=file_asset.id, 
                                                local_path=file_asset.local_path)
 
-    def _HTTP_download_file(self, remote_url: Path, token_path='.') -> Path:
+    def _HTTP_download_file(self, remote_url: Path) -> Path:
         """
         Downloads a file from the specified https url on gage-data
 
         Args:
             remote_url (Path): The path of the file in the gage-data storage.
             destination (Path): The local path where the file will be downloaded.
-            token_path (str): The path to the token file for authentication.
 
         Returns:
             local_path (Path): The local path where the file was downloaded, or None if the download failed.
@@ -600,8 +599,7 @@ class DataHandler:
         try:
             local_path = self.raw_dir / Path(remote_url).name
             download_file_from_archive(url=remote_url, 
-                                       dest_dir=self.raw_dir, 
-                                       token_path=token_path,
+                                       dest_dir=self.raw_dir
                                        )
 
             if not local_path.exists(): 

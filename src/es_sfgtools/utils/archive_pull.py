@@ -18,10 +18,6 @@ from es_sfgtools.utils.loggers import ProcessLogger as logger
 ssl._create_default_https_context = ssl._create_stdlib_context
 
 
-class Environment(str, Enum):
-    PROD = "prod"
-    DEV = "dev"
-
 def retrieve_token(profile=None):
     """
     Retrieve or generate a token for the public archive using the EarthScope SDK (new method).
@@ -45,7 +41,7 @@ def retrieve_token(profile=None):
     token = es.ctx.auth_flow.access_token
     return token
 
-def download_file_from_archive(url, dest_dir="./", show_details: bool = True) -> None:
+def download_file_from_archive(url, dest_dir="./", profile=None, show_details: bool = True) -> None:
     """
     Download a file from the public archive using the EarthScope SDK.
     Args:
@@ -59,7 +55,7 @@ def download_file_from_archive(url, dest_dir="./", show_details: bool = True) ->
         os.makedirs(dest_dir)
 
     # retrieve the token
-    token = retrieve_token()
+    token = retrieve_token(profile=profile)
 
     file_name = Path(url).name
     destination_file = os.path.join(dest_dir, file_name)
@@ -196,7 +192,7 @@ def generate_archive_campaign_metadata_url(network, station, campaign):
 
     return f"https://data.earthscope.org/archive/seafloor/{network}/{year}/{station}/{campaign}/metadata"
 
-def generate_archive_site_json_url(network, station, env = Environment.PROD):
+def generate_archive_site_json_url(network, station, profile: str = None) -> str:
     """
     Generate a URL for the site JSON file in the public archive
 
@@ -208,22 +204,28 @@ def generate_archive_site_json_url(network, station, env = Environment.PROD):
     Returns:
         str: The URL of the site JSON file
     """
-    if env == Environment.PROD:
-        return f"https://data.earthscope.org/archive/seafloor/{network}/{station}.json"
-    elif env == Environment.DEV:
-        return f"https://data.dev.earthscope.org/archive/seafloor/{network}/{station}.json"
+    if profile == "prod" or profile is None:
+        return f"https://data.earthscope.org/archive/seafloor/metadata/{network}/{station}.json"
+    elif profile == "dev":
+        return f"https://data.dev.earthscope.org/archive/seafloor/metadata/{network}/{station}.json"
     else:
-        raise ValueError("Invalid environment specified.")
+        raise ValueError("Invalid profile specified.")
 
 
-def load_site_metadata(network: str, station: str, env: Environment = Environment.PROD, local_path: Path|str = None) -> Site:
+def load_site_metadata(network: str, station: str, profile: str = None, local_path: Path|str = None) -> Site:
     """
-    Load the site metadata from the public archive.
+    Load the site metadata from the s3 archive.  
+    
+    Note: to access the dev archive, you must 
+    - 1. set up ~/.earthscope/config.toml  
+    - 2. run `es login --profile dev`
+    - 3. be on the earthscope vpn
 
     Args:
         network (str): The network name.
         station (str): The station name.
-        env (Environment): The environment (PROD or STAGE).
+        profile (str): The profile to use for the archive (e.g., 'prod', 'dev'). Default is None (prod).
+        local_path (Path|str, optional): Local path to a JSON file containing site metadata. If provided, this will be used instead of downloading from the archive.
 
     Returns:
         Site: An instance of the Site class with the metadata loaded.
@@ -236,12 +238,12 @@ def load_site_metadata(network: str, station: str, env: Environment = Environmen
         site = import_site(json_file_path)
         return site
     else:
-        url = generate_archive_site_json_url(network, station, env)
+        url = generate_archive_site_json_url(network, station, profile)
         logger.loginfo(f"Loading site metadata from {url}")
         
-        download_file_from_archive(url, dest_dir="./", show_details=False)
+        download_file_from_archive(url, dest_dir="./", profile=profile, show_details=False)
         # Load the site metadata from the downloaded JSON file
-        json_file_path = Path(f"./{network}_{station}.json")
+        json_file_path = Path(f"./{station}.json")
         site = import_site(json_file_path)
         json_file_path.unlink()  # Remove the JSON file after loading
         return site
