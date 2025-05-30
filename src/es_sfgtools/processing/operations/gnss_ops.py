@@ -726,7 +726,7 @@ def rinex_to_kin(
             station=source.station,
             campaign=source.campaign,
         )
-        logger.loginfo(f"Converted RINEX file {source.local_path} to kin file {kin_file.local_path}")
+        logger.loginfo(f"Generated kin file {kin_file.local_path} from RINEX file {source.local_path}")
 
     if res_file_path.exists():
         res_file_new = writedir / (res_file_path.name + ".res")

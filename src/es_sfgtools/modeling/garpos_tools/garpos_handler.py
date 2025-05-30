@@ -219,7 +219,7 @@ class GarposHandler:
             f"campaign {name} not found among: {[x.name for x in self.site.campaigns]}"
         )
     
-    def load_sound_speed_data(self, local_svp: Path = None):
+    def load_sound_speed_data(self, local_svp: Path = None, local_ctd: Path = None):
         """
         Load the sound speed profile from a local file or from the catalog.
         Args:
@@ -228,6 +228,11 @@ class GarposHandler:
         if local_svp:
             self.sound_speed_path = local_svp
             logger.loginfo(f"Using local sound speed profile found at {local_svp}..")
+        elif local_ctd:
+            logger.loginfo(f"Using local CTD file found at {local_ctd}, converting to sound speed profile..")
+            df = ctd_to_soundvelocity(source=local_ctd)
+            df.to_csv(self.sound_speed_path, index=False)
+            logger.loginfo(f"Converted {local_ctd} to sound velocity profile at {self.sound_speed_path}")
         else:
             self._check_CTDs_in_catalog(campaign_name=self.current_campaign.name)
     

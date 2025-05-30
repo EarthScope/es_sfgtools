@@ -8,6 +8,7 @@ import boto3
 from enum import Enum
 
 from sfg_metadata.metadata.src.site import Site, import_site
+from sfg_metadata.metadata.src.vessel import Vessel, import_vessel
 from earthscope_sdk import EarthScopeClient
 from earthscope_sdk.config.settings import SdkSettings
 from earthscope_cli.login import login as es_login
@@ -211,6 +212,58 @@ def generate_archive_site_json_url(network, station, profile: str = None) -> str
     else:
         raise ValueError("Invalid profile specified.")
 
+def generate_archive_vessel_json_url(vessel_code, profile: str = None) -> str:
+    """
+    Generate a URL for the site JSON file in the public archive
+
+    Args:
+        vessel_id (str): The vessel ID
+        env (Environment): The environment (PROD or STAGE)
+
+    Returns:
+        str: The URL of the vessel JSON file
+    """
+    if profile == "prod" or profile is None:
+        return f"https://data.earthscope.org/archive/seafloor/metadata/vessels/{vessel_code}.json"
+    elif profile == "dev":
+        return f"https://data.dev.earthscope.org/archive/seafloor/metadata/vessels/{vessel_code}.json"
+    else:
+        raise ValueError("Invalid profile specified.")
+
+def load_vessel_metadata(vessel_code: str, profile: str = None, local_path: Path|str = None) -> Vessel:
+    """
+    Load the vessel metadata from the s3 archive.  
+    
+    Note: to access the dev archive, you must 
+    - 1. set up ~/.earthscope/config.toml  
+    - 2. run `es login --profile dev`
+    - 3. be on the earthscope vpn
+
+    Args:
+        vessel_id (str): The vessel ID.
+        profile (str): The profile to use for the archive (e.g., 'prod', 'dev'). Default is None (prod).
+        local_path (Path|str, optional): Local path to a JSON file containing vessel metadata. If provided, this will be used instead of downloading from the archive.
+
+    Returns:
+        Vessel: An instance of the Vessel class with the metadata loaded.
+    """
+    if local_path is not None:
+        # If a local path is provided, load the vessel metadata from the local file
+        json_file_path = Path(local_path)
+        if not json_file_path.exists():
+            raise FileNotFoundError(f"Local vessel metadata file {json_file_path} does not exist.")
+        vessel = import_vessel(json_file_path)
+        return vessel
+    else:
+        vessel_json_url = generate_archive_vessel_json_url(vessel_code, profile)
+        logger.loginfo(f"Loading vessel metadata from {vessel_json_url}")
+        download_file_from_archive(vessel_json_url, dest_dir="./", profile=profile, show_details=False)
+        # Load the vessel metadata from the downloaded JSON file
+        vessel_file_path = Path(f"./{vessel_code}.json")
+        vessel = import_vessel(vessel_file_path)
+        
+        vessel_file_path.unlink()  # Remove the JSON file after loading
+        return vessel   
 
 def load_site_metadata(network: str, station: str, profile: str = None, local_path: Path|str = None) -> Site:
     """
@@ -231,22 +284,25 @@ def load_site_metadata(network: str, station: str, profile: str = None, local_pa
         Site: An instance of the Site class with the metadata loaded.
     """
     if local_path is not None:
-        # If a local path is provided, load the site metadata from the local file
+        # If a local path is provided, load the site metadata from the local file.
+        # TODO: make this load the vessel metadata as well, needed to actually run garpos
         json_file_path = Path(local_path)
         if not json_file_path.exists():
             raise FileNotFoundError(f"Local site metadata file {json_file_path} does not exist.")
         site = import_site(json_file_path)
         return site
     else:
-        url = generate_archive_site_json_url(network, station, profile)
-        logger.loginfo(f"Loading site metadata from {url}")
-        
-        download_file_from_archive(url, dest_dir="./", profile=profile, show_details=False)
+        site_json_url = generate_archive_site_json_url(network, station, profile)
+        logger.loginfo(f"Loading site metadata from {site_json_url}")
+        download_file_from_archive(site_json_url, dest_dir="./", profile=profile, show_details=False)
         # Load the site metadata from the downloaded JSON file
-        json_file_path = Path(f"./{station}.json")
-        site = import_site(json_file_path)
-        json_file_path.unlink()  # Remove the JSON file after loading
+        site_file_path = Path(f"./{station}.json")
+        site = import_site(site_file_path)
+        site_file_path.unlink()  # Remove the JSON file after loading
+        for campaign in site.campaigns:
+            campaign.vessel = load_vessel_metadata(campaign.vesselCode, profile=profile)
         return site
+
 
 
 def list_file_counts_by_type(file_list: list, url: Optional[str] = None, show_logs=True) -> dict:

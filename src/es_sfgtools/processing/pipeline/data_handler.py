@@ -634,8 +634,10 @@ class DataHandler:
         """
         logger.loginfo(f"Cataloging available sound speed data for {self.network} {self.station} {self.campaign}")
         remote_filepath_dict = list_campaign_files_by_type(network=self.network, station=self.station, campaign=self.campaign, show_logs=False)
-        logger.loginfo(f"Found {len(remote_filepath_dict['ctd'])} CTD files in the archive")
-        self.add_data_remote(remote_filepaths=remote_filepath_dict['ctd'], remote_type=REMOTE_TYPE.HTTP)
+        ctds = remote_filepath_dict.get('ctd', [])
+        logger.loginfo(f"Found {len(ctds)} CTD files in the archive")
+        if len(ctds):
+            self.add_data_remote(remote_filepaths=ctds, remote_type=REMOTE_TYPE.HTTP)
 
     
     @check_network_station_campaign
