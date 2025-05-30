@@ -285,12 +285,12 @@ def load_site_metadata(network: str, station: str, profile: str = None, local_pa
     """
     if local_path is not None:
         # If a local path is provided, load the site metadata from the local file.
-        # TODO: make this load the vessel metadata as well, needed to actually run garpos
+        # TODO: allow for local vessel metadata to be loaded as well
         json_file_path = Path(local_path)
         if not json_file_path.exists():
             raise FileNotFoundError(f"Local site metadata file {json_file_path} does not exist.")
         site = import_site(json_file_path)
-        return site
+
     else:
         site_json_url = generate_archive_site_json_url(network, station, profile)
         logger.loginfo(f"Loading site metadata from {site_json_url}")
@@ -299,9 +299,14 @@ def load_site_metadata(network: str, station: str, profile: str = None, local_pa
         site_file_path = Path(f"./{station}.json")
         site = import_site(site_file_path)
         site_file_path.unlink()  # Remove the JSON file after loading
-        for campaign in site.campaigns:
+    
+    for campaign in site.campaigns:
+        try:
             campaign.vessel = load_vessel_metadata(campaign.vesselCode, profile=profile)
-        return site
+        except Exception as e:
+            logger.logerr(f"Failed to load vessel metadata for campaign {campaign.name}: {e}")
+            campaign.vessel = None
+    return site
 
 
 
