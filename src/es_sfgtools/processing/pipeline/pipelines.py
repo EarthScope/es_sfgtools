@@ -241,7 +241,7 @@ class SV3Pipeline:
             else:
                 rinex_entries = self.asset_catalog.get_local_assets(self.network,self.station,self.campaign,AssetType.RINEX)
                 num_rinex_entries = len(rinex_entries)
-                gnss_logger.loginfo(f"Rinex Files Already Processed for {self.network} {self.station} {self.campaign}, Found {num_rinex_entries} Entries")
+                gnss_logger.loginfo(f"Rinex files already generated for {self.network} {self.station} {self.campaign}, Found {num_rinex_entries} Entries")
 
     def process_rinex(self) -> None:
         """
@@ -251,7 +251,7 @@ class SV3Pipeline:
             ValueError: If no Rinex files are found.
         """
 
-        response = (f"Processing Rinex Data for {self.network} {self.station} {self.campaign}. This may take a few minutes...")
+        response = (f"Running PRIDE-PPPAR on Rinex Data for {self.network} {self.station} {self.campaign}. This may take a few minutes...")
         gnss_logger.loginfo(response)
 
         rinex_entries: List[AssetEntry] = (
