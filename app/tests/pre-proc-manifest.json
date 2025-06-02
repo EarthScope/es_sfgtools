@@ -48,13 +48,14 @@
       "sample_frequency": 1,
       "start": null,
       "system": "GREC23J",
-      "tides": "SOP"
+      "tides": "SOP",
+      "override_products_download": false,
+      "override": false
     },
     "rinex_config": {
       "n_processes": 14,
-      "override": false,
-      "override_products_download": false,
-      "time_interval": 24
+      "time_interval": 24,
+      "override":false
     }
   }
 }
