@@ -261,7 +261,7 @@ class SV3Pipeline:
                 campaign=self.campaign,
                 parent_type=AssetType.RINEX,
                 child_type=AssetType.KIN,
-                override=self.config.rinex_config.override,
+                override=self.config.pride_config.override,
             )
         )
         if not rinex_entries:
@@ -276,10 +276,10 @@ class SV3Pipeline:
         Get the PRIDE GNSS files for each unique DOY
         '''
         get_nav_file_partial = partial(
-            get_nav_file, override=self.config.rinex_config.override_products_download
+            get_nav_file, override=self.config.pride_config.override_products_download
         )
         get_gnss_products_partial = partial(
-            get_gnss_products, pride_dir=self.pride_dir, override=self.config.rinex_config.override_products_download
+            get_gnss_products, pride_dir=self.pride_dir, override=self.config.pride_config.override_products_download
         )
 
         rinex_paths = [x.local_path for x in rinex_entries]

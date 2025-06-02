@@ -224,7 +224,11 @@ class PridePdpConfig(BaseModel):
     high_ion: Optional[bool] = None
     tides: str = "SOP"
     local_pdp3_path: Optional[str] = None
-
+    override: bool = False
+    override_products_download: bool = Field(
+        False, title="Flag to Override Existing Products Download"
+    )
+    
     def __post_init__(self):
         # Check if system is valid
         system = self.system.upper() # Default to GREC23J which is “GPS/GLONASS/Galileo/BDS/BDS-2/BDS-3/QZSS”
