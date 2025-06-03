@@ -51,6 +51,12 @@ def display_pipelinemanifest(pipeline_manifest: PipelineManifest):
         jobtable.add_row(
             job.network, job.station, job.campaign, "Download"
         )
+    
+    # Add rows for garpos
+    for job in pipeline_manifest.garpos_jobs:
+        jobtable.add_row(
+            job.network, job.station, job.campaign, "Garpos"
+        )
 
     metatable = Table(title="Pipeline Metadata", show_lines=True, width=CONSOLE_WIDTH)
     metatable.add_column("Field", style="cyan", no_wrap=True)

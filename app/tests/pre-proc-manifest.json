@@ -6,7 +6,7 @@
       "network": "cascadia-gorda",
       "station": "NCC1",
       "campaign": "2024_A_1126",
-      "jobs": [{"type":"garpos","run_id":1,"ovverride":true}]
+      "jobs": [{"type":"garpos","run_id":1,"ovverride":true,"inversion_params":{ "rejectcriteria": 2.5, "log_lambda": [0] }}]
     }
 
   ],
