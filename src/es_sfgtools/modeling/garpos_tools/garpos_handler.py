@@ -2,7 +2,7 @@
 
 from pathlib import Path
 from typing import List, Tuple, Union
-from es_sfgtools.processing.operations.site_ops import ctd_to_soundvelocity, seabird_to_soundvelocity
+from es_sfgtools.processing.operations.site_ops import CTDfile_to_svp, seabird_to_soundvelocity
 from es_sfgtools.utils.archive_pull import download_file_from_archive
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -230,8 +230,8 @@ class GarposHandler:
             logger.loginfo(f"Using local sound speed profile found at {local_svp}..")
         elif local_ctd:
             logger.loginfo(f"Using local CTD file found at {local_ctd}, converting to sound speed profile..")
-            df = ctd_to_soundvelocity(source=local_ctd)
-            df.to_csv(self.sound_speed_path)#, index=False)
+            df = CTDfile_to_svp(source=local_ctd)
+            df.to_csv(self.sound_speed_path, index=False)
             logger.loginfo(f"Converted {local_ctd} to sound velocity profile at {self.sound_speed_path}")
         else:
             self._check_CTDs_in_catalog(campaign_name=self.current_campaign.name)
@@ -306,7 +306,7 @@ class GarposHandler:
                         df = seabird_to_soundvelocity(source=local_path)
                     elif preferred == AssetType.CTD:
                         logger.loginfo(f"Converting CTD file: {local_path} to sound velocity profile")
-                        df = ctd_to_soundvelocity(source=local_path)
+                        df = CTDfile_to_svp(source=local_path)
                     else:
                         raise ValueError(f"Unknown file type {file.type} for file {local_path}")
 
