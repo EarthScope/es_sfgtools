@@ -231,7 +231,7 @@ class GarposHandler:
         elif local_ctd:
             logger.loginfo(f"Using local CTD file found at {local_ctd}, converting to sound speed profile..")
             df = ctd_to_soundvelocity(source=local_ctd)
-            df.to_csv(self.sound_speed_path, index=False)
+            df.to_csv(self.sound_speed_path)#, index=False)
             logger.loginfo(f"Converted {local_ctd} to sound velocity profile at {self.sound_speed_path}")
         else:
             self._check_CTDs_in_catalog(campaign_name=self.current_campaign.name)
@@ -310,7 +310,7 @@ class GarposHandler:
                     else:
                         raise ValueError(f"Unknown file type {file.type} for file {local_path}")
 
-                    df.to_csv(self.sound_speed_path, index=False)
+                    df.to_csv(self.sound_speed_path)#, index=False)
                     logger.loginfo(f"Converted {local_path} to sound velocity profile at {self.sound_speed_path}, adding to catalog")
                     catalog.add_entry(AssetEntry(local_path=str(self.sound_speed_path), 
                                                  timestamp_created=datetime.now(), 
