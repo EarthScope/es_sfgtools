@@ -67,7 +67,8 @@ def check_sequence_overlap(df: pd.DataFrame) -> pd.DataFrame:
     filter_main = filter_0 | filter_1
 
     found_bad = df[filter_main]
-    logger.loginfo(f"Found {found_bad.shape[0]} overlapping ping-reply sequences")
+    if not found_bad.empty:
+        logger.loginfo(f"Found {found_bad.shape[0]} invalid ping-reply sequences")
     return df[~filter_main]
 
 class BestGNSSPOSDATA(BaseModel):
