@@ -2,7 +2,8 @@ from pathlib import Path
 from typing import List, Optional
 import os
 from es_sfgtools.processing.pipeline.data_handler import DataHandler
-from es_sfgtools.utils.archive_pull import list_campaign_files
+from es_sfgtools.utils.archive_pull import load_site_metadata,list_campaign_files
+from es_sfgtools.modeling.garpos_tools.load_utils import load_lib
 from .manifest import PipelineManifest
 from .utils import display_pipelinemanifest
 
@@ -38,6 +39,7 @@ def run_manifest(manifest_object: PipelineManifest):
     """
 
     display_pipelinemanifest(manifest_object)
+    load_lib()
     dh = DataHandler(manifest_object.main_dir)
  
     for ingest_job in manifest_object.ingestion_jobs:
@@ -65,3 +67,21 @@ def run_manifest(manifest_object: PipelineManifest):
         job.config.rinex_config.settings_path = dh.rinex_metav2
         pipeline.config = job.config
         pipeline.run_pipeline()
+
+    for job in manifest_object.garpos_jobs:
+        dh.change_working_station(
+            network=job.network, station=job.station, campaign=job.campaign
+        )
+        site = load_site_metadata(network=job.network, station=job.station)
+        garpos_handler = dh.get_garpos_handler(site_data=site)
+        garpos_handler.set_campaign(job.campaign)
+        garpos_handler.prep_shotdata(job.config.override)
+        garpos_handler.load_sound_speed_data()
+        garpos_handler.set_inversion_params(job.config.inversion_params)
+        surveys = job.surveys if job.surveys else [x.id for x in garpos_handler.current_campaign.surveys]
+        for survey_id in surveys:
+            garpos_handler.run_garpos(
+                run_id=job.config.run_id,
+                override=job.config.override,
+                campaign_id=job.campaign,
+                survey_id=survey_id)

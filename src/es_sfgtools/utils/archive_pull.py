@@ -299,7 +299,7 @@ def load_site_metadata(network: str, station: str, profile: str = None, local_pa
         site_file_path = Path(f"./{station}.json")
         site = import_site(site_file_path)
         site_file_path.unlink()  # Remove the JSON file after loading
-    
+
     for campaign in site.campaigns:
         try:
             campaign.vessel = load_vessel_metadata(campaign.vesselCode, profile=profile)
