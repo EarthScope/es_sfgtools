@@ -41,4 +41,34 @@ Configuration for PRIDE PDP processing.
 - `override` (bool): If `True`, existing kin files will be replaced with newley generated ones
 
 ## Garpos Config
-#TODO
+- `override` (bool): If `True`, will override existing garpos runs of the same run_id and prepared shot data
+
+- `run_id` (str | int ): label for the garpos run instance
+
+### Inversion Parameters
+
+- `spline_degree` (int): Degree of the spline used in the inversion. Defaults to `3`.
+- `log_lambda` (List[int]): Logarithmic lambda values for inversion. Defaults to `[-2]`.
+- `log_gradlambda` (int): Logarithmic gradient lambda value. Defaults to `-1`.
+- `mu_t` (List[float]): Temporal regularization parameter. Defaults to `[0.0]`.
+- `mu_mt` (List[float]): Spatial regularization parameter. Defaults to `[0.5]`.
+- `knotint0` (int): Knot interval for the first dimension. Defaults to `5`.
+- `knotint1` (int): Knot interval for the second dimension. Defaults to `0`.
+- `knotint2` (int): Knot interval for the third dimension. Defaults to `0`.
+- `rejectcriteria` (int): Criteria for rejecting data points. Defaults to `2`.
+- `inversiontype` (int): Type of inversion to perform. Defaults to `0`.
+- `positionalOffset` (List[float]): Positional offset values in `[east, north, up]`. Defaults to `[0.0, 0.0, 0.0]`.
+- `traveltimescale` (float): Scaling factor for travel time. Defaults to `0.0001`.
+- `maxloop` (int): Maximum number of iterations for the inversion loop. Defaults to `100`.
+- `convcriteria` (float): Convergence criteria for the inversion. Defaults to `0.005`.
+- `deltap` (float): Perturbation parameter for inversion. Defaults to `1e-06`.
+- `deltab` (float): Perturbation parameter for baseline adjustment. Defaults to `1e-06`.
+- `delta_center_position.east` (int): Eastward offset for the center position. Defaults to `0`.
+- `delta_center_position.north` (int): Northward offset for the center position. Defaults to `0`.
+- `delta_center_position.up` (int): Upward offset for the center position. Defaults to `0`.
+- `delta_center_position.east_sigma` (float): Sigma value for eastward offset. Defaults to `1.0`.
+- `delta_center_position.north_sigma` (float): Sigma value for northward offset. Defaults to `1.0`.
+- `delta_center_position.up_sigma` (float): Sigma value for upward offset. Defaults to `0`.
+- `delta_center_position.cov_nu` (int): Covariance between north and up. Defaults to `0`.
+- `delta_center_position.cov_ue` (int): Covariance between up and east. Defaults to `0`.
+- `delta_center_position.cov_en` (int): Covariance between east and north. Defaults to `0`.
