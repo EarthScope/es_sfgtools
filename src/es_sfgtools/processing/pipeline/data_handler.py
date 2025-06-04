@@ -478,7 +478,7 @@ class DataHandler:
                                             type=type)
 
             if len(assets) == 0:
-                logger.logerr(f"No matching data found in catalog")
+                logger.logerr(f"No matching data of type {type.value} found in catalog")
                 continue
 
             # Find files that we need to download based on the catalog output. If override is True, download all files.
@@ -495,7 +495,7 @@ class DataHandler:
                             assets_to_download.append(file_asset)
 
             if len(assets_to_download) == 0:
-                logger.loginfo(f"No new {type} files to download")
+                logger.loginfo(f"No new {type.value} files to download")
 
             # split the entries into s3 and http
             s3_assets = [file for file in assets_to_download if file.remote_type == REMOTE_TYPE.S3.value]
