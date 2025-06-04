@@ -43,7 +43,7 @@ class RinexConfig(BaseModel):
     override_products_download: bool = Field(False, title="Flag to Override Existing Products Download")
     n_processes: int = Field(default_factory=cpu_count, title="Number of Processes to Use")
     settings_path: Optional[Path] = Field("", title="Settings Path")
-    time_interval: Optional[int] = Field(1, title="Tile to Rinex Time Interval [s]")
+    time_interval: Optional[int] = Field(1, title="Tile to Rinex Time Interval [h]")
     processing_year: Optional[int] = Field(default=-1,description="Processing year to query tiledb",le=2100)
     class Config:
         arbitrary_types_allowed = True
@@ -161,7 +161,7 @@ class SV3Pipeline:
                 gnss_ops.novb2tile(files=novatel_770_entries,rangea_tdb=self.rangea_data_dest.uri,n_procs=self.config.novatel_config.n_processes)
 
                 self.asset_catalog.add_merge_job(**merge_signature)
-                response = f"Added {len(novatel_770_entries)} Novatel 770 Entries to the catalog"
+                response = f"Added merge job for {len(novatel_770_entries)} Novatel 770 Entries to the catalog"
                 gnss_logger.loginfo(response)
                 # if self.config.novatel_config.show_details:
                 #     print(response)
@@ -189,7 +189,7 @@ class SV3Pipeline:
                 gnss_ops.nov0002tile(files=novatel_000_entries,rangea_tdb=self.rangea_data_dest.uri,n_procs=self.config.novatel_config.n_processes)
 
                 self.asset_catalog.add_merge_job(**merge_signature)
-                gnss_logger.loginfo(f"Added {len(novatel_000_entries)} Novatel 000 Entries to the catalog")
+                gnss_logger.loginfo(f"Added merge job for {len(novatel_000_entries)} Novatel 000 Entries to the catalog")
                 # if self.config.novatel_config.show_details:
                 #     print(response) # TODO: should the logger handle this?
         else:

@@ -48,7 +48,7 @@ def dev_dfop00_to_shotdata(source: Union[AssetEntry,str,Path]) -> DataFrame[Shot
                     processed.append((dict(interrogation) | dict(range_data)))
                 else:
                     logger.logdebug(
-                        f"Range data not found"
+                        f"Range data not found for interrogation at {interrogation.triggerTime} in {source.local_path}"
                     )
     if not processed:
         return None
