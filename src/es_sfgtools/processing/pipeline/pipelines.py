@@ -28,6 +28,7 @@ from es_sfgtools.processing.assets.tiledb import (
     TDBShotDataArray,
     TDBGNSSObsArray
 )
+from es_sfgtools.modeling.garpos_tools.schemas import InversionParams
 from es_sfgtools.processing.assets.tiledb import TDBAcousticArray, TDBGNSSArray, TDBPositionArray, TDBShotDataArray, TDBGNSSObsArray
 from es_sfgtools.processing.operations.utils import get_merge_signature_shotdata, merge_shotdata_gnss
 from es_sfgtools.utils.loggers import ProcessLogger as logger, GNSSLogger as gnss_logger   
@@ -59,6 +60,7 @@ class DFOP00Config(BaseModel):
 class PositionUpdateConfig(BaseModel):
     override: bool = Field(False, title="Flag to Override Existing Data")
     plot: bool = Field(False)
+
 
 class SV3PipelineConfig(BaseModel):
     pride_config: PridePdpConfig = PridePdpConfig()

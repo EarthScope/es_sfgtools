@@ -188,7 +188,7 @@ There are types of jobs that the pipeline can handle. They are:
         {
         "type":"garpos",
         "run_id":1,
-        "ovverride":true,
+        "override":true,
         "inversion_params":{ "rejectcriteria": 2.5, "log_lambda": [0] }
         }
       ]

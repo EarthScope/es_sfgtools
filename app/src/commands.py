@@ -72,16 +72,16 @@ def run_manifest(manifest_object: PipelineManifest):
         dh.change_working_station(
             network=job.network, station=job.station, campaign=job.campaign
         )
-        site = load_site_metadata(network=job.network, station=job.station, profile="dev")
+        site = load_site_metadata(network=job.network, station=job.station)
         garpos_handler = dh.get_garpos_handler(site_data=site)
         garpos_handler.set_campaign(job.campaign)
-        garpos_handler.prep_shotdata()
+        garpos_handler.prep_shotdata(job.config.override)
         garpos_handler.load_sound_speed_data()
-        garpos_handler.set_inversion_params(job.inversion_params)
+        garpos_handler.set_inversion_params(job.config.inversion_params)
         surveys = job.surveys if job.surveys else [x.id for x in garpos_handler.current_campaign.surveys]
         for survey_id in surveys:
             garpos_handler.run_garpos(
-                run_id=job.run_id,
-                override=job.ovverride,
+                run_id=job.config.run_id,
+                override=job.config.override,
                 campaign_id=job.campaign,
                 survey_id=survey_id)
