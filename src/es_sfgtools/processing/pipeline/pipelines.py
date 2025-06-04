@@ -243,7 +243,7 @@ class SV3Pipeline:
             else:
                 rinex_entries = self.asset_catalog.get_local_assets(self.network,self.station,self.campaign,AssetType.RINEX)
                 num_rinex_entries = len(rinex_entries)
-                gnss_logger.loginfo(f"Rinex files already generated for {self.network} {self.station} {self.campaign}, Found {num_rinex_entries} Entries")
+                gnss_logger.loginfo(f"RINEX files have already been processed for {self.network}, {self.station}, and {self.campaign} Found {num_rinex_entries} entries.")
 
     def process_rinex(self) -> None:
         """
