@@ -5,12 +5,17 @@ from enum import Enum
 import json
 from pydantic import BaseModel, Field, field_serializer, field_validator
 from es_sfgtools.processing.pipeline.pipelines import SV3PipelineConfig
+from es_sfgtools.modeling.garpos_tools.schemas import (
+    InversionParams
+)
+
 from rich import table
 
 class PipelineJobType(str, Enum):
     PREPROCESSING = "preprocessing"
     INGESTION = "ingestion"
     DOWNLOAD = "download"
+    GARPOS = "garpos"
 
 class PipelinePreprocessJob(BaseModel):
     network: str = Field(..., title="Network Name")
@@ -44,6 +49,34 @@ class ArchiveDownloadJob(BaseModel):
     station: str = Field(..., title="Station Name")
     campaign: str = Field(..., title="Campaign Name")
 
+class GARPOSConfig(BaseModel):
+    run_id: Optional[str] = Field(
+        None, title="Run ID", description="Optional run ID for GARPOS processing",coerce_numbers_to_str=True
+    )
+    override: Optional[bool] = Field(
+        False, title="Override Existing Data", description="Whether to override existing data"
+    )
+    inversion_params: Optional[InversionParams] = Field(
+        None, title="Inversion Parameters", description="Parameters for GARPOS inversion"
+    )
+    class Config:
+        arbitrary_types_allowed = True
+        coerce= True
+
+class GARPOSProcessJob(BaseModel):
+    network: str = Field(..., title="Network Name")
+    station: str = Field(..., title="Station Name")
+    campaign: str = Field(..., title="Campaign Name")
+    surveys: Optional[List[str]] = Field(
+        default=[], title="Survey Name", description="Optional survey name for GARPOS processing"
+    )
+    config: GARPOSConfig = Field(
+        default=GARPOSConfig(),
+        title="GARPOS Configuration",
+        description="Configuration for GARPOS processing"
+    )
+    class Config:
+        arbitrary_types_allowed = True
 
 class PipelineManifest(BaseModel):
     main_dir: Path = Field(..., title="Main Directory")
@@ -56,6 +89,9 @@ class PipelineManifest(BaseModel):
     download_jobs: Optional[List[ArchiveDownloadJob]] = Field(
         default=[], title="List of Archive Download Jobs"
     )
+    garpos_jobs: Optional[List[GARPOSProcessJob]] = Field(
+        default=[], title="List of GARPOS Process Jobs"
+    )
     global_config: SV3PipelineConfig = Field(..., title="Global Config")
 
     class Config:
@@ -64,11 +100,12 @@ class PipelineManifest(BaseModel):
     @classmethod
     def _load(cls,data:dict) -> 'PipelineManifest':
         global_config = SV3PipelineConfig(**data["globalConfig"])
-
+        garpos_config = GARPOSConfig(**data.get("garposConfig", {}))
         # Initialize lists for jobs
         process_jobs = []
         ingestion_jobs = []
         download_jobs = []
+        garpos_jobs = []
 
         # Parse operations
         for operation in data.get("operations", []):
@@ -119,6 +156,17 @@ class PipelineManifest(BaseModel):
                                 network=network, station=station, campaign=campaign
                             )
                         )
+                    case PipelineJobType.GARPOS:
+                        config = garpos_config.model_copy(update=dict(job.get("config", {})))
+                        garpos_jobs.append(
+                            GARPOSProcessJob(
+                                network=network,
+                                station=station,
+                                campaign=campaign,
+                                surveys=job.get("surveys", []),
+                                config=config,
+                            )
+                        )
 
         # Instantiate the PipelineManifest
         return cls(
@@ -126,6 +174,7 @@ class PipelineManifest(BaseModel):
             ingestion_jobs=ingestion_jobs,
             process_jobs=process_jobs,
             download_jobs=download_jobs,
+            garpos_jobs=garpos_jobs,
             global_config=global_config,
         )
     

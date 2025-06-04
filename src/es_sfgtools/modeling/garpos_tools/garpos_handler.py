@@ -310,7 +310,7 @@ class GarposHandler:
                     else:
                         raise ValueError(f"Unknown file type {file.type} for file {local_path}")
 
-                    df.to_csv(self.sound_speed_path, index=False)
+                    df.to_csv(self.sound_speed_path)#, index=False)
                     logger.loginfo(f"Converted {local_path} to sound velocity profile at {self.sound_speed_path}, adding to catalog")
                     catalog.add_entry(AssetEntry(local_path=str(self.sound_speed_path), 
                                                  timestamp_created=datetime.now(), 
@@ -448,7 +448,20 @@ class GarposHandler:
             GPtransponders = []
             for benchmark in survey_benchmarks:
                 # Find correct transponder, default to first
-                current_transponder = benchmark.get_transponder_by_datetime(survey.start)
+                #current_transponder = benchmark.get_transponder_by_datetime(survey.start)
+                current_transponder = None
+                while current_transponder is None:
+                    if len(benchmark.transponders) == 1:
+                        current_transponder = benchmark.transponders[0]
+                        break
+
+                    # If there are multiple transponders, check if the datetime is within the start and end dates
+                    for transponder in benchmark.transponders:
+                        if transponder.start <= survey.start:
+                            if transponder.end is None or transponder.end >= survey.end:
+                                current_transponder = transponder
+                                break
+
                 #current_transponder = benchmark.transponders[-1]    # TODO: this does not find a specifc transponder
                 # for transponder in benchmark.transponders:
                 #     if survey.start > transponder.start:
@@ -687,9 +700,12 @@ class GarposHandler:
                 run_id += 1
         else:
             logger.loginfo(f"Running GARPOS model for survey {survey_id}. Run ID: {run_id}")
-            self._run_garpos_survey(survey_id=survey_id, 
-                                    run_id=run_id, 
-                                    override=override)
+            try:
+                self._run_garpos_survey(survey_id=survey_id, 
+                                        run_id=run_id, 
+                                        override=override)
+            except IndexError as e:
+                logger.logerr(f"GARPOS model run failed for survey {survey_id}. Error: {e}")
 
     def plot_ts_results(
         self, 

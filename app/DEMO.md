@@ -97,6 +97,7 @@ There are types of jobs that the pipeline can handle. They are:
   - preprocessing
   - ingestion
   - download
+  - garpos
 
 ---
 
@@ -171,6 +172,48 @@ There are types of jobs that the pipeline can handle. They are:
   ```
 
 ---
+
+##### `garpos`
+- **Description**: Defines a GARPOS positional solver job on already processed data
+- **Usage**: Used to solve for changes in array position relative to position
+
+- **Examples**:
+
+  **JSON**:
+  ```json
+    {
+      "network": "cascadia-gorda",
+      "station": "NCC1",
+      "campaign": "2024_A_1126",
+      "jobs": [
+         {
+          "type": "garpos",
+          "config": {
+            "run_id": 1,
+            "override": true,
+            "inversion_params": { "rejectcriteria": 2.5, "log_lambda": [0] }
+          }
+        }
+      ]
+    }
+  ```
+
+  **YAML**:
+  ```yaml
+  - network: "cascadia-gorda"
+    station: "NCC1"
+    campaign: "2024_A_1126"
+    jobs:
+      - type: "garpos"
+        config:
+          run_id: 1
+          override: true
+          inversion_params:
+            rejectcriteria: 2.5
+            log_lambda:
+              - 0
+  ```
+
 
 ## Putting it All Together
 
