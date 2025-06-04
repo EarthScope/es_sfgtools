@@ -178,6 +178,7 @@ There are types of jobs that the pipeline can handle. They are:
 - **Usage**: Used to solve for changes in array position relative to position
 
 - **Examples**:
+
   **JSON**:
   ```json
     {
@@ -185,15 +186,34 @@ There are types of jobs that the pipeline can handle. They are:
       "station": "NCC1",
       "campaign": "2024_A_1126",
       "jobs": [
-        {
-        "type":"garpos",
-        "run_id":1,
-        "override":true,
-        "inversion_params":{ "rejectcriteria": 2.5, "log_lambda": [0] }
+         {
+          "type": "garpos",
+          "config": {
+            "run_id": 1,
+            "override": true,
+            "inversion_params": { "rejectcriteria": 2.5, "log_lambda": [0] }
+          }
         }
       ]
     }
   ```
+
+  **YAML**:
+  ```yaml
+  - network: "cascadia-gorda"
+    station: "NCC1"
+    campaign: "2024_A_1126"
+    jobs:
+      - type: "garpos"
+        config:
+          run_id: 1
+          override: true
+          inversion_params:
+            rejectcriteria: 2.5
+            log_lambda:
+              - 0
+  ```
+
 
 ## Putting it All Together
 
