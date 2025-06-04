@@ -303,8 +303,14 @@ def load_site_metadata(network: str, station: str, profile: str = None, local_pa
     for campaign in site.campaigns:
         try:
             campaign.vessel = load_vessel_metadata(campaign.vesselCode, profile=profile)
-        except Exception as e:
-            logger.logerr(f"Failed to load vessel metadata for campaign {campaign.name}: {e}")
+        except FileNotFoundError as e:
+            logger.logerr(f"Vessel metadata file not found for campaign {campaign.name}: {e}")
+            campaign.vessel = None
+        except ValueError as e:
+            logger.logerr(f"Invalid vessel metadata for campaign {campaign.name}: {e}")
+            campaign.vessel = None
+        except requests.exceptions.RequestException as e:
+            logger.logerr(f"Network error while loading vessel metadata for campaign {campaign.name}: {e}")
             campaign.vessel = None
     return site
 

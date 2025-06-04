@@ -448,25 +448,17 @@ class GarposHandler:
             GPtransponders = []
             for benchmark in survey_benchmarks:
                 # Find correct transponder, default to first
-                #current_transponder = benchmark.get_transponder_by_datetime(survey.start)
-                current_transponder = None
-                while current_transponder is None:
-                    if len(benchmark.transponders) == 1:
-                        current_transponder = benchmark.transponders[0]
-                        break
-
+            
+                if len(benchmark.transponders) == 1:
+                    current_transponder = benchmark.transponders[0]
+                else:
                     # If there are multiple transponders, check if the datetime is within the start and end dates
                     for transponder in benchmark.transponders:
                         if transponder.start <= survey.start:
                             if transponder.end is None or transponder.end >= survey.end:
                                 current_transponder = transponder
                                 break
-
-                #current_transponder = benchmark.transponders[-1]    # TODO: this does not find a specifc transponder
-                # for transponder in benchmark.transponders:
-                #     if survey.start > transponder.start:
-                #         current_transponder = transponder
-
+                    
                 gp_transponder = self._create_GPTransponder(benchmark=benchmark, 
                                                        transponder=current_transponder)
                 GPtransponders.append(gp_transponder)

@@ -25,7 +25,7 @@ if __name__ == "__main__":
     dh.change_working_station(network=network, station=station, campaign=campaign)
 
 
-    site = load_site_metadata(network=network, station=station, profile="dev")
+    site = load_site_metadata(network=network, station=station)
     gp_handler_ncc1 = dh.get_garpos_handler(site_data=site)
     gp_handler_ncc1.set_campaign(campaign)
     gp_handler_ncc1.prep_shotdata(True)

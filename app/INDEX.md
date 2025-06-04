@@ -11,7 +11,7 @@ This configuration class manages settings for RINEX processing.
 
 - `override` (bool): If `True`, existing data will be overridden.
 - `n_processes` (int): Number of processes to use for processing RINEX data. Defaults to `14`.
-- `time_interval` (Optional[int]): Time interval in seconds for RINEX file pagination. Higher numbers (24 is the max) mean faster processing but higher memory consumption. Defaults to `1s`.
+- `time_interval` (Optional[int]): Time interval in hours for RINEX file pagination. Higher numbers (24 is the max) mean faster processing but higher memory consumption. Defaults to `24`.
 
 ## DFOP00Config
 This configuration class handles settings related to DFOP00 processing.
@@ -38,7 +38,7 @@ Configuration for PRIDE PDP processing.
 - `system` (str): GNSS system to be used. Defaults to `GREC23J`.
 - `tides` (str): Tide model to use. Defaults to `SOP`.
 - `override_products_download` (bool): If `True`, existing downloaded products will be overridden.
-- `override` (bool): If `True`, existing kin files will be replaced with newley generated ones
+- `override` (bool): If `True`, existing kin files will be replaced with newly generated ones
 
 ## Garpos Config
 - `override` (bool): If `True`, will override existing garpos runs of the same run_id and prepared shot data

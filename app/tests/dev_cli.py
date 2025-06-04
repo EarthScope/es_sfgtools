@@ -7,7 +7,7 @@ os.environ["GARPOS_PATH"] = str(Path("/Users/franklyndunbar/Project/garpos").res
 load_lib()
 from src import run_manifest, PipelineManifest
 from pathlib import Path
-import os
+
 
 
 if __name__ == "__main__":
