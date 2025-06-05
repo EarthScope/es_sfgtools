@@ -38,7 +38,7 @@ class PreProcessCatalog:
                 return {"Local files found": 0}
         return {x["type"]: x["count_1"] for x in data_type_counts}
 
-    def delete_entries(self, network: str, station: str, campaign: str, type: AssetType|str,where:str=None) -> None:
+    def delete_entries(self, network: str, station: str, campaign: str, type: AssetType|str, where:str=None) -> None:
         """
         Deletes entries from the Assets table based on the specified criteria.
         Args:
@@ -57,10 +57,10 @@ class PreProcessCatalog:
 
         if isinstance(type, str):
             try:
-                type = AssetType[type]
+                type = AssetType(type)
             except KeyError:
                 logger.logerr(f"Invalid asset type {type}")
-                return 
+                return False
 
         logger.logdebug(f"Deleting assets for {network} {station} {campaign} {str(type)}")
 
@@ -77,10 +77,10 @@ class PreProcessCatalog:
                 conn.execute(
                     sa.delete(Assets).where(statement)
                 )
-                return 
+                return True
             except Exception as e:
                 logger.logerr(f"Error deleting entries: {e}")
-                return 
+                return False
             
     def get_assets(self,
                    network: str,
@@ -90,7 +90,7 @@ class PreProcessCatalog:
 
         if isinstance(type,str):
             try:
-                type = AssetType[type]
+                type = AssetType(type)
             except KeyError:
                 logger.logerr(f"Invalid asset type {type}")
                 return []
