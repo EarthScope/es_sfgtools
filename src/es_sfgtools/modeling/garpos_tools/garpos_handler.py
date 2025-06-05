@@ -817,14 +817,17 @@ class GarposHandler:
         ax1.xaxis.set_ticks_position("top")
         ax1.legend()
         for transponder in garpos_results.transponders:
-            idx = unique_ids.tolist().index(transponder.id)
-            ax3.scatter(
+            try:
+                idx = unique_ids.tolist().index(transponder.id)
+                ax3.scatter(
                 transponder.position_enu.east,
                 transponder.position_enu.north,
                 label=f"{transponder.id}",
                 color=colors[idx],
                 s=100,
-            )
+                )
+            except ValueError:
+                logger.logwarn(f"Transponder {transponder.id} not found in results, skipping plotting.")
         cbar = plt.colorbar(sc, label="Time (hr)", norm=norm)
         ax3.legend()
         ax2 = plt.subplot(gs[6:9, :7])
