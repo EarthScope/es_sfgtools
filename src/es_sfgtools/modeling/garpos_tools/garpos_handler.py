@@ -754,8 +754,11 @@ class GarposHandler:
         dpos = arrayinfo.get_position()
         figure_text += f"Array :  East {dpos[0]:.3f} m, North {dpos[1]:.3f} m, Up {dpos[2]:.3f} m \n"
         for id, transponder in enumerate(garpos_results.transponders):
-            dpos = transponder.delta_center_position.get_position()
-            figure_text += f"TSP {transponder.id} : East {dpos[0]:.3f} m, North {dpos[1]:.3f} m, Up {dpos[2]:.3f} m \n"
+            try:
+                dpos = transponder.delta_center_position.get_position()
+                figure_text += f"TSP {transponder.id} : East {dpos[0]:.3f} m, North {dpos[1]:.3f} m, Up {dpos[2]:.3f} m \n"
+            except ValueError:
+                figure_text += f"TSP {transponder.id} : No results found\n"
 
         print(figure_text)
         ax3 = plt.subplot(gs[6:, 8:])
