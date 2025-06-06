@@ -40,7 +40,6 @@ class NovatelConfig(BaseModel):
 
 class RinexConfig(BaseModel):
     override: bool = Field(False, title="Flag to Override Existing Data")
-    override_products_download: bool = Field(False, title="Flag to Override Existing Products Download")
     n_processes: int = Field(default_factory=cpu_count, title="Number of Processes to Use")
     settings_path: Optional[Path] = Field("", title="Settings Path")
     time_interval: Optional[int] = Field(1, title="Tile to Rinex Time Interval [h]")
@@ -204,7 +203,8 @@ class SV3Pipeline:
         unique_years = np.unique([x.year for x in unique_dates]).tolist()
         if self.config.rinex_config.processing_year != -1:
             unique_years = [x for x in unique_years if x == self.config.rinex_config.processing_year ]
-
+        else:
+            logger.logwarn(f"NO YEAR SET: Processing all years in the rangea data: {unique_years}")
 
 
         for year in unique_years:

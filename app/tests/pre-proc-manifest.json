@@ -13,7 +13,7 @@
         {
           "type": "preprocessing",
           "config": {
-            "rinex_config": { "override": true, "time_interval": 24 },
+            "rinex_config": { "override": true, "time_interval": 24,"processing_year":2023 },
             "pride_config": { "sample_frequency": 1 }
           }
         }
@@ -24,7 +24,11 @@
       "station": "NCC1",
       "campaign": "2024_A_1126",
       "jobs": [
-        { "type": "preprocessing" },
+        { "type": "preprocessing",
+        "config": {
+              "rinex_config": { "override": true, "time_interval": 24,"processing_year":2024 }
+            }
+          },
         {
           "type": "garpos",
           "config": {
