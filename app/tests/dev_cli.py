@@ -2,16 +2,13 @@ import sys
 from pathlib import Path
 import os
 sys.path.append((test:=str(Path(__file__).parent.parent)))
-from es_sfgtools.modeling.garpos_tools.load_utils import load_lib
-os.environ["GARPOS_PATH"] = str(Path("/Users/franklyndunbar/Project/garpos").resolve())
-load_lib()
-from src import run_manifest, PipelineManifest
+
 from pathlib import Path
 
 
 
 if __name__ == "__main__":
-
+    from src import run_manifest, PipelineManifest
     pride_path = Path.home() / ".PRIDE_PPPAR_BIN"
     os.environ["PATH"] += os.pathsep + str(pride_path)
 

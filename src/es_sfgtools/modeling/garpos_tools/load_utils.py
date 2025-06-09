@@ -23,7 +23,10 @@ def load_lib() -> Tuple[str,str]:
         found, or the `lib_raytrace.so` file is missing.
     """
 
-    garpos_path = Path(os.getenv("GARPOS_PATH"))
+    garpos_path = os.getenv("GARPOS_PATH", None)
+    if garpos_path is None or garpos_path == 'None':
+        return
+    garpos_path = Path(garpos_path)
     if not garpos_path.exists():
         raise FileNotFoundError(f"GARPOS_PATH {garpos_path} does not exist")
     BaseLogger.loginfo(
