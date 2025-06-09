@@ -224,12 +224,11 @@ class DataHandler:
         Build the TileDB arrays for the current station. TileDB directory is /network/station/TileDB.
         """
         logger.loginfo(f"Building TileDB arrays for {self.station}")
-        
+
         try:
             station_data = self.data_catalog.catalog.networks[self.network].stations[self.station]
         except KeyError:
             station_data = StationData(name=self.station)
-                                    
 
         acoustic_tdb_uri = station_data.acousticdata if station_data.acousticdata is not None else self.tileb_dir/"acoustic_db.tdb" 
         self.acoustic_tdb = TDBAcousticArray(acoustic_tdb_uri)
@@ -239,6 +238,8 @@ class DataHandler:
         self.position_tdb = TDBPositionArray(position_tdb_uri)
         shotdata_tdb_uri = station_data.shotdata if station_data.shotdata is not None else self.tileb_dir/"shotdata_db.tdb"
         self.shotdata_tdb = TDBShotDataArray(shotdata_tdb_uri)
+        # Use a pre-array for dfoprocessing, self.shotdata_tdb is where we store the updated version
+        self.shotdata_tdb_pre = TDBShotDataArray(shotdata_tdb_uri)
         rangea_tdb_uri = station_data.gnssobsdata if station_data.gnssobsdata is not None else self.tileb_dir/"rangea_db.tdb"
         self.rangea_tdb = TDBGNSSObsArray(rangea_tdb_uri) # golang binaries will be used to interact with this array
 
@@ -252,6 +253,8 @@ class DataHandler:
                 gnssobsdata=str(rangea_tdb_uri),
                 positiondata=str(position_tdb_uri),
                 acousticdata=str(acoustic_tdb_uri),
+                shotdata_pre=str(self.shotdata_tdb_pre.uri)
+                
             ),
         )
         self.acoustic_tdb.consolidate()
@@ -405,7 +408,6 @@ class DataHandler:
         for file in remote_filepaths:
             # Get the file type, If the file type is not recognized, it returns None
             file_type = get_file_type_remote(file)
-
 
             if file_type is None: # If the file type is not recognized, skip it
                 logger.logdebug(f"File type not recognized for {file}")
@@ -622,7 +624,7 @@ class DataHandler:
         logger.loginfo(f"Updating catalog with remote paths of available data for {self.network} {self.station} {self.campaign}")
         remote_filepaths = list_campaign_files(network=self.network, station=self.station, campaign=self.campaign)
         self.add_data_remote(remote_filepaths=remote_filepaths, remote_type=REMOTE_TYPE.HTTP)
-    
+
     @check_network_station_campaign
     def add_ctds_to_catalog(self):
         """
@@ -639,7 +641,6 @@ class DataHandler:
         if len(ctds):
             self.add_data_remote(remote_filepaths=ctds, remote_type=REMOTE_TYPE.HTTP)
 
-    
     @check_network_station_campaign
     def view_data(self):
         shotdata_dates = self.shotdata_tdb.get_unique_dates().tolist()
@@ -683,7 +684,10 @@ class DataHandler:
 
         config = SV3PipelineConfig()
         config.rinex_config.settings_path = self.rinex_metav2
-        pipeline = SV3Pipeline(asset_catalog=self.catalog, data_catalog=self.data_catalog, config=config)
+        pipeline = SV3Pipeline(
+            asset_catalog=self.catalog, 
+            data_catalog=self.data_catalog, 
+            config=config)
         pipeline.set_site_data(network=self.network,
                                station=self.station,
                                campaign=self.campaign,
