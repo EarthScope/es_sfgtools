@@ -42,9 +42,12 @@ Configuration for PRIDE PDP processing.
 - `override` (bool): If `True`, existing kin files will be replaced with newly generated ones
 
 ## Garpos Config
+- `garpos_path` (str): Path to the garpos repository to use for model runs. Defaults to the forked version installed via pip.
+
 - `override` (bool): If `True`, will override existing garpos runs of the same run_id and prepared shot data
 
 - `run_id` (str | int ): label for the garpos run instance
+
 
 ### Inversion Parameters
 
