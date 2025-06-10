@@ -58,6 +58,7 @@ class DFOP00Config(BaseModel):
 
 class PositionUpdateConfig(BaseModel):
     override: bool = Field(False, title="Flag to Override Existing Data")
+    lengthscale: float = Field(2.0, title="Length Scale for Interpolation in seconds")
     plot: bool = Field(False)
 
 
@@ -420,7 +421,7 @@ class SV3Pipeline:
         if not self.asset_catalog.is_merge_complete(**merge_job) or self.config.position_update_config.override:
             dates.append(dates[-1]+datetime.timedelta(days=1))
             merge_shotdata_gnss(
-                shotdata_pre=self.shot_data_pre,shotdata=self.shot_data_dest, gnss=self.gnss_data_dest, dates=dates, plot=self.config.position_update_config.plot
+                shotdata_pre=self.shot_data_pre,shotdata=self.shot_data_dest, gnss=self.gnss_data_dest, dates=dates, lengthscale=self.config.position_update_config.lengthscale,plot=self.config.position_update_config.plot
             )
             self.asset_catalog.add_merge_job(**merge_job)
 

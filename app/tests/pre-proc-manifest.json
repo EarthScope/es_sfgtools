@@ -67,7 +67,9 @@
       "override": false
     },
     "position_update_config": {
-      "override": true
+      "override": true,
+      "lengthscale": 2,
+      "plot": false
     },
     "pride_config": {
       "cutoff_elevation": 7,

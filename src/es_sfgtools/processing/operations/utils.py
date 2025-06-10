@@ -76,25 +76,27 @@ def interpolate_enu(
 
 def interpolate_enu_kernalridge(
     tenu_l: np.ndarray,
-    tenu_r: np.ndarray
+    tenu_r: np.ndarray,
+    lengthscale: float = 2.0
+    
 ) -> np.ndarray:
     """
-    Interpolate the enu values between the left and right enu values using Kernel Ridge Regression
+    Interpolate the enu values between the left and right enu values using Kernel Ridge Regression.
 
     Args:
         tenu_l (np.ndarray): The left enu time values in unix epoch
         tenu_r (np.ndarray): The right enu time values in unix epoch
-
+        lengthscale (float, optional): The length scale for the kernel. Defaults to 2.0 seconds.
     Returns:
         np.ndarray: The interpolated enu values at the time values from tenu_r
     """
 
-    LENGTHSCALE = 2.0  # seconds
+
     logger.loginfo("Interpolating ENU values using Kernel Ridge Regression")
     ENU_L_TREE = KDTree(tenu_l[:, 0].astype(float).reshape(-1, 1))
     count = ENU_L_TREE.query_radius(
         tenu_r[:, 0].astype(float).reshape(-1, 1),
-        r=LENGTHSCALE,  # seconds
+        r=lengthscale,  # seconds
         count_only=True,
     )
     to_update_filter = count > 0
@@ -106,7 +108,7 @@ def interpolate_enu_kernalridge(
         return tenu_r
     inds = ENU_L_TREE.query_radius(
         to_update[:, 0].astype(float).reshape(-1, 1),
-        r=LENGTHSCALE,  # seconds
+        r=lengthscale,  # seconds
         return_distance=False,
     )
     inds = np.unique(list(itertools.chain.from_iterable(inds))).astype(int)
@@ -117,7 +119,7 @@ def interpolate_enu_kernalridge(
     X_train = tenu_l[inds, 0].astype(float).reshape(-1, 1)  # timestamps
     Y_train = tenu_l[inds, 1:].astype(float) # East, North, Up values
 
-    kernel = RBF(length_scale=LENGTHSCALE)
+    kernel = RBF(length_scale=lengthscale)
     kernal_ridge = KernelRidge(alpha=1,kernel=kernel)
     kernal_ridge.fit(X_train, Y_train)
     # predict the values at the tenu_r timestamps
@@ -173,6 +175,7 @@ def merge_shotdata_gnss(
         shotdata: TDBShotDataArray, 
         gnss: TDBGNSSArray,
         dates:List[datetime64],
+        lengthscale:float=2.0,
         plot:bool=False) -> TDBShotDataArray:
     
     """
@@ -210,7 +213,7 @@ def merge_shotdata_gnss(
         
         logger.loginfo(f"Interpolating {tenu_r.shape[0]} points")
         #pred_mu,pred_std = interpolate_enu(tenu_l,enu_l_sig,tenu_r.copy(),enu_r_sig)
-        pred_mu = interpolate_enu_kernalridge(tenu_l, tenu_r.copy())
+        pred_mu = interpolate_enu_kernalridge(tenu_l, tenu_r.copy(), lengthscale=lengthscale)
         # create filter that matches the undistiled triggerTime with the first column of pred_mu
         triggerTimePred = pred_mu[:,0]
         triggerTimeDF = shotdata_df["triggerTime"].apply(lambda x: x.timestamp()).to_numpy()
