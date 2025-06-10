@@ -36,7 +36,7 @@ def interpolate_enu(
     """
 
     logger.loginfo("Interpolating ENU values")
-    length_scale = LENGTHSCALE  # seconds
+    length_scale = 3  # seconds
     kernel = RBF(length_scale=length_scale)
     X_train = np.hstack((tenu_l[:, 0], tenu_r[:, 0])).T.astype(float).reshape(-1, 1)
     Y_train = np.vstack((tenu_l[:, 1:], tenu_r[:, 1:])).astype(float)

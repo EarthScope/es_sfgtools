@@ -239,7 +239,8 @@ class DataHandler:
         shotdata_tdb_uri = station_data.shotdata if station_data.shotdata is not None else self.tileb_dir/"shotdata_db.tdb"
         self.shotdata_tdb = TDBShotDataArray(shotdata_tdb_uri)
         # Use a pre-array for dfoprocessing, self.shotdata_tdb is where we store the updated version
-        self.shotdata_tdb_pre = TDBShotDataArray(shotdata_tdb_uri)
+        shotdata_tdb_uri_pre = station_data.shotdata_pre if station_data.shotdata_pre is not None else self.tileb_dir/"shotdata_db_pre.tdb"
+        self.shotdata_tdb_pre = TDBShotDataArray(shotdata_tdb_uri_pre)
         rangea_tdb_uri = station_data.gnssobsdata if station_data.gnssobsdata is not None else self.tileb_dir/"rangea_db.tdb"
         self.rangea_tdb = TDBGNSSObsArray(rangea_tdb_uri) # golang binaries will be used to interact with this array
 
