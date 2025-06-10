@@ -4,6 +4,7 @@ from numpy import datetime64
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF
 from sklearn.neighbors import KDTree
+from sklearn.kernel_ridge import KernelRidge
 import itertools
 import time
 import matplotlib.pyplot as plt
@@ -35,7 +36,7 @@ def interpolate_enu(
     """
 
     logger.loginfo("Interpolating ENU values")
-    length_scale = 5.0  # seconds
+    length_scale = 3  # seconds
     kernel = RBF(length_scale=length_scale)
     X_train = np.hstack((tenu_l[:, 0], tenu_r[:, 0])).T.astype(float).reshape(-1, 1)
     Y_train = np.vstack((tenu_l[:, 1:], tenu_r[:, 1:])).astype(float)
@@ -73,6 +74,70 @@ def interpolate_enu(
     logger.loginfo(f"Interpolation took {time.time()-start:.3f} seconds for {tenu_r.shape[0]} x {tenu_r.shape[1]} points")
     return tenu_r.astype(float), enu_r_sig.astype(float)
 
+def interpolate_enu_kernalridge(
+    tenu_l: np.ndarray,
+    tenu_r: np.ndarray,
+    lengthscale: float = 2.0
+    
+) -> np.ndarray:
+    """
+    Interpolate the enu values between the left and right enu values using Kernel Ridge Regression.
+
+    Args:
+        tenu_l (np.ndarray): The left enu time values in unix epoch
+        tenu_r (np.ndarray): The right enu time values in unix epoch
+        lengthscale (float, optional): The length scale for the kernel. Defaults to 2.0 seconds.
+    Returns:
+        np.ndarray: The interpolated enu values at the time values from tenu_r
+    """
+
+
+    logger.loginfo("Interpolating ENU values using Kernel Ridge Regression")
+    ENU_L_TREE = KDTree(tenu_l[:, 0].astype(float).reshape(-1, 1))
+    count = ENU_L_TREE.query_radius(
+        tenu_r[:, 0].astype(float).reshape(-1, 1),
+        r=lengthscale,  # seconds
+        count_only=True,
+    )
+    to_update_filter = count > 0
+    to_update = tenu_r[to_update_filter]
+    to_not_update = tenu_r[~to_update_filter]
+
+    if to_update.shape[0] == 0:
+        logger.loginfo("No points to update, returning original tenu_r")
+        return tenu_r
+    inds = ENU_L_TREE.query_radius(
+        to_update[:, 0].astype(float).reshape(-1, 1),
+        r=lengthscale,  # seconds
+        return_distance=False,
+    )
+    inds = np.unique(list(itertools.chain.from_iterable(inds))).astype(int)
+    if len(inds) == 0:
+        logger.loginfo("No points to update, returning original tenu_r")
+        return tenu_r
+    # create the kernel ridge regression model
+    X_train = tenu_l[inds, 0].astype(float).reshape(-1, 1)  # timestamps
+    Y_train = tenu_l[inds, 1:].astype(float) # East, North, Up values
+
+    kernel = RBF(length_scale=lengthscale)
+    kernal_ridge = KernelRidge(alpha=1,kernel=kernel)
+    kernal_ridge.fit(X_train, Y_train)
+    # predict the values at the tenu_r timestamps
+    y_pred = kernal_ridge.predict(to_update[:, 0].astype(float).reshape(-1, 1))
+    # update the tenu_r values with the predicted values
+    tenu_r[to_update_filter, 1:] = y_pred
+    # return the updated tenu_r values
+    if to_not_update.shape[0] > 0:
+        tenu_r = np.vstack((tenu_r[to_update_filter], tenu_r[~to_update_filter]))
+    else:
+        tenu_r = tenu_r[to_update_filter]
+    logger.loginfo(f"Interpolated {to_update.shape[0]} points using Kernel Ridge Regression")
+    logger.loginfo(f"Returning {tenu_r.shape[0]} points")
+
+    # sort the tenu_r array by the first column (time)
+    tenu_r = tenu_r[np.argsort(tenu_r[:, 0])].astype(float)  
+    return tenu_r
+
 def get_merge_signature_shotdata(shotdata: TDBShotDataArray, gnss: TDBGNSSArray) -> Tuple[List[str], List[np.datetime64]]:
     """
     Get the merge signature for the shotdata and gnss data
@@ -105,7 +170,14 @@ def get_merge_signature_shotdata(shotdata: TDBShotDataArray, gnss: TDBGNSSArray)
     
     return merge_signature, dates
 
-def merge_shotdata_gnss(shotdata: TDBShotDataArray, gnss: TDBGNSSArray,dates:List[datetime64],plot:bool=False) -> TDBShotDataArray:
+def merge_shotdata_gnss(
+        shotdata_pre: TDBShotDataArray,
+        shotdata: TDBShotDataArray, 
+        gnss: TDBGNSSArray,
+        dates:List[datetime64],
+        lengthscale:float=2.0,
+        plot:bool=False) -> TDBShotDataArray:
+    
     """
     Merge the shotdata and gnss data
 
@@ -123,7 +195,7 @@ def merge_shotdata_gnss(shotdata: TDBShotDataArray, gnss: TDBGNSSArray,dates:Lis
     for start,end in zip(dates,dates[1:]):
         logger.loginfo(f"Interpolating shotdata for date {str(start)}")
         
-        shotdata_df = shotdata.read_df(start=start,end=end)
+        shotdata_df = shotdata_pre.read_df(start=start,end=end)
         gnss_df = gnss.read_df(start=start, end=end)
         
         if shotdata_df.empty or gnss_df.empty:
@@ -140,7 +212,8 @@ def merge_shotdata_gnss(shotdata: TDBShotDataArray, gnss: TDBGNSSArray,dates:Lis
         enu_r_sig[np.isnan(enu_r_sig)] = 1.0 # set the standard deviation to 1.0 meters if it is nan
         
         logger.loginfo(f"Interpolating {tenu_r.shape[0]} points")
-        pred_mu,pred_std = interpolate_enu(tenu_l,enu_l_sig,tenu_r.copy(),enu_r_sig)
+        #pred_mu,pred_std = interpolate_enu(tenu_l,enu_l_sig,tenu_r.copy(),enu_r_sig)
+        pred_mu = interpolate_enu_kernalridge(tenu_l, tenu_r.copy(), lengthscale=lengthscale)
         # create filter that matches the undistiled triggerTime with the first column of pred_mu
         triggerTimePred = pred_mu[:,0]
         triggerTimeDF = shotdata_df["triggerTime"].apply(lambda x: x.timestamp()).to_numpy()
@@ -148,7 +221,7 @@ def merge_shotdata_gnss(shotdata: TDBShotDataArray, gnss: TDBGNSSArray,dates:Lis
         
         for i,key in enumerate(["east0","north0","up0"]):
             shotdata_df.iloc[shot_df_inds][key] = pred_mu[shot_df_inds,i+1]
-            shotdata_df.iloc[shot_df_inds][f"{key}_std"] = pred_std[shot_df_inds,i]
+            #shotdata_df.iloc[shot_df_inds][f"{key}_std"] = pred_std[shot_df_inds,i]
             if plot and i == 0:
                 plt.scatter(
                     tenu_l[:, 0],
@@ -160,7 +233,7 @@ def merge_shotdata_gnss(shotdata: TDBShotDataArray, gnss: TDBGNSSArray,dates:Lis
                 )
                 plt.plot(pred_mu[:,0],pred_mu[:,i+1],label=f"{key} interpolated")
                 plt.scatter(tenu_r[:,0],tenu_r[:,i+1],marker="o",c="b",linewidths=0.15,label=f"{key} original")
-                plt.fill_between(pred_mu[:,0],pred_mu[:,i+1]-pred_std[:,i],pred_mu[:,i+1]+pred_std[:,i],alpha=0.5)
+                #plt.fill_between(pred_mu[:,0],pred_mu[:,i+1]-pred_std[:,i],pred_mu[:,i+1]+pred_std[:,i],alpha=0.5)
         
         if plot:
             plt.legend()

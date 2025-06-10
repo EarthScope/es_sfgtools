@@ -21,8 +21,9 @@ This configuration class handles settings related to DFOP00 processing.
 
 ## PositionUpdateConfig
 Configuration class for position update settings.
-
+- `plot` (bool): If `True` plots updated shotdata. Defaults to false.
 - `override` (bool): If `True`, existing data will be overridden.
+- `lengthscale` (float): Interpolation lengthscale in seconds. Defaults to 2.0.
 
 ## PridePdpConfig
 Configuration for PRIDE PDP processing.
