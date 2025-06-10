@@ -1,24 +1,7 @@
 {
   "projectDir": "/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain",
   "operations": [
-    {
-      "network": "cascadia-gorda",
-      "station": "NDP1",
-      "campaign": "2023_from_john",
-      "jobs": [
-        {
-          "type": "ingestion",
-          "directory": " /Users/franklyndunbar/Project/SeaFloorGeodesy/Data/Cascadia2023/NDP1/HR"
-        },
-        {
-          "type": "preprocessing",
-          "config": {
-            "rinex_config": { "override": true, "time_interval": 24 },
-            "pride_config": { "sample_frequency": 1 }
-          }
-        }
-      ]
-    },
+    
     {
       "network": "cascadia-gorda",
       "station": "NCC1",
@@ -73,14 +56,14 @@
 
   "globalConfig": {
     "dfop00_config": {
-      "override": false
+      "override": true
     },
     "novatel_config": {
       "n_processes": 14,
       "override": false
     },
     "position_update_config": {
-      "override": false
+      "override": true
     },
     "pride_config": {
       "cutoff_elevation": 7,

@@ -420,7 +420,7 @@ class SV3Pipeline:
         if not self.asset_catalog.is_merge_complete(**merge_job) or self.config.position_update_config.override:
             dates.append(dates[-1]+datetime.timedelta(days=1))
             merge_shotdata_gnss(
-                shotdata=self.shot_data_dest, gnss=self.gnss_data_dest, dates=dates, plot=self.config.position_update_config.plot
+                shotdata_pre=self.shot_data_pre,shotdata=self.shot_data_dest, gnss=self.gnss_data_dest, dates=dates, plot=self.config.position_update_config.plot
             )
             self.asset_catalog.add_merge_job(**merge_job)
 
