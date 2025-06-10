@@ -4,6 +4,7 @@ from numpy import datetime64
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF
 from sklearn.neighbors import KDTree
+from sklearn.kernel_ridge import KernelRidge
 import itertools
 import time
 import matplotlib.pyplot as plt
@@ -73,6 +74,49 @@ def interpolate_enu(
     logger.loginfo(f"Interpolation took {time.time()-start:.3f} seconds for {tenu_r.shape[0]} x {tenu_r.shape[1]} points")
     return tenu_r.astype(float), enu_r_sig.astype(float)
 
+def interpolate_enu_kernalridge(
+    tenu_l: np.ndarray,
+    tenu_r: np.ndarray
+) -> np.ndarray:
+    """
+    Interpolate the enu values between the left and right enu values using Kernel Ridge Regression
+
+    Args:
+        tenu_l (np.ndarray): The left enu time values in unix epoch
+        tenu_r (np.ndarray): The right enu time values in unix epoch
+
+    Returns:
+        np.ndarray: The interpolated enu values at the time values from tenu_r
+    """
+    
+    logger.loginfo("Interpolating ENU values using Kernel Ridge Regression")
+    ENU_L_TREE = KDTree(tenu_l[:, 0].astype(float).reshape(-1, 1))
+    count = ENU_L_TREE.query_radius(
+        tenu_r[:, 0].astype(float).reshape(-1, 1),
+        r=5.0,  # seconds
+        count_only=True,
+    )
+    to_update_filter = count > 0
+    to_update = tenu_r[to_update_filter]
+    to_not_update = tenu_r[~to_update_filter]
+
+    if to_update.shape[0] == 0:
+        logger.loginfo("No points to update, returning original tenu_r")
+        return tenu_r
+    inds = ENU_L_TREE.query_radius(
+        to_update[:, 0].astype(float).reshape(-1, 1),
+        r=5.0,  # seconds
+        return_distance=False,
+    )
+    inds = np.unique(inds).astype(int)
+
+    length_scale = 5.0  # seconds
+    kernel = RBF(length_scale=length_scale)
+    kernal_ridge = KernelRidge(alpha=1,kernel=kernel)
+    #X_train = .T.astype(float).reshape(-1, 1) # timestamps
+    Y_train = np.vstack((tenu_l[:, 1:], tenu_r[:, 1:])).astype(float) # East, North, Up values
+    return
+    
 def get_merge_signature_shotdata(shotdata: TDBShotDataArray, gnss: TDBGNSSArray) -> Tuple[List[str], List[np.datetime64]]:
     """
     Get the merge signature for the shotdata and gnss data
@@ -105,7 +149,12 @@ def get_merge_signature_shotdata(shotdata: TDBShotDataArray, gnss: TDBGNSSArray)
     
     return merge_signature, dates
 
-def merge_shotdata_gnss(shotdata: TDBShotDataArray, gnss: TDBGNSSArray,dates:List[datetime64],plot:bool=False) -> TDBShotDataArray:
+def merge_shotdata_gnss(
+        shotdata: TDBShotDataArray, 
+        gnss: TDBGNSSArray,
+        dates:List[datetime64],
+        plot:bool=False) -> TDBShotDataArray:
+    
     """
     Merge the shotdata and gnss data
 

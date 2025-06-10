@@ -139,7 +139,7 @@ class SV3Pipeline:
         self.rangea_data_dest = TDBGNSSObsArray(self.data_catalog.catalog.networks[network].stations[station].gnssobsdata)
         self.gnss_data_dest = TDBGNSSArray(self.data_catalog.catalog.networks[network].stations[station].gnssdata)
         self.shot_data_dest = TDBShotDataArray(self.data_catalog.catalog.networks[network].stations[station].shotdata)
-    
+        self.shot_data_pre = TDBShotDataArray(self.data_catalog.catalog.networks[network].stations[station].shotdata_pre)
 
     def pre_process_novatel(
         self
@@ -390,7 +390,7 @@ class SV3Pipeline:
                 zip(results,dfop00_entries), total=len(dfop00_entries), desc="Processing DFOP00 Files"
             ):
                 if shotdata_df is not None and not shotdata_df.empty:
-                    self.shot_data_dest.write_df(shotdata_df)
+                    self.shot_data_pre.write_df(shotdata_df) # write to pre-shotdata
                     count += 1
                     dfo_entry.is_processed = True
                     self.asset_catalog.add_or_update(dfo_entry)
@@ -407,7 +407,7 @@ class SV3Pipeline:
         # For each shotdata multiasset entry, update the shotdata position with gnss data
         try:
             merge_signature, dates = get_merge_signature_shotdata(
-                self.shot_data_dest, self.gnss_data_dest
+                self.shot_data_pre, self.gnss_data_dest
             )
         except Exception as e:
             logger.logerr(e)
