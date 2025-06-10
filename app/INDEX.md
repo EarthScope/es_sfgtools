@@ -12,6 +12,7 @@ This configuration class manages settings for RINEX processing.
 - `override` (bool): If `True`, existing data will be overridden.
 - `n_processes` (int): Number of processes to use for processing RINEX data. Defaults to `14`.
 - `time_interval` (Optional[int]): Time interval in hours for RINEX file pagination. Higher numbers (24 is the max) mean faster processing but higher memory consumption. Defaults to `24`.
+- `processing_year` (Optional[int]): Sets the specific calendar years to generate RINEX files from the tiledb array. Defaults to `-1` which includes all years.
 
 ## DFOP00Config
 This configuration class handles settings related to DFOP00 processing.
@@ -41,9 +42,12 @@ Configuration for PRIDE PDP processing.
 - `override` (bool): If `True`, existing kin files will be replaced with newly generated ones
 
 ## Garpos Config
+- `garpos_path` (str): Path to the garpos repository to use for model runs. Defaults to the forked version installed via pip.
+
 - `override` (bool): If `True`, will override existing garpos runs of the same run_id and prepared shot data
 
 - `run_id` (str | int ): label for the garpos run instance
+
 
 ### Inversion Parameters
 

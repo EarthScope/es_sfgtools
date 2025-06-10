@@ -38,6 +38,50 @@ class PreProcessCatalog:
                 return {"Local files found": 0}
         return {x["type"]: x["count_1"] for x in data_type_counts}
 
+    def delete_entries(self, network: str, station: str, campaign: str, type: AssetType|str, where:str=None) -> None:
+        """
+        Deletes entries from the Assets table based on the specified criteria.
+        Args:
+            network (str): The network identifier for the assets to be deleted.
+            station (str): The station identifier for the assets to be deleted.
+            campaign (str): The campaign identifier for the assets to be deleted.
+            type (AssetType | str): The type of asset to be deleted. Can be an AssetType enum or a string representation.
+            where (str, optional): Additional SQL conditions to filter the assets to be deleted. Defaults to None.
+        Returns:
+            None
+        Raises:
+            KeyError: If the provided asset type string is invalid and cannot be mapped to an AssetType enum.
+            Exception: If an error occurs during the deletion process.
+   
+        """
+
+        if isinstance(type, str):
+            try:
+                type = AssetType(type)
+            except KeyError:
+                logger.logerr(f"Invalid asset type {type}")
+                return False
+
+        logger.logdebug(f"Deleting assets for {network} {station} {campaign} {str(type)}")
+
+        with self.engine.begin() as conn:
+            try:
+                statement = sa.and_(
+                    Assets.network == network,
+                    Assets.station == station,
+                    Assets.campaign == campaign,
+                    Assets.type == type.value
+                )
+                if where:
+                    statement = sa.and_(statement, sa.text(where))
+                conn.execute(
+                    sa.delete(Assets).where(statement)
+                )
+                return True
+            except Exception as e:
+                logger.logerr(f"Error deleting entries: {e}")
+                return False
+            
     def get_assets(self,
                    network: str,
                    station: str,
@@ -46,7 +90,7 @@ class PreProcessCatalog:
 
         if isinstance(type,str):
             try:
-                type = AssetType[type]
+                type = AssetType(type)
             except KeyError:
                 logger.logerr(f"Invalid asset type {type}")
                 return []

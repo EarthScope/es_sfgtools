@@ -1,13 +1,16 @@
 {
   "projectDir": "/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain",
   "operations": [
-    
     {
       "network": "cascadia-gorda",
       "station": "NCC1",
       "campaign": "2024_A_1126",
       "jobs": [
-        { "type": "preprocessing" },
+        { "type": "preprocessing",
+        "config": {
+              "rinex_config": { "override": true, "time_interval": 24,"processing_year":2024 }
+            }
+          },
         {
           "type": "garpos",
           "config": {
@@ -21,6 +24,7 @@
   ],
 
   "garposConfig": {
+
     "run_id": 0,
     "override": false,
     "inversion_params": {

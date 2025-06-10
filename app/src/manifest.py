@@ -3,6 +3,7 @@ from typing import List, Optional
 import yaml
 from enum import Enum
 import json
+import os
 from pydantic import BaseModel, Field, field_serializer, field_validator
 from es_sfgtools.processing.pipeline.pipelines import SV3PipelineConfig
 from es_sfgtools.modeling.garpos_tools.schemas import (
@@ -50,6 +51,9 @@ class ArchiveDownloadJob(BaseModel):
     campaign: str = Field(..., title="Campaign Name")
 
 class GARPOSConfig(BaseModel):
+    garpos_path: Optional[Path] = Field(
+        default=None, title="GARPOS Path", description="Path to GARPOS repository"
+    )
     run_id: Optional[str] = Field(
         None, title="Run ID", description="Optional run ID for GARPOS processing",coerce_numbers_to_str=True
     )
@@ -63,6 +67,17 @@ class GARPOSConfig(BaseModel):
         arbitrary_types_allowed = True
         coerce= True
 
+    @field_serializer("garpos_path")
+    def _garpos_path_s(cls, v: Path):
+        return str(v)
+    
+    @field_validator("garpos_path", mode="before")
+    def _garpos_path_v(cls, v: str):
+        garpos_path = Path(v.strip())
+        if not garpos_path.exists():
+            raise ValueError(f"GARPOS path {garpos_path} does not exist")
+        return garpos_path
+    
 class GARPOSProcessJob(BaseModel):
     network: str = Field(..., title="Network Name")
     station: str = Field(..., title="Station Name")
@@ -80,6 +95,7 @@ class GARPOSProcessJob(BaseModel):
 
 class PipelineManifest(BaseModel):
     main_dir: Path = Field(..., title="Main Directory")
+
     ingestion_jobs: List[PipelineIngestJob] = Field(
         default=[], title="List of Pipeline Ingestion Jobs"
     )
@@ -101,6 +117,11 @@ class PipelineManifest(BaseModel):
     def _load(cls,data:dict) -> 'PipelineManifest':
         global_config = SV3PipelineConfig(**data["globalConfig"])
         garpos_config = GARPOSConfig(**data.get("garposConfig", {}))
+        
+        # Set GARPOS_PATH if provided
+        if hasattr(garpos_config, "garpos_path"):
+            os.environ["GARPOS_PATH"] = str(garpos_config.garpos_path)
+
         # Initialize lists for jobs
         process_jobs = []
         ingestion_jobs = []
