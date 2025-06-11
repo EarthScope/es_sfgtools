@@ -5,39 +5,16 @@ Email: franklyn.dunbar@earthscope.org
 """
 
 import pandas as pd
-from pydantic import BaseModel, Field, ValidationError
-import pandera as pa
-from pandera.typing import Series, DataFrame
-from typing import List, Dict, Union, Optional
-from enum import Enum
-from datetime import datetime, timezone, timedelta
-import julian
-import os
-import re
-import julian
-import logging
-import json
+from pydantic import BaseModel, Field
+from typing import List, Union, Optional
+from datetime import datetime, timedelta
 import pymap3d as pm
 import numpy as np
-import warnings
-
 from .constants import GNSS_START_TIME,TRIGGER_DELAY_SV2,TRIGGER_DELAY_SV3,ADJ_LEAP,STATION_OFFSETS,MASTER_STATION_ID
-
 from es_sfgtools.utils.loggers import ProcessLogger as logger
 
 class DateOverlapWarning(UserWarning):
     message = "Ping-Reply sequence has overlapping dates"
-
-
-# def get_traveltime(
-#     range: np.ndarray, tat: np.ndarray
-# ) -> np.ndarray:
-#     assert (range > 0).all(), "Range must be greater than 0"
-#     assert (tat < 1).all(), "Turn around time must be less than 1"
-#     assert (tat >= 0).all(), "Turn around time must be greater than or equal to 0"
-
-#     tt = range - tat - triggerDelay
-#     return tt
 
 def get_traveltime(
         triggerTime: float,
@@ -102,13 +79,10 @@ def datetime_to_sod(dt: Union[datetime,np.ndarray]) -> float:
 def get_triggertime(dt: datetime, triggerDelay: float = TRIGGER_DELAY_SV3) -> datetime:
     return dt - timedelta(seconds=triggerDelay)
 
-
 def check_sequence_overlap(df: pd.DataFrame) -> pd.DataFrame:
     filter_0 = df.pingTime > df.returnTime
     filter_1 = df.pingTime < 0
-
     filter_main = filter_0 | filter_1
-
     found_bad = df[filter_main]
     if not found_bad.empty:
         logger.loginfo(f"Found {found_bad.shape[0]} invalid ping-reply sequences")
@@ -319,8 +293,7 @@ class SV3InterrogationData(BaseModel):
     north_std: Optional[float] = None
     up_std: Optional[float] = None
     triggerTime: datetime
-    pingTime: Optional[datetime] = None
-
+  
     @classmethod
     def from_schemas(
         cls, positionData: PositionData, triggerTime: datetime
@@ -394,13 +367,6 @@ class SV3ReplyData(BaseModel):
             tat=rangeData.tat
         )
 
-        # returnTime_sod = datetime_to_sod(
-        #     rangeData.time
-        # )
-        # pingTime_sod = returnTime_sod - travelTime
-
-        #returnTime = rangeData.time.timestamp()
-        # pingTime = returnTime - travelTime
         return cls(
             head1=positionData.head,
             pitch1=positionData.pitch,
