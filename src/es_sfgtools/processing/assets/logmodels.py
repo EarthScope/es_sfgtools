@@ -29,17 +29,60 @@ class DateOverlapWarning(UserWarning):
     message = "Ping-Reply sequence has overlapping dates"
 
 
+# def get_traveltime(
+#     range: np.ndarray, tat: np.ndarray
+# ) -> np.ndarray:
+#     assert (range > 0).all(), "Range must be greater than 0"
+#     assert (tat < 1).all(), "Turn around time must be less than 1"
+#     assert (tat >= 0).all(), "Turn around time must be greater than or equal to 0"
+
+#     tt = range - tat - triggerDelay
+#     return tt
+
 def get_traveltime(
-    range: np.ndarray, tat: np.ndarray, triggerDelay: float = TRIGGER_DELAY_SV3
-) -> np.ndarray:
-    assert (range > 0).all(), "Range must be greater than 0"
-    assert (tat < 1).all(), "Turn around time must be less than 1"
-    assert (tat >= 0).all(), "Turn around time must be greater than or equal to 0"
+        triggerTime: float,
+        returnTime: float,
+        turnAroundTime: float = 0.0,
+):
+    """Calculates the travel time of a ping-reply sequence
+    
+    Args:
+        triggerTime (float): time of the ping in seconds since epoch
+        returnTime (float): time of the reply in seconds since epoch
+        turnAroundTime (float, optional): turn around time in seconds. Defaults to 0.0.
+    Raises:
+        ValueError: if travel time is negative
+    Returns:
+        float: travel time in seconds
+    """
+    travelTime = returnTime - triggerTime - turnAroundTime
+    if travelTime < 0:
+        logger.logerr(f"Negative travel time detected: {travelTime} seconds")
+        raise ValueError("Travel time cannot be negative")
+    return travelTime
 
-    tt = range - tat - triggerDelay
-    return tt
+def get_traveltime_range(
+        range:float,
+        tat: float = 0.0,
+) -> float:
+    """Calculates the travel time of a ping-reply sequence from range and turn around time
 
+    Args:
+        range (float): range in seconds
+        tat (float, optional): turn around time in seconds. Defaults to 0.0.
 
+    Raises:
+        ValueError: if travel time is negative
+
+    Returns:
+        float: travel time in seconds
+    """
+    travelTime = range - tat
+    if travelTime < 0:
+        logger.logerr(f"Negative travel time detected: {travelTime} seconds")
+        raise ValueError("Travel time cannot be negative")
+    return travelTime
+    
 def datetime_to_sod(dt: Union[datetime,np.ndarray]) -> float:
     """Converts a datetime object to seconds of day
 
@@ -90,8 +133,8 @@ class RangeData(BaseModel):
     dbv: float
     snr: float
     xc: float
-    range: float
-    tat: float = Field(ge=0, lt=1)  # turn around time in seconds
+    range: float = Field(description="Two way travel time in seconds including beacons TAT", ge=0)
+    tat: float = Field(ge=0, lt=1,description="Beacons turn around time")  # turn around time in seconds
     time: datetime
 
     @classmethod
@@ -264,7 +307,7 @@ class PositionData(BaseModel):
             sdy=sdy,
             sdz=sdz,
         )
-      
+
 class SV3InterrogationData(BaseModel):
     head0: float
     pitch0: float
@@ -276,6 +319,7 @@ class SV3InterrogationData(BaseModel):
     north_std: Optional[float] = None
     up_std: Optional[float] = None
     triggerTime: datetime
+    pingTime: Optional[datetime] = None
 
     @classmethod
     def from_schemas(
@@ -291,7 +335,7 @@ class SV3InterrogationData(BaseModel):
             east_std=positionData.sdx,
             north_std=positionData.sdy,
             up_std=positionData.sdz,
-            triggerTime=triggerTime,
+            triggerTime=triggerTime
         )
 
     @classmethod
@@ -317,6 +361,7 @@ class SV3InterrogationData(BaseModel):
         position_data = PositionData.from_sv3_novins(
             line.get("observations").get("NOV_INS")
         )
+        pingTime_dt = datetime.fromtimestamp(line.get("time").get("common"))
         triggerTime_dt = get_triggertime(position_data.time)
         return cls.from_schemas(position_data, triggerTime_dt)
 
@@ -334,7 +379,6 @@ class SV3ReplyData(BaseModel):
     tt: float
     tat: float
     returnTime: float
-    pingTime: float
 
     @classmethod
     def from_schemas(
@@ -345,19 +389,18 @@ class SV3ReplyData(BaseModel):
 
         if rangeData.range == 0:
             return None
-        travelTime = get_traveltime(
-            np.array([rangeData.range]),
-            np.array([rangeData.tat]),
-            triggerDelay=TRIGGER_DELAY_SV3,
-        )[0]
+        travelTime = get_traveltime_range(
+            range= rangeData.range,
+            tat=rangeData.tat
+        )
 
         # returnTime_sod = datetime_to_sod(
         #     rangeData.time
         # )
         # pingTime_sod = returnTime_sod - travelTime
 
-        returnTime = rangeData.time.timestamp()
-        pingTime = returnTime - travelTime
+        #returnTime = rangeData.time.timestamp()
+        # pingTime = returnTime - travelTime
         return cls(
             head1=positionData.head,
             pitch1=positionData.pitch,
@@ -371,8 +414,7 @@ class SV3ReplyData(BaseModel):
             xc=rangeData.xc,
             tt=travelTime,
             tat=rangeData.tat,
-            pingTime=pingTime,
-            returnTime=returnTime,
+            returnTime=rangeData.time.timestamp(),
         )
 
     @classmethod
@@ -406,7 +448,7 @@ class SV3ReplyData(BaseModel):
         rangeData = RangeData.from_sv3(
             line.get("range"), line.get("time").get("common")
         )
- 
+
         return cls.from_schemas(
             positionData, rangeData
         )
