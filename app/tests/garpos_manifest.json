@@ -6,12 +6,14 @@
       "station": "NCC1",
       "campaign": "2024_A_1126",
       "jobs": [
-        { "type": "preprocessing",
-        "config": {
-              "rinex_config": { "override": false, "time_interval": 24,"processing_year":2024 },
-              "pride_config": {"override":false}
-            }
+        {
+          "type": "garpos",
+          "config": {
+            "run_id": 2,
+            "override": true,
+            "inversion_params": { "rejectcriteria": 2.5, "log_lambda": [0], "maxloop":400}
           }
+        }
       ]
     }
   ],
@@ -48,41 +50,6 @@
         "cov_ue": 0,
         "cov_en": 0
       }
-    }
-  },
-
-  "globalConfig": {
-    "dfop00_config": {
-      "override": true
-    },
-    "novatel_config": {
-      "n_processes": 14,
-      "override": false
-    },
-    "position_update_config": {
-      "override": true,
-      "lengthscale": 2,
-      "plot": false
-    },
-    "pride_config": {
-      "cutoff_elevation": 7,
-      "end": null,
-      "frequency": ["G12", "R12", "E15", "C26", "J12"],
-      "high_ion": null,
-      "interval": null,
-      "local_pdp3_path": null,
-      "loose_edit": true,
-      "sample_frequency": 1,
-      "start": null,
-      "system": "GREC23J",
-      "tides": "SOP",
-      "override_products_download": false,
-      "override": false
-    },
-    "rinex_config": {
-      "n_processes": 14,
-      "time_interval": 24,
-      "override": false
     }
   }
 }

@@ -494,7 +494,7 @@ def rectify_shotdata(coord_transformer: CoordTransformer, shot_data: pd.DataFram
     shot_data["SET"] = "S01"
     shot_data["LN"] = "L01"
     rename_dict = {
-        "triggerTime": "ST",
+        "pingTime": "ST",
         "hae0": "height",
         # "triggerTime": "ST",
         "returnTime": "RT",

@@ -16,7 +16,7 @@ from pathlib import Path
 from ..assets.constants import STATION_OFFSETS, TRIGGER_DELAY_SV2
 from ..assets.file_schemas import SonardyneFile,NovatelFile,AssetType,AssetEntry
 from ..assets.observables import AcousticDataFrame, PositionDataFrame,ShotDataFrame
-from ..assets.logmodels import PositionData,RangeData,BestGNSSPOSDATA,get_traveltime,datetime_to_sod
+from ..assets.logmodels import PositionData,RangeData,BestGNSSPOSDATA,datetime_to_sod
 
 from es_sfgtools.utils.loggers import ProcessLogger as logger
 

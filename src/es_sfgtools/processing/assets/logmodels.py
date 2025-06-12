@@ -16,28 +16,6 @@ from es_sfgtools.utils.loggers import ProcessLogger as logger
 class DateOverlapWarning(UserWarning):
     message = "Ping-Reply sequence has overlapping dates"
 
-def get_traveltime(
-        triggerTime: float,
-        returnTime: float,
-        turnAroundTime: float = 0.0,
-):
-    """Calculates the travel time of a ping-reply sequence
-    
-    Args:
-        triggerTime (float): time of the ping in seconds since epoch
-        returnTime (float): time of the reply in seconds since epoch
-        turnAroundTime (float, optional): turn around time in seconds. Defaults to 0.0.
-    Raises:
-        ValueError: if travel time is negative
-    Returns:
-        float: travel time in seconds
-    """
-    travelTime = returnTime - triggerTime - turnAroundTime
-    if travelTime < 0:
-        logger.logerr(f"Negative travel time detected: {travelTime} seconds")
-        raise ValueError("Travel time cannot be negative")
-    return travelTime
-
 def get_traveltime_range(
         range:float,
         tat: float = 0.0,
@@ -76,8 +54,8 @@ def datetime_to_sod(dt: Union[datetime,np.ndarray]) -> float:
     return dt
 
 
-def get_triggertime(dt: datetime, triggerDelay: float = TRIGGER_DELAY_SV3) -> datetime:
-    return dt - timedelta(seconds=triggerDelay)
+def getPingtime(dt: datetime, triggerDelay: float = TRIGGER_DELAY_SV3) -> datetime:
+    return dt + timedelta(seconds=triggerDelay)
 
 # def check_sequence_overlap(df: pd.DataFrame) -> pd.DataFrame:
 #     filter_0 = df.pingTime > df.returnTime
@@ -292,11 +270,11 @@ class SV3InterrogationData(BaseModel):
     east_std: Optional[float] = None
     north_std: Optional[float] = None
     up_std: Optional[float] = None
-    triggerTime: datetime
+    pingTime: datetime
   
     @classmethod
     def from_schemas(
-        cls, positionData: PositionData, triggerTime: datetime
+        cls, positionData: PositionData, pingTime: datetime
     ) -> "SV3InterrogationData":
         return cls(
             head0=positionData.head,
@@ -308,7 +286,7 @@ class SV3InterrogationData(BaseModel):
             east_std=positionData.sdx,
             north_std=positionData.sdy,
             up_std=positionData.sdz,
-            triggerTime=triggerTime
+            pingTime=pingTime,
         )
 
     @classmethod
@@ -325,17 +303,17 @@ class SV3InterrogationData(BaseModel):
                 novins=nov_ins,
                 gnss=gnss,
             )
-        pingTime_dt = datetime.fromtimestamp(line.get("time").get("common"))
-        triggerTime_dt = get_triggertime(pingTime_dt)
-        return cls.from_schemas(position_data, triggerTime_dt)
+        triggerTime_dt = datetime.fromtimestamp(line.get("time").get("common"))
+        pingTime_dt = getPingtime(triggerTime_dt)
+        return cls.from_schemas(position_data, pingTime_dt)
 
     @classmethod
     def from_qcpin_line(cls, line) -> "SV3InterrogationData":
         position_data = PositionData.from_sv3_novins(
             line.get("observations").get("NOV_INS")
         )
-        pingTime_dt = datetime.fromtimestamp(line.get("time").get("common"))
-        triggerTime_dt = get_triggertime(position_data.time)
+        triggerTime_dt = datetime.fromtimestamp(line.get("time").get("common"))
+        pingTime_dt = getPingtime(position_data.time)
         return cls.from_schemas(position_data, triggerTime_dt)
 
 class SV3ReplyData(BaseModel):
@@ -351,7 +329,7 @@ class SV3ReplyData(BaseModel):
     xc: float
     tt: float
     tat: float
-    returnTime: float
+    returnTime: Optional[float] = None
 
     @classmethod
     def from_schemas(
@@ -379,8 +357,7 @@ class SV3ReplyData(BaseModel):
             snr=rangeData.snr,
             xc=rangeData.xc,
             tt=travelTime,
-            tat=rangeData.tat,
-            returnTime=rangeData.time.timestamp(),
+            tat=rangeData.tat
         )
 
     @classmethod

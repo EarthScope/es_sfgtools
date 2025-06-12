@@ -152,7 +152,7 @@ def get_merge_signature_shotdata(shotdata: TDBShotDataArray, gnss: TDBGNSSArray)
     
     merge_signature = []
     shotdata_dates: np.ndarray = shotdata.get_unique_dates(
-        "triggerTime"
+        "pingTime"
     )  # get the unique dates from the shotdata
     gnss_dates: np.ndarray = gnss.get_unique_dates(
         "time"
@@ -201,12 +201,12 @@ def merge_shotdata_gnss(
         if shotdata_df.empty or gnss_df.empty:
             continue
         
-        shotdata_df_distilled = shotdata_df.drop_duplicates("triggerTime")
+        shotdata_df_distilled = shotdata_df.drop_duplicates("pingTime")
         delta_tenur = shotdata_df_distilled[['east1','north1','up1']].to_numpy() - shotdata_df_distilled[['east0','north0','up0']].to_numpy()
         tenu_l = gnss_df[['time','east','north','up']].to_numpy()
         tenu_l[:,0] = [x.timestamp() for x in tenu_l[:,0].tolist()]
         enu_l_sig = 0.05*np.ones_like(tenu_l[:,1:])
-        tenu_r = shotdata_df_distilled[['triggerTime','east0','north0','up0']].to_numpy()
+        tenu_r = shotdata_df_distilled[['pingTime','east0','north0','up0']].to_numpy()
         tenu_r[:,0] = [x.timestamp() for x in tenu_r[:,0].tolist()]
         enu_r_sig = shotdata_df_distilled[["east_std","north_std","up_std"]].to_numpy()
         enu_r_sig[np.isnan(enu_r_sig)] = 1.0 # set the standard deviation to 1.0 meters if it is nan
@@ -215,9 +215,9 @@ def merge_shotdata_gnss(
         #pred_mu,pred_std = interpolate_enu(tenu_l,enu_l_sig,tenu_r.copy(),enu_r_sig)
         pred_mu = interpolate_enu_kernalridge(tenu_l, tenu_r.copy(), lengthscale=lengthscale)
         # create filter that matches the undistiled triggerTime with the first column of pred_mu
-        triggerTimePred = pred_mu[:,0]
-        triggerTimeDF = shotdata_df["triggerTime"].apply(lambda x: x.timestamp()).to_numpy()
-        shot_df_inds = np.searchsorted(triggerTimePred,triggerTimeDF,side="right") - 1
+        pingTimePred = pred_mu[:,0]
+        pingTimeDF = shotdata_df["pingTime"].apply(lambda x: x.timestamp()).to_numpy()
+        shot_df_inds = np.searchsorted(pingTimePred,pingTimeDF,side="right") - 1
         
         for i,key in enumerate(["east0","north0","up0"]):
             shotdata_df.iloc[shot_df_inds][key] = pred_mu[shot_df_inds,i+1]

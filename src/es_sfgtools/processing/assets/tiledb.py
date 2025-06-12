@@ -26,7 +26,7 @@ attribute_dict: Dict[str,tiledb.Attr] = {
     "latitude": tiledb.Attr(name="latitude", dtype=np.float32),
     "longitude": tiledb.Attr(name="longitude", dtype=np.float32),
     "height": tiledb.Attr(name="height", dtype=np.float32),
-    "triggerTime":tiledb.Attr(name="triggerTime", dtype=np.float64),
+    "pingTime":tiledb.Attr(name="pingTime", dtype=np.float64),
     "returnTime":tiledb.Attr(name="returnTime",dtype=np.float64),
     "tt":tiledb.Attr(name="tt",dtype=np.float32),
     "dbv":tiledb.Attr(name="dbv",dtype=np.uint8),
@@ -107,7 +107,7 @@ ShotDataAttributes = [
 ShotDataArraySchema = tiledb.ArraySchema(
     sparse=True,
     domain=tiledb.Domain(
-        tiledb.Dim(name="triggerTime", dtype="datetime64[ms]"), TransponderDomain
+        tiledb.Dim(name="pingTime", dtype="datetime64[ms]"), TransponderDomain
     ),
     attrs=ShotDataAttributes,
     cell_order="col-major",
@@ -117,7 +117,7 @@ ShotDataArraySchema = tiledb.ArraySchema(
 )
 
 AcousticDataAttributes = [
-    attribute_dict["triggerTime"],
+    attribute_dict["pingTime"],
     attribute_dict["returnTime"],
     attribute_dict["tt"],
     attribute_dict["dbv"],
@@ -365,7 +365,7 @@ class TDBShotDataArray(TBDArray):
     def __init__(self,uri:Path|str):
         super().__init__(uri)
 
-    def get_unique_dates(self,field="triggerTime")->np.ndarray:
+    def get_unique_dates(self,field="pingTime")->np.ndarray:
         return super().get_unique_dates(field)
 
     def read_df(self, start: datetime, end: datetime = None, **kwargs) -> pd.DataFrame:
@@ -406,7 +406,7 @@ class TDBShotDataArray(TBDArray):
             df_val = self.dataframe_schema.validate(df, lazy=True)
         else:
             df_val = df
-        df_val.triggerTime = df_val.triggerTime.astype("datetime64[ns]")
+        df_val.pingTime = df_val.pingTime.astype("datetime64[ns]")
         tiledb.from_pandas(str(self.uri), df_val, mode="append")
 
 class TDBGNSSObsArray(TBDArray):

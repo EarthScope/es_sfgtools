@@ -14,7 +14,7 @@ from ..assets.observables import ShotDataFrame
 from ..assets.file_schemas import AssetEntry,AssetType
 
 from ..assets.constants import TRIGGER_DELAY_SV3
-from ..assets.logmodels import SV3InterrogationData,SV3ReplyData,get_traveltime,get_triggertime
+from ..assets.logmodels import SV3InterrogationData,SV3ReplyData,getPingtime
 
 from es_sfgtools.utils.loggers import ProcessLogger as logger
 
@@ -43,12 +43,15 @@ def dev_dfop00_to_shotdata(source: Union[AssetEntry,str,Path]) -> DataFrame[Shot
                 interrogation = SV3InterrogationData.from_DFOP00_line(data)
 
             if data.get("event") == "range" and interrogation is not None:
-                range_data = SV3ReplyData.from_DFOP00_line(data)
-                if range_data is not None:
-                    processed.append((dict(interrogation) | dict(range_data)))
+                reply_data = SV3ReplyData.from_DFOP00_line(data)
+                if reply_data is not None:
+                    reply_data.returnTime = (
+                        interrogation.pingTime.timestamp() + reply_data.tt + reply_data.tat
+                    )
+                    processed.append((dict(interrogation) | dict(reply_data)))
                 else:
                     logger.logdebug(
-                        f"Range data not found for interrogation at {interrogation.triggerTime} in {source.local_path}"
+                        f"Range data not found for interrogation at {interrogation.pingTime} in {source.local_path}"
                     )
     if not processed:
         return None
@@ -82,4 +85,3 @@ def dev_qcpin_to_shotdata(source: Union[AssetEntry,str,Path]) -> DataFrame[ShotD
     if df.empty:
         return None
     return df
-

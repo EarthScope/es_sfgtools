@@ -115,7 +115,7 @@ class PipelineManifest(BaseModel):
 
     @classmethod
     def _load(cls,data:dict) -> 'PipelineManifest':
-        global_config = SV3PipelineConfig(**data["globalConfig"])
+        global_config = SV3PipelineConfig(**data.get("globalConfig",{})) 
         garpos_config = GARPOSConfig(**data.get("garposConfig", {}))
         
         # Set GARPOS_PATH if provided
