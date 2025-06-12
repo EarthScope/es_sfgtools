@@ -162,7 +162,8 @@ class PipelineManifest(BaseModel):
                             if "config" in job
                             else global_config
                         )
-                        job_config = global_config.model_copy(update=dict(job_config))
+                        job_config = global_config.update(job["config"]) if "config" in job else global_config
+
                         process_jobs.append(
                             PipelinePreprocessJob(
                                 network=network,

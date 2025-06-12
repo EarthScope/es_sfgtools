@@ -8,7 +8,8 @@
       "jobs": [
         { "type": "preprocessing",
         "config": {
-              "rinex_config": { "override": true, "time_interval": 24,"processing_year":2024 }
+              "rinex_config": { "override": false, "time_interval": 24,"processing_year":2024 },
+              "pride_config": {"override":false}
             }
           },
         {
