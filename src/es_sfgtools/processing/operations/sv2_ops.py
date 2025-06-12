@@ -16,7 +16,7 @@ from pathlib import Path
 from ..assets.constants import STATION_OFFSETS, TRIGGER_DELAY_SV2
 from ..assets.file_schemas import SonardyneFile,NovatelFile,AssetType,AssetEntry
 from ..assets.observables import AcousticDataFrame, PositionDataFrame,ShotDataFrame
-from ..assets.logmodels import PositionData,RangeData,BestGNSSPOSDATA,get_traveltime,check_sequence_overlap,datetime_to_sod
+from ..assets.logmodels import PositionData,RangeData,BestGNSSPOSDATA,get_traveltime,datetime_to_sod
 
 from es_sfgtools.utils.loggers import ProcessLogger as logger
 
@@ -158,7 +158,7 @@ def sonardyne_to_acousticdf(source: SonardyneFile) -> DataFrame[AcousticDataFram
 
     logger.loginfo(f"Acoustic Parser: {acoustic_df.shape[0]} shots from FILE {source.local_path} | {len(unique_transponders)} transponders | {shot_count} shots per transponder")
     
-    acoustic_df = check_sequence_overlap(acoustic_df)
+   
     return AcousticDataFrame.validate(acoustic_df, lazy=True)
 
 def novatel_to_positiondf(source:NovatelFile) -> DataFrame[PositionDataFrame]:

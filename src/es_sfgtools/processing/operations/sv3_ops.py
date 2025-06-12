@@ -14,16 +14,16 @@ from ..assets.observables import ShotDataFrame
 from ..assets.file_schemas import AssetEntry,AssetType
 
 from ..assets.constants import TRIGGER_DELAY_SV3
-from ..assets.logmodels import SV3InterrogationData,SV3ReplyData,get_traveltime,get_triggertime,check_sequence_overlap
+from ..assets.logmodels import SV3InterrogationData,SV3ReplyData,get_traveltime,get_triggertime
 
 from es_sfgtools.utils.loggers import ProcessLogger as logger
 
-@pa.check_types
-def check_df(df: pd.DataFrame) -> pd.DataFrame:
-    if df.empty:
-        return df
-    df = check_sequence_overlap(df)
-    return df
+# @pa.check_types
+# def check_df(df: pd.DataFrame) -> pd.DataFrame:
+#     if df.empty:
+#         return df
+#     df = check_sequence_overlap(df)
+#     return df
 
 
 def dev_dfop00_to_shotdata(source: Union[AssetEntry,str,Path]) -> DataFrame[ShotDataFrame] | None:
@@ -53,7 +53,7 @@ def dev_dfop00_to_shotdata(source: Union[AssetEntry,str,Path]) -> DataFrame[Shot
     if not processed:
         return None
     df = pd.DataFrame(processed)
-    return check_df(df)
+    return df
 
 
 def dev_qcpin_to_shotdata(source: Union[AssetEntry,str,Path]) -> DataFrame[ShotDataFrame]:
@@ -81,5 +81,5 @@ def dev_qcpin_to_shotdata(source: Union[AssetEntry,str,Path]) -> DataFrame[ShotD
     df = pd.DataFrame(processed)
     if df.empty:
         return None
-    return check_df(df)
+    return df
 

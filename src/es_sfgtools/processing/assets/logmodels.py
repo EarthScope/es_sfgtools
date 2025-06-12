@@ -79,14 +79,14 @@ def datetime_to_sod(dt: Union[datetime,np.ndarray]) -> float:
 def get_triggertime(dt: datetime, triggerDelay: float = TRIGGER_DELAY_SV3) -> datetime:
     return dt - timedelta(seconds=triggerDelay)
 
-def check_sequence_overlap(df: pd.DataFrame) -> pd.DataFrame:
-    filter_0 = df.pingTime > df.returnTime
-    filter_1 = df.pingTime < 0
-    filter_main = filter_0 | filter_1
-    found_bad = df[filter_main]
-    if not found_bad.empty:
-        logger.loginfo(f"Found {found_bad.shape[0]} invalid ping-reply sequences")
-    return df[~filter_main]
+# def check_sequence_overlap(df: pd.DataFrame) -> pd.DataFrame:
+#     filter_0 = df.pingTime > df.returnTime
+#     filter_1 = df.pingTime < 0
+#     filter_main = filter_0 | filter_1
+#     found_bad = df[filter_main]
+#     if not found_bad.empty:
+#         logger.loginfo(f"Found {found_bad.shape[0]} invalid ping-reply sequences")
+#     return df[~filter_main]
 
 class BestGNSSPOSDATA(BaseModel):
     # https://docs.novatel.com/OEM7/Content/SPAN_Logs/BESTGNSSPOS.htm?tocpath=Commands%20%2526%20Logs%7CLogs%7CSPAN%20Logs%7C_____1
