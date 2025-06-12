@@ -42,11 +42,11 @@ class AcousticDataFrame(pa.DataFrameModel):
         description="Time when the ping was triggered [datetime]",
     )
 
-    pingTime: Series[float] = pa.Field(
-        ge=GNSS_START_TIME.timestamp(),
-        coerce=True,
-        description="Time when ping was received in seconds of day [seconds]",
-    )
+    # pingTime: Series[float] = pa.Field(
+    #     ge=GNSS_START_TIME.timestamp(),
+    #     coerce=True,
+    #     description="Time when ping was received in seconds of day [seconds]",
+    # )
 
     returnTime: Series[float] = pa.Field(
         ge=GNSS_START_TIME.timestamp(),

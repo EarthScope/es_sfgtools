@@ -26,7 +26,7 @@ attribute_dict: Dict[str,tiledb.Attr] = {
     "latitude": tiledb.Attr(name="latitude", dtype=np.float32),
     "longitude": tiledb.Attr(name="longitude", dtype=np.float32),
     "height": tiledb.Attr(name="height", dtype=np.float32),
-    "pingTime":tiledb.Attr(name="pingTime", dtype=np.float64),
+    "triggerTime":tiledb.Attr(name="triggerTime", dtype=np.float64),
     "returnTime":tiledb.Attr(name="returnTime",dtype=np.float64),
     "tt":tiledb.Attr(name="tt",dtype=np.float32),
     "dbv":tiledb.Attr(name="dbv",dtype=np.uint8),
@@ -96,7 +96,6 @@ ShotDataAttributes = [
     attribute_dict["east_std"],
     attribute_dict["north_std"],
     attribute_dict["up_std"],
-    attribute_dict["pingTime"],
     attribute_dict["returnTime"],
     attribute_dict["tt"],
     attribute_dict["dbv"],
@@ -118,7 +117,7 @@ ShotDataArraySchema = tiledb.ArraySchema(
 )
 
 AcousticDataAttributes = [
-    attribute_dict["pingTime"],
+    attribute_dict["triggerTime"],
     attribute_dict["returnTime"],
     attribute_dict["tt"],
     attribute_dict["dbv"],

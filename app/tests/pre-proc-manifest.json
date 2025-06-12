@@ -15,9 +15,9 @@
         {
           "type": "garpos",
           "config": {
-            "run_id": 1,
+            "run_id": 2,
             "override": true,
-            "inversion_params": { "rejectcriteria": 2.5, "log_lambda": [0] }
+            "inversion_params": { "rejectcriteria": 2.5, "log_lambda": [0], "maxloop":500}
           }
         }
       ]
@@ -61,14 +61,14 @@
 
   "globalConfig": {
     "dfop00_config": {
-      "override": true
+      "override": false
     },
     "novatel_config": {
       "n_processes": 14,
       "override": false
     },
     "position_update_config": {
-      "override": true,
+      "override": false,
       "lengthscale": 2,
       "plot": false
     },
