@@ -46,7 +46,7 @@ def dev_dfop00_to_shotdata(source: Union[AssetEntry,str,Path]) -> DataFrame[Shot
                 reply_data = SV3ReplyData.from_DFOP00_line(data)
                 if reply_data is not None:
                     reply_data.returnTime = (
-                        interrogation.pingTime.timestamp() + reply_data.tt + reply_data.tat
+                        interrogation.pingTime.timestamp() + float(reply_data.tt) + float(reply_data.tat)
                     )
                     processed.append((dict(interrogation) | dict(reply_data)))
                 else:

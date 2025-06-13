@@ -12,25 +12,28 @@ import pymap3d as pm
 import numpy as np
 from .constants import GNSS_START_TIME,TRIGGER_DELAY_SV2,TRIGGER_DELAY_SV3,ADJ_LEAP,STATION_OFFSETS,MASTER_STATION_ID
 from es_sfgtools.utils.loggers import ProcessLogger as logger
+from decimal import Decimal, getcontext
+# Set precision for Decimal operations
+getcontext().prec = 10
 
 class DateOverlapWarning(UserWarning):
     message = "Ping-Reply sequence has overlapping dates"
 
 def get_traveltime_range(
-        range:float,
-        tat: float = 0.0,
-) -> float:
+        range:Decimal,
+        tat: Decimal = 0.0,
+) -> Decimal:
     """Calculates the travel time of a ping-reply sequence from range and turn around time
 
     Args:
-        range (float): range in seconds
-        tat (float, optional): turn around time in seconds. Defaults to 0.0.
+        range (Decimal): range in seconds
+        tat (Decimal, optional): turn around time in seconds. Defaults to 0.0.
 
     Raises:
         ValueError: if travel time is negative
 
     Returns:
-        float: travel time in seconds
+        Decimal: travel time in seconds
     """
     travelTime = range - tat
     if travelTime < 0:
@@ -38,14 +41,14 @@ def get_traveltime_range(
         raise ValueError("Travel time cannot be negative")
     return travelTime
     
-def datetime_to_sod(dt: Union[datetime,np.ndarray]) -> float:
+def datetime_to_sod(dt: Union[datetime,np.ndarray]) -> Decimal:
     """Converts a datetime object to seconds of day
 
     Args:
         dt (datetime): datetime object
 
     Returns:
-        float: datetime in seconds of day
+        Decimal: datetime in seconds of day
     """
     if isinstance(dt,datetime):
         dt = np.array([dt])
@@ -54,7 +57,7 @@ def datetime_to_sod(dt: Union[datetime,np.ndarray]) -> float:
     return dt
 
 
-def getPingtime(dt: datetime, triggerDelay: float = TRIGGER_DELAY_SV3) -> datetime:
+def getPingtime(dt: datetime, triggerDelay: Decimal = TRIGGER_DELAY_SV3) -> datetime:
     return dt + timedelta(seconds=triggerDelay)
 
 # def check_sequence_overlap(df: pd.DataFrame) -> pd.DataFrame:
@@ -68,29 +71,29 @@ def getPingtime(dt: datetime, triggerDelay: float = TRIGGER_DELAY_SV3) -> dateti
 
 class BestGNSSPOSDATA(BaseModel):
     # https://docs.novatel.com/OEM7/Content/SPAN_Logs/BESTGNSSPOS.htm?tocpath=Commands%20%2526%20Logs%7CLogs%7CSPAN%20Logs%7C_____1
-    sdx: float = None
-    sdy: float = None
-    sdz: float = None
+    sdx: Decimal = None
+    sdy: Decimal = None
+    sdz: Decimal = None
 
     @classmethod
     def from_sv2(cls,line:str) -> "BestGNSSPOSDATA":
         data = line.split(";")[1].split(",")
-        sdx = float(data[7])
-        sdy = float(data[8])
-        sdz = float(data[9])
+        sdx = Decimal(data[7])
+        sdy = Decimal(data[8])
+        sdz = Decimal(data[9])
         return cls(sdx=sdx,sdy=sdy,sdz=sdz)
 
 class RangeData(BaseModel):
     transponderID: str
-    dbv: float
-    snr: float
-    xc: float
-    range: float = Field(description="Two way travel time in seconds including beacons TAT", ge=0)
-    tat: float = Field(ge=0, lt=1,description="Beacons turn around time")  # turn around time in seconds
+    dbv: Decimal
+    snr: Decimal
+    xc: Decimal
+    range: Decimal = Field(description="Two way travel time in seconds including beacons TAT", ge=0)
+    tat: Decimal = Field(ge=0, lt=1,description="Beacons turn around time")  # turn around time in seconds
     time: datetime
 
     @classmethod
-    def from_sv3(cls, data: dict, time: float) -> "RangeData":
+    def from_sv3(cls, data: dict, time: Decimal) -> "RangeData":
         return cls(
             transponderID=data.get("cn").replace("IR", ""),
             dbv=data.get("diag").get("dbv")[0],
@@ -145,18 +148,18 @@ class RangeData(BaseModel):
 
 class PositionData(BaseModel):
     time: datetime
-    latitude: float
-    longitude: float
-    height: float
-    east: Optional[float] = None
-    north: Optional[float] = None
-    up: Optional[float] = None
-    roll: Optional[float] = None
-    pitch: Optional[float] = None
-    head: Optional[float] = None
-    sdx: Optional[float] = None
-    sdy: Optional[float] = None
-    sdz: Optional[float] = None
+    latitude: Decimal
+    longitude: Decimal
+    height: Decimal
+    east: Optional[Decimal] = None
+    north: Optional[Decimal] = None
+    up: Optional[Decimal] = None
+    roll: Optional[Decimal] = None
+    pitch: Optional[Decimal] = None
+    head: Optional[Decimal] = None
+    sdx: Optional[Decimal] = None
+    sdy: Optional[Decimal] = None
+    sdz: Optional[Decimal] = None
 
     def update(self,data:dict):
         # logger.logdebug(f"Updating Position Data")
@@ -179,13 +182,13 @@ class PositionData(BaseModel):
         # split line
         line = line.split(";")[1].split(",")
         gnss_week = int(line[0])
-        week_seconds = float(line[1])
-        latitude = float(line[2])
-        longitude = float(line[3])
-        height = float(line[4])
-        roll = float(line[8])
-        pitch = float(line[9])
-        head = float(line[10])
+        week_seconds = Decimal(line[1])
+        latitude = Decimal(line[2])
+        longitude = Decimal(line[3])
+        height = Decimal(line[4])
+        roll = Decimal(line[8])
+        pitch = Decimal(line[9])
+        head = Decimal(line[10])
         time = GNSS_START_TIME + timedelta(weeks=gnss_week, seconds=week_seconds)
         east, north, up = pm.geodetic2ecef(latitude, longitude, height)
         return cls(
@@ -261,15 +264,15 @@ class PositionData(BaseModel):
         )
 
 class SV3InterrogationData(BaseModel):
-    head0: float
-    pitch0: float
-    roll0: float
-    east0: float
-    north0: float
-    up0: float
-    east_std: Optional[float] = None
-    north_std: Optional[float] = None
-    up_std: Optional[float] = None
+    head0: Decimal
+    pitch0: Decimal
+    roll0: Decimal
+    east0: Decimal
+    north0: Decimal
+    up0: Decimal
+    east_std: Optional[Decimal] = None
+    north_std: Optional[Decimal] = None
+    up_std: Optional[Decimal] = None
     pingTime: datetime
   
     @classmethod
@@ -317,19 +320,19 @@ class SV3InterrogationData(BaseModel):
         return cls.from_schemas(position_data, triggerTime_dt)
 
 class SV3ReplyData(BaseModel):
-    head1: float
-    pitch1: float
-    roll1: float
-    east1: float
-    north1: float
-    up1: float
+    head1: Decimal
+    pitch1: Decimal
+    roll1: Decimal
+    east1: Decimal
+    north1: Decimal
+    up1: Decimal
     transponderID: str
-    dbv: float
-    snr: float
-    xc: float
-    tt: float
-    tat: float
-    returnTime: Optional[float] = None
+    dbv: Decimal
+    snr: Decimal
+    xc: Decimal
+    tt: Decimal
+    tat: Decimal
+    returnTime: Optional[Decimal] = None
 
     @classmethod
     def from_schemas(

@@ -13,7 +13,7 @@ if __name__ == "__main__":
     os.environ["PATH"] += os.pathsep + str(pride_path)
 
     manifest_path = Path(
-        "/Users/franklyndunbar/Project/SeaFloorGeodesy/es_sfgtools/app/tests/garpos_manifest.json"
+        "/Users/franklyndunbar/Project/SeaFloorGeodesy/es_sfgtools/app/tests/pre-proc-manifest.json"
     )
    
     run_manifest(

@@ -17,22 +17,22 @@ filters = tiledb.FilterList([tiledb.ZstdFilter(7)])
 TimeDomain = tiledb.Dim(name="time", dtype="datetime64[ms]")
 TransponderDomain = tiledb.Dim(name="transponderID",dtype="ascii")
 attribute_dict: Dict[str,tiledb.Attr] = {
-    "east": tiledb.Attr(name="east", dtype=np.float32),
-    "north": tiledb.Attr(name="north", dtype=np.float32),
-    "up": tiledb.Attr(name="up", dtype=np.float32),
-    "east_std": tiledb.Attr(name="east_std", dtype=np.float32,nullable=True),
-    "north_std": tiledb.Attr(name="north_std", dtype=np.float32,nullable=True),
-    "up_std": tiledb.Attr(name="up_std", dtype=np.float32,nullable=True),
-    "latitude": tiledb.Attr(name="latitude", dtype=np.float32),
-    "longitude": tiledb.Attr(name="longitude", dtype=np.float32),
-    "height": tiledb.Attr(name="height", dtype=np.float32),
+    "east": tiledb.Attr(name="east", dtype=np.float64),
+    "north": tiledb.Attr(name="north", dtype=np.float64),
+    "up": tiledb.Attr(name="up", dtype=np.float64),
+    "east_std": tiledb.Attr(name="east_std", dtype=np.float64,nullable=True),
+    "north_std": tiledb.Attr(name="north_std", dtype=np.float64,nullable=True),
+    "up_std": tiledb.Attr(name="up_std", dtype=np.float64,nullable=True),
+    "latitude": tiledb.Attr(name="latitude", dtype=np.float64),
+    "longitude": tiledb.Attr(name="longitude", dtype=np.float64),
+    "height": tiledb.Attr(name="height", dtype=np.float64),
     "pingTime":tiledb.Attr(name="pingTime", dtype=np.float64),
     "returnTime":tiledb.Attr(name="returnTime",dtype=np.float64),
-    "tt":tiledb.Attr(name="tt",dtype=np.float32),
+    "tt":tiledb.Attr(name="tt",dtype=np.float64),
     "dbv":tiledb.Attr(name="dbv",dtype=np.uint8),
     "xc":tiledb.Attr(name="xc",dtype=np.uint8),
-    "snr":tiledb.Attr(name="snr",dtype=np.float32),
-    "tat":tiledb.Attr(name="tat",dtype=np.float32),
+    "snr":tiledb.Attr(name="snr",dtype=np.float64),
+    "tat":tiledb.Attr(name="tat",dtype=np.float64),
 }
 
 GNSSAttributes = [
@@ -46,7 +46,7 @@ GNSSAttributes = [
     # attribute_dict["north_std"],
     # attribute_dict["up_std"],
     tiledb.Attr(name="number_of_satellites", dtype="uint8"),
-    tiledb.Attr(name="pdop", dtype=np.float32),
+    tiledb.Attr(name="pdop", dtype=np.float64),
 ]
 GNSSArraySchema = tiledb.ArraySchema(
     sparse=True,
@@ -59,9 +59,9 @@ GNSSArraySchema = tiledb.ArraySchema(
 )
 
 PositionAttributes = [
-    tiledb.Attr(name="head", dtype=np.float32),
-    tiledb.Attr(name="pitch", dtype=np.float32),
-    tiledb.Attr(name="roll", dtype=np.float32),
+    tiledb.Attr(name="head", dtype=np.float64),
+    tiledb.Attr(name="pitch", dtype=np.float64),
+    tiledb.Attr(name="roll", dtype=np.float64),
     attribute_dict["east"],
     attribute_dict["north"],
     attribute_dict["up"],
@@ -81,18 +81,18 @@ PositionArraySchema = tiledb.ArraySchema(
 )
 
 ShotDataAttributes = [
-    tiledb.Attr(name="head0", dtype=np.float32),
-    tiledb.Attr(name="pitch0", dtype=np.float32),
-    tiledb.Attr(name="roll0", dtype=np.float32),
-    tiledb.Attr(name="head1", dtype=np.float32),
-    tiledb.Attr(name="pitch1", dtype=np.float32),
-    tiledb.Attr(name="roll1", dtype=np.float32),
-    tiledb.Attr(name="east0", dtype=np.float32),
-    tiledb.Attr(name="north0", dtype=np.float32),
-    tiledb.Attr(name="up0", dtype=np.float32),
-    tiledb.Attr(name="east1", dtype=np.float32),
-    tiledb.Attr(name="north1", dtype=np.float32),
-    tiledb.Attr(name="up1", dtype=np.float32),
+    tiledb.Attr(name="head0", dtype=np.float64),
+    tiledb.Attr(name="pitch0", dtype=np.float64),
+    tiledb.Attr(name="roll0", dtype=np.float64),
+    tiledb.Attr(name="head1", dtype=np.float64),
+    tiledb.Attr(name="pitch1", dtype=np.float64),
+    tiledb.Attr(name="roll1", dtype=np.float64),
+    tiledb.Attr(name="east0", dtype=np.float64),
+    tiledb.Attr(name="north0", dtype=np.float64),
+    tiledb.Attr(name="up0", dtype=np.float64),
+    tiledb.Attr(name="east1", dtype=np.float64),
+    tiledb.Attr(name="north1", dtype=np.float64),
+    tiledb.Attr(name="up1", dtype=np.float64),
     attribute_dict["east_std"],
     attribute_dict["north_std"],
     attribute_dict["up_std"],
@@ -201,7 +201,7 @@ for roll_period, tile_value in roll_periods.items():
     a0 = tiledb.Attr(name="range", dtype=np.float64, filters=filters4)
     a1 = tiledb.Attr(name="phase", dtype=np.float64, filters=filters4)
     a2 = tiledb.Attr(name="doppler", dtype=np.float64, filters=filters4)
-    a3 = tiledb.Attr(name="snr", dtype=np.float32, filters=filters5)
+    a3 = tiledb.Attr(name="snr", dtype=np.float64, filters=filters5)
     a4 = tiledb.Attr(name="slip", dtype=np.uint16, filters=filters3)
     a5 = tiledb.Attr(name="flags", dtype=np.uint16, filters=filters3)
     a6 = tiledb.Attr(name="fcn", dtype=np.int8, filters=filters1)
