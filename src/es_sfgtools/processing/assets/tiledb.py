@@ -404,6 +404,7 @@ class TDBShotDataArray(TBDArray):
             df_val = self.dataframe_schema.validate(df, lazy=True)
         else:
             df_val = df
+   
         df_val.pingTime = df_val.pingTime.astype("datetime64[ns]")
         df_val.returnTime = df_val.returnTime.astype("datetime64[ns]")
         tiledb.from_pandas(str(self.uri), df_val, mode="append")
