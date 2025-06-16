@@ -26,8 +26,7 @@ attribute_dict: Dict[str,tiledb.Attr] = {
     "latitude": tiledb.Attr(name="latitude", dtype=np.float64),
     "longitude": tiledb.Attr(name="longitude", dtype=np.float64),
     "height": tiledb.Attr(name="height", dtype=np.float64),
-    "pingTime":tiledb.Attr(name="pingTime", dtype=np.float64),
-    "returnTime":tiledb.Attr(name="returnTime",dtype=np.float64),
+    "returnTime":tiledb.Attr(name="returnTime",dtype="datetime64[ms]"),
     "tt":tiledb.Attr(name="tt",dtype=np.float64),
     "dbv":tiledb.Attr(name="dbv",dtype=np.uint8),
     "xc":tiledb.Attr(name="xc",dtype=np.uint8),
@@ -117,7 +116,6 @@ ShotDataArraySchema = tiledb.ArraySchema(
 )
 
 AcousticDataAttributes = [
-    attribute_dict["pingTime"],
     attribute_dict["returnTime"],
     attribute_dict["tt"],
     attribute_dict["dbv"],
@@ -407,6 +405,7 @@ class TDBShotDataArray(TBDArray):
         else:
             df_val = df
         df_val.pingTime = df_val.pingTime.astype("datetime64[ns]")
+        df_val.returnTime = df_val.returnTime.astype("datetime64[ns]")
         tiledb.from_pandas(str(self.uri), df_val, mode="append")
 
 class TDBGNSSObsArray(TBDArray):

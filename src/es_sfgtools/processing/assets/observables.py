@@ -9,6 +9,7 @@ import pandera as pa
 from pandera.typing import Series
 import pandera.extensions as paext
 from typing import List, Dict,Optional
+from datetime import datetime, timedelta
 from .constants import (
     GNSS_START_TIME,
     GNSS_START_TIME_JULIAN,
@@ -36,20 +37,20 @@ class AcousticDataFrame(pa.DataFrameModel):
         description="Unique identifier for the transponder", coerce=True
     )
 
-    triggerTime: Series[pd.Timestamp] = pa.Field(
-        ge=GNSS_START_TIME.replace(tzinfo=None),
-        coerce=True,
-        description="Time when the ping was triggered [datetime]",
-    )
-
-    # pingTime: Series[float] = pa.Field(
-    #     ge=GNSS_START_TIME.timestamp(),
+    # triggerTime: Series[pd.Timestamp] = pa.Field(
+    #     ge=GNSS_START_TIME.replace(tzinfo=None),
     #     coerce=True,
-    #     description="Time when ping was received in seconds of day [seconds]",
+    #     description="Time when the ping was triggered [datetime]",
     # )
 
-    returnTime: Series[float] = pa.Field(
-        ge=GNSS_START_TIME.timestamp(),
+    pingTime: Series[datetime] = pa.Field(
+        ge=GNSS_START_TIME,
+        coerce=True,
+        description="Time when ping was received in seconds of day [seconds]",
+    )
+
+    returnTime: Series[datetime] = pa.Field(
+        ge=GNSS_START_TIME,
  
         coerce=True,
         description="Return time in seconds since the start of day (modified Julian day) [days]",
@@ -97,9 +98,9 @@ class AcousticDataFrame(pa.DataFrameModel):
         #     "RT": "returnTime",
         # }
 
-    @pa.parser("triggerTime")
-    def parse_trigger_time(cls, series: pd.Series) -> pd.Series:
-        return pd.to_datetime(series, unit="ms")
+    # @pa.parser("triggerTime")
+    # def parse_trigger_time(cls, series: pd.Series) -> pd.Series:
+    #     return pd.to_datetime(series, unit="ms")
 
 class GNSSDataFrame(pa.DataFrameModel):
     """
