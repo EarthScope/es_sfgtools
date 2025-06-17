@@ -309,7 +309,7 @@ class PreProcessCatalog:
                 conn.execute(sa.insert(Assets).values(entry.model_dump()))
             return True
         except sa.exc.IntegrityError as e:
-
+            logger.logdebug(f"Integrity error adding entry {entry} to catalog: {e}")
             return False
 
     def delete_entry(self, entry:AssetEntry) -> bool:
@@ -322,7 +322,7 @@ class PreProcessCatalog:
                 ))
                 return True
             except Exception as e:
-                logger.error(f"Error deleting entry {entry} | {e}")
+                logger.logerr(f"Error deleting entry {entry} | {e}")
         return False
 
     def add_merge_job(self,parent_type:str,child_type:str,parent_ids:List[int],**kwargs):

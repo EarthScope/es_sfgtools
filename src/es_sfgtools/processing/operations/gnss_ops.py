@@ -670,7 +670,7 @@ def rinex_to_kin(
                                                         local_file_path=source.local_path,
                                                         start=source.timestamp_data_start,
                                                         end=source.timestamp_data_end)
-
+    logger.loginfo(f"Running pdp3 with command: {' '.join(pdp_command)}")
     # Run pdp3 in the pride directory
     result = subprocess.run(
         " ".join(pdp_command),
