@@ -11,7 +11,6 @@ operations:
           rinex_config:
             override: true
             time_interval: 24
-            processing_year: 2023
             
           pride_config:
             sample_frequency: 1
@@ -24,7 +23,6 @@ operations:
           rinex_config:
             override: true
             time_interval: 24
-            processing_year: 2024
           
       - type: "garpos"
         config:
