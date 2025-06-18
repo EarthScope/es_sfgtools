@@ -1,5 +1,7 @@
 github.com/TileDB-Inc/TileDB-Go v0.35.0 h1:+M6TkTPvNekGqwvKSqqeB9e9NEfNm3yrkIHZZfpqzUg=
 github.com/TileDB-Inc/TileDB-Go v0.35.0/go.mod h1:E3fel5haYwec/ksIcpsdRYhK/XmhWld8TcuFK1GCE7E=
+github.com/TileDB-Inc/TileDB-Go v0.36.0 h1:GrRWdqeXh9JKN4CAYZj06WMtRBaxMxpPX9WSbw91qp0=
+github.com/TileDB-Inc/TileDB-Go v0.36.0/go.mod h1:E3fel5haYwec/ksIcpsdRYhK/XmhWld8TcuFK1GCE7E=
 github.com/bamiaux/iobit v0.0.0-20170418073505-498159a04883 h1:XNtOMwxmV2PI/vuTHDZnFzGIFNUh8MK73q7+Kna7AXs=
 github.com/bamiaux/iobit v0.0.0-20170418073505-498159a04883/go.mod h1:9IjZnSQGh45J46HHS45pxuMJ6WFTtSXbaX0FoHDvxh8=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
@@ -53,12 +55,15 @@ gitlab.com/earthscope/gnsstools v0.18.14 h1:SCBihzJB4TDqZj2jRj5KjmjSGPtSgJhHc2X7
 gitlab.com/earthscope/gnsstools v0.18.14/go.mod h1:JfT14HlOgWSEmmkNQiXoZGSFxlIz2zefi4CFaZw3Pcc=
 gitlab.com/earthscope/gnsstools v0.18.17 h1:zBypIsiWNTGlWFeA2/bul2Y8v4AY5110K4MFMQ1Lp4A=
 gitlab.com/earthscope/gnsstools v0.18.17/go.mod h1:JfT14HlOgWSEmmkNQiXoZGSFxlIz2zefi4CFaZw3Pcc=
+gitlab.com/earthscope/gnsstools v0.20.0 h1:DJNCt1e5po9C5pi04bSzes6kT7P7dlfWaPr4K9m9aCw=
+gitlab.com/earthscope/gnsstools v0.20.0/go.mod h1:q4cdfza5M1ifXk0jyQnLBGRbJMsjrGGw+52x3L8iLMM=
 go4.org/unsafe/assume-no-moving-gc v0.0.0-20231121144256-b99613f794b6 h1:lGdhQUN/cnWdSH3291CUuxSEqc+AsGTiDxPP3r2J0l4=
 go4.org/unsafe/assume-no-moving-gc v0.0.0-20231121144256-b99613f794b6/go.mod h1:FftLjUGFEDu5k8lt0ddY+HcrH/qU/0qk+H8j9/nTl3E=
 golang.org/x/crypto v0.36.0 h1:AnAEvhDddvBdpY+uR+MyHmuZzzNqXSe/GvuDeob5L34=
 golang.org/x/crypto v0.36.0/go.mod h1:Y4J0ReaxCR1IMaabaSMugxJES1EpwhBHhv2bDHklZvc=
 golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa h1:FRnLl4eNAQl8hwxVVC17teOw8kdjVDVAiFMtgUdTSRQ=
 golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa/go.mod h1:zk2irFbV9DP96SEBUUAy67IdHUaZuSnrz1n472HUCLE=
+golang.org/x/exp v0.0.0-20250128182459-e0ece0dbea4c h1:KL/ZBHXgKGVmuZBZ01Lt57yE5ws8ZPSkkihmEyq7FXc=
 golang.org/x/net v0.37.0 h1:1zLorHbz+LYj7MQlSf1+2tPIIgibq2eL5xkrGk6f+2c=
 golang.org/x/net v0.37.0/go.mod h1:ivrbrMbzFq5J41QOQh0siUuly180yBYtLp+CKbEaFx8=
 golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=

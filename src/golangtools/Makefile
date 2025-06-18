@@ -47,7 +47,7 @@ debug:
 	@echo "Conda Prefix: $(CONDA_PREFIX)"
 	@echo "Conda Base: $(CONDA_BASE)"
 	@echo "TileDB Library Path: $(CONDA_PREFIX)/lib"
-	@echo "DYLD_LIBRARY_PATH: $(DYLD_LIBRARY_PATH_CONDA)"
+	@echo "DYLD_LIBRARY_PATH: $(DYLD_LIBRARY_PATH)"
 	@echo "CPATH: $(CPATH)"
 	@for cmd in $(COMMANDS); do \
 		echo "Processing: $$cmd"; \
