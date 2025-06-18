@@ -32,7 +32,7 @@ dependencies:
   - go-cgo 
   - gcc
   - make
-  - tiledb=2.27
+  - tiledb=2.28
   - tiledb-py
   - libstdcxx-ng
   - clang
