@@ -9,9 +9,25 @@
         {
           "type": "garpos",
           "config": {
-            "run_id": 2,
+            "run_id": 3,
             "override": true,
-            "inversion_params": { "rejectcriteria": 2.5, "log_lambda": [0], "maxloop":400}
+            "inversion_params": {
+
+              "rejectcriteria": 2.5,
+              "log_lambda": [0],
+              "maxloop": 400,
+              "delta_center_position": {
+                "east": 0,
+                "north": 0,
+                "up": 0,
+                "east_sigma": 1.0,
+                "north_sigma": 1.0,
+                "up_sigma": 1.0,
+                "cov_nu": 0,
+                "cov_ue": 0,
+                "cov_en": 0
+              }
+            }
           }
         }
       ]
@@ -29,8 +45,8 @@
       "mu_t": [0.0],
       "mu_mt": [0.5],
       "knotint0": 5,
-      "knotint1": 0,
-      "knotint2": 0,
+      "knotint1": 5,
+      "knotint2": 5,
       "rejectcriteria": 2,
       "inversiontype": 0,
       "positionalOffset": [0.0, 0.0, 0.0],
@@ -45,7 +61,7 @@
         "up": 0,
         "east_sigma": 1.0,
         "north_sigma": 1.0,
-        "up_sigma": 0,
+        "up_sigma": 1.0,
         "cov_nu": 0,
         "cov_ue": 0,
         "cov_en": 0
