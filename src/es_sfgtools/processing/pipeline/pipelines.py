@@ -205,53 +205,50 @@ class SV3Pipeline:
 
     def get_rinex_files(self) -> None:
         self.rangea_data_dest.consolidate()
-        gnss_logger.loginfo(f"Generating Rinex Files for {self.network} {self.station} {self.campaign}. This may take a few minutes...")
 
-        unique_dates = self.rangea_data_dest.get_unique_dates().tolist()
-        unique_years = np.unique([x.year for x in unique_dates]).tolist()
         if self.config.rinex_config.processing_year != -1:
-            unique_years = [x for x in unique_years if x == self.config.rinex_config.processing_year ]
+            year = self.config.rinex_config.processing_year
         else:
-            logger.logwarn(f"NO YEAR SET: Processing all years in the rangea data: {unique_years}")
+            year = int(self.campaign.split('_')[0])  # default to the year from the campaign name
 
+        gnss_logger.loginfo(f"Generating Rinex Files for {self.network} {self.station} {year}. This may take a few minutes...")
+        parent_ids = f"N-{self.network}|ST-{self.station}|SV-{self.campaign}|TDB-{self.rangea_data_dest.uri}|YEAR-{year}"
+        merge_signature = {
+            "parent_type": AssetType.RANGEATDB.value,
+            "child_type": AssetType.RINEX.value,
+            "parent_ids": [parent_ids],
+        }
 
-        for year in unique_years:
-            parent_ids = f"N-{self.network}|ST-{self.station}|SV-{self.campaign}|TDB-{self.rangea_data_dest.uri}|YEAR-{year}"
-            merge_signature = {
-                "parent_type": AssetType.RANGEATDB.value,
-                "child_type": AssetType.RINEX.value,
-                "parent_ids": [parent_ids],
-            }
+        if self.config.rinex_config.override or not self.asset_catalog.is_merge_complete(**merge_signature):
+            rinex_entries: List[AssetEntry] = gnss_ops.tile2rinex(
+                rangea_tdb=self.rangea_data_dest.uri,
+                settings=self.config.rinex_config.settings_path,
+                writedir=self.inter_dir,
+                time_interval=self.config.rinex_config.time_interval,
+                processing_year=year # TODO pass down
 
-            if self.config.rinex_config.override or not self.asset_catalog.is_merge_complete(**merge_signature):
-                rinex_entries: List[AssetEntry] = gnss_ops.tile2rinex(
-                    rangea_tdb=self.rangea_data_dest.uri,
-                    settings=self.config.rinex_config.settings_path,
-                    writedir=self.inter_dir,
-                    time_interval=self.config.rinex_config.time_interval,
-                    processing_year=year # TODO pass down
+            )
+            if len(rinex_entries) == 0:
+                gnss_logger.loginfo(f"No Rinex Files generated for {self.network} {self.station} {self.campaign} {year}.")
+                return
 
-                )
-                if len(rinex_entries) == 0:
-                    gnss_logger.loginfo(f"No Rinex Files Found to Process for {self.network} {self.station} {self.campaign}")
-                    return
+            self.asset_catalog.add_merge_job(**merge_signature)
+            #Sort the rinex entries by date so span log is correct
+            rinex_entries.sort(key=lambda entry: entry.timestamp_data_start)
 
-                self.asset_catalog.add_merge_job(**merge_signature)
-                # TODO: Sort the rinex entries by date so span log is correct
-                # currently gave "Generated 29 Rinex Entries spanning 2024-10-03 15:06:07 to 2024-09-30 15:53:07"
-                gnss_logger.loginfo(f"Generated {len(rinex_entries)} Rinex Entries spanning {rinex_entries[0].timestamp_data_start} to {rinex_entries[-1].timestamp_data_end}")
-                uploadCount = 0
-                for rinex_entry in rinex_entries:
-                    rinex_entry.network = self.network
-                    rinex_entry.station = self.station
-                    rinex_entry.campaign = self.campaign
-                    if self.asset_catalog.add_entry(rinex_entry):
-                        uploadCount += 1
-                gnss_logger.loginfo(f"Added {uploadCount} out of {len(rinex_entries)} Rinex Entries to the catalog")
-            else:
-                rinex_entries = self.asset_catalog.get_local_assets(self.network,self.station,self.campaign,AssetType.RINEX)
-                num_rinex_entries = len(rinex_entries)
-                gnss_logger.loginfo(f"RINEX files have already been processed for {self.network}, {self.station}, and {self.campaign} Found {num_rinex_entries} entries.")
+            gnss_logger.loginfo(f"Generated {len(rinex_entries)} Rinex files spanning {rinex_entries[0].timestamp_data_start} to {rinex_entries[-1].timestamp_data_end}")
+            uploadCount = 0
+            for rinex_entry in rinex_entries:
+                rinex_entry.network = self.network
+                rinex_entry.station = self.station
+                rinex_entry.campaign = self.campaign
+                if self.asset_catalog.add_entry(rinex_entry):
+                    uploadCount += 1
+            gnss_logger.loginfo(f"Added {uploadCount} out of {len(rinex_entries)} Rinex files to the catalog")
+        else:
+            rinex_entries = self.asset_catalog.get_local_assets(self.network,self.station,self.campaign,AssetType.RINEX)
+            num_rinex_entries = len(rinex_entries)
+            gnss_logger.loginfo(f"RINEX files have already been generated for {self.network}, {self.station}, and {year} Found {num_rinex_entries} entries.")
 
     def process_rinex(self) -> None:
         """

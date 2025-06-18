@@ -30,7 +30,8 @@ from es_sfgtools.modeling.garpos_tools.schemas import (
     GPTransponder,
     GPATDOffset,
     GPPositionENU,
-    GPPositionLLH
+    GPPositionLLH,
+    ObservationData
 )
 from es_sfgtools.modeling.garpos_tools.functions import CoordTransformer, process_garpos_results, rectify_shotdata
 from es_sfgtools.utils.loggers import GarposLogger as logger
@@ -516,7 +517,7 @@ class GarposHandler:
             # Create the garpos input file
             garpos_input = GarposInput(
                 site_name=self.site.names[0],
-                campaign_id=self.current_campaign.name ,
+                campaign_id=self.current_campaign.name,
                 survey_id=survey.id ,
                 site_center_llh=GPPositionLLH(
                     latitude=self.site.arrayCenter.latitude,
@@ -729,7 +730,7 @@ class GarposHandler:
         if campaign_name is not None:
             self.set_campaign(campaign_name)
         self.set_survey(survey_id)
-        obsfile_path = self.get_obsfile_path(self.current_campaign.name,self.current_survey.id)
+        obsfile_path = self.get_obsfile_path(self.current_campaign.name, self.current_survey.id)
 
         results_dir = obsfile_path.parent / RESULTS_DIR_NAME
         results_path = results_dir / f"_{run_id}_results.json"
@@ -739,7 +740,7 @@ class GarposHandler:
             arrayinfo = garpos_results.delta_center_position
 
         results_df_raw = pd.read_csv(garpos_results.shot_data)
-        results_df_raw = ShotDataFrame.validate(results_df_raw, lazy=True)
+        results_df_raw = ObservationData.validate(results_df_raw, lazy=True)
         results_df_raw["time"] = results_df_raw.ST.apply(
             lambda x: datetime.fromtimestamp(x)
         )
