@@ -9,16 +9,9 @@
         { "type": "preprocessing",
         "config": {
               "rinex_config": { "override": true, "time_interval": 24}
+
             }
-          },
-        {
-          "type": "garpos",
-          "config": {
-            "run_id": 1,
-            "override": true,
-            "inversion_params": { "rejectcriteria": 2.5, "log_lambda": [0] }
           }
-        }
       ]
     }
   ],

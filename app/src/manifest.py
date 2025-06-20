@@ -115,7 +115,7 @@ class PipelineManifest(BaseModel):
 
     @classmethod
     def _load(cls,data:dict) -> 'PipelineManifest':
-        global_config = SV3PipelineConfig(**data["globalConfig"])
+        global_config = SV3PipelineConfig(**data.get("globalConfig",{})) 
         garpos_config = GARPOSConfig(**data.get("garposConfig", {}))
         
         # Set GARPOS_PATH if provided
@@ -162,7 +162,8 @@ class PipelineManifest(BaseModel):
                             if "config" in job
                             else global_config
                         )
-                        job_config = global_config.model_copy(update=dict(job_config))
+                        job_config = global_config.update(job["config"]) if "config" in job else global_config
+
                         process_jobs.append(
                             PipelinePreprocessJob(
                                 network=network,

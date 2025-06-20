@@ -73,7 +73,14 @@ class SV3PipelineConfig(BaseModel):
         title = "SV3 Pipeline Configuration"
         arbitrary_types_allowed = True
 
-
+    def update(self,update_dict:dict) ->"SV3PipelineConfig":
+        # update the object with values from a dict and returns a new copy
+        copy = self.model_copy().model_dump()
+        for key,value in update_dict.items():
+            if key in copy:
+                copy[key] = value | copy[key]
+        return SV3PipelineConfig(**copy)
+    
     def to_yaml(self,filepath:Path):
         with open(filepath,"w") as f:
             yaml.dump(self.model_dump(),f)

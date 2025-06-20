@@ -494,9 +494,9 @@ def rectify_shotdata(coord_transformer: CoordTransformer, shot_data: pd.DataFram
     shot_data["SET"] = "S01"
     shot_data["LN"] = "L01"
     rename_dict = {
-        "trigger_time": "triggertime",
-        "hae0": "height",
         "pingTime": "ST",
+        "hae0": "height",
+        # "triggerTime": "ST",
         "returnTime": "RT",
         "tt": "TT",
         "transponderID": "MT",
@@ -504,7 +504,6 @@ def rectify_shotdata(coord_transformer: CoordTransformer, shot_data: pd.DataFram
     shot_data = shot_data.rename(columns=rename_dict).loc[
         :,
         [
-            "triggerTime",
             "MT",
             "ST",
             "RT",
@@ -523,4 +522,6 @@ def rectify_shotdata(coord_transformer: CoordTransformer, shot_data: pd.DataFram
             "roll1",
         ],
     ]
-    return ObservationData.validate(shot_data, lazy=True).sort_values("triggerTime")
+    shot_data.ST = shot_data.ST.apply(lambda x: x.timestamp())
+    shot_data.RT = shot_data.RT.apply(lambda x: x.timestamp())
+    return ObservationData.validate(shot_data, lazy=True).sort_values("ST")
