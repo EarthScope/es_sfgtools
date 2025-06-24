@@ -243,8 +243,9 @@ class PridePdpConfig(BaseModel):
             if char not in Tides._value2member_map_:
                 Tides.print_options()
                 raise ValueError(f"Invalid tide character: {char}")
+            
 
-    def generate_pdp_command(self, site: str, local_file_path: str,start:datetime,end:datetime) -> List[str]:
+    def generate_pdp_command(self, site: str, local_file_path: str, start:datetime, end:datetime) -> List[str]:
         """
         Generate the command to run pdp3 with the given parameters
         """
@@ -604,6 +605,9 @@ def novatel_to_rinex(
     )
     return rinex_files
 
+def remove_ansi_escape(text):
+    ansi_escape = re.compile(r'\x1B\[[0-?]*[ -/]*[@-~]')
+    return ansi_escape.sub('', text)
 
 # TODO: handle logging with multiprocessing https://signoz.io/guides/how-should-i-log-while-using-multiprocessing-in-python/
 def rinex_to_kin(
@@ -666,44 +670,45 @@ def rinex_to_kin(
     # If PridePdpConfig is not provided, use the default configuration
     if pride_config is None:
         pride_config = PridePdpConfig()
-    pdp_command = pride_config.generate_pdp_command(site=site, 
-                                                        local_file_path=source.local_path,
-                                                        start=source.timestamp_data_start,
-                                                        end=source.timestamp_data_end)
+
+    pdp_command = pride_config.generate_pdp_command(site=site,
+                                                    local_file_path=source.local_path,
+                                                    start=source.timestamp_data_start,
+                                                    end=source.timestamp_data_end)
+    
+    file_name = source.local_path.name
+    
     logger.loginfo(f"Running pdp3 with command: {' '.join(pdp_command)}")
     # Run pdp3 in the pride directory
-    result = subprocess.run(
+    process = subprocess.Popen(
         " ".join(pdp_command),
         shell=True,
-        capture_output=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
         cwd=str(pridedir),
+        text=True
     )
-    pattern_error = r":\d+,\d+, merror:0m"
-    pattern_warning = r":\d+,\d+, mwarning:0m"
-    if result.stderr:
-        logger.logdebug(result.stderr.decode("utf-8"))
-        stderr = result.stderr.decode("utf-8").split("\n")
-        for line in stderr:
-            if "warning" in line.lower():
-                logger.logwarn(line)
-            if "error" in line.lower():
-                logger.logerr(line)
 
-    stdout = result.stdout.decode("utf-8")
-    logger.logdebug(stdout)
-    stdout = re.sub(pattern_error, "ERROR ", stdout)
-    stdout = re.sub(pattern_warning, "WARNING ", stdout)
-    stdout = stdout.replace("\x1b[", "")
-    stdout = stdout.split("\n")
-    for line in stdout:
-        if "failed" in line.lower():
+    stdout, stderr = process.communicate()
+
+    # Log stdout lines
+    for line in stdout.splitlines():
+        line = remove_ansi_escape(line.strip())
+        # Add file name to the log line
+        line = f"{file_name}: {line}"
+        if "ERROR" in line or "error" in line or "line" in line:
             logger.logerr(line)
-        if "please" in line.lower():
-            logger.logerr(line)
-        if "warning" in line.lower():
+        elif "WARNING" in line or "warning" in line:
             logger.logwarn(line)
-        if "error" in line.lower():
-            logger.logerr(line)
+        else:
+            logger.logdebug(line)
+
+    # Log stderr lines
+    for line in stderr.splitlines():
+        line = remove_ansi_escape(line.strip())
+        # Add file name to the log line
+        line = f"{file_name}: {line}"
+        logger.logerr(line)
 
     year, doy = (
         source.timestamp_data_start.year,
@@ -752,9 +757,9 @@ def rinex_to_kin(
         response = f"No kin file generated from RINEX {source.local_path}"
         logger.logerr(response)
         warn(response)
-        return None,None
+        return None, None
 
-    return kin_file,res_file
+    return kin_file, res_file
 
 
 @pa.check_types(lazy=True)

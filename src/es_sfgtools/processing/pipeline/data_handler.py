@@ -316,6 +316,7 @@ class DataHandler:
         change_all_logger_dirs(self.station_log_dir)
 
         logger.loginfo(f"Changed working station to {network} {station}")
+        return self.station_log_dir
 
     @check_network_station_campaign
     def get_dtype_counts(self):
