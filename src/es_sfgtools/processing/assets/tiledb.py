@@ -401,12 +401,21 @@ class TDBShotDataArray(TBDArray):
         """
         logger.logdebug(f"Writing dataframe to {self.uri}")
         if validate:
-            df_val = self.dataframe_schema.validate(df, lazy=True)
+            df_val = self.dataframe_schema.validate(df)
         else:
             df_val = df
-   
-        df_val.pingTime = df_val.pingTime.astype("datetime64[ns]")
-        df_val.returnTime = df_val.returnTime.astype("datetime64[ns]")
+        if df_val.empty:
+            logger.logwarn(f"Dataframe is empty, not writing to {self.uri}")
+            return
+        if isinstance(df_val.pingTime.iloc[0], float):
+            # Convert pingTime and returnTime to datetime64[ns] if they are floats
+            df_val.pingTime = df_val.pingTime.apply(lambda x: np.datetime64(int(x*1e9), "ns"))
+            df_val.returnTime = df_val.returnTime.apply(lambda x: np.datetime64(int(x*1e9), "ns"))
+        else:
+            # Convert pingTime and returnTime to datetime64[ns] if they are datetime objects
+            df_val.pingTime = df_val.pingTime.apply(lambda x: np.datetime64(x, "ns"))
+            df_val.returnTime = df_val.returnTime.apply(lambda x: np.datetime64(x, "ns"))
+    
         tiledb.from_pandas(str(self.uri), df_val, mode="append")
 
 class TDBGNSSObsArray(TBDArray):

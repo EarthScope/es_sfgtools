@@ -43,14 +43,14 @@ class AcousticDataFrame(pa.DataFrameModel):
     #     description="Time when the ping was triggered [datetime]",
     # )
 
-    pingTime: Series[datetime] = pa.Field(
-        ge=GNSS_START_TIME,
+    pingTime: Series[float] = pa.Field(
+        ge=GNSS_START_TIME.timestamp(),
         coerce=True,
         description="Time when ping was received in seconds of day [seconds]",
     )
 
-    returnTime: Series[datetime] = pa.Field(
-        ge=GNSS_START_TIME,
+    returnTime: Series[float] = pa.Field(
+        ge=GNSS_START_TIME.timestamp(),
  
         coerce=True,
         description="Return time in seconds since the start of day (modified Julian day) [days]",
@@ -71,7 +71,7 @@ class AcousticDataFrame(pa.DataFrameModel):
         ge=0, le=100, coerce=True, description="Correlation score"
     )
     snr: Series[float] = pa.Field(
-        ge=0,
+        ge=-100,
         le=100.0,
         coerce=True,
         default=0,
@@ -289,7 +289,6 @@ class ShotDataFrame(AcousticDataFrame):
 
     class Config:
         add_missing_columns = True
-        drop_invalid_rows = True
         coerce = True
         
 
