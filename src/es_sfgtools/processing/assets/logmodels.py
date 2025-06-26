@@ -90,7 +90,7 @@ class RangeData(BaseModel):
     xc: Decimal
     range: Decimal = Field(description="Two way travel time in seconds including beacons TAT", ge=0)
     tat: Decimal = Field(ge=0, lt=1,description="Beacons turn around time")  # turn around time in seconds
-    time: datetime
+    time: Decimal = Field(ge=GNSS_START_TIME.timestamp(), description="Time of the range measurement in unix timestamp format")
 
     @classmethod
     def from_sv3(cls, data: dict, time: Decimal) -> "RangeData":
@@ -101,7 +101,7 @@ class RangeData(BaseModel):
             xc=data.get("diag").get("xc")[0],
             range=data.get("range"),
             tat=data.get("tat") / 1000,
-            time=datetime.fromtimestamp(time),
+            time=time,
         )
     @classmethod
     def from_sv2(cls,line:str,station_offsets:dict) -> List["RangeData"]:
@@ -273,7 +273,7 @@ class SV3InterrogationData(BaseModel):
     east_std: Optional[Decimal] = None
     north_std: Optional[Decimal] = None
     up_std: Optional[Decimal] = None
-    pingTime: datetime
+    pingTime: Decimal
   
     @classmethod
     def from_schemas(
@@ -306,18 +306,16 @@ class SV3InterrogationData(BaseModel):
                 novins=nov_ins,
                 gnss=gnss,
             )
-        triggerTime_dt = datetime.fromtimestamp(line.get("time").get("common"))
-        pingTime_dt = getPingtime(triggerTime_dt)
-        return cls.from_schemas(position_data, pingTime_dt)
+        pingTime = line.get("time").get("common")
+        return cls.from_schemas(position_data, pingTime)
 
     @classmethod
     def from_qcpin_line(cls, line) -> "SV3InterrogationData":
         position_data = PositionData.from_sv3_novins(
             line.get("observations").get("NOV_INS")
         )
-        triggerTime_dt = datetime.fromtimestamp(line.get("time").get("common"))
-        pingTime_dt = getPingtime(position_data.time)
-        return cls.from_schemas(position_data, triggerTime_dt)
+        pingTime = line.get("time").get("common")
+        return cls.from_schemas(position_data, pingTime)
 
 class SV3ReplyData(BaseModel):
     head1: Decimal
@@ -332,7 +330,7 @@ class SV3ReplyData(BaseModel):
     xc: Decimal
     tt: Decimal
     tat: Decimal
-    returnTime: Optional[Decimal] = None
+    returnTime: Decimal
 
     @classmethod
     def from_schemas(
@@ -343,10 +341,7 @@ class SV3ReplyData(BaseModel):
 
         if rangeData.range == 0:
             return None
-        travelTime = get_traveltime_range(
-            range= rangeData.range,
-            tat=rangeData.tat
-        )
+        travelTime = float(rangeData.range) - float(rangeData.tat) - TRIGGER_DELAY_SV3
 
         return cls(
             head1=positionData.head,
@@ -360,7 +355,8 @@ class SV3ReplyData(BaseModel):
             snr=rangeData.snr,
             xc=rangeData.xc,
             tt=travelTime,
-            tat=rangeData.tat
+            tat=rangeData.tat,
+            returnTime=rangeData.time
         )
 
     @classmethod

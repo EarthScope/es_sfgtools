@@ -31,9 +31,6 @@ def dev_dfop00_to_shotdata(source: Union[AssetEntry,str,Path]) -> DataFrame[Shot
             if data.get("event") == "range" and interrogation is not None:
                 reply_data = SV3ReplyData.from_DFOP00_line(data)
                 if reply_data is not None:
-                    reply_data.returnTime = (
-                        interrogation.pingTime + timedelta(seconds=(float(reply_data.tt) + float(reply_data.tat)))
-                    )
                     processed.append((dict(interrogation) | dict(reply_data)))
                 else:
                     logger.logdebug(
