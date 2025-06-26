@@ -315,9 +315,9 @@ class DataHandler:
 
         # Change the logger directory
         change_all_logger_dirs(self.station_log_dir)
+        os.environ["LOG_FILE_PATH"] = str(self.station_log_dir)
 
         logger.loginfo(f"Changed working station to {network} {station}")
-        os.environ["LOG_FILE_PATH"] = str(self.station_log_dir)
 
     @check_network_station_campaign
     def get_dtype_counts(self):
