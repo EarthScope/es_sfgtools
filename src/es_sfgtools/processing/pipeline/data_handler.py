@@ -1,4 +1,5 @@
 """ Contains the DataHandler class for handling data operations. """
+import os
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -314,6 +315,7 @@ class DataHandler:
 
         # Change the logger directory
         change_all_logger_dirs(self.station_log_dir)
+        os.environ["LOG_FILE_PATH"] = str(self.station_log_dir)
 
         logger.loginfo(f"Changed working station to {network} {station}")
 
