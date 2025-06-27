@@ -3,7 +3,7 @@ import numpy as np
 from numpy import datetime64
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF
-from sklearn.neighbors import KDTree
+from sklearn.neighbors import KDTree,RadiusNeighborsRegressor
 from sklearn.kernel_ridge import KernelRidge
 from sklearn.preprocessing import StandardScaler
 import itertools
@@ -11,6 +11,8 @@ import time
 import matplotlib.pyplot as plt
 import logging
 from typing import List,Tuple
+import pandas as pd
+
 # Local imports
 from es_sfgtools.processing.assets.tiledb import TDBPositionArray,TDBGNSSArray,TDBAcousticArray,TDBShotDataArray
 from es_sfgtools.utils.loggers import GNSSLogger as logger
@@ -187,6 +189,50 @@ def interpolate_enu_kernalridge(
     # tenu_r = tenu_r[np.argsort(tenu_r[:, 0])].astype(float)
     return shot_data
 
+
+def interpolate_enu_radius_regression(
+        gnss_df:pd.DataFrame,
+        shotdata_df:pd.DataFrame,
+        lengthscale:float=0.1,
+) -> pd.DataFrame:
+   
+    X_train = gnss_df[["time"]].to_numpy()
+    Y_train = gnss_df[["east", "north", "up"]].to_numpy()
+
+    XY_predict_ping = shotdata_df[["pingTime", "east0", "north0", "up0"]].to_numpy()
+    XY_predict_return = shotdata_df[["returnTime", "east1", "north1", "up1"]].to_numpy()
+    isUpdated = shotdata_df["isUpdated"].to_numpy()[:, np.newaxis]
+
+    X_train = np.vstack((X_train,XY_predict_ping[:, 0][:,np.newaxis],XY_predict_return[:, 0][:,np.newaxis]))
+    Y_train = np.vstack((Y_train, XY_predict_ping[:, 1:], XY_predict_return[:, 1:]))
+    GNSS_DATA_TREE = RadiusNeighborsRegressor(
+        radius=lengthscale, weights="uniform", algorithm="kd_tree"
+    )
+    GNSS_DATA_TREE.fit(X_train, Y_train)
+    train_score = GNSS_DATA_TREE.score(X_train, Y_train)
+    logger.loginfo(f"Training Score: {train_score}")
+    pred_ping = GNSS_DATA_TREE.predict(XY_predict_ping[:, 0][:, np.newaxis])
+    pred_return = GNSS_DATA_TREE.predict(XY_predict_return[:, 0][:, np.newaxis])
+
+    # Get offsets between predicted and original values
+    offset_ping = np.abs(pred_ping - XY_predict_ping[:, 1:])
+    offset_return = np.abs(pred_return - XY_predict_return[:, 1:])
+    logger.loginfo(f"Max offset for ping: {offset_ping.max()}, return: {offset_return.max()}")
+
+    # update isUpdated flag
+    isUpdated_1 = np.logical_or(
+        isUpdated, np.any((offset_ping > 1e-3), axis=1)[:, np.newaxis]
+    )
+    isUpdated_2 = np.logical_or(
+        isUpdated_1, np.any((offset_return > 1e-3), axis=1)[:, np.newaxis]
+    )
+    percentage_updated = (np.sum(isUpdated_2) / shotdata_df.shape[0])* 100
+    shotdata_df["isUpdated"] = isUpdated_2
+    shotdata_df[["east0", "north0", "up0"]] = pred_ping
+    shotdata_df[["east1", "north1", "up1"]] = pred_return
+    logger.loginfo(f"Interpolated {percentage_updated:.2f}% points using Radius Neighbors Regression with lengthscale {lengthscale:.2f} seconds")
+    return shotdata_df
+
 def get_merge_signature_shotdata(shotdata: TDBShotDataArray, gnss: TDBGNSSArray) -> Tuple[List[str], List[np.datetime64]]:
     """
     Get the merge signature for the shotdata and gnss data
@@ -224,7 +270,7 @@ def merge_shotdata_gnss(
         shotdata: TDBShotDataArray, 
         gnss: TDBGNSSArray,
         dates:List[datetime64],
-        lengthscale:float=0.5,
+        lengthscale:float=0.1,
         plot:bool=False) -> TDBShotDataArray:
 
     """
@@ -252,43 +298,13 @@ def merge_shotdata_gnss(
         shotdata_df.returnTime = shotdata_df.returnTime.apply(lambda x:x.timestamp())
         shotdata_df.pingTime = shotdata_df.pingTime.apply(lambda x:x.timestamp())
         gnss_df.time = gnss_df.time.apply(lambda x:x.timestamp())
-        # shotdata_df_distilled = shotdata_df.drop_duplicates("pingTime")
-        delta_tenur = shotdata_df[['east1','north1','up1']].to_numpy() - shotdata_df[['east0','north0','up0']].to_numpy()
-        gnss_data_interpolation = gnss_df[['time','east','north','up']].to_numpy()
- 
-        # enu_l_sig = 0.05*np.ones_like(tenu_l[:,1:])
-        shotdata_interpolation = shotdata_df[['pingTime','east0','north0','up0','isUpdated']].to_numpy()
- 
-        # enu_r_sig = shotdata_df[["east_std","north_std","up_std"]].to_numpy()
-        # enu_r_sig[np.isnan(enu_r_sig)] = 1.0 # set the standard deviation to 1.0 meters if it is nan
+       
+        # interpolate the enu values
+        shotdata_df_updated = interpolate_enu_radius_regression(
+            gnss_df=gnss_df,
+            shotdata_df=shotdata_df.copy(),
+            lengthscale=lengthscale
+        )
 
-        logger.loginfo(f"Interpolating {shotdata_interpolation.shape[0]} points")
-        # pred_mu,pred_std = interpolate_enu(tenu_l,enu_l_sig,tenu_r.copy(),enu_r_sig)
-        tenu_r_updated = interpolate_enu_kernalridge(gnss_data=gnss_data_interpolation, shot_data=shotdata_interpolation.copy(), lengthscale=lengthscale)
-        # create filter that matches the undistiled triggerTime with the first column of pred_mu
 
-        shotdata_df[["pingTime","east0","north0","up0","isUpdated"]] = tenu_r_updated
-        shotdata_df[["east1", "north1", "up1"]] = shotdata_df[["east0", "north0", "up0"]].to_numpy() + delta_tenur
-        # for i,key in enumerate(["east0","north0","up0"]):
-        #     shotdata_df.iloc[shot_df_inds][key] = pred_mu[shot_df_inds,i+1]
-        #     #shotdata_df.iloc[shot_df_inds][f"{key}_std"] = pred_std[shot_df_inds,i]
-        #     if plot and i == 0:
-        #         plt.scatter(
-        #             tenu_l[:, 0],
-        #             tenu_l[:, i + 1],
-        #             marker="o",
-        #             c="r",
-        #             linewidths=0.15,
-        #             label=f"{key} gnss",
-        #         )
-        #         plt.plot(pred_mu[:,0],pred_mu[:,i+1],label=f"{key} interpolated")
-        #         plt.scatter(tenu_r[:,0],tenu_r[:,i+1],marker="o",c="b",linewidths=0.15,label=f"{key} original")
-        #         #plt.fill_between(pred_mu[:,0],pred_mu[:,i+1]-pred_std[:,i],pred_mu[:,i+1]+pred_std[:,i],alpha=0.5)
-
-        # if plot:
-        #     plt.legend()
-        #     plt.show()
-
-        # shotdata_df.iloc[shot_df_inds][['east1','north1','up1']] = shotdata_df.iloc[shot_df_inds][['east0','north0','up0']].to_numpy() - delta_tenur[shot_df_inds]
-
-        shotdata.write_df(shotdata_df,validate=False)
+        shotdata.write_df(shotdata_df_updated,validate=False)

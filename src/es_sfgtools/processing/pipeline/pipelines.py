@@ -58,7 +58,7 @@ class DFOP00Config(BaseModel):
 
 class PositionUpdateConfig(BaseModel):
     override: bool = Field(False, title="Flag to Override Existing Data")
-    lengthscale: float = Field(0.5, title="Length Scale for Interpolation in seconds")
+    lengthscale: float = Field(default=0.1,ge=0.1,le=1,title="Length Scale for Interpolation in seconds")
     plot: bool = Field(False)
 
 
