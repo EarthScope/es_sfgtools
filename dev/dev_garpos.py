@@ -53,6 +53,7 @@ if __name__ == "__main__":
     # update_dict = {"rejectcriteria": 2.5,"log_lambda":[0]}
 
     # gp_handler_ncc1.set_inversion_params(update_dict)
+    os.environ["GARPOS_PATH"] = str(Path("/Users/franklyndunbar/Project/garpos").resolve())
 
     input_path = Path(
         "/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain/cascadia-gorda/NCC1/GARPOS/2024_A_1126/2024_A_1126_1/results/_3_observation.ini"

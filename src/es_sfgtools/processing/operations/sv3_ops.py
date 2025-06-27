@@ -39,6 +39,7 @@ def dev_dfop00_to_shotdata(source: Union[AssetEntry,str,Path]) -> DataFrame[Shot
     if not processed:
         return None
     df = pd.DataFrame(processed)
+    df["isUpdated"] = False
     return df
 
 
@@ -64,7 +65,8 @@ def dev_qcpin_to_shotdata(source: Union[AssetEntry,str,Path]) -> DataFrame[ShotD
                     range_data = SV3ReplyData.from_qcpin_line(value)
                     if range_data is not None:
                         processed.append((dict(interrogation) | dict(range_data)))
-    df = pd.DataFrame(processed)
-    if df.empty:
+    if not processed:
         return None
+    df = pd.DataFrame(processed)
+    df["isUpdated"] = False
     return df
