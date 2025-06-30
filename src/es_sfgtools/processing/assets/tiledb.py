@@ -32,6 +32,7 @@ attribute_dict: Dict[str,tiledb.Attr] = {
     "xc":tiledb.Attr(name="xc",dtype=np.uint8),
     "snr":tiledb.Attr(name="snr",dtype=np.float64),
     "tat":tiledb.Attr(name="tat",dtype=np.float64),
+    "isUpdated":tiledb.Attr(name="isUpdated",dtype=np.bool_)
 }
 
 GNSSAttributes = [
@@ -100,7 +101,8 @@ ShotDataAttributes = [
     attribute_dict["dbv"],
     attribute_dict["xc"],
     attribute_dict["snr"],
-    attribute_dict["tat"]
+    attribute_dict["tat"],
+    attribute_dict["isUpdated"]
 ]
 
 ShotDataArraySchema = tiledb.ArraySchema(

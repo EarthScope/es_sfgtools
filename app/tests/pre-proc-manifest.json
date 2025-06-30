@@ -61,7 +61,7 @@
     },
     "position_update_config": {
       "override": true,
-      "lengthscale": 2,
+      "lengthscale": 0.1,
       "plot": false
     },
     "pride_config": {
