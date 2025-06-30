@@ -16,7 +16,7 @@ import pandas as pd
 # Local imports
 from es_sfgtools.processing.assets.tiledb import TDBPositionArray,TDBGNSSArray,TDBAcousticArray,TDBShotDataArray
 from es_sfgtools.utils.loggers import GNSSLogger as logger
-from sklearn.preprocessing import StandardScaler,MaxAbsScaler
+from sklearn.preprocessing import MaxAbsScaler
 
 
 def interpolate_enu(
