@@ -12,10 +12,22 @@
             "run_id": 3,
             "override": true,
             "inversion_params": {
-
-              "rejectcriteria": 2.5,
-              "log_lambda": [0],
-              "maxloop": 400,
+              "spline_degree": 3,
+              "log_lambda": [-2],
+              "log_gradlambda": -1,
+              "mu_t": [0.0],
+              "mu_mt": [0.5],
+              "knotint0": 5,
+              "knotint1": 0,
+              "knotint2": 0,
+              "rejectcriteria": 2,
+              "inversiontype": 0,
+              "positionalOffset": [0.0, 0.0, 0.0],
+              "traveltimescale": 0.0001,
+              "maxloop": 100,
+              "convcriteria": 0.005,
+              "deltap": 1e-6,
+              "deltab": 1e-6,
               "delta_center_position": {
                 "east": 0,
                 "north": 0,
@@ -28,6 +40,7 @@
                 "cov_en": 0
               }
             }
+            
           }
         }
       ]

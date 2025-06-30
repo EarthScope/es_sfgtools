@@ -4,7 +4,7 @@ import os
 sys.path.append((test:=str(Path(__file__).parent.parent)))
 
 from pathlib import Path
-#os.environ["GARPOS_PATH"] = str(Path("/Users/franklyndunbar/Project/garpos").resolve())
+
 
 
 if __name__ == "__main__":
