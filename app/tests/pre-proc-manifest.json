@@ -8,9 +8,13 @@
       "jobs": [
         { "type": "preprocessing",
         "config": {
-              "rinex_config": { "override": true, "time_interval": 24}
-
-            }
+          "rinex_config": { "override": true, "time_interval": 24 },
+          "position_update_config": {
+            "override": true,
+            "lengthscale": 0.15,
+            "plot": false
+          }
+        }
           }
       ]
     }

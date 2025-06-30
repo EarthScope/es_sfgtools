@@ -157,13 +157,10 @@ class PipelineManifest(BaseModel):
                         )
                     case PipelineJobType.PREPROCESSING:
                         # Merge job-specific config with global config
-                        job_config = (
-                            SV3PipelineConfig(**job["config"])
-                            if "config" in job
-                            else global_config
+                   
+                        job_config = global_config.model_copy(
+                            update=job.get("config", {})
                         )
-                        job_config = global_config.update(job["config"]) if "config" in job else global_config
-
                         process_jobs.append(
                             PipelinePreprocessJob(
                                 network=network,
