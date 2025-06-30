@@ -159,11 +159,6 @@ class GarposHandler:
         self.shotdata = TDBShotDataArray(station_data.shotdata)
         self.site = site_data
         self.working_dir = working_dir
-        self.shotdata_dir = working_dir / SHOTDATA_DIR_NAME
-        self.shotdata_dir.mkdir(exist_ok=True, parents=True)
-        self.results_dir = working_dir / RESULTS_DIR_NAME
-        self.results_dir.mkdir(exist_ok=True, parents=True)
-
         self.network = network
         self.station = station
         self.current_campaign = None
@@ -202,18 +197,9 @@ class GarposHandler:
                 # Set the path to the sound speed profile file
                 self.sound_speed_path = self.current_campaign_dir / SVP_FILE_NAME
                 
-                # # If sound speed profile exists, use it, otherwise grab it from the catalog or the archive
-                # if not self.sound_speed_path.exists():
-                #     if local_svp: # TODO what if local CTD.. make them convert to use
-                #         logger.loginfo(f"Using local sound speed profile found at {local_svp}..")
-                #         self.sound_speed_path = local_svp
-                #     else: 
-                #         self._check_CTDs_in_catalog(campaign_name=name, catalog_db_path=catalog_db_path)
-
                 logger.loginfo(
                     f"Campaign {name} set. Current campaign directory: {self.current_campaign_dir}"
                 )
-
                 return
             
         raise ValueError(
@@ -496,7 +482,7 @@ class GarposHandler:
                 shot_data_rectified.MT = shot_data_rectified.MT.apply(
                     lambda x: "M" + str(x) if str(x)[0].isdigit() else str(x)
                 )
-
+                shot_data_rectified = shot_data_rectified.sort_values(by=["ST","MT"]).reset_index(drop=True)
                 shot_data_rectified.to_csv(str(shot_data_path))
                 logger.loginfo(f"Shot data prepared and saved to {str(shot_data_path)}")
 

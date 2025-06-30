@@ -26,7 +26,7 @@ attribute_dict: Dict[str,tiledb.Attr] = {
     "latitude": tiledb.Attr(name="latitude", dtype=np.float64),
     "longitude": tiledb.Attr(name="longitude", dtype=np.float64),
     "height": tiledb.Attr(name="height", dtype=np.float64),
-    "returnTime":tiledb.Attr(name="returnTime",dtype="datetime64[ms]"),
+    "returnTime":tiledb.Attr(name="returnTime",dtype="datetime64[ns]"),
     "tt":tiledb.Attr(name="tt",dtype=np.float64),
     "dbv":tiledb.Attr(name="dbv",dtype=np.uint8),
     "xc":tiledb.Attr(name="xc",dtype=np.uint8),
@@ -108,7 +108,7 @@ ShotDataAttributes = [
 ShotDataArraySchema = tiledb.ArraySchema(
     sparse=True,
     domain=tiledb.Domain(
-        tiledb.Dim(name="pingTime", dtype="datetime64[ms]"), TransponderDomain
+        tiledb.Dim(name="pingTime", dtype="datetime64[ns]"), TransponderDomain
     ),
     attrs=ShotDataAttributes,
     cell_order="col-major",
@@ -387,10 +387,14 @@ class TDBShotDataArray(TBDArray):
         with tiledb.open(str(self.uri), mode="r") as array:
             try:
                 df = array.df[slice(np.datetime64(start), np.datetime64(end)),:]
+                if df.empty:
+                    return df # skip if the dataframe is empty
             except IndexError as e:
                 logger.logerr(e)
                 return None
-        # self.dataframe_schema.validate(df, lazy=True)
+        df.pingTime = df.pingTime.apply(lambda x: x.timestamp())
+        df.returnTime = df.returnTime.apply(lambda x: x.timestamp())
+        df = self.dataframe_schema.validate(df)
         return df
 
     def write_df(self, df: pd.DataFrame, validate: bool = True):
