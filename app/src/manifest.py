@@ -161,6 +161,7 @@ class PipelineManifest(BaseModel):
                         job_config = global_config.model_copy(
                             update=job.get("config", {})
                         )
+                        job_config = SV3PipelineConfig(**job_config.model_dump())
                         process_jobs.append(
                             PipelinePreprocessJob(
                                 network=network,
@@ -177,6 +178,7 @@ class PipelineManifest(BaseModel):
                         )
                     case PipelineJobType.GARPOS:
                         config = garpos_config.model_copy(update=dict(job.get("config", {})))
+                        config = GARPOSConfig(**config.model_dump())
                         garpos_jobs.append(
                             GARPOSProcessJob(
                                 network=network,

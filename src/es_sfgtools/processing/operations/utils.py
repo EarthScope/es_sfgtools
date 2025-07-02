@@ -295,8 +295,7 @@ def merge_shotdata_gnss(
 
         if shotdata_df.empty or gnss_df.empty:
             continue
-        shotdata_df.returnTime = shotdata_df.returnTime.apply(lambda x:x.timestamp())
-        shotdata_df.pingTime = shotdata_df.pingTime.apply(lambda x:x.timestamp())
+
         gnss_df.time = gnss_df.time.apply(lambda x:x.timestamp())
        
         # interpolate the enu values

@@ -32,11 +32,9 @@ def dev_dfop00_to_shotdata(source: Union[AssetEntry,str,Path]) -> DataFrame[Shot
                 reply_data = SV3ReplyData.from_DFOP00_line(data)
                 if reply_data is not None:
                     processed.append((dict(interrogation) | dict(reply_data)))
-                else:
-                    logger.logdebug(
-                        f"Range data not found for interrogation at {interrogation.pingTime} in {source.local_path}"
-                    )
+                
     if not processed:
+        logger.logerr(f"No valid data found in {source.local_path}")
         return None
     df = pd.DataFrame(processed)
     df["isUpdated"] = False
