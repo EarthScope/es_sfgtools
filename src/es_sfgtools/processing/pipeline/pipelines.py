@@ -391,8 +391,8 @@ class SV3Pipeline:
 
         with multiprocessing.Pool() as pool:
             results = pool.imap(sv3_ops.dev_dfop00_to_shotdata, dfop00_entries)
-            for shotdata_df,dfo_entry in tqdm(
-                zip(results,dfop00_entries), total=len(dfop00_entries), desc="Processing DFOP00 Files"
+            for shotdata_df, dfo_entry in tqdm(
+                zip(results, dfop00_entries), total=len(dfop00_entries), desc="Processing DFOP00 Files"
             ):
                 if shotdata_df is not None and not shotdata_df.empty:
                     self.shot_data_pre.write_df(shotdata_df) # write to pre-shotdata

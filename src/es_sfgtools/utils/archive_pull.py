@@ -42,7 +42,10 @@ def retrieve_token(profile=None):
     token = es.ctx.auth_flow.access_token
     return token
 
-def download_file_from_archive(url, dest_dir="./", profile=None, show_details: bool = True) -> None:
+def download_file_from_archive(url, 
+                               dest_dir = "./", 
+                               profile = None, 
+                               show_details: bool = True) -> None:
     """
     Download a file from the public archive using the EarthScope SDK.
     Args:
