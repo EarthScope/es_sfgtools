@@ -683,7 +683,7 @@ class GarposHandler:
                 self._run_garpos_survey(survey_id=survey_id, 
                                         run_id=run_id, 
                                         override=override)
-            except IndexError as e:
+            except Exception as e:
                 logger.logerr(f"GARPOS model run failed for survey {survey_id}. Error: {e}")
 
     def plot_ts_results(

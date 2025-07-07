@@ -56,13 +56,13 @@ if __name__ == "__main__":
     os.environ["GARPOS_PATH"] = str(Path("/Users/franklyndunbar/Project/garpos").resolve())
 
     input_path = Path(
-        "/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain/cascadia-gorda/NCC1/GARPOS/2024_A_1126/2024_A_1126_2/results/_3_observation.ini"
+        "/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain/cascadia-gorda/NCC1/GARPOS/2024_A_1126/2024_A_1126_1/results/_3_observation.ini"
     )
     fixed_path = Path(
-        "/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain/cascadia-gorda/NCC1/GARPOS/2024_A_1126/2024_A_1126_2/results/_3_settings.ini"
+        "/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain/cascadia-gorda/NCC1/GARPOS/2024_A_1126/2024_A_1126_1/results/_3_settings.ini"
     )
     results_dir = Path(
-        "/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain/cascadia-gorda/NCC1/GARPOS/2024_A_1126/2024_A_1126_2/results"
+        "/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain/cascadia-gorda/NCC1/GARPOS/2024_A_1126/2024_A_1126_1/results"
     )
     rf = drive_garpos(
         str(input_path),

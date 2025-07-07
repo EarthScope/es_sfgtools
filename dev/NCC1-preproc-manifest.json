@@ -1,27 +1,24 @@
 {
   "projectDir": "/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain",
   "operations": [
-   
-    {"network":"cascadia-gorda",
+    {
+      "network": "cascadia-gorda",
+      "station": "NCC1",
+      "campaign": "2023_A_1063",
+      "jobs": [{ "type": "garpos" }]
+    },
+    {
+      "network": "cascadia-gorda",
       "station": "NCC1",
       "campaign": "2022_A_1065",
-      "jobs":[
-        {
-          "type": "preprocessing",
-          "config": {
-            "novatel_config": {"override": false},
-            "rinex_config": { "override": false, "time_interval": 24 },
-            "pride_config": { "override": false, "sample_frequency": 0.1 }
-          }
-        },
-        {"type":"garpos"}
-      ]}
+      "jobs": [{ "type": "garpos" }]
+    }
   ],
 
   "garposConfig": {
 
     "run_id": "tojohn",
-    "override": false,
+    "override": true,
     "inversion_params": {
       "spline_degree": 3,
       "log_lambda": [0],

@@ -496,7 +496,6 @@ def rectify_shotdata(coord_transformer: CoordTransformer, shot_data: pd.DataFram
     rename_dict = {
         "pingTime": "ST",
         "hae0": "height",
-        # "triggerTime": "ST",
         "returnTime": "RT",
         "tt": "TT",
         "transponderID": "MT",
@@ -520,6 +519,7 @@ def rectify_shotdata(coord_transformer: CoordTransformer, shot_data: pd.DataFram
             "head1",
             "pitch1",
             "roll1",
+            "isUpdated",
         ],
     ]
 

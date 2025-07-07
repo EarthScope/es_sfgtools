@@ -96,7 +96,7 @@ def download(source:RemoteResource,dest:Path) ->Path:
     logger.loginfo(f"\nDownloaded {str(source)} to {str(dest)}\n")
     return dest
 
-def uncompressed_file(file_path:Path) ->Path:
+def uncompress_file(file_path:Path) ->Path:
     """
     Decompresses a file using zlib and returns the path of the decompressed file.
     Args:
@@ -107,7 +107,7 @@ def uncompressed_file(file_path:Path) ->Path:
         FileNotFoundError: If the file does not exist.
     Examples:
         >>> file = Path("data/brdc1500.21n.gz")
-        >>> uncompressed_file(file)
+        >>> uncompress_file(file)
         Path("data/brdc1500.21n")
     """
     # Ensure the file exists
@@ -524,8 +524,8 @@ def get_nav_file(rinex_path:Path,override:bool=False) -> Path:
 
                 continue
             if gps_dl_path.exists() and glonass_dl_path.exists():
-                gps_dl_path = uncompressed_file(gps_dl_path)
-                glonass_dl_path = uncompressed_file(glonass_dl_path)
+                gps_dl_path = uncompress_file(gps_dl_path)
+                glonass_dl_path = uncompress_file(glonass_dl_path)
                 if (brdm_path := merge_broadcast_files(gps_dl_path,glonass_dl_path,rinex_path.parent)) is not None:
 
                     logger.logdebug(f"Successfully built {brdm_path}")
