@@ -153,9 +153,9 @@ class DataHandler:
  
         """
 
-        self.network = None
-        self.station = None
-        self.campaign = None
+        self.network: Optional[str] = None
+        self.station: Optional[str] = None
+        self.campaign: Optional[str] = None
 
         # Create the directory structures
         self.main_directory = Path(directory)
@@ -185,30 +185,31 @@ class DataHandler:
                         - <campaign>/
                             - raw/
                             - intermediate/
-                            - processed/ 
+                            - GARPOS/
+                                - survey 1
+                                - survey 2
+                            - logs/
+                            - qc/
                         - TileDB/
 
                 - Pride/ 
         """
 
-        # Set up loggers under the station directory
-        logger.loginfo(f"Building directory structure for {network} {station} {campaign}")
-        self.station_log_dir = self.main_directory / network / station / "logs"
-        self.station_log_dir.mkdir(parents=True, exist_ok=True)
-
-        change_all_logger_dirs(self.station_log_dir)
-
         # Create the network/station directory structure
         self.station_dir = self.main_directory / network / station
         self.station_dir.mkdir(parents=True, exist_ok=True)
 
-        # Create the TileDB directory structure (network/station/TileDB)
-        self.tileb_dir = self.station_dir / "TileDB"
-        self.tileb_dir.mkdir(exist_ok=True)
-
         # Create the Data directory structure (network/station/Data)
         campaign_data_dir = self.station_dir / campaign
         campaign_data_dir.mkdir(exist_ok=True)
+
+        # Set up loggers under the campaign directory
+        self.campaign_log_dir = campaign_data_dir / "logs"
+        self.campaign_log_dir.mkdir(parents=True, exist_ok=True)
+
+        # Create the TileDB directory structure (network/station/TileDB)
+        self.tileb_dir = self.station_dir / "TileDB"
+        self.tileb_dir.mkdir(exist_ok=True)
 
         # Create the raw, intermediate, and processed directories (network/station/Data/raw) and store as class attributes
         self.raw_dir = campaign_data_dir / "raw"
@@ -217,9 +218,20 @@ class DataHandler:
         self.inter_dir = campaign_data_dir / "intermediate"
         self.inter_dir.mkdir(exist_ok=True)
 
-        self.proc_dir = campaign_data_dir / "processed"
-        self.proc_dir.mkdir(exist_ok=True)
+        self.garpos_dir = campaign_data_dir / "GARPOS"
+        self.garpos_dir.mkdir(exist_ok=True)
 
+        self.qc_dir = campaign_data_dir / "qc"
+        self.qc_dir.mkdir(exist_ok=True)
+
+        # Change the logger directory to the campaign log directory
+        change_all_logger_dirs(self.campaign_log_dir)
+        os.environ["LOG_FILE_PATH"] = str(self.campaign_log_dir)
+        # Log to the new log
+        logger.loginfo(f"Built directory structure for {network} {station} {campaign}")
+
+
+    @check_network_station_campaign
     def _build_tileDB_arrays(self):
         """
         Build the TileDB arrays for the current station. TileDB directory is /network/station/TileDB.
@@ -265,6 +277,7 @@ class DataHandler:
         self.shotdata_tdb.consolidate()
         self.rangea_tdb.consolidate()
 
+    @check_network_station_campaign
     def _build_rinex_meta(self) -> None:
         """
         Build the RINEX metadata for a station.
@@ -282,42 +295,34 @@ class DataHandler:
             with open(self.rinex_metav1, "w") as f:
                 json.dump(get_metadata(site=self.station), f)
 
-    def change_working_station(self, network: str, station: str, campaign: str = None, start_date: date = None, end_date: date = None):
+    def change_working_station(self, network: str, station: str, campaign: str, start_date: date = None, end_date: date = None):
         """
         Change the working station.
         
         Args:
             network (str): The network name.
             station (str): The station name.
-            campaign (str): The campaign name. Default is None.
+            campaign (str): The campaign name.
             start_date (date): The start date for the data. Default is None.
             end_date (date): The end date for the data. Default is None.
         """
 
         # Set class attributes & create the directory structure
         self.station = station
+        self.network = network
+        self.campaign = campaign
 
-        if network is not None:
-            self.network = network
-
-        if campaign is not None:
-            self.campaign = campaign
-
-        # Build the directory structure and TileDB arrays
+        # Build the campaign directory structure and TileDB arrays, this changes the logger directory as well
         self._build_station_dir_structure(network, station, campaign)
 
-        if start_date==None or end_date==None:
+        if start_date == None or end_date == None:
             logger.logwarn(f"No date range set for {network}, {station}, {campaign}")
 
-        self.date_range = [start_date,end_date]
+        self.date_range = [start_date, end_date]
         self._build_tileDB_arrays()
         self._build_rinex_meta()
 
-        # Change the logger directory
-        change_all_logger_dirs(self.station_log_dir)
-        os.environ["LOG_FILE_PATH"] = str(self.station_log_dir)
-
-        logger.loginfo(f"Changed working station to {network} {station}")
+        logger.loginfo(f"Changed working station to {network} {station} {campaign}")
 
     @check_network_station_campaign
     def get_dtype_counts(self):
@@ -352,7 +357,7 @@ class DataHandler:
         self.add_data_to_catalog(files)
 
     @check_network_station_campaign
-    def add_data_to_catalog(self, local_filepaths: List[str]):
+    def add_data_to_catalog(self, local_filepaths: List[Path]):
         """ 
         Using a list of local filepaths, add the data to the catalog. 
         
@@ -510,8 +515,7 @@ class DataHandler:
             if len(s3_assets) > 0:
                 with threading.Lock():
                     client = boto3.client('s3')
-                self._download_S3_files(client=client,
-                                        s3_assets=s3_assets)
+                self._download_S3_files(s3_assets=s3_assets)
                 for file in s3_assets:
                     if file.local_path is not None:
                         self.catalog.update_local_path(file.id, file.local_path)
@@ -545,7 +549,7 @@ class DataHandler:
                     self.catalog.update_local_path(id=file_asset.id, 
                                                    local_path=file_asset.local_path)
 
-    def _S3_download_file(self, client:boto3.client, bucket: str, prefix: str) -> Path:
+    def _S3_download_file(self, client: boto3.client, bucket: str, prefix: str) -> Path | None:
         """
         Downloads a file from the specified S3 bucket and prefix.
 
@@ -641,6 +645,7 @@ class DataHandler:
         remote_filepath_dict = list_campaign_files_by_type(network=self.network, station=self.station, campaign=self.campaign, show_logs=False)
         ctds = remote_filepath_dict.get('ctd', [])
         logger.loginfo(f"Found {len(ctds)} CTD files in the archive")
+
         if len(ctds):
             self.add_data_remote(remote_filepaths=ctds, remote_type=REMOTE_TYPE.HTTP)
 
@@ -717,11 +722,13 @@ class DataHandler:
 
         return GarposHandler(network=self.network, 
                              station=self.station,
+                             campaign=self.campaign,
                              site_data=site_data, 
                              station_data=station_data, 
-                             working_dir=self.station_dir/"GARPOS")
+                             working_dir=self.garpos_dir)
 
-    def print_logs(self,log:Literal['base','gnss','process']):
+    # TODO: this wouldn't work anymore, logger is process logger, not pulling in gnss logger. Maybe put this in the logger class. 
+    def print_logs(self, log: Literal['base','gnss','process']):
         """
         Print logs to console.
         Args:
