@@ -258,7 +258,7 @@ class InversionType(Enum):
 class InversionParams(BaseModel):
     spline_degree: int = Field(default=3)
     log_lambda: List[float] = Field(
-        default=[-2], description="Smoothness paramter for backgroun perturbation"
+        default=[0], description="Smoothness parameter for backgroun perturbation"
     )
     log_gradlambda: float = Field(
         default=-1, description="Smoothness paramter for spatial gradient"
@@ -399,7 +399,7 @@ class GarposFixed(BaseModel):
     #  0: solve only positions
     #  1: solve only gammas (sound speed variation)
     #  2: solve both positions and gammas
-    inversiontype = {self.inversion_params.inversiontype.value}
+    inversiontype = {self.inversion_params.inversiontype}
 
     # Typical measurement error for travel time.
     # (= 1.e-4 sec is recommended in 10 kHz carrier)

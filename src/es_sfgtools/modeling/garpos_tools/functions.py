@@ -522,6 +522,5 @@ def rectify_shotdata(coord_transformer: CoordTransformer, shot_data: pd.DataFram
             "roll1",
         ],
     ]
-    shot_data.ST = shot_data.ST.apply(lambda x: x.timestamp())
-    shot_data.RT = shot_data.RT.apply(lambda x: x.timestamp())
+
     return ObservationData.validate(shot_data, lazy=True).sort_values("ST")

@@ -487,7 +487,7 @@ class GarposHandler:
                 shot_data_rectified.MT = shot_data_rectified.MT.apply(
                     lambda x: "M" + str(x) if str(x)[0].isdigit() else str(x)
                 )
-
+                shot_data_rectified = shot_data_rectified.sort_values(by=["ST","MT"]).reset_index(drop=True)
                 shot_data_rectified.to_csv(str(shot_data_path))
                 logger.loginfo(f"Shot data prepared and saved to {str(shot_data_path)}")
 

@@ -37,12 +37,6 @@ class AcousticDataFrame(pa.DataFrameModel):
         description="Unique identifier for the transponder", coerce=True
     )
 
-    # triggerTime: Series[pd.Timestamp] = pa.Field(
-    #     ge=GNSS_START_TIME.replace(tzinfo=None),
-    #     coerce=True,
-    #     description="Time when the ping was triggered [datetime]",
-    # )
-
     pingTime: Series[float] = pa.Field(
         ge=GNSS_START_TIME.timestamp(),
         coerce=True,
@@ -61,8 +55,8 @@ class AcousticDataFrame(pa.DataFrameModel):
     )
 
     dbv: Series[int] = pa.Field(
-        ge=-100,
-        le=100,
+        # ge=-100,
+        # le=100,
         description="Signal relative to full scale voltage [dB]",
         coerce=True,
     )
@@ -81,7 +75,7 @@ class AcousticDataFrame(pa.DataFrameModel):
 
     tat: Series[float] = pa.Field(
         ge=0,
-        le=1000,
+        le=10,
         coerce=True,
         description="Turn around time [s]",
         default=0,
@@ -97,10 +91,6 @@ class AcousticDataFrame(pa.DataFrameModel):
         #     "ST": "pingTime",
         #     "RT": "returnTime",
         # }
-
-    # @pa.parser("triggerTime")
-    # def parse_trigger_time(cls, series: pd.Series) -> pd.Series:
-    #     return pd.to_datetime(series, unit="ms")
 
 class GNSSDataFrame(pa.DataFrameModel):
     """

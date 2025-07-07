@@ -84,4 +84,5 @@ def run_manifest(manifest_object: PipelineManifest):
                 run_id=job.config.run_id,
                 override=job.config.override,
                 campaign_id=job.campaign,
-                survey_id=survey_id)
+                survey_id=survey_id
+            )
