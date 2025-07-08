@@ -248,7 +248,7 @@ class GarposHandler:
 
         if not catalog_db_path:
             # Check if we can find it first based on the classic working directory structure, if not, raise error
-            catalog_db_path = self.working_dir.parents[2]/"catalog.sqlite"
+            catalog_db_path = self.working_dir.parents[3]/"catalog.sqlite"  # 3 levels up from working dir, assuming the classic structure
             logger.logdebug(f"Catalog database path not provided, checking for local catalog database at: {str(catalog_db_path)}")
             if not catalog_db_path.exists():
                 raise ValueError("No local SVP found and no catalog database path provided, " \
