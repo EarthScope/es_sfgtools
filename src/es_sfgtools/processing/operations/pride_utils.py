@@ -96,7 +96,7 @@ def download(source:RemoteResource,dest:Path) ->Path:
     logger.loginfo(f"\nDownloaded {str(source)} to {str(dest)}\n")
     return dest
 
-def uncompress_file(file_path:Path) ->Path:
+def uncompress_file(file_path:Path,dest_dir:Path) ->Path:
     """
     Decompresses a file using zlib and returns the path of the decompressed file.
     Args:
@@ -116,7 +116,11 @@ def uncompress_file(file_path:Path) ->Path:
 
     # Define the output file path by removing the .gz extension
     out_file_path = file_path.with_suffix("")
-
+    if dest_dir is not None:
+        # If a destination directory is provided, move the output file there
+        out_file_path = dest_dir / out_file_path.name
+        if not dest_dir.exists():
+            dest_dir.mkdir(parents=True, exist_ok=True)
     # Open the .gz file and read the decompressed data
     with gzip.open(file_path, "rb") as f_in:
         with open(out_file_path, "wb") as f_out:
@@ -544,7 +548,8 @@ def get_gnss_products(
     rinex_path: Path,
     pride_dir: Path,
     override: bool = False,
-    source: Literal["all","wuhan", "cligs"] = "all"
+    source: Literal["all","wuhan", "cligs"] = "all",
+    date: Optional[datetime.date | datetime.datetime] = None
 ) -> dict:
 
     """
@@ -572,17 +577,26 @@ def get_gnss_products(
     assert source in ["all","wuhan", "cligs"], f"Invalid source {source}"
 
     start_date = None
-    with open(rinex_path) as f:
-        files = f.readlines()
-        for line in files:
-            if "TIME OF FIRST OBS" in line:
-                time_values = line.split("GPS")[0].strip().split()
-                start_date = datetime.date(
-                    year=int(time_values[0]),
-                    month=int(time_values[1]),
-                    day=int(time_values[2]),
-                )
-                break
+    if rinex_path is not None:
+        with open(rinex_path) as f:
+            files = f.readlines()
+            for line in files:
+                if "TIME OF FIRST OBS" in line:
+                    time_values = line.split("GPS")[0].strip().split()
+                    start_date = datetime.date(
+                        year=int(time_values[0]),
+                        month=int(time_values[1]),
+                        day=int(time_values[2]),
+                    )
+                    break
+    elif date is not None:
+        if isinstance(date,datetime.datetime):
+            start_date = date.date()
+        elif isinstance(date,datetime.date):
+            start_date = date
+        else:
+            raise TypeError(f"Invalid date type {type(date)}. Must be datetime.date or datetime.datetime")
+
     if start_date is None:
         logger.logerr("No TIME OF FIRST OBS found in RINEX file.")
         return
@@ -614,7 +628,7 @@ def get_gnss_products(
             if remote_resource_updated.file_name is None:
                 continue
 
-            local_path = common_product_dir/remote_resource.file_name
+            local_path = pride_dir / year / doy / remote_resource.file_name
             if local_path.exists() and local_path.stat().st_size > 0 and not override:
                 product_status[product_type] = str(local_path)
                 logger.logdebug(f"Found {str(local_path)} for product {product_type}")
@@ -624,14 +638,14 @@ def get_gnss_products(
                 download(remote_resource,local_path)
                 logger.logdebug(f"\n Succesfully downloaded {product_type} FROM {str(remote_resource)} TO {str(local_path)}\n")
                 product_status[product_type] = str(local_path)
-                try:
-                    # Symlink from common products to $year/$DOY
-                    target_path = pride_dir/year/doy/local_path.name
-                    target_path.unlink(missing_ok=True)
-                    local_path.symlink_to(target_path, target_is_directory=False)
-                    logger.logdebug(f"Symlinked {str(local_path)} to {str(target_path)}")
-                except FileExistsError:
-                    pass
+                # try:
+                #     # Symlink from common products to $year/$DOY
+                #     target_path = pride_dir/year/doy/local_path.name
+
+                #     target_path.symlink_to(local_path,target_is_directory=False)
+                #     logger.logdebug(f"Symlinked {str(local_path)} to {str(target_path)}")
+                # except FileExistsError:
+                #     pass
                 break
             except Exception as e:
                 logger.logerr(f"Failed to download {str(remote_resource)} | {e}")
