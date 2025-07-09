@@ -479,6 +479,7 @@ def _novatel_to_rinex(
             str(metadata_path)
         ] + [str(x) for x in source_list]
 
+        logger.loginfo(f"Running command: {' '.join(cmd)}")
         result = subprocess.run(cmd, check=True, capture_output=True, cwd=workdir)
 
         if result.stdout:
@@ -1018,6 +1019,7 @@ def nov0002tile(files:List[AssetEntry],rangea_tdb:Path,n_procs:int=10) -> None:
         cmd.append(str(file.local_path))
 
     logger.loginfo(f"Running NOV0002TILE on {len(files)} files")
+    logger.logdebug(f"Running command: {' '.join(cmd)}")
     result = subprocess.run(cmd)
 
     if result.stdout:
@@ -1059,6 +1061,7 @@ def nova2tile(files:List[AssetEntry],rangea_tdb:Path,n_procs:int=10) -> None:
         cmd.append(str(file.local_path))
 
     logger.loginfo(f"Running NOVA2TILE on {len(files)} files")
+    logger.loginfo(f"Running command: {' '.join(cmd)}")
     result = subprocess.run(cmd)
 
     if result.stdout:
@@ -1095,11 +1098,11 @@ def novb2tile(files:List[AssetEntry],rangea_tdb:Path,n_procs:int=10) -> None:
         raise FileNotFoundError(f"NOVAB2TILE binary not found for {system} {arch}")
 
     cmd = [str(binary_path), "-tdb", str(rangea_tdb),"-procs",str(n_procs)]
-    logger.logdebug(f"Running {cmd}")
     for file in files:
         cmd.append(str(file.local_path))
-    logger.loginfo(f"Running NOVB2TILE on {len(files)} files")
 
+    logger.loginfo(f"Running NOVB2TILE on {len(files)} files")
+    logger.loginfo(f"Running command: {' '.join(cmd)}")
     result = subprocess.run(cmd)
 
     if result.stdout:
@@ -1175,7 +1178,8 @@ def tile2rinex(rangea_tdb:Path,settings:Path,writedir:Path,time_interval:int=1,p
             "-year",
             str(processing_year),
         ]
-        
+
+        logger.loginfo(f"Running command: {' '.join(cmd)}")
         result = subprocess.run(
             cmd, cwd=workdir
         )

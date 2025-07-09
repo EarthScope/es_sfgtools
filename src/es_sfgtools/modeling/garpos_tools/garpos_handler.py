@@ -1,7 +1,7 @@
 # GarposHandler class for processing and preparing shot data for the GARPOS model.
 
 from pathlib import Path
-from typing import List, Tuple, Union
+from typing import List, Optional, Tuple, Union
 from es_sfgtools.processing.operations.site_ops import CTDfile_to_svp, seabird_to_soundvelocity
 from es_sfgtools.utils.archive_pull import download_file_from_archive
 import pandas as pd
@@ -144,6 +144,7 @@ class GarposHandler:
     def __init__(self, 
                  network: str,
                  station: str,
+                 campaign: str,
                  station_data: StationData,
                  site_data: Site,
                  working_dir: Path):
@@ -152,65 +153,73 @@ class GarposHandler:
         Args:
             shotdata (TDBShotDataArray): The shot data array.
             site_config (SiteConfig): The site configuration.
-            working_dir (Path): The working directory path.
+            working_dir (Path): The directory path to store results and shot data. *data handler sets this to the campaign directory*
         """
 
         self.garpos_fixed = GarposFixed()
         self.shotdata = TDBShotDataArray(station_data.shotdata)
         self.site = site_data
+
+        # Create directories for GARPOS processing and results
         self.working_dir = working_dir
+        if not self.working_dir.exists():
+            raise ValueError(f"Working directory {self.working_dir} does not exist. Please provide a valid directory.")
+        
+        self.shotdata_dir = working_dir / SHOTDATA_DIR_NAME
+        self.shotdata_dir.mkdir(exist_ok=True, parents=True)
+
+        self.results_dir = working_dir / RESULTS_DIR_NAME
+        self.results_dir.mkdir(exist_ok=True, parents=True)
+
+        # Set the path to the sound speed profile file
+        self.sound_speed_path = self.working_dir / SVP_FILE_NAME
+
+        # Set the network, station, and campaign
         self.network = network
         self.station = station
-        self.current_campaign = None
+        self.campaign_name = campaign
+        
+        # Set class variables to be used later
         self.current_survey = None
         self.coord_transformer = None
 
-        self.garpos_fixed._to_datafile(path=self.working_dir/DEFAULT_SETTINGS_FILE_NAME)
+        # Set up the campaign with metadata from the site
+        self._setup_campaign()
 
+        self.garpos_fixed._to_datafile(path=self.working_dir/DEFAULT_SETTINGS_FILE_NAME)
         logger.loginfo(f"Garpos Handler initialized with working directory: {self.working_dir}")
 
-    def set_campaign(self, name: str, catalog_db_path: Path = None):
+    def _setup_campaign(self):
         """
-        Set the current campaign to the one with the given name, create the working directory for the campaign, 
-        initialize the coordinate transformer, and set the sound speed profile file.
-
-        Args:
-            name (str): The name of the campaign to set as current.
-            catalog_db_path (Path): The path to the catalog database. Default is None.
-            local_svp (Path): The path to the local sound speed profile file. Default is None.
+        This function sets up the campaign by finding the campaign with the given name in the site metadata. Grab the array center coordinates and
+        set up the coordinate transformer for the site. If the campaign is not found, raise a ValueError.
 
         Raises:
-            ValueError: If the campaign with the given name is not found in the site data.
+            ValueError: If the campaign with the given name is not found in the site metadata.
         """
         for campaign in self.site.campaigns:
-            if campaign.name == name:
-                self.current_campaign = campaign
-                self.current_campaign_dir = self.working_dir / self.current_campaign.name
-                self.current_campaign_dir.mkdir(exist_ok=True)
+            if campaign.name == self.campaign_name:
+                self.campaign = campaign
                 self.coord_transformer = CoordTransformer(
                     latitude=self.site.arrayCenter.latitude,
                     longitude=self.site.arrayCenter.longitude,
-                    elevation=-float(self.site.localGeoidHeight) # use negatiive value to account for garpos error "ys is shallower than layer"
+                    elevation=-float(self.site.localGeoidHeight) # use negatiive value to account for garpos error "ys is shallower than layer" TODO: <--?
                 )
                 self.current_survey = None
 
-                # Set the path to the sound speed profile file
-                self.sound_speed_path = self.current_campaign_dir / SVP_FILE_NAME
-                
-                logger.loginfo(
-                    f"Campaign {name} set. Current campaign directory: {self.current_campaign_dir}"
-                )
+                logger.loginfo(f"Campaign {self.campaign_name} set. Current campaign directory: {self.working_dir}")
                 return
             
         raise ValueError(
-            f"campaign {name} not found among: {[x.name for x in self.site.campaigns]}"
+            f"campaign {self.campaign_name} not found among: {[x.name for x in self.site.campaigns]}"
         )
     
-    def load_sound_speed_data(self, local_svp: Path = None, local_ctd: Path = None):
+    def load_sound_speed_data(self, local_svp: Optional[Path] = None, local_ctd: Optional[Path] = None):
         """
         Load the sound speed profile from a local file or from the catalog.
         Args:
             local_svp (Path): The path to the local sound speed profile file. Default is None.
+            local_ctd (Path): The path to the local CTD file. Default is None.
         """
         if local_svp:
             self.sound_speed_path = local_svp
@@ -221,9 +230,9 @@ class GarposHandler:
             df.to_csv(self.sound_speed_path, index=False)
             logger.loginfo(f"Converted {local_ctd} to sound velocity profile at {self.sound_speed_path}")
         else:
-            self._check_CTDs_in_catalog(campaign_name=self.current_campaign.name)
+            self._check_CTDs_in_catalog()
     
-    def _check_CTDs_in_catalog(self, campaign_name: str, catalog_db_path: Path = None):
+    def _check_CTDs_in_catalog(self, catalog_db_path: Optional[Path] = None):
         """
         This function will check the catalog database for SVP or CTD files related to the current campaign. If found and local, set as sound 
         speed file or convert to SVP. If only remote, download it first and then set or convert to sound speed profile. 
@@ -231,7 +240,6 @@ class GarposHandler:
         If no files are found in catalog, raise an error.
         
         Args:
-            campaign_name (str): The name of the campaign to check for CTD files.
             catalog_db_path (Path): The path to the catalog database. Default is None. Will check in local working directory if not provided.
 
         Raises:
@@ -240,7 +248,7 @@ class GarposHandler:
 
         if not catalog_db_path:
             # Check if we can find it first based on the classic working directory structure, if not, raise error
-            catalog_db_path = self.working_dir.parents[2]/"catalog.sqlite"
+            catalog_db_path = self.working_dir.parents[3]/"catalog.sqlite"  # 3 levels up from working dir, assuming the classic structure
             logger.logdebug(f"Catalog database path not provided, checking for local catalog database at: {str(catalog_db_path)}")
             if not catalog_db_path.exists():
                 raise ValueError("No local SVP found and no catalog database path provided, " \
@@ -248,18 +256,18 @@ class GarposHandler:
             else:
                 logger.logdebug(f"Using local catalog database found at {catalog_db_path}..")
 
-        logger.loginfo(f"Checking catalog database for SVP, CTD, and SEABIRD files related to campaign {campaign_name}..")
+        logger.loginfo(f"Checking catalog database for SVP, CTD, and SEABIRD files related to campaign {self.campaign_name}..")
         catalog = PreProcessCatalog(db_path=catalog_db_path)
 
         # Get the CTD files related to the current campaign
-        ctd_assets: List[AssetEntry] = catalog.get_ctds(station=self.site.names[0], campaign=campaign_name)
+        ctd_assets: List[AssetEntry] = catalog.get_ctds(station=self.site.names[0], campaign=self.campaign_name)
 
         if not ctd_assets:
-            raise ValueError(f"No SVP, CTD, or SEABIRD files found for campaign {campaign_name} in the catalog, " \
+            raise ValueError(f"No SVP, CTD, or SEABIRD files found for campaign {self.campaign_name} in the catalog, " \
                              "use the data handler add_ctds_to_catalog() to catalog available CTD files, or provide a local SVP file")
 
         for file in ctd_assets:
-            logger.loginfo(f"Found {file.type} files related to campaign {campaign_name}")
+            logger.loginfo(f"Found {file.type} files related to campaign {self.campaign_name}")
 
         # Prioritize SVP then CTD then Seabird  # TODO: ask which is preferred (ctd vs seabird)
         preferred_types = [AssetType.SVP, AssetType.CTD, AssetType.SEABIRD]       
@@ -268,8 +276,8 @@ class GarposHandler:
                 if file.type == preferred:
                     # Check if the file is local or remote only
                     if file.local_path is None and file.remote_path is not None:
-                        local_path = self.current_campaign_dir / file.remote_path.split("/")[-1]
-                        download_file_from_archive(url=file.remote_path, dest_dir=self.current_campaign_dir)
+                        local_path = self.working_dir / file.remote_path.split("/")[-1]
+                        download_file_from_archive(url=file.remote_path, dest_dir=str(self.working_dir))
                         
                         if not local_path.exists():
                             raise ValueError(f"File {local_path} not downloaded")
@@ -318,7 +326,7 @@ class GarposHandler:
             ValueError: If the survey with the given name is not found in the current campaign.
         """
 
-        for survey in self.current_campaign.surveys:
+        for survey in self.campaign.surveys:
             if survey.id == name:
                 self.current_survey = survey
                 logger.loginfo(
@@ -326,20 +334,19 @@ class GarposHandler:
                 )
                 return
         raise ValueError(
-            f"Survey {name} not found among: {[x.id for x in self.current_campaign.surveys]}"
+            f"Survey {name} not found among: {[x.id for x in self.campaign.surveys]}"
         )
 
-    def get_obsfile_path(self, campaign_name: str, survey_id: str) -> Path:
+    def get_obsfile_path(self, survey_id: str) -> Path:
         """
-        Get the path to the observation file for a given campaign and survey.
+        Get the path to the observation file for a given survey.
         Args:
-            campaign_name (str): The name of the campaign.
             survey_id (str): The ID of the survey.
         Returns:
             obs_path (Path): The path to the observation file.
         """
 
-        obs_path = self.working_dir / campaign_name / survey_id / OBSERVATION_FILE_NAME
+        obs_path = self.working_dir / survey_id / OBSERVATION_FILE_NAME
 
         return obs_path
     
@@ -405,12 +412,10 @@ class GarposHandler:
             overwrite (bool): If True, overwrite existing files. Defaults to False.
         """
 
-        for survey in self.current_campaign.surveys:
+        for survey in self.campaign.surveys:
 
             # Generate the path to the observation file
-            obsfile_path = self.get_obsfile_path(
-                campaign_name=self.current_campaign.name, survey_id=survey.id
-            )
+            obsfile_path = self.get_obsfile_path(survey_id=survey.id)
             # Check if the observation file already exists and skip if not overwriting
             if obsfile_path.exists() and not overwrite:
                 continue
@@ -423,8 +428,8 @@ class GarposHandler:
                 print(f"No shot data found for survey {survey.id}")
                 continue
 
-            # Create the survey directory (CAMPAIGN/SURVEY_ID), if it doesn't exist
-            survey_dir = self.current_campaign_dir / survey.id
+            # Create the survey directory in the campaign dir, if it doesn't exist
+            survey_dir = self.working_dir / survey.id
             survey_dir.mkdir(exist_ok=True)
 
             survey_benchmarks = []
@@ -503,7 +508,7 @@ class GarposHandler:
             # Create the garpos input file
             garpos_input = GarposInput(
                 site_name=self.site.names[0],
-                campaign_id=self.current_campaign.name,
+                campaign_id=self.campaign.name,
                 survey_id=survey.id ,
                 site_center_llh=GPPositionLLH(
                     latitude=self.site.arrayCenter.latitude,
@@ -517,9 +522,9 @@ class GarposHandler:
                 ),
                 transponders=GPtransponders,
                 atd_offset=GPATDOffset(
-                    forward=float(self.current_campaign.vessel.atdOffsets[0].x),
-                    rightward=float(self.current_campaign.vessel.atdOffsets[0].y),
-                    downward=float(self.current_campaign.vessel.atdOffsets[0].z),
+                    forward=float(self.campaign.vessel.atdOffsets[0].x),
+                    rightward=float(self.campaign.vessel.atdOffsets[0].y),
+                    downward=float(self.campaign.vessel.atdOffsets[0].z),
                 ),
                 start_date=survey.start,
                 end_date=survey.end,
@@ -638,11 +643,10 @@ class GarposHandler:
         self.set_survey(name=survey_id)
 
         # Create the results directory for the survey
-        results_dir = self.current_campaign_dir / survey_id / RESULTS_DIR_NAME
+        results_dir = self.working_dir / survey_id / RESULTS_DIR_NAME
         results_dir.mkdir(exist_ok=True, parents=True)
 
-        obsfile_path = self.get_obsfile_path(campaign_name=self.current_campaign.name,
-                                             survey_id=survey_id)
+        obsfile_path = self.get_obsfile_path(survey_id=survey_id)
         
         if not obsfile_path.exists():
             raise ValueError(f"Observation file not found at {obsfile_path}")
@@ -653,25 +657,23 @@ class GarposHandler:
                          override=override)
 
     def run_garpos(
-        self, campaign_id: str, survey_id: str = None, run_id: int | str = 0, override: bool = False
+        self, survey_id: Optional[str] = None, run_id: int | str = 0, override: bool = False
     ) -> None:
 
         """
         Run the GARPOS model for a specific date or for all dates.
         Args:
-            campaign_id (str): The ID of the campaign to run.
             survey_id (str, optional): The ID of the survey to run. Defaults to None.
             run_id (int | str, optional): The run identifier. Defaults to 0.
             override (bool, optional): If True, override existing results. Defaults to False.
         Returns:
             None
         """
-        if campaign_id != self.current_campaign.name:
-            self.set_campaign(campaign_id)
+        run_id = int(run_id) if isinstance(run_id, str) else run_id
 
         logger.loginfo(f"Running GARPOS model. Run ID: {run_id}")
         if survey_id is None:
-            for survey in self.current_campaign.surveys:
+            for survey in self.campaign.surveys:
                 logger.loginfo(f"Running GARPOS model for survey {survey.id}. Run ID: {run_id}")
                 self._run_garpos_survey(survey_id=survey.id, 
                                         run_id=run_id, 
@@ -688,8 +690,7 @@ class GarposHandler:
 
     def plot_ts_results(
         self, 
-        campaign_name: str = None, 
-        survey_id: str= None, 
+        survey_id: str, 
         run_id: int | str = 0, 
         res_filter: float = 10,
         savefig: bool = False
@@ -697,7 +698,6 @@ class GarposHandler:
         """
         Plots the time series results for a given survey.
         Args:
-            campaign_name (str, optional):The name of the campaign to plot results for. Default is None.
             survey_id (str): ID of the survey to plot results for.
             run_id (int or str, optional): The run ID of the survey results to plot. Default is 0.
             res_filter (float, optional): The residual filter value to filter outrageous values (m). Default is 10.
@@ -713,10 +713,8 @@ class GarposHandler:
             - The plots include information about the delta center position and transponder positions.
         """
 
-        if campaign_name is not None:
-            self.set_campaign(campaign_name)
         self.set_survey(survey_id)
-        obsfile_path = self.get_obsfile_path(self.current_campaign.name, self.current_survey.id)
+        obsfile_path = self.get_obsfile_path(self.current_survey.id)
 
         results_dir = obsfile_path.parent / RESULTS_DIR_NAME
         results_path = results_dir / f"_{run_id}_results.json"
