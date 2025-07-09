@@ -14,7 +14,7 @@ from es_sfgtools.pride_tools.gnss_resources import RemoteQuery,RemoteResource,Wu
 from es_sfgtools.utils.loggers import GNSSLogger as logger
 
 from .config import PRIDEPPPConfig,SatelliteProducts
-from .pride_utils import uncompress_file
+
 
 def update_source(source:RemoteResource) -> RemoteResource:
     
@@ -651,7 +651,12 @@ def get_gnss_products(
             found_files = [f for f in cp_dir_list if remote_resource.remote_query.pattern.match(f.name)]
             if found_files and not override:
                 logger.logdebug(f"Found {found_files[0]} for product {product_type}")
-                decompressed_file = uncompress_file(found_files[0],common_product_dir)
+                to_decompress = found_files[0]
+                if to_decompress.suffix == ".gz":
+                    decompressed_file = uncompress_file(to_decompress,common_product_dir)
+                else:
+                    decompressed_file = to_decompress
+                logger.logdebug(f"Using existing file {decompressed_file} for product {product_type}")
                 product_status[product_type] = str(decompressed_file)
                 break
 
@@ -659,7 +664,7 @@ def get_gnss_products(
             if remote_resource_updated.file_name is None:
                 continue
 
-            local_path = pride_dir / year / doy / remote_resource.file_name
+            local_path = common_product_dir / remote_resource.file_name
             try:
                 logger.logdebug(f"Attempting to download {product_type} product from {str(remote_resource)}")
                 download(remote_resource,local_path)
@@ -680,10 +685,10 @@ def get_gnss_products(
 
     # Generate the config file
     satellite_products = SatelliteProducts(
-        sp3=product_status.get("sp3", None),
-        clk=product_status.get("clk", None),
-        bias=product_status.get("bias", None),
-        obx=product_status.get("obx", None),
+        satellite_orbit=product_status.get("sp3", None),
+        satellite_clock=product_status.get("clk", None),
+        code_phase_bias=product_status.get("bias", None),
+        quaternions=product_status.get("obx", None),
         erp=product_status.get("erp", None),
         product_directory=str(common_product_dir.parent),
     )

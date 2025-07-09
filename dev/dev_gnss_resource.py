@@ -13,12 +13,12 @@ warning: PrepareProducts: failed to download satellite attitude product: WUM0MGX
 execution failed
 """
 
-from es_sfgtools.processing.operations.gnss_ops import (
-    rinex_to_kin,
-    get_gnss_products,
-    get_nav_file,
-    PridePdpConfig,
-)
+# from es_sfgtools.processing.operations.gnss_ops import (
+#     rinex_to_kin,
+#     get_gnss_products,
+#     get_nav_file,
+#     PridePdpConfig,
+# )
 from es_sfgtools.pride_tools.pride_utils import uncompress_file
 from es_sfgtools.processing.pipeline.data_handler import DataHandler
 from pathlib import Path
@@ -26,19 +26,20 @@ import os
 from es_sfgtools.utils.loggers import BaseLogger,GNSSLogger
 from es_sfgtools.pride_tools.config import PRIDEPPPConfig,parse_pride_config
 
-# bad_rinex = Path(
-#     "/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain/cascadia-gorda/NCC1/2022_A_1065/intermediate/NCC11260.22o"
-# )
-# pride_dir = Path("/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain/Pride")
+from es_sfgtools.pride_tools.pride_utils import get_gnss_products
+bad_rinex = Path(
+    "/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain/cascadia-gorda/NCC1/2024_A_1126/intermediate/NCC12790.24o"
+)
+pride_dir = Path("/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain/Pride")
 
-# uncompressed_dest_dir = pride_dir / "2022" / "126" 
-# gnss_product_status = get_gnss_products(
-#     rinex_path=bad_rinex,
-#     pride_dir=pride_dir,
-#     override=True,
-#     source="all"
-# )
-
+uncompressed_dest_dir = pride_dir / "2024" / "126"
+config_file_path = get_gnss_products(
+    rinex_path=bad_rinex,
+    pride_dir=pride_dir,
+    override=False,
+    source="all"
+)
+print(f"Config file path: {config_file_path}")
 # # convert to paths
 # for k,v in gnss_product_status.items():
 #     gnss_product_status[k] = Path(v).resolve()
