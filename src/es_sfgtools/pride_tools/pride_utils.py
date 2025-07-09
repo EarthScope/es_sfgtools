@@ -10,8 +10,11 @@ import shutil
 import warnings
 import re
 
-from es_sfgtools.processing.operations.gnss_resources import RemoteQuery,RemoteResource,WuhanIGS,CLSIGS,GSSC #,CDDIS
+from es_sfgtools.pride_tools.gnss_resources import RemoteQuery,RemoteResource,WuhanIGS,CLSIGS,GSSC #,CDDIS
 from es_sfgtools.utils.loggers import GNSSLogger as logger
+
+from .config import PRIDEPPPConfig,SatelliteProducts
+from .pride_utils import uncompress_file
 
 def update_source(source:RemoteResource) -> RemoteResource:
     
@@ -575,7 +578,7 @@ def get_gnss_products(
     
     """
     assert source in ["all","wuhan", "cligs"], f"Invalid source {source}"
-
+    config_template = None
     start_date = None
     if rinex_path is not None:
         with open(rinex_path) as f:
@@ -602,8 +605,35 @@ def get_gnss_products(
         return
     year = str(start_date.year)
     doy = str(start_date.timetuple().tm_yday)
+
     common_product_dir = pride_dir/year/"product"/"common"
     common_product_dir.mkdir(exist_ok=True,parents=True)
+
+    config_template_file_path = pride_dir/year/doy/"config_file"
+    if config_template_file_path.exists():
+        # load and validate the config file
+        try:
+            config_template = PRIDEPPPConfig.read_config_file(config_template_file_path)
+            product_directory = Path(config_template.satellite_products.product_directory)
+            assert product_directory.exists(), f"Product directory {product_directory} does not exist"
+            # check if the gnss products are already downloaded
+            for name,product in config_template.satellite_products.model_dump().items():
+                if name != "product_directory":
+                    test_path = product_directory/"common"/product
+                    if not test_path.exists():
+                        logger.logerr(f"Product {name} not found in {test_path}")
+                        raise FileNotFoundError(f"Product {name} not found in {test_path}")
+        except Exception as e:
+            config_template = None
+            logger.logerr(f"Failed to load config file {config_template_file_path}: {e}")
+
+    # Return the config template filepath for running pride-ppp, unless override is True then we will re-download the products
+    if config_template is not None and not override:
+        return config_template_file_path
+    
+    # If we could not load the config file, we will look for the products in the common product directory
+    # or download them if they are not found
+
     cp_dir_list = list(common_product_dir.glob("*"))
     remote_resource_dict: Dict[str,Dict[str,RemoteResource]] = get_gnss_common_products(start_date)
 
@@ -621,7 +651,8 @@ def get_gnss_products(
             found_files = [f for f in cp_dir_list if remote_resource.remote_query.pattern.match(f.name)]
             if found_files and not override:
                 logger.logdebug(f"Found {found_files[0]} for product {product_type}")
-                product_status[product_type] = str(found_files[0])
+                decompressed_file = uncompress_file(found_files[0],common_product_dir)
+                product_status[product_type] = str(decompressed_file)
                 break
 
             remote_resource_updated = update_source(remote_resource)
@@ -629,23 +660,14 @@ def get_gnss_products(
                 continue
 
             local_path = pride_dir / year / doy / remote_resource.file_name
-            if local_path.exists() and local_path.stat().st_size > 0 and not override:
-                product_status[product_type] = str(local_path)
-                logger.logdebug(f"Found {str(local_path)} for product {product_type}")
-                break
             try:
                 logger.logdebug(f"Attempting to download {product_type} product from {str(remote_resource)}")
                 download(remote_resource,local_path)
                 logger.logdebug(f"\n Succesfully downloaded {product_type} FROM {str(remote_resource)} TO {str(local_path)}\n")
+                if local_path.suffix == ".gz":
+                    local_path = uncompress_file(local_path,common_product_dir)
+                    logger.logdebug(f"Uncompressed {str(local_path)}")
                 product_status[product_type] = str(local_path)
-                # try:
-                #     # Symlink from common products to $year/$DOY
-                #     target_path = pride_dir/year/doy/local_path.name
-
-                #     target_path.symlink_to(local_path,target_is_directory=False)
-                #     logger.logdebug(f"Symlinked {str(local_path)} to {str(target_path)}")
-                # except FileExistsError:
-                #     pass
                 break
             except Exception as e:
                 logger.logerr(f"Failed to download {str(remote_resource)} | {e}")
@@ -656,4 +678,17 @@ def get_gnss_products(
     for product_type,product_path in product_status.items():
         logger.logdebug(f"{product_type} : {product_path}")
 
-    return product_status
+    # Generate the config file
+    satellite_products = SatelliteProducts(
+        sp3=product_status.get("sp3", None),
+        clk=product_status.get("clk", None),
+        bias=product_status.get("bias", None),
+        obx=product_status.get("obx", None),
+        erp=product_status.get("erp", None),
+        product_directory=str(common_product_dir.parent),
+    )
+    config_template = PRIDEPPPConfig.load_default()
+    config_template.satellite_products = satellite_products
+    config_template_file_path = pride_dir / year / doy / "config_file"
+    config_template.write_config_file(config_template_file_path)
+    return config_template_file_path

@@ -24,7 +24,6 @@ import matplotlib.pyplot as plt
 
 from ..assets.file_schemas import AssetEntry,AssetType
 from ..assets.observables import GNSSDataFrame
-from .pride_utils import get_nav_file,get_gnss_products
 
 from es_sfgtools.utils.loggers import GNSSLogger as logger
 

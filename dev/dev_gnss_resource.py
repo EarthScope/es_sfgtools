@@ -19,7 +19,7 @@ from es_sfgtools.processing.operations.gnss_ops import (
     get_nav_file,
     PridePdpConfig,
 )
-from es_sfgtools.processing.operations.pride_utils import uncompress_file
+from es_sfgtools.pride_tools.pride_utils import uncompress_file
 from es_sfgtools.processing.pipeline.data_handler import DataHandler
 from pathlib import Path
 import os

@@ -3,6 +3,7 @@ from pydantic import field_validator, field_serializer,model_validator
 from typing import List, Dict, Optional
 from datetime import datetime
 from pathlib import Path
+from enum import Enum
 
 pride_default_satellites: Dict[str, int] = {
     "G01": 1, "G02": 1, "G03": 1, "G04": 1, "G05": 1, "G06": 1,
@@ -41,7 +42,7 @@ class ObservationConfig(BaseModel):
     )
 
 
-class SatelliteProduct(BaseModel):
+class SatelliteProducts(BaseModel):
     product_directory: str  = Field(default="Default", description="Directory for satellite products")
     satellite_orbit: str = Field(pattern=r".*\.SP3", description="File name of SP3 file")
     satellite_clock: str = Field(pattern=r".*\.CLK", description="File name of CLK file")
@@ -98,9 +99,38 @@ class StationUsed(BaseModel):
     pozhm: float = Field(default=10.00, description="POZHM value")
 
 
+# define system enum to use
+class Constellations(str, Enum):
+    GPS = "G"
+    GLONASS = "R"
+    GLAILEO = "E"
+    BDS = "C"
+    BDS_TWO = "2"
+    BDS_THREE = "3"
+    QZSS = "J"
+
+    @classmethod
+    def print_options(cls):
+        print("System options are:")
+        for option in cls:
+            print(f"{option.value} for {option.name}")
+
+
+class Tides(str, Enum):
+    SOLID = "S"
+    OCEAN = "O"
+    POLAR = "P"
+
+    @classmethod
+    def print_options(cls):
+        print("Tide options are:")
+        for option in cls:
+            print(f"{option.value} for {option.name}")
+
+
 class PRIDEPPPConfig(BaseModel):
     observation: ObservationConfig = Field(description="Observation configuration for the PRIDE PPP processing.")
-    satellite_product: SatelliteProduct = Field(description="Satellite product configuration for the PRIDE PPP processing.")
+    satellite_products: SatelliteProducts = Field(description="Satellite product configuration for the PRIDE PPP processing.")
     processing: DataProcessingStrategies = Field(
         default_factory=lambda: DataProcessingStrategies(),
         description="Data processing strategies for the PRIDE PPP configuration."
@@ -118,6 +148,7 @@ class PRIDEPPPConfig(BaseModel):
         description="List of stations used in the processing, each with its own configuration."
     )
 
+
     def write_config_file(self, file_path: str):
         """
         Writes the PRIDE PPP configuration to a file.
@@ -132,6 +163,20 @@ class PRIDEPPPConfig(BaseModel):
         with open(file_path, 'r') as file:
             content = file.read()
         return parse_pride_config(content)
+
+    @classmethod
+    def load_default(cls) -> "PRIDEPPPConfig":
+        """
+        Loads a default PRIDE PPP configuration with predefined values.
+        """
+        pdp_home = Path.home() / ".PRIDE_PPPAR_BIN"
+        if not pdp_home.exists():
+            raise FileNotFoundError(f"PRIDE PPPAR directory not found: {pdp_home}")
+        config_path = pdp_home / "config_template"
+        if not config_path.exists():
+            raise FileNotFoundError(f"PRIDE PPPAR config template not found: {config_path}")
+        return cls.read_config_file(config_path)
+    
 
 def parse_pride_config(text: str) -> PRIDEPPPConfig:
     # Helper functions
@@ -205,7 +250,7 @@ def parse_pride_config(text: str) -> PRIDEPPPConfig:
             prod_kwargs["code_phase_bias"] = get_value(line)
         elif "LEO quaternions" in line:
             prod_kwargs["leo_quaternions"] = get_value(line)
-    satellite_product = SatelliteProduct(**prod_kwargs)
+    satellite_product = SatelliteProducts(**prod_kwargs)
 
     # Parse Data processing strategies
     proc_lines = sections.get("data_processing_strategies", [])
@@ -274,7 +319,7 @@ def parse_pride_config(text: str) -> PRIDEPPPConfig:
     # Compose config
     config = PRIDEPPPConfig(
         observation=observation,
-        satellite_product=satellite_product,
+        satellite_products=satellite_product,
         processing=processing,
         ambiguity=ambiguity,
         satellites=satellite_list,
@@ -306,7 +351,7 @@ def write_pride_config(config: PRIDEPPPConfig, filepath: str):
 
         # Satellite product
         f.write("## Satellite product\n")
-        sat = config.satellite_product
+        sat = config.satellite_products
         f.write(f"Product directory      = {sat.product_directory}\n")
         f.write(f"Satellite orbit        = {sat.satellite_orbit}\n")
         f.write(f"Satellite clock        = {sat.satellite_clock}\n")
@@ -413,3 +458,114 @@ def write_pride_config(config: PRIDEPPPConfig, filepath: str):
                     f" {station.name} {station.tp}  {station.map} {station.clkm} {station.podm} {station.ev} {station.ztdm:.2f} {station.podm} {station.htgm} {station.podm} {station.ragm} {station.phsc:.2f} {station.polns} {station.poxem:.2f} {station.poynm:.2f} {station.pozhm:.2f}\n"
                 )
             f.write("-Station used\n")
+
+
+class PridePdpConfig(BaseModel):
+    """
+    PridePdpConfig is a configuration class for setting up and generating commands to run the pdp3 GNSS processing tool.
+    Attributes:
+        system (str): The GNSS system(s) to use. Default is "GREC23J" which is “GPS/GLONASS/Galileo/BDS/BDS-2/BDS-3/QZSS”.
+        frequency (list): The GNSS frequencies to use. Default is ["G12", "R12", "E15", "C26", "J12"]. Refer to Table 5-4 in PRIDE-PPP-AR v.3.0 manual for more options.
+        loose_edit (bool): Disable strict editing mode, which should be used when high dynamic data quality is poor. Default is True.
+        cutoff_elevation (int): The elevation cutoff angle in degrees (0-60 degrees). Default is 7.
+        start (datetime): The start time used for processing. Default is None.
+        end (datetime): The end time used for processing. Default is None.
+        interval (float): Processing interval, values range from 0.02s to 30s. If this item is not specified and the configuration file is specified, the processing interval in the configuration file will be read, otherwise, the sampling rate of the observation file is used by default.
+        high_ion (bool): Use 2nd ionospheric delay model with CODE's GIM product. When this option is not entered, no higher-order ionospheric correction is performed. Default is False.
+        tides (str): Enter one or more of "S" "O" "P", e.g SO for solid, ocean, and polar tides. Default is "SOP", which uses all tides.
+        local_pdp3_path (str): The path to the local pdp3 binary. Default is None.
+    Methods:
+        generate_pdp_command(site: str, local_file_path: str) -> List[str]:
+            Generate the command to run pdp3 with the given parameters.
+                site (str): The site identifier for the GNSS data.
+                local_file_path (str): The local file path to the GNSS data.
+            Returns:
+                List[str]: The command to run pdp3 with the specified configuration.
+    """
+
+    sample_frequency: float = 1
+    system: str = "GREC23J"
+    frequency: list = ["G12", "R12", "E15", "C26", "J12"]
+    loose_edit: bool = True
+    cutoff_elevation: int = 7
+    start: Optional[datetime] = None
+    end: Optional[datetime] = None
+    interval: Optional[float] = None
+    high_ion: Optional[bool] = None
+    tides: str = "SOP"
+    local_pdp3_path: Optional[str] = None
+    override: bool = False
+    override_products_download: bool = Field(
+        False, title="Flag to Override Existing Products Download"
+    )
+
+    def __post_init__(self):
+        # Check if system is valid
+        system = (
+            self.system.upper()
+        )  # Default to GREC23J which is “GPS/GLONASS/Galileo/BDS/BDS-2/BDS-3/QZSS”
+        for char in system:
+            if char not in Constellations._value2member_map_:
+                Constellations.print_options()
+                raise ValueError(f"Invalid constelation character: {char}")
+
+        # If entered, check if tide characters are valid
+        tides = self.tides.upper()
+        for char in tides:
+            if char not in Tides._value2member_map_:
+                Tides.print_options()
+                raise ValueError(f"Invalid tide character: {char}")
+
+    def generate_pdp_command(
+        self, site: str, local_file_path: str, start: datetime, end: datetime
+    ) -> List[str]:
+        """
+        Generate the command to run pdp3 with the given parameters
+        """
+
+        self.start = start if start is not None else self.start
+        self.end = end if end is not None else self.end
+
+        if self.local_pdp3_path:
+            if "pdp3" in self.local_pdp3_path:
+                command = [self.local_pdp3_path]
+            else:
+                command = [os.path.join(self.local_pdp3_path, "pdp3")]
+        else:
+            command = ["pdp3"]
+
+        command.extend(["-m", "K"])
+
+        command.extend(["-i", str(self.sample_frequency)])
+
+        if self.system != "GREC23J":
+            command.extend(["--system", self.system])
+
+        if self.frequency != ["G12", "R12", "E15", "C26", "J12"]:
+            command.extend(["--frequency", " ".join(self.frequency)])
+
+        if self.loose_edit:
+            command.append("--loose-edit")
+
+        if self.cutoff_elevation != 7:
+            command.extend(["--cutoff-elev", str(self.cutoff_elevation)])
+
+        if self.start:
+            command.extend(["--start", self.start.strftime("%Y-%m-%d %H:%M:%S")])
+
+        if self.end:
+            command.extend(["--end", self.end.strftime("%Y-%m-%d %H:%M:%S")])
+
+        if self.interval:
+            command.extend(["--interval", str(self.interval)])
+
+        if self.high_ion:
+            command.append("--high-ion")
+
+        if self.tides != "SOP":
+            command.extend(["--tide-off", self.tides])
+
+        command.extend(["--site", site])
+        command.append(str(local_file_path))
+
+        return command
