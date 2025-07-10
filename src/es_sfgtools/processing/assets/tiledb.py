@@ -201,7 +201,7 @@ for roll_period, tile_value in roll_periods.items():
     a0 = tiledb.Attr(name="range", dtype=np.float64, filters=filters4)
     a1 = tiledb.Attr(name="phase", dtype=np.float64, filters=filters4)
     a2 = tiledb.Attr(name="doppler", dtype=np.float64, filters=filters4)
-    a3 = tiledb.Attr(name="snr", dtype=np.float64, filters=filters5)
+    a3 = tiledb.Attr(name="snr", dtype=np.float32, filters=filters5)
     a4 = tiledb.Attr(name="slip", dtype=np.uint16, filters=filters3)
     a5 = tiledb.Attr(name="flags", dtype=np.uint16, filters=filters3)
     a6 = tiledb.Attr(name="fcn", dtype=np.int8, filters=filters1)
