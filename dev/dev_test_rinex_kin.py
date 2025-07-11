@@ -1,5 +1,5 @@
 from es_sfgtools.processing.pipeline.data_handler import DataHandler
-from es_sfgtools.processing.operations.gnss_ops import rinex_to_kin,PridePdpConfig,get_nav_file,get_gnss_products
+from es_sfgtools.processing.operations.gnss_ops import rinex_to_kin,PrideCLIConfig,get_nav_file,get_gnss_products
 from pathlib import Path
 import os
 from es_sfgtools.utils.loggers import BaseLogger
@@ -20,7 +20,7 @@ if __name__ == "__main__":
 
     dh.change_working_station(network=network, station=station, campaign=campaign)
 
-    pride_config = PridePdpConfig(
+    pride_config = PrideCLIConfig(
         sample_frequency=0.1,
         override_products_download=True,
         override=True,

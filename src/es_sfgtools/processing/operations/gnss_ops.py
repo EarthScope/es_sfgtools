@@ -190,16 +190,14 @@ class Tides(str, Enum):
         for option in cls:
             print(f"{option.value} for {option.name}")
 
-class PridePdpConfig(BaseModel):
+class PrideCLIConfig(BaseModel):
     '''
-    PridePdpConfig is a configuration class for setting up and generating commands to run the pdp3 GNSS processing tool.
+    PrideCLIConfig is a configuration class for setting up and generating commands to run the pdp3 GNSS processing tool.
     Attributes:
         system (str): The GNSS system(s) to use. Default is "GREC23J" which is “GPS/GLONASS/Galileo/BDS/BDS-2/BDS-3/QZSS”.
         frequency (list): The GNSS frequencies to use. Default is ["G12", "R12", "E15", "C26", "J12"]. Refer to Table 5-4 in PRIDE-PPP-AR v.3.0 manual for more options.
         loose_edit (bool): Disable strict editing mode, which should be used when high dynamic data quality is poor. Default is True.
         cutoff_elevation (int): The elevation cutoff angle in degrees (0-60 degrees). Default is 7.
-        start (datetime): The start time used for processing. Default is None.
-        end (datetime): The end time used for processing. Default is None.
         interval (float): Processing interval, values range from 0.02s to 30s. If this item is not specified and the configuration file is specified, the processing interval in the configuration file will be read, otherwise, the sampling rate of the observation file is used by default.
         high_ion (bool): Use 2nd ionospheric delay model with CODE's GIM product. When this option is not entered, no higher-order ionospheric correction is performed. Default is False.
         tides (str): Enter one or more of "S" "O" "P", e.g SO for solid, ocean, and polar tides. Default is "SOP", which uses all tides.
@@ -217,8 +215,6 @@ class PridePdpConfig(BaseModel):
     frequency: list = ["G12", "R12", "E15", "C26", "J12"]
     loose_edit: bool = True 
     cutoff_elevation: int = 7
-    start: Optional[datetime] = None
-    end: Optional[datetime] = None
     interval: Optional[float] = None
     high_ion: Optional[bool] = None
     tides: str = "SOP"
@@ -227,7 +223,11 @@ class PridePdpConfig(BaseModel):
     override_products_download: bool = Field(
         False, title="Flag to Override Existing Products Download"
     )
-    
+    pride_configfile_path: Optional[Path] = Field(
+        None,
+        title="Path to Pride Config File",
+        description="Path to the Pride config file. If not provided, the default config will be used.",
+    )
     def __post_init__(self):
         # Check if system is valid
         system = self.system.upper() # Default to GREC23J which is “GPS/GLONASS/Galileo/BDS/BDS-2/BDS-3/QZSS”
@@ -248,9 +248,6 @@ class PridePdpConfig(BaseModel):
         """
         Generate the command to run pdp3 with the given parameters
         """
-
-        self.start = start if start is not None else self.start
-        self.end = end if end is not None else self.end
 
         if self.local_pdp3_path:
             if 'pdp3' in self.local_pdp3_path:
@@ -276,12 +273,6 @@ class PridePdpConfig(BaseModel):
         if self.cutoff_elevation != 7:
             command.extend(["--cutoff-elev", str(self.cutoff_elevation)])
 
-        if self.start:
-            command.extend(["--start", self.start.strftime("%Y-%m-%d %H:%M:%S")])
-
-        if self.end:
-            command.extend(["--end", self.end.strftime("%Y-%m-%d %H:%M:%S")])
-
         if self.interval:
             command.extend(["--interval", str(self.interval)])
 
@@ -292,6 +283,10 @@ class PridePdpConfig(BaseModel):
             command.extend(["--tide-off", self.tides])
 
         command.extend(["--site", site])
+
+        if self.pride_configfile_path:
+            command.extend(["--config", str(self.pride_configfile_path)])
+
         command.append(str(local_file_path))
 
         return command
@@ -614,7 +609,7 @@ def rinex_to_kin(
     writedir: Path,
     pridedir: Path,
     site="SIT1",
-    pride_config: PridePdpConfig = None,
+    pride_config: PrideCLIConfig = None,
     show_details: bool = True
 ) -> Tuple[AssetEntry]:
 
@@ -668,7 +663,7 @@ def rinex_to_kin(
 
     # If PridePdpConfig is not provided, use the default configuration
     if pride_config is None:
-        pride_config = PridePdpConfig()
+        pride_config = PrideCLIConfig()
 
     pdp_command = pride_config.generate_pdp_command(site=site,
                                                     local_file_path=source.local_path,

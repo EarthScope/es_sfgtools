@@ -618,7 +618,7 @@ def get_gnss_products(
             assert product_directory.exists(), f"Product directory {product_directory} does not exist"
             # check if the gnss products are already downloaded
             for name,product in config_template.satellite_products.model_dump().items():
-                if name != "product_directory":
+                if name != "product_directory" and name != "leo_quaternions":
                     test_path = product_directory/"common"/product
                     if not test_path.exists():
                         logger.logerr(f"Product {name} not found in {test_path}")
@@ -630,7 +630,7 @@ def get_gnss_products(
     # Return the config template filepath for running pride-ppp, unless override is True then we will re-download the products
     if config_template is not None and not override:
         return config_template_file_path
-    
+
     # If we could not load the config file, we will look for the products in the common product directory
     # or download them if they are not found
 
@@ -657,7 +657,7 @@ def get_gnss_products(
                 else:
                     decompressed_file = to_decompress
                 logger.logdebug(f"Using existing file {decompressed_file} for product {product_type}")
-                product_status[product_type] = str(decompressed_file)
+                product_status[product_type] = str(decompressed_file.name) # Need to return the file name only
                 break
 
             remote_resource_updated = update_source(remote_resource)
@@ -672,7 +672,7 @@ def get_gnss_products(
                 if local_path.suffix == ".gz":
                     local_path = uncompress_file(local_path,common_product_dir)
                     logger.logdebug(f"Uncompressed {str(local_path)}")
-                product_status[product_type] = str(local_path)
+                product_status[product_type] = str(local_path.name) # Need to return the file name only
                 break
             except Exception as e:
                 logger.logerr(f"Failed to download {str(remote_resource)} | {e}")

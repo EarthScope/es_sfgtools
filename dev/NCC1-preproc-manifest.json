@@ -5,13 +5,13 @@
       "network": "cascadia-gorda",
       "station": "NCC1",
       "campaign": "2023_A_1063",
-      "jobs": [{ "type": "garpos" }]
+      "jobs": [{ "type": "preprocessing" }]
     },
     {
       "network": "cascadia-gorda",
       "station": "NCC1",
       "campaign": "2022_A_1065",
-      "jobs": [{ "type": "garpos" }]
+      "jobs": [{ "type": "preprocessing" }]
     }
   ],
 
@@ -71,11 +71,11 @@
       "interval": null,
       "local_pdp3_path": null,
       "loose_edit": true,
-      "sample_frequency": 0.1,
+      "sample_frequency": 1,
       "start": null,
       "system": "GREC23J",
       "tides": "SOP",
-      "override_products_download": true,
+      "override_products_download": false,
       "override": true
     },
     "rinex_config": {

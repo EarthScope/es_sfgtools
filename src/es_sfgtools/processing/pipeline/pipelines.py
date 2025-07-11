@@ -19,7 +19,7 @@ from sfg_metadata.metadata.src.catalogs import Catalog
 from es_sfgtools.processing.pipeline.catalog import PreProcessCatalog
 from es_sfgtools.processing.assets.file_schemas import AssetEntry,AssetType
 from es_sfgtools.processing.operations import sv2_ops, sv3_ops, gnss_ops, site_ops
-from es_sfgtools.processing.operations.gnss_ops import PridePdpConfig, rinex_to_kin, kin_to_gnssdf
+from es_sfgtools.processing.operations.gnss_ops import PrideCLIConfig, rinex_to_kin, kin_to_gnssdf
 from es_sfgtools.pride_tools.pride_utils import get_nav_file,get_gnss_products
 from es_sfgtools.processing.assets.tiledb import (
     TDBAcousticArray,
@@ -63,7 +63,7 @@ class PositionUpdateConfig(BaseModel):
 
 
 class SV3PipelineConfig(BaseModel):
-    pride_config: PridePdpConfig = PridePdpConfig()
+    pride_config: PrideCLIConfig = PrideCLIConfig()
     novatel_config: NovatelConfig = NovatelConfig()
     rinex_config: RinexConfig = RinexConfig()
     dfop00_config: DFOP00Config = DFOP00Config()
@@ -115,13 +115,34 @@ class PrepSiteData(BaseModel):
             return Path(v)
         return v
 
+def rinex_to_kin_wrapper(
+        rinex_prideconfig_path: tuple[AssetEntry, Path],
+        writedir: Path,
+        pridedir: Path,
+        site: str,
+        pride_config: PrideCLIConfig,
+    ) -> tuple[Optional[AssetEntry], Optional[AssetEntry]]:
+
+    rinex_entry, pride_config_path = rinex_prideconfig_path
+    pride_config = pride_config.model_copy()
+    pride_config.pride_configfile_path = pride_config_path
+
+    return rinex_to_kin(
+        source=rinex_entry,
+        writedir=writedir,
+        pridedir=pridedir,
+        site=site,
+        pride_config=pride_config,
+    )
+
+
 class SV3Pipeline:
 
     def __init__(self,
                  asset_catalog:PreProcessCatalog=None,
                  data_catalog:Catalog=None,
                  config:SV3PipelineConfig=None):
-        
+
         self.asset_catalog = asset_catalog
         self.data_catalog = data_catalog
         self.config = config
@@ -233,7 +254,7 @@ class SV3Pipeline:
                 return
 
             self.asset_catalog.add_merge_job(**merge_signature)
-            #Sort the rinex entries by date so span log is correct
+            # Sort the rinex entries by date so span log is correct
             rinex_entries.sort(key=lambda entry: entry.timestamp_data_start)
 
             gnss_logger.loginfo(f"Generated {len(rinex_entries)} Rinex files spanning {rinex_entries[0].timestamp_data_start} to {rinex_entries[-1].timestamp_data_end}")
@@ -257,6 +278,8 @@ class SV3Pipeline:
         Raises:
             ValueError: If no Rinex files are found.
         """
+
+    
 
         response = (f"Running PRIDE-PPPAR on Rinex Data for {self.network} {self.station} {self.campaign}. This may take a few minutes...")
         gnss_logger.loginfo(response)
@@ -285,21 +308,22 @@ class SV3Pipeline:
         get_nav_file_partial = partial(
             get_nav_file, override=self.config.pride_config.override_products_download
         )
-        get_gnss_products_partial = partial(
+        get_pride_config_partial = partial(
             get_gnss_products, pride_dir=self.pride_dir, override=self.config.pride_config.override_products_download
         )
 
-        rinex_paths = [x.local_path for x in rinex_entries]
-
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            nav_files = [x for x in executor.map(get_nav_file_partial, rinex_paths)]
-            gnss_products = [x for x in executor.map(get_gnss_products_partial, rinex_paths)]
+            nav_files = [x for x in executor.map(get_nav_file_partial, [x.local_path for x in rinex_entries])]
+            pride_configs = [x for x in executor.map(get_pride_config_partial, [x.local_path for x in rinex_entries])]
 
+        rinex_prideconfigs = [(rinex_entry, pride_config_path) for rinex_entry, pride_config_path in zip(rinex_entries, pride_configs) if pride_config_path is not None]
+
+        
         process_rinex_partial = partial(
-            rinex_to_kin,
+            rinex_to_kin_wrapper,
             writedir=self.inter_dir,
             pridedir=self.pride_dir,
-            site = self.station,
+            site=self.station,
             pride_config=self.config.pride_config,
         )
         kin_entries = []
@@ -309,7 +333,7 @@ class SV3Pipeline:
 
         with multiprocessing.Pool(processes=self.config.rinex_config.n_processes) as pool:
 
-            results = pool.map(process_rinex_partial, rinex_entries)
+            results = pool.map(process_rinex_partial, rinex_prideconfigs)
 
             for idx, (kinfile, resfile) in enumerate(tqdm(
                 results, total=len(rinex_entries), desc="Processing Rinex Files",mininterval=0.5
@@ -475,4 +499,3 @@ class SV2Pipeline:
             logger.loginfo(response)
             # if self.config.novatel_config.show_details:
             #     print(response)
-
