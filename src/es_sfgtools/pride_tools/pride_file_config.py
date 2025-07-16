@@ -146,7 +146,7 @@ class PRIDEPPPFileConfig(BaseModel):
         """
         if isinstance(filepath, str):
             filepath = Path(filepath)
-        filepath.mkdir(parents=True, exist_ok=True)
+        filepath.parent.mkdir(parents=True, exist_ok=True)
         # fix critical search params so first 2 values in the list are integers
         for i in range(2):
             self.ambiguity.critical_search[i] = int(self.ambiguity.critical_search[i])

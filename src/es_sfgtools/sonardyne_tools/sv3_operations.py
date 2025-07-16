@@ -20,7 +20,7 @@ def dfop00_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
     
     processed = []
     interrogation = None
-    with open(source.local_path) as f:
+    with open(source) as f:
         lines = f.readlines()
         for line in lines:
             data = json.loads(line)
@@ -33,7 +33,7 @@ def dfop00_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
                     processed.append((dict(interrogation) | dict(reply_data)))
 
     if not processed:
-        logger.logerr(f"No valid data found in {source.local_path}")
+        logger.logerr(f"No valid data found in {source}")
         return None
     df = pd.DataFrame(processed)
     df["isUpdated"] = False
