@@ -1,23 +1,25 @@
+# External imports
+from ftplib import FTP
+import gzip
 import datetime
 from pathlib import Path
-from ftplib import FTP
-from typing import IO,Dict,Optional,List,Literal
-import gzip
+from typing import Dict, IO
 import tempfile
-import logging
-from pydantic import BaseModel,field_validator
-import shutil
-import warnings
 import re
+from typing import Optional,Literal
+# Local imports
+from .gnss_product_schemas import (
+    RemoteQuery,
+    RemoteResource,
+    WuhanIGS,
+    CLSIGS,
+    GSSC
+)
+from .pride_file_config import PRIDEPPPConfig,SatelliteProducts
+from .rinex_utils import rinex_get_time_range
+from ..logging import GNSSLogger as logger
 
-from es_sfgtools.pride_tools.gnss_resources import RemoteQuery,RemoteResource,WuhanIGS,CLSIGS,GSSC #,CDDIS
-from es_sfgtools.utils.loggers import GNSSLogger as logger
-
-from .config import PRIDEPPPConfig,SatelliteProducts
-
-
-def update_source(source:RemoteResource) -> RemoteResource:
-    
+def update_source(source: RemoteResource) -> RemoteResource:
     """
     Get the contents of the directory on a remote FTP server and return the first file that matches the sorted remote query.
     Args:
@@ -36,39 +38,42 @@ def update_source(source:RemoteResource) -> RemoteResource:
         "BRDC20210010000.rnx.gz"
     """
     # List the contents of the directory and return the first file that matches the sorted remote query
-    assert isinstance(source.remote_query,RemoteQuery), f"Remote query not set for {source}"
+    assert isinstance(
+        source.remote_query, RemoteQuery
+    ), f"Remote query not set for {source}"
 
     try:
-        with FTP(source.ftpserver.replace("ftp://",""),timeout=60) as ftp:
+        with FTP(source.ftpserver.replace("ftp://", ""), timeout=60) as ftp:
             ftp.set_pasv(True)
             ftp.login()
             ftp.cwd("/" + source.directory)
             dir_list = ftp.nlst()
     except Exception as e:
-        logger.logerr(f"Failed to list directory {source.directory} on {source.ftpserver} | {e}")
+        logger.logerr(
+            f"Failed to list directory {source.directory} on {source.ftpserver} | {e}"
+        )
         return source
 
     remote_query = source.remote_query
-    
+
     dir_match = [d for d in dir_list if remote_query.pattern.search(d)]
     if len(dir_match) == 0:
         logger.logerr(f"No match found for {remote_query.pattern}")
         return source
-    
+
     sorted_match = []
     if remote_query.sort_order is not None:
         for prod_type in remote_query.sort_order:
-            for idx,d in enumerate(dir_match):
+            for idx, d in enumerate(dir_match):
                 if prod_type in d:
                     sorted_match.append(dir_match.pop(idx))
     sorted_match.extend(dir_match)
     source.file_name = sorted_match[0]
     logger.loginfo(f"Match found for {remote_query.pattern} : {source.file_name}")
-    return source 
+    return source
 
 
-def download(source:RemoteResource,dest:Path) ->Path:
-
+def download(source: RemoteResource, dest: Path) -> Path:
     """
     Downloads a file from a remote FTP server to a local destination.
     Args:
@@ -90,16 +95,17 @@ def download(source:RemoteResource,dest:Path) ->Path:
     """
 
     logger.loginfo(f"\nAttempting Download of {str(source)} to {str(dest)}\n")
-    with FTP(source.ftpserver.replace("ftp://",""),timeout=60) as ftp:
+    with FTP(source.ftpserver.replace("ftp://", ""), timeout=60) as ftp:
         ftp.set_pasv(True)
         ftp.login()
         ftp.cwd("/" + source.directory)
-        with open(dest,"wb") as f:
-            ftp.retrbinary(f"RETR {source.file_name}",f.write)
+        with open(dest, "wb") as f:
+            ftp.retrbinary(f"RETR {source.file_name}", f.write)
     logger.loginfo(f"\nDownloaded {str(source)} to {str(dest)}\n")
     return dest
 
-def uncompress_file(file_path:Path,dest_dir:Path) ->Path:
+
+def uncompress_file(file_path: Path, dest_dir: Path) -> Path:
     """
     Decompresses a file using zlib and returns the path of the decompressed file.
     Args:
@@ -132,7 +138,7 @@ def uncompress_file(file_path:Path,dest_dir:Path) ->Path:
     return out_file_path
 
 
-def get_daily_rinex_url(date:datetime.date) ->Dict[str,Dict[str,RemoteResource]]:
+def get_daily_rinex_url(date: datetime.date) -> Dict[str, Dict[str, RemoteResource]]:
     """
     This function returns the 'RemoteResource' for the IGS rinex observation file for a given date.
     url config docs at https://igs.org/products-access/#gnss-broadcast-ephemeris
@@ -171,16 +177,16 @@ def get_daily_rinex_url(date:datetime.date) ->Dict[str,Dict[str,RemoteResource]]
     }
     return urls
 
-def get_gnss_common_products(date:datetime.date) ->Dict[str,Dict[str,Path]]:
 
+def get_gnss_common_products_urls(date: datetime.date) -> Dict[str, Dict[str, Path]]:
     """
     Retrieve GNSS common products for a given date.
-    This function fetches various GNSS products (sp3, clk, bias, obx, erp) from 
+    This function fetches various GNSS products (sp3, clk, bias, obx, erp) from
     different sources (WuhanIGS and CLSIGS) for the specified date.
     Args:
         date (datetime.date): The date for which to retrieve the GNSS products.
     Returns:
-        Dict[str, Dict[str, Path]]: A dictionary containing the GNSS products 
+        Dict[str, Dict[str, Path]]: A dictionary containing the GNSS products
         categorized by product type and source. The structure of the dictionary is:
             {   "sp3": {
                     "wuhan": Path to WuhanIGS sp3 product,
@@ -231,7 +237,8 @@ def get_gnss_common_products(date:datetime.date) ->Dict[str,Dict[str,Path]]:
     }
     return urls
 
-def merge_broadcast_files(brdn:Path, brdg:Path, output_folder:Path) ->Path:
+
+def merge_broadcast_files(brdn: Path, brdg: Path, output_folder: Path) -> Path:
     """
     Merge GPS and GLONASS broadcast ephemerides into a single BRDM file.
     Functionality inspired by https://github.com/PrideLab/PRIDE-PPPAR/blob/master/scripts/merge2brdm.py
@@ -255,7 +262,7 @@ def merge_broadcast_files(brdn:Path, brdg:Path, output_folder:Path) ->Path:
     """
     logger.loginfo(f"Merging {brdn} and {brdg} into a single BRDM file.")
 
-    def write_brdn(file:Path, prefix:str, fm:IO):
+    def write_brdn(file: Path, prefix: str, fm: IO):
         """
         Writes data from a brdn file to a given output stream.
 
@@ -281,7 +288,7 @@ def merge_broadcast_files(brdn:Path, brdg:Path, output_folder:Path) ->Path:
         i = 1
         while i < len(lines):
             try:
-                #print(i, lines[i])
+                # print(i, lines[i])
                 if not in_header:
                     line = lines[i].replace("D", "e")
                     prn = int(line[0:2])
@@ -294,7 +301,9 @@ def merge_broadcast_files(brdn:Path, brdg:Path, output_folder:Path) ->Path:
                     num2 = eval(line[22:41])
                     num3 = eval(line[41:60])
                     num4 = eval(line[60:79])
-                    print(f"{prefix}{prn:02d} {yyyy:04d} {mm:02d} {dd:02d} {hh:02d} {mi:02d} {ss:02d} {num2:.12e} {num3:.12e} {num4:.12e}\n")
+                    print(
+                        f"{prefix}{prn:02d} {yyyy:04d} {mm:02d} {dd:02d} {hh:02d} {mi:02d} {ss:02d} {num2:.12e} {num3:.12e} {num4:.12e}\n"
+                    )
                     fm.write(
                         f"{prefix}{prn:02d} {yyyy:04d} {mm:02d} {dd:02d} {hh:02d} {mi:02d} {ss:02d} {num2:.12e} {num3:.12e} {num4:.12e}\n"
                     )
@@ -310,7 +319,7 @@ def merge_broadcast_files(brdn:Path, brdg:Path, output_folder:Path) ->Path:
                         fm.write(
                             f"    {num1:.12e} {num2:.12e} {num3:.12e} {num4:.12e}\n"
                         )
-                    print('here')
+                    print("here")
                     line = lines[i + 7].replace("D", "e")
                     num1 = eval(line[3:22])
                     num2 = eval(line[22:41])
@@ -319,12 +328,12 @@ def merge_broadcast_files(brdn:Path, brdg:Path, output_folder:Path) ->Path:
                     if i >= len(lines):
                         break
                 else:
-                    if ("PGM / RUN BY / DATE" == lines[i][60:79]):
+                    if "PGM / RUN BY / DATE" == lines[i][60:79]:
                         fm.write(lines[i])
-                    if ("LEAP SECONDS"        == lines[i][60:72]):
+                    if "LEAP SECONDS" == lines[i][60:72]:
                         leap_n = int(lines[i][1:6])
                         fm.write(lines[i])
-                    if ("END OF HEADER"       == lines[i][60:73]):
+                    if "END OF HEADER" == lines[i][60:73]:
                         inHeader = False
                         fm.write(lines[i])
                     i = i + 1
@@ -332,12 +341,12 @@ def merge_broadcast_files(brdn:Path, brdg:Path, output_folder:Path) ->Path:
                 print(
                     f"***ERROR: unexpected ERROR occurred at line {i} of file {file}: {e}"
                 )
-                #print(lines[i])
+                # print(lines[i])
                 break
 
         fn.close()
 
-    def write_brdg(file:Path, prefix:str, fm:IO):
+    def write_brdg(file: Path, prefix: str, fm: IO):
         """
         Writes data from a brdg file to a given output stream.
 
@@ -360,41 +369,50 @@ def merge_broadcast_files(brdn:Path, brdg:Path, output_folder:Path) ->Path:
             print(f"***ERROR: unable to open or read file {file}: {e}")
             return
         i = 1
-        while (i < len(lines)):
+        while i < len(lines):
             try:
-                if (not inHeader):
-                    line = lines[i].replace("D","e")
-                    prn  = int(line[ 0: 2])
-                    yyyy = int(line[ 3: 5]) + 2000
-                    mm   = int(line[ 6: 8])
-                    dd   = int(line[ 9:11])
-                    hh   = int(line[12:14])
-                    mi   = int(line[15:17])
-                    ss   = round(float(line[18:22]))
+                if not inHeader:
+                    line = lines[i].replace("D", "e")
+                    prn = int(line[0:2])
+                    yyyy = int(line[3:5]) + 2000
+                    mm = int(line[6:8])
+                    dd = int(line[9:11])
+                    hh = int(line[12:14])
+                    mi = int(line[15:17])
+                    ss = round(float(line[18:22]))
                     num2 = eval(line[22:41])
                     num3 = eval(line[41:60])
                     num4 = eval(line[60:79])
-                    fm.write("R{:02d} {:04d} {:02d} {:02d} {:02d} {:02d} {:02d}{: .12e}{: .12e}{: .12e}\n".format(
-                        prn, yyyy, mm, dd, hh, mi, int(ss), num2, num3, num4))
-                    for t in range(1,4):
-                        line = lines[i+t].replace("D","e")
-                        num1 = eval(line[ 3:22])
+                    fm.write(
+                        "R{:02d} {:04d} {:02d} {:02d} {:02d} {:02d} {:02d}{: .12e}{: .12e}{: .12e}\n".format(
+                            prn, yyyy, mm, dd, hh, mi, int(ss), num2, num3, num4
+                        )
+                    )
+                    for t in range(1, 4):
+                        line = lines[i + t].replace("D", "e")
+                        num1 = eval(line[3:22])
                         num2 = eval(line[22:41])
                         num3 = eval(line[41:60])
                         num4 = eval(line[60:79])
-                        fm.write("    {: .12e}{: .12e}{: .12e}{: .12e}\n".format(num1, num2, num3, num4))
+                        fm.write(
+                            "    {: .12e}{: .12e}{: .12e}{: .12e}\n".format(
+                                num1, num2, num3, num4
+                            )
+                        )
                     i = i + 4
-                    if (i >= len(lines)):
+                    if i >= len(lines):
                         break
                 else:
-                    if ("LEAP SECONDS"  == lines[i][60:72]):
+                    if "LEAP SECONDS" == lines[i][60:72]:
                         leap_g = int(lines[i][1:6])
-                    if ("END OF HEADER" == lines[i][60:73]):
+                    if "END OF HEADER" == lines[i][60:73]:
                         inHeader = False
                     i = i + 1
             except Exception as e:
-                print(f"***ERROR: unexpected ERROR occurred at line {i} of file {file}: {e}")
-                #print(lines[i])
+                print(
+                    f"***ERROR: unexpected ERROR occurred at line {i} of file {file}: {e}"
+                )
+                # print(lines[i])
                 break
         fg.close()
 
@@ -421,7 +439,7 @@ def merge_broadcast_files(brdn:Path, brdg:Path, output_folder:Path) ->Path:
     return None
 
 
-def get_nav_file(rinex_path:Path,override:bool=False) -> Path:
+def get_nav_file(rinex_path: Path, override: bool = False) -> Path:
     """
     Attempts to build a navigation file for a given RINEX file by downloading the necessary files from the IGS FTP server.
 
@@ -441,7 +459,7 @@ def get_nav_file(rinex_path:Path,override:bool=False) -> Path:
         >>> nav_path
         Path("data/BRDC00IGS_R_20231750000_01D_MN.rnx.gz")
     """
-  
+
     response = f"\nAttempting to build nav file for {str(rinex_path)}"
     logger.logdebug(response)
 
@@ -454,7 +472,8 @@ def get_nav_file(rinex_path:Path,override:bool=False) -> Path:
                 start_date = datetime.date(
                     year=int(time_values[0]),
                     month=int(time_values[1]),
-                    day=int(time_values[2]))
+                    day=int(time_values[2]),
+                )
                 break
     if start_date is None:
         response = "No TIME OF FIRST OBS found in RINEX file."
@@ -466,7 +485,11 @@ def get_nav_file(rinex_path:Path,override:bool=False) -> Path:
     brdc_pattern = re.compile(rf"BRDC.*{year}{doy}.*rnx.*")
     brdm_pattern = re.compile(rf"brdm{doy}0.{year[-2:]}p")
 
-    found_nav_files = [x for x in rinex_path.parent.glob("*") if brdc_pattern.search(x.name) or brdm_pattern.search(x.name)]
+    found_nav_files = [
+        x
+        for x in rinex_path.parent.glob("*")
+        if brdc_pattern.search(x.name) or brdm_pattern.search(x.name)
+    ]
 
     for nav_file in found_nav_files:
         if nav_file.stat().st_size > 0 and not override:
@@ -474,8 +497,8 @@ def get_nav_file(rinex_path:Path,override:bool=False) -> Path:
             logger.logdebug(response)
             return nav_file
 
-    remote_resource_dict: Dict[str,RemoteResource] = get_daily_rinex_url(start_date)
-    for source,remote_resource in remote_resource_dict["rinex_3"].items():
+    remote_resource_dict: Dict[str, RemoteResource] = get_daily_rinex_url(start_date)
+    for source, remote_resource in remote_resource_dict["rinex_3"].items():
 
         remote_resource_updated = update_source(remote_resource)
         if remote_resource_updated.file_name is None:
@@ -484,9 +507,9 @@ def get_nav_file(rinex_path:Path,override:bool=False) -> Path:
         response = f"Attemping to download {source} - {str(remote_resource)}"
         logger.logdebug(response)
 
-        local_path = rinex_path.parent /remote_resource.file_name
+        local_path = rinex_path.parent / remote_resource.file_name
         try:
-            download(remote_resource,local_path)
+            download(remote_resource, local_path)
         except Exception as e:
             logger.logerr(f"Failed to download {str(remote_resource)} | {e}")
 
@@ -495,33 +518,38 @@ def get_nav_file(rinex_path:Path,override:bool=False) -> Path:
             logger.logdebug(
                 f"Succesfully downloaded {str(remote_resource)} to {str(local_path)}"
             )
-            logger.logdebug(f"Successfully built {str(local_path)} From {str(remote_resource)}")
+            logger.logdebug(
+                f"Successfully built {str(local_path)} From {str(remote_resource)}"
+            )
             return local_path
 
     with tempfile.TemporaryDirectory() as tempdir:
         # If rinex 3 nav file pathway is not found, try rinex 2
-        for source,constellations in remote_resource_dict["rinex_2"].items():
-            gps_url:RemoteResource = constellations["gps"]
-            glonass_url:RemoteResource = constellations["glonass"]
+        for source, constellations in remote_resource_dict["rinex_2"].items():
+            gps_url: RemoteResource = constellations["gps"]
+            glonass_url: RemoteResource = constellations["glonass"]
 
             gps_url_updated = update_source(gps_url)
             glonass_url_updated = update_source(glonass_url)
-            if gps_url_updated.file_name is None or glonass_url_updated.file_name is None:
+            if (
+                gps_url_updated.file_name is None
+                or glonass_url_updated.file_name is None
+            ):
                 continue
 
             gps_local_name = gps_url.file_name
             glonass_local_name = glonass_url.file_name
 
-            gps_dl_path = Path(tempdir)/gps_local_name
-            glonass_dl_path = Path(tempdir)/glonass_local_name
+            gps_dl_path = Path(tempdir) / gps_local_name
+            glonass_dl_path = Path(tempdir) / glonass_local_name
 
             logger.logdebug(f"Attemping to download {source} From {str(gps_url)}")
 
             try:
 
-                download(gps_url,gps_dl_path)
+                download(gps_url, gps_dl_path)
 
-                download(glonass_url,glonass_dl_path)
+                download(glonass_url, glonass_dl_path)
 
             except Exception as e:
 
@@ -533,7 +561,11 @@ def get_nav_file(rinex_path:Path,override:bool=False) -> Path:
             if gps_dl_path.exists() and glonass_dl_path.exists():
                 gps_dl_path = uncompress_file(gps_dl_path)
                 glonass_dl_path = uncompress_file(glonass_dl_path)
-                if (brdm_path := merge_broadcast_files(gps_dl_path,glonass_dl_path,rinex_path.parent)) is not None:
+                if (
+                    brdm_path := merge_broadcast_files(
+                        gps_dl_path, glonass_dl_path, rinex_path.parent
+                    )
+                ) is not None:
 
                     logger.logdebug(f"Successfully built {brdm_path}")
 
@@ -544,17 +576,15 @@ def get_nav_file(rinex_path:Path,override:bool=False) -> Path:
                 print(response)
     response = f"Failed to build or locate {brdm_path}"
     logger.logerr(response)
-    warnings.warn(response)
 
 
 def get_gnss_products(
     rinex_path: Path,
     pride_dir: Path,
     override: bool = False,
-    source: Literal["all","wuhan", "cligs"] = "all",
-    date: Optional[datetime.date | datetime.datetime] = None
+    source: Literal["all", "wuhan", "cligs"] = "all",
+    date: Optional[datetime.date | datetime.datetime] = None,
 ) -> dict:
-
     """
     Retrieves GNSS products associated with the given RINEX file.
 
@@ -575,57 +605,63 @@ def get_gnss_products(
         product_status (dict): A dictionary containing the status of the GNSS products downloaded.
     Raises:
         Exception: If there is an error while downloading the GNSS products.
-    
+
     """
-    assert source in ["all","wuhan", "cligs"], f"Invalid source {source}"
+    assert source in ["all", "wuhan", "cligs"], f"Invalid source {source}"
     config_template = None
     start_date = None
     if rinex_path is not None:
-        with open(rinex_path) as f:
-            files = f.readlines()
-            for line in files:
-                if "TIME OF FIRST OBS" in line:
-                    time_values = line.split("GPS")[0].strip().split()
-                    start_date = datetime.date(
-                        year=int(time_values[0]),
-                        month=int(time_values[1]),
-                        day=int(time_values[2]),
-                    )
-                    break
+        start_date,_ = rinex_get_time_range(rinex_path)
+        if start_date is None:
+            logger.logerr("No TIME OF FIRST OBS found in RINEX file.")
+            return
     elif date is not None:
-        if isinstance(date,datetime.datetime):
+        if isinstance(date, datetime.datetime):
             start_date = date.date()
-        elif isinstance(date,datetime.date):
+        elif isinstance(date, datetime.date):
             start_date = date
         else:
-            raise TypeError(f"Invalid date type {type(date)}. Must be datetime.date or datetime.datetime")
+            raise TypeError(
+                f"Invalid date type {type(date)}. Must be datetime.date or datetime.datetime"
+            )
 
-    if start_date is None:
-        logger.logerr("No TIME OF FIRST OBS found in RINEX file.")
-        return
+    else:
+        raise ValueError("Either rinex_path or date must be provided")
+    
     year = str(start_date.year)
     doy = str(start_date.timetuple().tm_yday)
 
-    common_product_dir = pride_dir/year/"product"/"common"
-    common_product_dir.mkdir(exist_ok=True,parents=True)
+    common_product_dir = pride_dir / year / "product" / "common"
+    common_product_dir.mkdir(exist_ok=True, parents=True)
 
-    config_template_file_path = pride_dir/year/doy/"config_file"
+    config_template_file_path = pride_dir / year / doy / "config_file"
     if config_template_file_path.exists():
         # load and validate the config file
         try:
             config_template = PRIDEPPPConfig.read_config_file(config_template_file_path)
-            product_directory = Path(config_template.satellite_products.product_directory)
-            assert product_directory.exists(), f"Product directory {product_directory} does not exist"
+            product_directory = Path(
+                config_template.satellite_products.product_directory
+            )
+            assert (
+                product_directory.exists()
+            ), f"Product directory {product_directory} does not exist"
             # check if the gnss products are already downloaded
-            for name,product in config_template.satellite_products.model_dump().items():
+            for (
+                name,
+                product,
+            ) in config_template.satellite_products.model_dump().items():
                 if name != "product_directory" and name != "leo_quaternions":
-                    test_path = product_directory/"common"/product
+                    test_path = product_directory / "common" / product
                     if not test_path.exists():
                         logger.logerr(f"Product {name} not found in {test_path}")
-                        raise FileNotFoundError(f"Product {name} not found in {test_path}")
+                        raise FileNotFoundError(
+                            f"Product {name} not found in {test_path}"
+                        )
         except Exception as e:
             config_template = None
-            logger.logerr(f"Failed to load config file {config_template_file_path}: {e}")
+            logger.logerr(
+                f"Failed to load config file {config_template_file_path}: {e}"
+            )
 
     # Return the config template filepath for running pride-ppp, unless override is True then we will re-download the products
     if config_template is not None and not override:
@@ -635,29 +671,41 @@ def get_gnss_products(
     # or download them if they are not found
 
     cp_dir_list = list(common_product_dir.glob("*"))
-    remote_resource_dict: Dict[str,Dict[str,RemoteResource]] = get_gnss_common_products(start_date)
+    remote_resource_dict: Dict[str, Dict[str, RemoteResource]] = (
+        get_gnss_common_products_urls(start_date)
+    )
 
     product_status = {}
 
-    for product_type,sources in remote_resource_dict.items():
+    for product_type, sources in remote_resource_dict.items():
         logger.logdebug(f"Attempting to download {product_type} products")
         if product_type not in product_status:
-            product_status[product_type] = 'False'
+            product_status[product_type] = "False"
 
-        for dl_source,remote_resource in sources.items():
+        for dl_source, remote_resource in sources.items():
             if source != "all" and dl_source != source:
                 continue
             # check if file already exists
-            found_files = [f for f in cp_dir_list if remote_resource.remote_query.pattern.match(f.name)]
+            found_files = [
+                f
+                for f in cp_dir_list
+                if remote_resource.remote_query.pattern.match(f.name)
+            ]
             if found_files and not override:
                 logger.logdebug(f"Found {found_files[0]} for product {product_type}")
                 to_decompress = found_files[0]
                 if to_decompress.suffix == ".gz":
-                    decompressed_file = uncompress_file(to_decompress,common_product_dir)
+                    decompressed_file = uncompress_file(
+                        to_decompress, common_product_dir
+                    )
                 else:
                     decompressed_file = to_decompress
-                logger.logdebug(f"Using existing file {decompressed_file} for product {product_type}")
-                product_status[product_type] = str(decompressed_file.name) # Need to return the file name only
+                logger.logdebug(
+                    f"Using existing file {decompressed_file} for product {product_type}"
+                )
+                product_status[product_type] = str(
+                    decompressed_file.name
+                )  # Need to return the file name only
                 break
 
             remote_resource_updated = update_source(remote_resource)
@@ -666,13 +714,19 @@ def get_gnss_products(
 
             local_path = common_product_dir / remote_resource.file_name
             try:
-                logger.logdebug(f"Attempting to download {product_type} product from {str(remote_resource)}")
-                download(remote_resource,local_path)
-                logger.logdebug(f"\n Succesfully downloaded {product_type} FROM {str(remote_resource)} TO {str(local_path)}\n")
+                logger.logdebug(
+                    f"Attempting to download {product_type} product from {str(remote_resource)}"
+                )
+                download(remote_resource, local_path)
+                logger.logdebug(
+                    f"\n Succesfully downloaded {product_type} FROM {str(remote_resource)} TO {str(local_path)}\n"
+                )
                 if local_path.suffix == ".gz":
-                    local_path = uncompress_file(local_path,common_product_dir)
+                    local_path = uncompress_file(local_path, common_product_dir)
                     logger.logdebug(f"Uncompressed {str(local_path)}")
-                product_status[product_type] = str(local_path.name) # Need to return the file name only
+                product_status[product_type] = str(
+                    local_path.name
+                )  # Need to return the file name only
                 break
             except Exception as e:
                 logger.logerr(f"Failed to download {str(remote_resource)} | {e}")
@@ -680,7 +734,7 @@ def get_gnss_products(
                     local_path.unlink()
                 continue
 
-    for product_type,product_path in product_status.items():
+    for product_type, product_path in product_status.items():
         logger.logdebug(f"{product_type} : {product_path}")
 
     # Generate the config file

@@ -6,33 +6,38 @@ import pandas as pd
 from pandera import check_types
 from pandera.typing import DataFrame
 from functools import wraps
-from typing import Optional,Dict,Literal
+from typing import Optional, Dict, Literal
 import matplotlib.pyplot as plt
 
-from ...data_models.observables import AcousticDataFrame,GNSSDataFrame,PositionDataFrame,ShotDataFrame
+from ..data_models.observables import (
+    AcousticDataFrame,
+    GNSSDataFrame,
+    PositionDataFrame,
+    ShotDataFrame,
+)
 
-from es_sfgtools.utils.loggers import ProcessLogger as logger
+from ..logging import ProcessLogger as logger
 
 filters = tiledb.FilterList([tiledb.ZstdFilter(7)])
 TimeDomain = tiledb.Dim(name="time", dtype="datetime64[ms]")
-TransponderDomain = tiledb.Dim(name="transponderID",dtype="ascii")
-attribute_dict: Dict[str,tiledb.Attr] = {
+TransponderDomain = tiledb.Dim(name="transponderID", dtype="ascii")
+attribute_dict: Dict[str, tiledb.Attr] = {
     "east": tiledb.Attr(name="east", dtype=np.float64),
     "north": tiledb.Attr(name="north", dtype=np.float64),
     "up": tiledb.Attr(name="up", dtype=np.float64),
-    "east_std": tiledb.Attr(name="east_std", dtype=np.float64,nullable=True),
-    "north_std": tiledb.Attr(name="north_std", dtype=np.float64,nullable=True),
-    "up_std": tiledb.Attr(name="up_std", dtype=np.float64,nullable=True),
+    "east_std": tiledb.Attr(name="east_std", dtype=np.float64, nullable=True),
+    "north_std": tiledb.Attr(name="north_std", dtype=np.float64, nullable=True),
+    "up_std": tiledb.Attr(name="up_std", dtype=np.float64, nullable=True),
     "latitude": tiledb.Attr(name="latitude", dtype=np.float64),
     "longitude": tiledb.Attr(name="longitude", dtype=np.float64),
     "height": tiledb.Attr(name="height", dtype=np.float64),
-    "returnTime":tiledb.Attr(name="returnTime",dtype="datetime64[ns]"),
-    "tt":tiledb.Attr(name="tt",dtype=np.float64),
-    "dbv":tiledb.Attr(name="dbv",dtype=np.uint8),
-    "xc":tiledb.Attr(name="xc",dtype=np.uint8),
-    "snr":tiledb.Attr(name="snr",dtype=np.float64),
-    "tat":tiledb.Attr(name="tat",dtype=np.float64),
-    "isUpdated":tiledb.Attr(name="isUpdated",dtype=np.bool_)
+    "returnTime": tiledb.Attr(name="returnTime", dtype="datetime64[ns]"),
+    "tt": tiledb.Attr(name="tt", dtype=np.float64),
+    "dbv": tiledb.Attr(name="dbv", dtype=np.uint8),
+    "xc": tiledb.Attr(name="xc", dtype=np.uint8),
+    "snr": tiledb.Attr(name="snr", dtype=np.float64),
+    "tat": tiledb.Attr(name="tat", dtype=np.float64),
+    "isUpdated": tiledb.Attr(name="isUpdated", dtype=np.bool_),
 }
 
 GNSSAttributes = [
@@ -52,8 +57,8 @@ GNSSArraySchema = tiledb.ArraySchema(
     sparse=True,
     domain=tiledb.Domain(TimeDomain),
     attrs=GNSSAttributes,
-    cell_order='col-major', 
-    tile_order='row-major',
+    cell_order="col-major",
+    tile_order="row-major",
     allows_duplicates=False,
     coords_filters=filters,
 )
@@ -68,14 +73,13 @@ PositionAttributes = [
     attribute_dict["east_std"],
     attribute_dict["north_std"],
     attribute_dict["up_std"],
-
 ]
 PositionArraySchema = tiledb.ArraySchema(
     sparse=True,
     domain=tiledb.Domain(TimeDomain),
     attrs=PositionAttributes,
-    cell_order='col-major', 
-    tile_order='row-major',
+    cell_order="col-major",
+    tile_order="row-major",
     allows_duplicates=False,
     coords_filters=filters,
 )
@@ -102,7 +106,7 @@ ShotDataAttributes = [
     attribute_dict["xc"],
     attribute_dict["snr"],
     attribute_dict["tat"],
-    attribute_dict["isUpdated"]
+    attribute_dict["isUpdated"],
 ]
 
 ShotDataArraySchema = tiledb.ArraySchema(
@@ -128,10 +132,10 @@ AcousticDataAttributes = [
 
 AcousticArraySchema = tiledb.ArraySchema(
     sparse=True,
-    domain=tiledb.Domain(TimeDomain,TransponderDomain),
+    domain=tiledb.Domain(TimeDomain, TransponderDomain),
     attrs=AcousticDataAttributes,
-    cell_order='col-major', 
-    tile_order='row-major',
+    cell_order="col-major",
+    tile_order="row-major",
     allows_duplicates=False,
     coords_filters=filters,
 )
@@ -230,30 +234,37 @@ for roll_period, tile_value in roll_periods.items():
 
 class TBDArray:
     dataframe_schema = None
-    array_schema = None 
+    array_schema = None
     name = "TBD Array"
-    def __init__(self,uri:Path|str):
+
+    def __init__(self, uri: Path | str):
         self.uri = uri
         if not tiledb.array_exists(uri=str(uri), ctx=ctx):
-            tiledb.Array.create(uri=str(uri),schema=self.array_schema, ctx=ctx)
+            tiledb.Array.create(uri=str(uri), schema=self.array_schema, ctx=ctx)
 
-    def write_df(self,df:pd.DataFrame,validate:bool=True):
+    def write_df(self, df: pd.DataFrame, validate: bool = True):
         """
         Write a dataframe to the array
-        
+
         Args:
             df (pd.DataFrame): The dataframe to write
             validate (bool, optional): Whether to validate the dataframe. Defaults to True.
         """
         logger.logdebug(f"Writing dataframe to {self.uri}")
         if validate:
-            df_val = self.dataframe_schema.validate(df,lazy=True)
-        tiledb.from_pandas(str(self.uri),df_val,mode='append')
+            df_val = self.dataframe_schema.validate(df, lazy=True)
+        tiledb.from_pandas(str(self.uri), df_val, mode="append")
 
-    def read_df(self,start:datetime.datetime,end:datetime.datetime=None,validate:bool=True,**kwargs)->pd.DataFrame:
+    def read_df(
+        self,
+        start: datetime.datetime,
+        end: datetime.datetime = None,
+        validate: bool = True,
+        **kwargs,
+    ) -> pd.DataFrame:
         """
         Read a dataframe from the array between the start and end dates
-        
+
         Args:
             start (datetime.datetime): The start date
             end (datetime.datetime, optional): The end date. Defaults to None.
@@ -275,10 +286,10 @@ class TBDArray:
                 logger.logerr(e)
                 return None
         if validate:
-            df = self.dataframe_schema.validate(df,lazy=True)
+            df = self.dataframe_schema.validate(df, lazy=True)
         return df
 
-    def get_unique_dates(self,field:str)->np.ndarray:
+    def get_unique_dates(self, field: str) -> np.ndarray:
         with tiledb.open(str(self.uri), mode="r") as array:
             values = array[:][field]
             try:
@@ -292,7 +303,7 @@ class TBDArray:
         ctx = tiledb.Ctx()
         config = tiledb.Config()
         config["sm.consolidation.steps"] = 3
-        uri = tiledb.consolidate(uri=str(self.uri),ctx=ctx,config=config)
+        uri = tiledb.consolidate(uri=str(self.uri), ctx=ctx, config=config)
         logger.logdebug(f"Consolidated {self.name} to {uri}")
         tiledb.vacuum(str(self.uri))
 
@@ -321,9 +332,11 @@ class TBDArray:
 class TDBAcousticArray(TBDArray):
     dataframe_schema = AcousticDataFrame
     array_schema = AcousticArraySchema
-    def __init__(self,uri:Path|str):
+
+    def __init__(self, uri: Path | str):
         super().__init__(uri)
-    def get_unique_dates(self,field="triggerTime")->np.ndarray:
+
+    def get_unique_dates(self, field="triggerTime") -> np.ndarray:
         return super().get_unique_dates(field)
 
     def write_df(self, df: pd.DataFrame):
@@ -343,42 +356,47 @@ class TDBGNSSArray(TBDArray):
     dataframe_schema = GNSSDataFrame
     array_schema = GNSSArraySchema
     name = "GNSS Data"
-    def __init__(self,uri:Path|str):
+
+    def __init__(self, uri: Path | str):
         super().__init__(uri)
 
-    def get_unique_dates(self,field="time")->np.ndarray:
+    def get_unique_dates(self, field="time") -> np.ndarray:
         return super().get_unique_dates(field)
 
 
 class TDBPositionArray(TBDArray):
     dataframe_schema = PositionDataFrame
     array_schema = PositionArraySchema
-    def __init__(self,uri:Path|str):
+
+    def __init__(self, uri: Path | str):
         super().__init__(uri)
-    def get_unique_dates(self,field="time")->np.ndarray:
+
+    def get_unique_dates(self, field="time") -> np.ndarray:
         return super().get_unique_dates(field)
+
 
 class TDBShotDataArray(TBDArray):
     dataframe_schema = ShotDataFrame
     array_schema = ShotDataArraySchema
     name = "Shot Data"
-    def __init__(self,uri:Path|str):
+
+    def __init__(self, uri: Path | str):
         super().__init__(uri)
 
-    def get_unique_dates(self,field="pingTime")->np.ndarray:
+    def get_unique_dates(self, field="pingTime") -> np.ndarray:
         return super().get_unique_dates(field)
 
     def read_df(self, start: datetime, end: datetime = None, **kwargs) -> pd.DataFrame:
-        """ 
-        Read a dataframe from the array between the start and end dates 
-        
+        """
+        Read a dataframe from the array between the start and end dates
+
         Args:
             start (datetime.datetime): The start date
             end (datetime.datetime, optional): The end date. Defaults to None.
-        
+
         Returns:
             pd.DataFrame: dataframe
-        """ 
+        """
 
         logger.logdebug(f"Reading dataframe from {self.uri} for {start} to {end}")
         # TODO slice array by start and end and return the dataframe
@@ -386,9 +404,9 @@ class TDBShotDataArray(TBDArray):
             end = start + datetime.timedelta(days=1)
         with tiledb.open(str(self.uri), mode="r") as array:
             try:
-                df = array.df[slice(np.datetime64(start), np.datetime64(end)),:]
+                df = array.df[slice(np.datetime64(start), np.datetime64(end)), :]
                 if df.empty:
-                    return df # skip if the dataframe is empty
+                    return df  # skip if the dataframe is empty
             except IndexError as e:
                 logger.logerr(e)
                 return None
@@ -398,7 +416,7 @@ class TDBShotDataArray(TBDArray):
         return df
 
     def write_df(self, df: pd.DataFrame, validate: bool = True):
-        """ 
+        """
         Write a dataframe to the array
 
         Args:
@@ -415,21 +433,29 @@ class TDBShotDataArray(TBDArray):
             return
         if isinstance(df_val.pingTime.iloc[0], float):
             # Convert pingTime and returnTime to datetime64[ns] if they are floats
-            df_val.pingTime = df_val.pingTime.apply(lambda x: np.datetime64(int(x*1e9), "ns"))
-            df_val.returnTime = df_val.returnTime.apply(lambda x: np.datetime64(int(x*1e9), "ns"))
+            df_val.pingTime = df_val.pingTime.apply(
+                lambda x: np.datetime64(int(x * 1e9), "ns")
+            )
+            df_val.returnTime = df_val.returnTime.apply(
+                lambda x: np.datetime64(int(x * 1e9), "ns")
+            )
         else:
             # Convert pingTime and returnTime to datetime64[ns] if they are datetime objects
             df_val.pingTime = df_val.pingTime.apply(lambda x: np.datetime64(x, "ns"))
-            df_val.returnTime = df_val.returnTime.apply(lambda x: np.datetime64(x, "ns"))
-    
+            df_val.returnTime = df_val.returnTime.apply(
+                lambda x: np.datetime64(x, "ns")
+            )
+
         tiledb.from_pandas(str(self.uri), df_val, mode="append")
+
 
 class TDBGNSSObsArray(TBDArray):
     array_schema = GNSSObsSchema
-    def __init__(self,uri:Path|str):
+
+    def __init__(self, uri: Path | str):
         super().__init__(uri)
 
-    def get_unique_dates(self, field: str="time") -> np.ndarray:
+    def get_unique_dates(self, field: str = "time") -> np.ndarray:
         with tiledb.open(str(self.uri), mode="r") as array:
             values = array[:][field]
             try:

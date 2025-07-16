@@ -10,18 +10,28 @@ from typing import List, Union, Optional
 from datetime import datetime, timedelta
 import pymap3d as pm
 import numpy as np
-from .constants import GNSS_START_TIME,TRIGGER_DELAY_SV2,TRIGGER_DELAY_SV3,ADJ_LEAP,STATION_OFFSETS,MASTER_STATION_ID
+from .constants import (
+    GNSS_START_TIME,
+    TRIGGER_DELAY_SV2,
+    TRIGGER_DELAY_SV3,
+    ADJ_LEAP,
+    STATION_OFFSETS,
+    MASTER_STATION_ID,
+)
 from es_sfgtools.utils.loggers import ProcessLogger as logger
 from decimal import Decimal, getcontext
+
 # Set precision for Decimal operations
 getcontext().prec = 10
+
 
 class DateOverlapWarning(UserWarning):
     message = "Ping-Reply sequence has overlapping dates"
 
+
 def get_traveltime_range(
-        range:Decimal,
-        tat: Decimal = 0.0,
+    range: Decimal,
+    tat: Decimal = 0.0,
 ) -> Decimal:
     """Calculates the travel time of a ping-reply sequence from range and turn around time
 
@@ -40,8 +50,9 @@ def get_traveltime_range(
         logger.logerr(f"Negative travel time detected: {travelTime} seconds")
         raise ValueError("Travel time cannot be negative")
     return travelTime
-    
-def datetime_to_sod(dt: Union[datetime,np.ndarray]) -> Decimal:
+
+
+def datetime_to_sod(dt: Union[datetime, np.ndarray]) -> Decimal:
     """Converts a datetime object to seconds of day
 
     Args:
@@ -50,7 +61,7 @@ def datetime_to_sod(dt: Union[datetime,np.ndarray]) -> Decimal:
     Returns:
         Decimal: datetime in seconds of day
     """
-    if isinstance(dt,datetime):
+    if isinstance(dt, datetime):
         dt = np.array([dt])
     for i in range(len(dt)):
         dt[i] = (dt[i] - datetime(dt[i].year, dt[i].month, dt[i].day)).total_seconds()
@@ -59,6 +70,7 @@ def datetime_to_sod(dt: Union[datetime,np.ndarray]) -> Decimal:
 
 def getPingtime(dt: datetime, triggerDelay: Decimal = TRIGGER_DELAY_SV3) -> datetime:
     return dt + timedelta(seconds=triggerDelay)
+
 
 # def check_sequence_overlap(df: pd.DataFrame) -> pd.DataFrame:
 #     filter_0 = df.pingTime > df.returnTime
@@ -69,6 +81,7 @@ def getPingtime(dt: datetime, triggerDelay: Decimal = TRIGGER_DELAY_SV3) -> date
 #         logger.loginfo(f"Found {found_bad.shape[0]} invalid ping-reply sequences")
 #     return df[~filter_main]
 
+
 class BestGNSSPOSDATA(BaseModel):
     # https://docs.novatel.com/OEM7/Content/SPAN_Logs/BESTGNSSPOS.htm?tocpath=Commands%20%2526%20Logs%7CLogs%7CSPAN%20Logs%7C_____1
     sdx: Decimal = None
@@ -76,21 +89,29 @@ class BestGNSSPOSDATA(BaseModel):
     sdz: Decimal = None
 
     @classmethod
-    def from_sv2(cls,line:str) -> "BestGNSSPOSDATA":
+    def from_sv2(cls, line: str) -> "BestGNSSPOSDATA":
         data = line.split(";")[1].split(",")
         sdx = Decimal(data[7])
         sdy = Decimal(data[8])
         sdz = Decimal(data[9])
-        return cls(sdx=sdx,sdy=sdy,sdz=sdz)
+        return cls(sdx=sdx, sdy=sdy, sdz=sdz)
+
 
 class RangeData(BaseModel):
     transponderID: str
     dbv: Decimal
     snr: Decimal
     xc: Decimal
-    range: Decimal = Field(description="Two way travel time in seconds including beacons TAT", ge=0)
-    tat: Decimal = Field(ge=0, lt=1,description="Beacons turn around time")  # turn around time in seconds
-    time: Decimal = Field(ge=GNSS_START_TIME.timestamp(), description="Time of the range measurement in unix timestamp format")
+    range: Decimal = Field(
+        description="Two way travel time in seconds including beacons TAT", ge=0
+    )
+    tat: Decimal = Field(
+        ge=0, lt=1, description="Beacons turn around time"
+    )  # turn around time in seconds
+    time: Decimal = Field(
+        ge=GNSS_START_TIME.timestamp(),
+        description="Time of the range measurement in unix timestamp format",
+    )
 
     @classmethod
     def from_sv3(cls, data: dict, time: Decimal) -> "RangeData":
@@ -103,12 +124,15 @@ class RangeData(BaseModel):
             tat=data.get("tat") / 1000,
             time=time,
         )
+
     @classmethod
-    def from_sv2(cls,line:str,station_offsets:dict) -> List["RangeData"]:
+    def from_sv2(cls, line: str, station_offsets: dict) -> List["RangeData"]:
         range_data_set = []
-        log_header,range_data_str = line.split(">SI:")
-        timestamp = datetime.strptime(log_header.split(",")[-1].strip(), "%Y/%m/%d %H:%M:%S.%f")
-        
+        log_header, range_data_str = line.split(">SI:")
+        timestamp = datetime.strptime(
+            log_header.split(",")[-1].strip(), "%Y/%m/%d %H:%M:%S.%f"
+        )
+
         transponder_data_set = []
 
         # parse transponder logs and ditch the header
@@ -136,15 +160,26 @@ class RangeData(BaseModel):
             # 4470626 -> 4.470626, convert from microseconds to seconds
             range_ = travel_time_micro / 1000000.000
 
-            tat = station_offsets.get(transponderID, 0)/1000
+            tat = station_offsets.get(transponderID, 0) / 1000
             if tat == 0:
-                raise Exception(f"Transponder {transponderID} not found in station offsets")
+                raise Exception(
+                    f"Transponder {transponderID} not found in station offsets"
+                )
             if range_ > 0:
-                    
+
                 transponder_data_set.append(
-                    cls(range=range_, transponderID=transponderID, dbv=dbv, snr=0, xc=corr_score, tat=tat, time=timestamp)
+                    cls(
+                        range=range_,
+                        transponderID=transponderID,
+                        dbv=dbv,
+                        snr=0,
+                        xc=corr_score,
+                        tat=tat,
+                        time=timestamp,
+                    )
                 )
         return transponder_data_set
+
 
 class PositionData(BaseModel):
     time: datetime
@@ -161,7 +196,7 @@ class PositionData(BaseModel):
     sdy: Optional[Decimal] = None
     sdz: Optional[Decimal] = None
 
-    def update(self,data:dict):
+    def update(self, data: dict):
         # logger.logdebug(f"Updating Position Data")
         # update position,time, and standard deviation
         self.time = datetime.fromtimestamp(data.get("time").get("common"))
@@ -171,7 +206,9 @@ class PositionData(BaseModel):
         self.sdx = data.get("sdx")
         self.sdy = data.get("sdy")
         self.sdz = data.get("sdz")
-        self.east, self.north, self.up = pm.geodetic2ecef(data.get("latitude"), data.get("longitude"), data.get("hae"))
+        self.east, self.north, self.up = pm.geodetic2ecef(
+            data.get("latitude"), data.get("longitude"), data.get("hae")
+        )
 
     @classmethod
     def from_sv2_inspvaa(cls, line) -> "PositionData":
@@ -230,7 +267,7 @@ class PositionData(BaseModel):
     @classmethod
     def from_sv3_novins_gnss(cls, novins: dict, gnss: dict) -> "PositionData":
         positiondata = PositionData.from_sv3_novins(novins)
-        if isinstance(gnss,dict):
+        if isinstance(gnss, dict):
             positiondata.update(gnss)
         return positiondata
 
@@ -263,6 +300,7 @@ class PositionData(BaseModel):
             sdz=sdz,
         )
 
+
 class SV3InterrogationData(BaseModel):
     head0: Decimal
     pitch0: Decimal
@@ -274,7 +312,7 @@ class SV3InterrogationData(BaseModel):
     north_std: Optional[Decimal] = None
     up_std: Optional[Decimal] = None
     pingTime: Decimal
-  
+
     @classmethod
     def from_schemas(
         cls, positionData: PositionData, pingTime: datetime
@@ -296,7 +334,7 @@ class SV3InterrogationData(BaseModel):
     def from_DFOP00_line(cls, line) -> "SV3InterrogationData":
         nov_ins = line.get("observations").get("NOV_INS")
         gnss = line.get("observations").get("GNSS")
-        
+
         if nov_ins is None:
             if gnss is None or gnss == "ERR3":
                 return None
@@ -316,6 +354,7 @@ class SV3InterrogationData(BaseModel):
         )
         pingTime = line.get("time").get("common")
         return cls.from_schemas(position_data, pingTime)
+
 
 class SV3ReplyData(BaseModel):
     head1: Decimal
@@ -356,7 +395,7 @@ class SV3ReplyData(BaseModel):
             xc=rangeData.xc,
             tt=travelTime,
             tat=rangeData.tat,
-            returnTime=rangeData.time
+            returnTime=rangeData.time,
         )
 
     @classmethod
@@ -374,23 +413,22 @@ class SV3ReplyData(BaseModel):
                 return None
             positionData = PositionData.from_sv3_gnss_ahrs(GNSS, AHRS)
         else:
-            positionData = PositionData.from_sv3_novins_gnss(
-                NOV_INS, GNSS
-            )
+            positionData = PositionData.from_sv3_novins_gnss(NOV_INS, GNSS)
         rangeData = RangeData.from_sv3(
             line.get("range"), line.get("time").get("common")
         )
         return cls.from_schemas(
-            positionData, rangeData,
+            positionData,
+            rangeData,
         )
 
     @classmethod
     def from_qcpin_line(cls, line) -> "RangeData":
-        positionData = PositionData.from_sv3_novins(line.get("observations").get("NOV_INS"))
+        positionData = PositionData.from_sv3_novins(
+            line.get("observations").get("NOV_INS")
+        )
         rangeData = RangeData.from_sv3(
             line.get("range"), line.get("time").get("common")
         )
 
-        return cls.from_schemas(
-            positionData, rangeData
-        )
+        return cls.from_schemas(positionData, rangeData)

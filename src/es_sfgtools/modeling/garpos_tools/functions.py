@@ -25,7 +25,7 @@ import matplotlib.gridspec as gridspec
 from sfg_metadata.metadata.src.site import Site
 
 
-from es_sfgtools.processing.assets.observables import (
+from es_sfgtools.data_models.observables import (
     ShotDataFrame,
     SoundVelocityDataFrame,
 )

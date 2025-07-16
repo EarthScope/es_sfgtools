@@ -1,24 +1,24 @@
+# External imports
 import re
 import pandas as pd
 import pandera as pa
 import numpy as np
 from pandera.typing import DataFrame
-from typing import Union
 from pathlib import Path
-from ..assets.file_schemas import AssetEntry,AssetType
-from ...data_models.observables import SoundVelocityDataFrame
 
-from es_sfgtools.utils.loggers import ProcessLogger as logger
+# Local imports
+from ..data_models.observables import SoundVelocityDataFrame
+from ..logging.loggers import ProcessLogger as logger
+
 
 @pa.check_types(lazy=True)
-def ctd_to_soundvelocity(source: Union[AssetEntry,str,Path]) -> DataFrame[SoundVelocityDataFrame]:
-    if isinstance(source, AssetEntry):
-        assert source.type == AssetType.CTD
-    else:
-        source = AssetEntry(local_path=source,type=AssetType.CTD)
-        
+def ctd_to_soundvelocity(
+    source: str | Path,
+) -> DataFrame[SoundVelocityDataFrame]:
+
+
     df = pd.read_csv(
-        source.local_path,
+        source,
         sep=" ",
         header=None,
         float_precision="round_trip",
@@ -31,11 +31,13 @@ def ctd_to_soundvelocity(source: Union[AssetEntry,str,Path]) -> DataFrame[SoundV
         df.at[row.Index, "speed"] += row.Index / 1000
         df.at[row.Index, "speed"] += np.random.randint(0, 1000) / 100000
 
-    return df
+    return SoundVelocityDataFrame(df)
 
 
 @pa.check_types(lazy=True)
-def seabird_to_soundvelocity(source: Union[AssetEntry,str,Path]) -> DataFrame[SoundVelocityDataFrame]:
+def seabird_to_soundvelocity(
+    source: str | Path,
+) -> DataFrame[SoundVelocityDataFrame]:
     """
     Read the sound velocity profile from a file
     fmt = [ Depth [m], Latitude [deg],Longitude [deg],Temperatures [deg C], Salinity [PSU] ,Speed [m/s]]
@@ -55,12 +57,8 @@ def seabird_to_soundvelocity(source: Union[AssetEntry,str,Path]) -> DataFrame[So
         14.000   54.34268 -158.42683     6.2515    32.3469    1472.63 0.0000e+00
     ...
     """
-    if isinstance(source,AssetEntry):
-        assert source.type == AssetType.SEABIRD
-    else:
-        source = AssetEntry(local_path=source,type=AssetType.SEABIRD)
-
-    with open(source.local_path, "r") as f:
+ 
+    with open(source, "r") as f:
         lines = f.readlines()
         data = []
         data_start = re.compile("\*END\*")
@@ -70,7 +68,9 @@ def seabird_to_soundvelocity(source: Union[AssetEntry,str,Path]) -> DataFrame[So
                 break
 
         if not lines:
-            logger.logerr(f"No data found in the sound speed profile file {source.local_path}")
+            logger.logerr(
+                f"No data found in the sound speed profile file {source.local_path}"
+            )
             return None
 
         for line in lines:
@@ -88,22 +88,15 @@ def seabird_to_soundvelocity(source: Union[AssetEntry,str,Path]) -> DataFrame[So
             f"SS ranges from {df['speed'].min()} to {df['speed'].max()} m/s"
         )
 
-    return df
+    return SoundVelocityDataFrame(df)
 
 
 @pa.check_types(lazy=True)
-def CTDfile_to_svp(source: Union[AssetEntry,str,Path]) -> DataFrame[SoundVelocityDataFrame]:
+def CTDfile_to_svp(
+    source: str | Path,
+) -> DataFrame[SoundVelocityDataFrame]:
 
-    if isinstance(source,AssetEntry):
-        assert source.type == AssetType.CTD
-
-        local_path = source.local_path
-    else:
-        local_path = source
-
-    df = pd.read_csv(
-        local_path, usecols=[0, 1], names=["depth", "speed"], sep="\s+"
-    )
+    df = pd.read_csv(source, usecols=[0, 1], names=["depth", "speed"], sep="\s+")
     df.depth = df.depth * -1
 
-    return df
+    return SoundVelocityDataFrame(df)

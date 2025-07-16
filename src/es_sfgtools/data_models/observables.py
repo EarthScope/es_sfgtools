@@ -3,13 +3,13 @@ Author: Franklyn Dunbar
 Date: 2024-09-25
 Email: franklyn.dunbar@earthscope.org
 """
-
+# External imports
 import pandas as pd
 import pandera as pa
 from pandera.typing import Series
-import pandera.extensions as paext
-from typing import List, Dict,Optional
-from datetime import datetime, timedelta
+from typing import Optional
+
+# Local imports
 from .constants import (
     GNSS_START_TIME,
     GNSS_START_TIME_JULIAN,
@@ -161,7 +161,6 @@ class GNSSDataFrame(pa.DataFrameModel):
     class Config:
         coerce = True
         add_missing_columns = True
-
 
 class PositionDataFrame(pa.DataFrameModel):
     time: Series[pd.Timestamp] = pa.Field(

@@ -22,7 +22,7 @@ from sfg_metadata.metadata.src.site import Site
 from sfg_metadata.metadata.src.benchmark import Benchmark, Transponder
 
 
-from es_sfgtools.processing.assets.observables import ShotDataFrame
+from es_sfgtools.data_models.observables import ShotDataFrame
 from es_sfgtools.modeling.garpos_tools.schemas import (
     GarposFixed,
     InversionParams,

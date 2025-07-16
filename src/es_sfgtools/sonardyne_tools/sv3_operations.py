@@ -1,24 +1,23 @@
-import pandas as pd
-from datetime import timedelta
-from typing import Union
+# External imports
 from pathlib import Path
-
 import json
 from pandera.typing import DataFrame
-from ...data_models.observables import ShotDataFrame
-from ..assets.file_schemas import AssetEntry,AssetType
-from ...data_models.constants import TRIGGER_DELAY_SV3
-from ..assets.logmodels import SV3InterrogationData,SV3ReplyData
+import pandas as pd
+# Local imports
+from ..data_models.log_models import SV3InterrogationData, SV3ReplyData
+from ..data_models.observables import ShotDataFrame
+from ..logging import ProcessLogger as logger
 
-from es_sfgtools.utils.loggers import ProcessLogger as logger
+def dfop00_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
+    """
+    Parses a DFOP00-formatted file and converts it into a pandas DataFrame containing acoustic ping-reply sequences.
+    Args:
+        source (str | Path): Path to the DFOP00-formatted file to be processed.
+    Returns:
+        DataFrame[ShotDataFrame] | None: DataFrame containing ping-reply sequences
 
-def dev_dfop00_to_shotdata(source: Union[AssetEntry,str,Path]) -> DataFrame[ShotDataFrame] | None:
-    if isinstance(source,AssetEntry):
-        assert source.type == AssetType.DFOP00
-
-    else:
-        source = AssetEntry(local_path=source,type=AssetType.DFOP00)
-
+    """
+    
     processed = []
     interrogation = None
     with open(source.local_path) as f:
@@ -32,20 +31,18 @@ def dev_dfop00_to_shotdata(source: Union[AssetEntry,str,Path]) -> DataFrame[Shot
                 reply_data = SV3ReplyData.from_DFOP00_line(data)
                 if reply_data is not None:
                     processed.append((dict(interrogation) | dict(reply_data)))
-                
+
     if not processed:
         logger.logerr(f"No valid data found in {source.local_path}")
         return None
     df = pd.DataFrame(processed)
     df["isUpdated"] = False
-    return df
+    return ShotDataFrame(df)
 
 
-def dev_qcpin_to_shotdata(source: Union[AssetEntry,str,Path]) -> DataFrame[ShotDataFrame]:
-    if isinstance(source,AssetEntry):
-        assert source.type == AssetType.QCPIN
-    else:
-        source = AssetEntry(local_path=source,type=AssetType.QCPIN)
+def qcpin_to_shotdata(
+    source: str | Path,
+) -> DataFrame[ShotDataFrame] | None:
 
     processed = []
     interrogation = None
@@ -67,4 +64,4 @@ def dev_qcpin_to_shotdata(source: Union[AssetEntry,str,Path]) -> DataFrame[ShotD
         return None
     df = pd.DataFrame(processed)
     df["isUpdated"] = False
-    return df
+    return ShotDataFrame(df)
