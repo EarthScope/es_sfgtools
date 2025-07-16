@@ -140,11 +140,13 @@ class PRIDEPPPFileConfig(BaseModel):
     )
 
 
-    def write_pride_config(self, filepath: str):
+    def write_config_file(self, filepath: str|Path):
         """
         Write the PRIDE PPP configuration to a file.
         """
-
+        if isinstance(filepath, str):
+            filepath = Path(filepath)
+        filepath.mkdir(parents=True, exist_ok=True)
         # fix critical search params so first 2 values in the list are integers
         for i in range(2):
             self.ambiguity.critical_search[i] = int(self.ambiguity.critical_search[i])

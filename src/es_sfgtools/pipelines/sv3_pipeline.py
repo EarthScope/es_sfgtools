@@ -34,7 +34,7 @@ from ..data_mgmt.utils import (
     get_merge_signature_shotdata,
     merge_shotdata_gnss,
 )
-from ..logging import ProcessLogger as logger, GNSSLogger as gnss_logger
+from ..logging import ProcessLogger as logger
 
 from .config import SV3PipelineConfig
 
@@ -50,14 +50,37 @@ def rinex_to_kin_wrapper(
     pride_config = pride_config.model_copy()
     pride_config.pride_configfile_path = pride_config_path
 
-    return rinex_to_kin(
-        source=rinex_entry,
+    kinfile, resfile = rinex_to_kin(
+        source=rinex_entry.local_path,
         writedir=writedir,
         pridedir=pridedir,
         site=site,
-        pride_config=pride_config,
+        pride_cli_config=pride_config,
     )
+    if kinfile is None:
+        return None, None
 
+    kin_entry = AssetEntry(
+        local_path=kinfile,
+        network=rinex_entry.network,
+        station=rinex_entry.station,
+        campaign=rinex_entry.campaign,
+        timestamp_data_start=rinex_entry.timestamp_data_start,
+        timestamp_data_end=rinex_entry.timestamp_data_end,
+        type=AssetType.KIN,
+        timestamp_created=datetime.datetime.now()
+    )
+    resfile_entry = AssetEntry(
+        local_path=resfile,
+        network=rinex_entry.network,
+        station=rinex_entry.station,
+        campaign=rinex_entry.campaign,
+        timestamp_data_start=rinex_entry.timestamp_data_start,
+        timestamp_data_end=rinex_entry.timestamp_data_end,
+        type=AssetType.KINRESIDUALS,
+        timestamp_created=datetime.datetime.now()
+    )
+    return kin_entry, resfile_entry
 
 class SV3Pipeline:
 
@@ -212,7 +235,7 @@ class SV3Pipeline:
                 time_interval=self.config.rinex_config.time_interval,
                 processing_year=year,  # TODO pass down
             )
-            if len(rinex_entries) == 0:
+            if len(rinex_paths) == 0:
                 logger.loginfo(
                     f"No Rinex Files generated for {self.network} {self.station} {self.campaign} {year}."
                 )
@@ -233,10 +256,9 @@ class SV3Pipeline:
                 )
                 if self.asset_catalog.add_entry(rinex_entry):
                     uploadCount += 1
-            
 
             self.asset_catalog.add_merge_job(**merge_signature)
-      
+
             logger.loginfo(
                 f"Generated {len(rinex_entries)} Rinex files spanning {rinex_entries[0].timestamp_data_start} to {rinex_entries[-1].timestamp_data_end}"
             )
@@ -356,6 +378,19 @@ class SV3Pipeline:
         logger.loginfo(response)
 
     def process_kin(self):
+        """
+        Processes KIN files for the specified network, station, and campaign.
+
+        This method searches for KIN and KINRESIDUALS asset entries to process. For each KIN entry found:
+        - Attempts to convert the KIN file to a GNSS dataframe using `kin_to_gnssdf`.
+        - If successful, marks the entry as processed, updates the asset catalog, and writes the dataframe to the destination.
+        - Logs errors encountered during processing.
+
+        Logs the number of KIN files found and processed.
+
+        Returns:
+            None
+        """
         logger.loginfo(
             f"Looking for Kin Files to Process for {self.network} {self.station} {self.campaign}"
         )
@@ -378,30 +413,31 @@ class SV3Pipeline:
             )
         )
         if not kin_entries:
-            response = f"No Kin Files Found to Process for {self.network} {self.station} {self.campaign}"
-            logger.logerr(response)
+            logger.loginfo(
+                f"No Kin Files Found to Process for {self.network} {self.station} {self.campaign}"
+            )
             return
 
-        response = f"Found {len(kin_entries)} Kin Files to Process: processing"
-        logger.loginfo(response)
+        logger.loginfo(f"Found {len(kin_entries)} Kin Files to Process: processing")
 
-        count = 0
-        uploadCount = 0
-        for kin_entry in tqdm(
-            kin_entries, total=len(kin_entries), desc="Processing Kin Files"
-        ):
+        processed_count = 0
+        for kin_entry in tqdm(kin_entries, desc="Processing Kin Files"):
             if not kin_entry.local_path.exists():
                 self.asset_catalog.delete_entry(kin_entry)
                 continue
-            gnss_df = kin_to_gnssdf(kin_entry.local_path)
-            if gnss_df is not None:
-                count += 1
-                kin_entry.is_processed = True
-                self.asset_catalog.add_or_update(kin_entry)
-                self.gnss_data_dest.write_df(gnss_df)
+            try:
+                gnss_df = kin_to_gnssdf(kin_entry.local_path)
+                if gnss_df is not None:
+                    processed_count += 1
+                    kin_entry.is_processed = True
+                    self.asset_catalog.add_or_update(kin_entry)
+                    self.gnss_data_dest.write_df(gnss_df)
+            except Exception as e:
+                logger.logerr(f"Error processing {kin_entry.local_path}: {e}")
 
-        response = f"Generated {count} GNSS Dataframes From {len(kin_entries)} Kin Files, Added {uploadCount} to the Catalog"
-        logger.loginfo(response)
+        logger.loginfo(
+            f"Generated {processed_count} GNSS Dataframes From {len(kin_entries)} Kin Files"
+        )
 
     def process_dfop00(self) -> None:
 

@@ -81,7 +81,8 @@ def rinex_get_time_range(source: str|Path) -> Tuple[datetime, datetime]:
             day=timestamp_data_start.day,
             hour=23,
             minute=59,
-            second=59.999999,  # Set to the end of the day
+            second=59,
+            microsecond=999999,  # Set to the end of the day
         )
     if timestamp_data_start is None or timestamp_data_end is None:
         logger.logerr(f"Failed to extract time range from {source}")

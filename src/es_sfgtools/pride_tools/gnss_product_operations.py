@@ -584,6 +584,7 @@ def get_gnss_products(
     override: bool = False,
     source: Literal["all", "wuhan", "cligs"] = "all",
     date: Optional[datetime.date | datetime.datetime] = None,
+    override_config: bool = True,
 ) -> dict:
     """
     Retrieves GNSS products associated with the given RINEX file.
@@ -627,7 +628,7 @@ def get_gnss_products(
 
     else:
         raise ValueError("Either rinex_path or date must be provided")
-    
+
     year = str(start_date.year)
     doy = str(start_date.timetuple().tm_yday)
 
@@ -664,7 +665,7 @@ def get_gnss_products(
             )
 
     # Return the config template filepath for running pride-ppp, unless override is True then we will re-download the products
-    if config_template is not None and not override:
+    if config_template is not None and not override_config:
         return config_template_file_path
 
     # If we could not load the config file, we will look for the products in the common product directory
@@ -691,6 +692,12 @@ def get_gnss_products(
                 for f in cp_dir_list
                 if remote_resource.remote_query.pattern.match(f.name)
             ]
+            # Apply sort order if specified in the remote query
+            if remote_resource.remote_query.sort_order is not None:
+                for prod_type in remote_resource.remote_query.sort_order[::-1]:
+                    for idx, f in enumerate(found_files):
+                        if prod_type in f.name:
+                            found_files.insert(0, found_files.pop(idx))
             if found_files and not override:
                 logger.logdebug(f"Found {found_files[0]} for product {product_type}")
                 to_decompress = found_files[0]
