@@ -3,7 +3,7 @@ import re
 import warnings
 from typing import List, Union
 import datetime
-from ..assets.file_schemas import AssetType,AssetEntry
+from ..processing.assets.file_schemas import AssetType,AssetEntry
 
 pattern_map = {
     re.compile(r"\.\d{2}O$"): AssetType.RINEX,

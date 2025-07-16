@@ -38,7 +38,7 @@ from es_sfgtools.utils.loggers import GarposLogger as logger
 
 from ...processing.assets.tiledb import TDBShotDataArray
 from .load_utils import load_drive_garpos
-from es_sfgtools.processing.pipeline.catalog import PreProcessCatalog
+from es_sfgtools.data_mgmt.catalog import PreProcessCatalog
 from es_sfgtools.processing.assets.file_schemas import AssetEntry, AssetType
 
 try:

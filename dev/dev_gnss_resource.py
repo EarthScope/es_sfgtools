@@ -20,7 +20,7 @@ execution failed
 #     PridePdpConfig,
 # )
 from es_sfgtools.pride_tools.pride_utils import uncompress_file
-from es_sfgtools.processing.pipeline.data_handler import DataHandler
+from es_sfgtools.data_mgmt.data_handler import DataHandler
 from pathlib import Path
 import os
 from es_sfgtools.utils.loggers import BaseLogger,GNSSLogger

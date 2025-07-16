@@ -3,7 +3,7 @@ from pathlib import Path
 
 os.environ["GARPOS_PATH"] = str(Path("/Users/franklyndunbar/Project/garpos").resolve())
 
-from es_sfgtools.processing.pipeline.data_handler import DataHandler
+from es_sfgtools.data_mgmt.data_handler import DataHandler
 from es_sfgtools.modeling.garpos_tools.load_utils import load_drive_garpos
 from es_sfgtools.utils.archive_pull import load_site_metadata
 from es_sfgtools.utils.loggers import BaseLogger

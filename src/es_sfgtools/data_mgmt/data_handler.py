@@ -24,13 +24,13 @@ from es_sfgtools.utils.archive_pull import download_file_from_archive, list_camp
 from es_sfgtools.utils.loggers import ProcessLogger as logger, change_all_logger_dirs
 from es_sfgtools.processing.assets.file_schemas import AssetEntry, AssetType
 from es_sfgtools.processing.assets.tiledb import TDBAcousticArray,TDBGNSSArray,TDBPositionArray,TDBShotDataArray,TDBGNSSObsArray
-from es_sfgtools.processing.pipeline.catalog import PreProcessCatalog
-from es_sfgtools.processing.pipeline.pipelines import SV3Pipeline, SV3PipelineConfig,PrepSiteData
+from es_sfgtools.data_mgmt.catalog import PreProcessCatalog
+from es_sfgtools.pipelines.pipelines import SV3Pipeline, SV3PipelineConfig,PrepSiteData
 from es_sfgtools.processing.operations.gnss_ops import get_metadata, get_metadatav2
-from es_sfgtools.processing.pipeline.constants import REMOTE_TYPE, FILE_TYPES
-from es_sfgtools.processing.pipeline.datadiscovery import scrape_directory_local, get_file_type_local, get_file_type_remote
+from es_sfgtools.data_mgmt.constants import REMOTE_TYPE, FILE_TYPES
+from es_sfgtools.data_mgmt.datadiscovery import scrape_directory_local, get_file_type_local, get_file_type_remote
 from es_sfgtools.modeling.garpos_tools.garpos_handler import GarposHandler
-from es_sfgtools.processing.pipeline.constants import DEFAULT_FILE_TYPES_TO_DOWNLOAD
+from es_sfgtools.data_mgmt.constants import DEFAULT_FILE_TYPES_TO_DOWNLOAD
 
 
 def check_network_station_campaign(func: Callable):

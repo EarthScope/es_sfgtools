@@ -4,7 +4,7 @@ import typer
 import sys
 sys.path.append(str(Path(__file__).parent))
 from src.manifest import PipelineManifest
-from es_sfgtools.processing.pipeline.data_handler import DataHandler
+from es_sfgtools.data_mgmt.data_handler import DataHandler
 from es_sfgtools.utils.archive_pull import list_campaign_files
 from es_sfgtools.utils.loggers import ProcessLogger
 from src.commands import run_manifest

@@ -16,7 +16,7 @@ import numpy as np
 
 from sfg_metadata.metadata.src.catalogs import Catalog
 
-from es_sfgtools.processing.pipeline.catalog import PreProcessCatalog
+from es_sfgtools.data_mgmt.catalog import PreProcessCatalog
 from es_sfgtools.processing.assets.file_schemas import AssetEntry,AssetType
 from es_sfgtools.processing.operations import sv2_ops, sv3_ops, gnss_ops, site_ops
 from es_sfgtools.processing.operations.gnss_ops import PrideCLIConfig, rinex_to_kin, kin_to_gnssdf

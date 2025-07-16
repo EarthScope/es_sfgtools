@@ -1,4 +1,4 @@
-from es_sfgtools.processing.pipeline.data_handler import DataHandler
+from es_sfgtools.data_mgmt.data_handler import DataHandler
 from es_sfgtools.processing.operations.gnss_ops import rinex_to_kin,PrideCLIConfig,get_nav_file,get_gnss_products
 from pathlib import Path
 import os
