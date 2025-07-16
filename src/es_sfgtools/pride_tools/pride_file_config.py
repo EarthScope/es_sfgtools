@@ -115,7 +115,7 @@ class StationUsed(BaseModel):
     pozhm: float = Field(default=10.00, description="POZHM value")
 
 
-class PRIDEPPPConfig(BaseModel):
+class PRIDEPPPFileConfig(BaseModel):
     observation: ObservationConfig = Field(
         description="Observation configuration for the PRIDE PPP processing."
     )
@@ -272,7 +272,7 @@ class PRIDEPPPConfig(BaseModel):
                 f.write("-Station used\n")
 
     @classmethod
-    def read_config_file(cls, file_path: str) -> "PRIDEPPPConfig":
+    def read_config_file(cls, file_path: str) -> "PRIDEPPPFileConfig":
         """
         Reads a PRIDE PPP configuration file and returns a PRIDEPPPConfig instance.
         """
@@ -428,7 +428,7 @@ class PRIDEPPPConfig(BaseModel):
         return config
 
     @classmethod
-    def load_default(cls) -> "PRIDEPPPConfig":
+    def load_default(cls) -> "PRIDEPPPFileConfig":
         """
         Loads a default PRIDE PPP configuration with predefined values.
         """

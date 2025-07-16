@@ -20,7 +20,7 @@ import uuid
 from warnings import warn
 import matplotlib.pyplot as plt
 
-from ..assets.file_schemas import AssetEntry,AssetType
+from ...data_mgmt.file_schemas import AssetEntry,AssetType
 from ...data_models.observables import GNSSDataFrame
 
 from es_sfgtools.utils.loggers import GNSSLogger as logger

@@ -15,7 +15,7 @@ from .gnss_product_schemas import (
     CLSIGS,
     GSSC
 )
-from .pride_file_config import PRIDEPPPConfig,SatelliteProducts
+from .pride_file_config import PRIDEPPPFileConfig,SatelliteProducts
 from .rinex_utils import rinex_get_time_range
 from ..logging import GNSSLogger as logger
 
@@ -638,7 +638,7 @@ def get_gnss_products(
     if config_template_file_path.exists():
         # load and validate the config file
         try:
-            config_template = PRIDEPPPConfig.read_config_file(config_template_file_path)
+            config_template = PRIDEPPPFileConfig.read_config_file(config_template_file_path)
             product_directory = Path(
                 config_template.satellite_products.product_directory
             )
@@ -746,7 +746,7 @@ def get_gnss_products(
         erp=product_status.get("erp", None),
         product_directory=str(common_product_dir.parent),
     )
-    config_template = PRIDEPPPConfig.load_default()
+    config_template = PRIDEPPPFileConfig.load_default()
     config_template.satellite_products = satellite_products
     config_template_file_path = pride_dir / year / doy / "config_file"
     config_template.write_config_file(config_template_file_path)

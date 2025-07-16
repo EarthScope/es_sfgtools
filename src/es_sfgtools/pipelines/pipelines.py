@@ -16,21 +16,18 @@ import numpy as np
 
 from sfg_metadata.metadata.src.catalogs import Catalog
 
-from es_sfgtools.data_mgmt.catalog import PreProcessCatalog
-from es_sfgtools.processing.assets.file_schemas import AssetEntry,AssetType
-from es_sfgtools.processing.operations import sv2_ops, sv3_ops, gnss_ops, site_ops
-from es_sfgtools.processing.operations.gnss_ops import PrideCLIConfig, rinex_to_kin, kin_to_gnssdf
-from es_sfgtools.pride_tools.pride_utils import get_nav_file,get_gnss_products
-from es_sfgtools.processing.assets.tiledb import (
-    TDBAcousticArray,
-    TDBGNSSArray,
-    TDBPositionArray,
-    TDBShotDataArray,
-    TDBGNSSObsArray
-)
+from ..data_mgmt.catalog import PreProcessCatalog
+from ..data_mgmt.data_handler import DataHandler
+from ..data_mgmt.file_schemas import AssetEntry,AssetType
+from ..sonardyne_tools import sv2_operations as sv2_ops
+from ..sonardyne_tools import sv3_operations as sv3_ops
+from ..pride_tools import PrideCLIConfig,rinex_to_kin,kin_to_gnssdf,get_nav_file,get_gnss_products
+from ..tiledb_tools.tiledb_schemas import  TDBGNSSArray,  TDBShotDataArray, TDBGNSSObsArray
+
+
 from es_sfgtools.modeling.garpos_tools.schemas import InversionParams
 from es_sfgtools.processing.assets.tiledb import TDBAcousticArray, TDBGNSSArray, TDBPositionArray, TDBShotDataArray, TDBGNSSObsArray
-from es_sfgtools.processing.operations.utils import get_merge_signature_shotdata, merge_shotdata_gnss
+from es_sfgtools.data_mgmt.utils import get_merge_signature_shotdata, merge_shotdata_gnss
 from es_sfgtools.utils.loggers import ProcessLogger as logger, GNSSLogger as gnss_logger   
 
 

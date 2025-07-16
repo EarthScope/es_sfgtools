@@ -5,7 +5,7 @@ import datetime
 from typing import List
 
 from ..processing.assets.tiledb import TDBGNSSArray   
-from ..processing.assets.file_schemas import AssetEntry
+from ..data_mgmt.file_schemas import AssetEntry
 from ..data_mgmt.catalog import PreProcessCatalog
 
 UNIX_EPOCH = np.datetime64("1970-01-01T00:00:00Z")

@@ -22,7 +22,7 @@ def novatel_770_2tile(files: List[str], rangea_tdb: Path, n_procs: int = 10) -> 
     logger.logdebug(f"Running {cmd}")
     for file in files:
         cmd.append(str(file))
-    logger.loginfo(f"Running NOVB2TILE with {" ".join(cmd)}")
+    logger.loginfo(f"Running NOVB2TILE with {' '.join(cmd)}")
 
     # Run the command
     result = subprocess.run(cmd)
@@ -45,7 +45,7 @@ def novatel_000_2tile(files: List[str], rangea_tdb: Path, n_procs: int = 10) -> 
     logger.logdebug(f"Running {cmd}")
     for file in files:
         cmd.append(str(file))
-    logger.loginfo(f"Running NOV0002TILE with {" ".join(cmd)}")
+    logger.loginfo(f"Running NOV0002TILE with {' '.join(cmd)}")
 
     # Run the command
     result = subprocess.run(cmd)
