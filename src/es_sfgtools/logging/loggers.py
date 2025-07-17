@@ -107,8 +107,9 @@ class _BaseLogger:
             self.format (logging.Formatter): The formatter to be set for the new file handler.
         """
 
-        if self.file_handler:
-            self.logger.removeHandler(self.file_handler)
+        # Remove all handlers to avoid duplicates
+        for handler in list(self.logger.handlers):
+            self.logger.removeHandler(handler)
         try:
             self.file_handler = logging.FileHandler(self.path)
             self.file_handler.setFormatter(self.format)
@@ -178,12 +179,12 @@ class _BaseLogger:
         Attributes:
             console_handler (logging.StreamHandler): The handler for routing log messages to the console.
         """
-        if not hasattr(self, "console_handler"):
+        if not any(isinstance(h, logging.StreamHandler) for h in self.logger.handlers):
             self.console_handler = logging.StreamHandler()
             self.console_handler.setFormatter(self.console_format)
             self.console_handler.setLevel(logging.INFO)
             self.logger.addHandler(self.console_handler)
-
+            
     def remove_console(self):
         """
         Removes the console handler from the logger.

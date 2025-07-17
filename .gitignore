@@ -12,11 +12,6 @@ __pycache__/
 .pytest_cache/
 .idea
 
-venv/
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
 
 .DS_Store
 

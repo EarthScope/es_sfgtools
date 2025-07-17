@@ -1,7 +1,7 @@
 # GarposHandler class for processing and preparing shot data for the GARPOS model.
 
 from pathlib import Path
-from typing import List, Tuple, Union
+from typing import List, Tuple, Optional
 from es_sfgtools.processing.operations.site_ops import CTDfile_to_svp, seabird_to_soundvelocity
 from es_sfgtools.utils.archive_pull import download_file_from_archive
 import pandas as pd
