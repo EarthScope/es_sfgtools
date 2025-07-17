@@ -53,7 +53,7 @@ def _rinex_get_meta(data:AssetType) -> AssetType:
     return data
 
 
-def get_file_type_local(file_path: Path) -> Union[AssetType, int]:
+def get_file_type_local(file_path: Path) -> tuple[Union[AssetType, None], Union[int, None]]:
     """
     Get the file type of a file.
 
