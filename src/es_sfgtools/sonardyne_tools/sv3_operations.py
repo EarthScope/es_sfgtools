@@ -20,10 +20,14 @@ def dfop00_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
     
     processed = []
     interrogation = None
-    with open(source) as f:
-        lines = f.readlines()
-        for line in lines:
-            data = json.loads(line)
+    try:
+        with open(source, encoding="utf-8") as f:
+            lines = f.readlines()
+            for line in lines:
+                data = json.loads(line)
+    except (FileNotFoundError, PermissionError, UnicodeDecodeError) as e:
+        logger.logerr(f"Error reading {source}: {e}")
+        return None
             if data.get("event") == "interrogation":
                 interrogation = SV3InterrogationData.from_DFOP00_line(data)
 
