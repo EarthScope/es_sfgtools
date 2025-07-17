@@ -314,12 +314,12 @@ def merge_broadcast_files(brdn: Path, brdg: Path, output_folder: Path) -> Path:
                         num2 = eval(line[22:41])
                         num3 = eval(line[41:60])
                         num4 = eval(line[60:79])
-                        print(f"{t}    {num1} {num2} {num3} {num4}\n")
-                        print(f"    {num1:.12e} {num2:.12e} {num3:.12e} {num4:.12e}\n")
+                        logger.logdebug(f"{t}    {num1} {num2} {num3} {num4}\n")
+                        logger.logdebug(f"    {num1:.12e} {num2:.12e} {num3:.12e} {num4:.12e}\n")
                         fm.write(
                             f"    {num1:.12e} {num2:.12e} {num3:.12e} {num4:.12e}\n"
                         )
-                    print("here")
+                   
                     line = lines[i + 7].replace("D", "e")
                     num1 = eval(line[3:22])
                     num2 = eval(line[22:41])
@@ -338,10 +338,9 @@ def merge_broadcast_files(brdn: Path, brdg: Path, output_folder: Path) -> Path:
                         fm.write(lines[i])
                     i = i + 1
             except Exception as e:
-                print(
+                logger.logerr(
                     f"***ERROR: unexpected ERROR occurred at line {i} of file {file}: {e}"
                 )
-                # print(lines[i])
                 break
 
         fn.close()
@@ -409,10 +408,10 @@ def merge_broadcast_files(brdn: Path, brdg: Path, output_folder: Path) -> Path:
                         inHeader = False
                     i = i + 1
             except Exception as e:
-                print(
+                logger.logerr(
                     f"***ERROR: unexpected ERROR occurred at line {i} of file {file}: {e}"
                 )
-                # print(lines[i])
+                logger.logdebug(lines[i])
                 break
         fg.close()
 
