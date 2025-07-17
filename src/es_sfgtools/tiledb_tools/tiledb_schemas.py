@@ -33,7 +33,7 @@ attribute_dict: Dict[str, tiledb.Attr] = {
     "height": tiledb.Attr(name="height", dtype=np.float64),
     "returnTime": tiledb.Attr(name="returnTime", dtype="datetime64[ns]"),
     "tt": tiledb.Attr(name="tt", dtype=np.float64),
-    "dbv": tiledb.Attr(name="dbv", dtype=np.uint8),
+    "dbv": tiledb.Attr(name="dbv", dtype=np.float32),
     "xc": tiledb.Attr(name="xc", dtype=np.uint8),
     "snr": tiledb.Attr(name="snr", dtype=np.float64),
     "tat": tiledb.Attr(name="tat", dtype=np.float64),
