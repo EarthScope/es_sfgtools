@@ -213,7 +213,7 @@ def kin_to_gnssdf(source: str|Path) -> Union[pd.DataFrame, None]:
 
     # Check if data is empty
     if not data:
-        logger.logerr(f"GNSS: No data found in FILE {source.local_path}")
+        logger.logerr(f"GNSS: No data found in FILE {source}")
         return None
 
     # TODO convert lat/long to ecef
