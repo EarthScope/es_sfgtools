@@ -409,8 +409,11 @@ class DataHandler:
                 continue
             file_type, _size = get_file_type_local(file_path)
             if file_type is not None:
+                symlinked_path = self.raw_dir / file_path.name
+                # symlink to the raw directory
+                file_path.symlink_to(symlinked_path, target_is_directory=False)
                 file_data = AssetEntry(
-                    local_path=file_path,
+                    local_path=symlinked_path,
                     type=file_type,
                     network=self.network,
                     station=self.station,
