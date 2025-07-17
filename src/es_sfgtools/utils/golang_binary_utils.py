@@ -10,9 +10,7 @@ SELF_PATH = Path(__file__).resolve()
 # find src
 for parent in SELF_PATH.parents:
     if parent.name == "src":
-        GOLANG_BINARY_BUILD_DIR = Path(
-            str(parent.parent) + "/" + GOLANG_BINARY_BUILD_DIR
-        )
+        GOLANG_BINARY_BUILD_DIR = parent.parent / GOLANG_BINARY_BUILD_DIR
         break
 
 
