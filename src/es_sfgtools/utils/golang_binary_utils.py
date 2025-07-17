@@ -38,16 +38,18 @@ def get_system_architecture() -> Tuple[str, str]:
 
 def parse_golang_logs(result, logger):
     if result.stdout:
-        logger.logdebug(result.stdout.decode("utf-8"))
-        result_message = result.stdout.decode("utf-8").split("msg=")
+        stdout_decoded = result.stdout.decode("utf-8")
+        logger.logdebug(stdout_decoded)
+        result_message = stdout_decoded.split("msg=")
         for log_line in result_message:
             message = log_line.split("\n")[0]
             if "Processed" in message or "Created" in message:
                 logger.loginfo(message)
 
     if result.stderr:
-        logger.logdebug(result.stderr.decode("utf-8"))
-        result_message = result.stderr.decode("utf-8").split("msg=")
+        stderr_decoded = result.stderr.decode("utf-8")
+        logger.logdebug(stderr_decoded)
+        result_message = stderr_decoded.split("msg=")
         for log_line in result_message:
             message = log_line.split("\n")[0]
             if "Processing" in message or "Created" in message:
