@@ -13,7 +13,7 @@ from ..data_models.observables import (
     AcousticDataFrame,
     GNSSDataFrame,
     PositionDataFrame,
-    ShotDataFrame,
+    ShotDataFrame
 )
 
 from ..logging import ProcessLogger as logger

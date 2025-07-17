@@ -23,18 +23,18 @@ def dfop00_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
     try:
         with open(source, encoding="utf-8") as f:
             lines = f.readlines()
-            for line in lines:
-                data = json.loads(line)
     except (FileNotFoundError, PermissionError, UnicodeDecodeError) as e:
         logger.logerr(f"Error reading {source}: {e}")
         return None
-            if data.get("event") == "interrogation":
-                interrogation = SV3InterrogationData.from_DFOP00_line(data)
+    for line in lines:
+        data = json.loads(line)
+        if data.get("event") == "interrogation":
+            interrogation = SV3InterrogationData.from_DFOP00_line(data)
 
-            if data.get("event") == "range" and interrogation is not None:
-                reply_data = SV3ReplyData.from_DFOP00_line(data)
-                if reply_data is not None:
-                    processed.append((dict(interrogation) | dict(reply_data)))
+        if data.get("event") == "range" and interrogation is not None:
+            reply_data = SV3ReplyData.from_DFOP00_line(data)
+            if reply_data is not None:
+                processed.append((dict(interrogation) | dict(reply_data)))
 
     if not processed:
         logger.logerr(f"No valid data found in {source}")

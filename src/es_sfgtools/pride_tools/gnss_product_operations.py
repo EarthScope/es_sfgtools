@@ -105,7 +105,7 @@ def download(source: RemoteResource, dest: Path) -> Path:
     return dest
 
 
-def uncompress_file(file_path: Path, dest_dir: Path) -> Path:
+def uncompress_file(file_path: Path, dest_dir: Optional[Path]) -> Path:
     """
     Decompresses a file using zlib and returns the path of the decompressed file.
     Args:
