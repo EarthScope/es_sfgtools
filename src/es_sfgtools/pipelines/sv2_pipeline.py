@@ -46,7 +46,7 @@ NOT YET IMPLEMENTED
 #     get_merge_signature_shotdata,
 #     merge_shotdata_gnss,
 # )
-# from ..logging import ProcessLogger as logger, GNSSLogger as gnss_logger
+# from ..logging import ProcessLogger as logger, PRIDELogger as gnss_logger
 
 # from .config import SV3PipelineConfig
 

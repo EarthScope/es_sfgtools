@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 from ...data_mgmt.file_schemas import AssetEntry,AssetType
 from ...data_models.observables import GNSSDataFrame
 
-from es_sfgtools.utils.loggers import GNSSLogger as logger
+from es_sfgtools.utils.loggers import PRIDELogger as logger
 
 RINEX_BINARIES = "src/golangtools/build"
 SELF_PATH = Path(__file__).resolve()

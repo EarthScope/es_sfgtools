@@ -17,7 +17,7 @@ from .gnss_product_schemas import (
 )
 from .pride_file_config import PRIDEPPPFileConfig,SatelliteProducts
 from .rinex_utils import rinex_get_time_range
-from ..logging import GNSSLogger as logger
+from ..logging import PRIDELogger as logger
 
 def update_source(source: RemoteResource) -> RemoteResource:
     """

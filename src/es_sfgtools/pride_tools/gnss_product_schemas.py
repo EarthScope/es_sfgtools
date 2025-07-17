@@ -7,7 +7,7 @@ import re
 
 GNSS_START_TIME = datetime.datetime(1980, 1, 6, tzinfo=datetime.timezone.utc)  # GNSS start time
 
-from es_sfgtools.utils.loggers import GNSSLogger as logger
+from ..logging import PRIDELogger as logger
 
 
 def _parse_date(date: datetime.date | datetime.datetime) -> Tuple[str, str]:

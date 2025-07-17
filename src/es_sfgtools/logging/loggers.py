@@ -184,7 +184,7 @@ class _BaseLogger:
             self.console_handler.setFormatter(self.console_format)
             self.console_handler.setLevel(logging.INFO)
             self.logger.addHandler(self.console_handler)
-            
+
     def remove_console(self):
         """
         Removes the console handler from the logger.
@@ -212,26 +212,29 @@ class _BaseLogger:
 
 
 def route_all_loggers_to_console():
-    GNSSLogger.route_to_console()
+    PRIDELogger.route_to_console()
     ProcessLogger.route_to_console()
     GarposLogger.route_to_console()
 
 
+
 def remove_all_loggers_from_console():
-    GNSSLogger.remove_console()
+    PRIDELogger.remove_console()
     ProcessLogger.remove_console()
     GarposLogger.remove_console()
 
 
+
 def set_all_logger_levels(level: Literal[logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL]):  # type: ignore
-    GNSSLogger.set_level(level)
+    PRIDELogger.set_level(level)
     ProcessLogger.set_level(level)
     GarposLogger.set_level(level)
+ 
 
 
 def change_all_logger_dirs(dir: Path):
     BaseLogger.set_dir(dir)
-    GNSSLogger.set_dir(dir)
+    PRIDELogger.set_dir(dir)
     ProcessLogger.set_dir(dir)
     GarposLogger.set_dir(dir)
 
@@ -240,11 +243,11 @@ def change_all_logger_dirs(dir: Path):
 BaseLogger = _BaseLogger()
 
 # Create loggers for specific modules & set them to propagate to the base logger
-GNSSLogger = _BaseLogger(
-    name="base_logger.gnss_logger",
-    file_name="gnss.log",
+PRIDELogger = _BaseLogger(
+    name="base_logger.pride_logger",
+    file_name="pride.log",
 )
-GNSSLogger.propagate = True
+PRIDELogger.propagate = True
 
 ProcessLogger = _BaseLogger(
     name="base_logger.processing_logger",
@@ -257,6 +260,8 @@ GarposLogger = _BaseLogger(
     file_name="garpos.log",
 )
 GarposLogger.propagate = True
+
+
 
 # Route all loggers to the console
 route_all_loggers_to_console()

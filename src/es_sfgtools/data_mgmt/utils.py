@@ -15,7 +15,7 @@ from sklearn.preprocessing import MaxAbsScaler
 
 # Local imports
 from ..tiledb_tools.tiledb_schemas import TDBGNSSArray,TDBShotDataArray
-from ..logging import GNSSLogger as logger
+from ..logging import PRIDELogger as logger
 
 
 def interpolate_enu(

@@ -23,7 +23,7 @@ from es_sfgtools.pride_tools.pride_utils import uncompress_file
 from es_sfgtools.data_mgmt.data_handler import DataHandler
 from pathlib import Path
 import os
-from es_sfgtools.utils.loggers import BaseLogger,GNSSLogger
+from es_sfgtools.utils.loggers import BaseLogger,PRIDELogger
 from es_sfgtools.pride_tools.config import PRIDEPPPConfig,parse_pride_config
 
 from es_sfgtools.pride_tools.pride_utils import get_gnss_products
@@ -52,7 +52,7 @@ print(f"Config file path: {config_file_path}")
 #             # Attempt to uncompress the file
 #             decompressed_files[k] = uncompress_file(v, uncompressed_dest_dir)
 #         except Exception as e:
-#             GNSSLogger.error(f"Failed to decompress {v}: {e}")
+#             PRIDELogger.error(f"Failed to decompress {v}: {e}")
 
 config_path = Path("/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain/Pride/2022/126/config_template")
 test_config_out = config_path.parent / "test_config"

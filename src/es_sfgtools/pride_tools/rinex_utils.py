@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional, List,Tuple
 from pathlib import Path
 
-from ..logging import GNSSLogger as logger
+from ..logging import PRIDELogger as logger
 
 def _header_get_time(line):
     time_values = line.split("GPS")[0].strip().split()

@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 # Local imports
-from ..logging import GNSSLogger as logger
+from ..logging import PRIDELogger as logger
 
 
 PRIDE_PPP_LOG_INDEX = {

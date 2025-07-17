@@ -28,7 +28,7 @@ from ..tiledb_tools.tiledb_schemas import  TDBGNSSArray,  TDBShotDataArray, TDBG
 from es_sfgtools.modeling.garpos_tools.schemas import InversionParams
 from es_sfgtools.processing.assets.tiledb import TDBAcousticArray, TDBGNSSArray, TDBPositionArray, TDBShotDataArray, TDBGNSSObsArray
 from es_sfgtools.data_mgmt.utils import get_merge_signature_shotdata, merge_shotdata_gnss
-from es_sfgtools.utils.loggers import ProcessLogger as logger, GNSSLogger as gnss_logger   
+from es_sfgtools.utils.loggers import ProcessLogger as logger, PRIDELogger as gnss_logger   
 
 
 class NovatelConfig(BaseModel):
