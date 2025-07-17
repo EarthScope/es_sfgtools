@@ -8,7 +8,7 @@ import pandas as pd
 from es_sfgtools.data_mgmt.file_schemas import AssetEntry, AssetType
 from .database import Base, Assets, ModelResults, MergeJobs
 
-from es_sfgtools.utils.loggers import ProcessLogger as logger
+from ..logging import ProcessLogger as logger
 
 
 class PreProcessCatalog:

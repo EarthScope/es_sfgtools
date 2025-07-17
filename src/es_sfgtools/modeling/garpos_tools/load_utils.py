@@ -2,7 +2,7 @@ from pathlib import Path
 import os
 from typing import Callable,Tuple
 import sys
-from es_sfgtools.utils.loggers import BaseLogger
+from ...logging import GarposLogger as logger
 import importlib.util
 from types import ModuleType
 from typing import Callable
@@ -29,7 +29,7 @@ def load_lib() -> Tuple[str,str]:
     garpos_path = Path(garpos_path)
     if not garpos_path.exists():
         raise FileNotFoundError(f"GARPOS_PATH {garpos_path} does not exist")
-    BaseLogger.loginfo(
+    logger.loginfo(
         f"Found GARPOS_PATH: {garpos_path}"
     )
     f90lib_path = None
@@ -37,7 +37,7 @@ def load_lib() -> Tuple[str,str]:
     for dirs in garpos_path.glob("**/f90lib"):
         if dirs.is_dir():
             f90lib_path = dirs
-            BaseLogger.loginfo(
+            logger.loginfo(
                 f"Found f90lib directory: {f90lib_path}"
             )
             break
@@ -49,7 +49,7 @@ def load_lib() -> Tuple[str,str]:
     lib_raytrace = f90lib_path / "lib_raytrace.so"
     if not lib_raytrace.exists():
         raise FileNotFoundError("lib_raytrace.so not found in f90lib directory")
-    BaseLogger.loginfo(
+    logger.loginfo(
         f"Found lib_raytrace.so: {lib_raytrace}"
     )
     return str(f90lib_path), str(lib_raytrace)
@@ -78,7 +78,7 @@ def load_drive_garpos() -> Callable:
     garpos_path = Path(os.getenv("GARPOS_PATH"))
     if not garpos_path.exists():
         raise FileNotFoundError(f"GARPOS_PATH {garpos_path} does not exist")
-    BaseLogger.loginfo(
+    logger.loginfo(
         f"Found GARPOS_PATH: {garpos_path}"
     )
 
@@ -87,7 +87,7 @@ def load_drive_garpos() -> Callable:
     for file in list(garpos_path.rglob("*.py")):
         if "garpos_main" in file.name:
             garpos_main = file
-            BaseLogger.loginfo(
+            logger.loginfo(
                 f"Found garpos_main.py: {str(garpos_main)}"
             )
             break

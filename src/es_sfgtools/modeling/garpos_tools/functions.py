@@ -42,7 +42,7 @@ from es_sfgtools.modeling.garpos_tools.schemas import (
     GPTransponder,
     GPPositionLLH,
 )
-from es_sfgtools.utils.loggers import GarposLogger as logger
+from ...logging import GarposLogger as logger
 
 from .load_utils import load_drive_garpos
 

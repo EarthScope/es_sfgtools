@@ -18,7 +18,7 @@ from .constants import (
     STATION_OFFSETS,
     MASTER_STATION_ID,
 )
-from es_sfgtools.utils.loggers import ProcessLogger as logger
+from ..logging import ProcessLogger as logger
 from decimal import Decimal, getcontext
 
 # Set precision for Decimal operations

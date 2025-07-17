@@ -2,8 +2,6 @@
 
 from pathlib import Path
 from typing import List, Tuple, Optional
-from es_sfgtools.processing.operations.site_ops import CTDfile_to_svp, seabird_to_soundvelocity
-from es_sfgtools.utils.archive_pull import download_file_from_archive
 import pandas as pd
 import matplotlib.pyplot as plt
 from datetime import datetime
@@ -33,10 +31,12 @@ from es_sfgtools.modeling.garpos_tools.schemas import (
     GPPositionLLH,
     ObservationData
 )
-from es_sfgtools.modeling.garpos_tools.functions import CoordTransformer, process_garpos_results, rectify_shotdata
-from es_sfgtools.utils.loggers import GarposLogger as logger
 
-from ...processing.assets.tiledb import TDBShotDataArray
+from es_sfgtools.utils.archive_pull import download_file_from_archive
+from es_sfgtools.modeling.garpos_tools.functions import CoordTransformer, process_garpos_results, rectify_shotdata
+from ...logging import GarposLogger as logger
+from ...seafloor_site_tools.soundspeed_operations import CTDfile_to_svp,seabird_to_soundvelocity
+from ...tiledb_tools.tiledb_schemas import TDBShotDataArray
 from .load_utils import load_drive_garpos
 from es_sfgtools.data_mgmt.catalog import PreProcessCatalog
 from es_sfgtools.data_mgmt.file_schemas import AssetEntry, AssetType

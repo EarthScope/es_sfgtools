@@ -5,7 +5,7 @@ from enum import Enum
 import json
 import os
 from pydantic import BaseModel, Field, field_serializer, field_validator
-from es_sfgtools.pipelines.pipelines import SV3PipelineConfig
+from es_sfgtools.pipelines.sv3_pipeline import SV3PipelineConfig
 from es_sfgtools.modeling.garpos_tools.schemas import (
     InversionParams
 )

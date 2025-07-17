@@ -13,7 +13,7 @@ from earthscope_sdk import EarthScopeClient
 from earthscope_sdk.config.settings import SdkSettings
 from earthscope_cli.login import login as es_login
 
-from es_sfgtools.utils.loggers import ProcessLogger as logger
+from ..logging import ProcessLogger as logger
 
 
 ssl._create_default_https_context = ssl._create_stdlib_context
