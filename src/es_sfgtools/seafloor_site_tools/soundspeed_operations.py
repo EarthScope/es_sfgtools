@@ -8,7 +8,7 @@ from pathlib import Path
 
 # Local imports
 from ..data_models.observables import SoundVelocityDataFrame
-from ..logging.loggers import ProcessLogger as logger
+from ..logging import ProcessLogger as logger
 
 
 @pa.check_types(lazy=True)
