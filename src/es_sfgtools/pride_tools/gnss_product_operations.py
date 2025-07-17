@@ -366,7 +366,7 @@ def merge_broadcast_files(brdn: Path, brdg: Path, output_folder: Path) -> Path:
             lines = fg.readlines()
             inHeader = True
         except Exception as e:
-            print(f"***ERROR: unable to open or read file {file}: {e}")
+            logger.logerr(f"***ERROR: unable to open or read file {file}: {e}")
             return
         i = 1
         while i < len(lines):
