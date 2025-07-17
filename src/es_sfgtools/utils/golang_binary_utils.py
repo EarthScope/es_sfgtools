@@ -1,7 +1,6 @@
 import platform
 from pathlib import Path
 from typing import Tuple
-
 # Local imports
 from ..logging import ProcessLogger as logger
 
