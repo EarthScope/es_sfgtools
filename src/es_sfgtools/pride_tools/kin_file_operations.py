@@ -221,7 +221,7 @@ def kin_to_gnssdf(source: str|Path) -> Union[pd.DataFrame, None]:
     # dataframe.drop(columns=["modified_julian_date", "second_of_day"], inplace=True)
 
     logger.loginfo(
-        f"GNSS Parser: {dataframe.shape[0]} shots from FILE {source.local_path}"
+        f"GNSS Parser: {dataframe.shape[0]} shots from FILE {str(source)}"
     )
     dataframe["time"] = dataframe["time"].dt.tz_localize("UTC")
     return dataframe.drop(columns=["modified_julian_date", "second_of_day"])
