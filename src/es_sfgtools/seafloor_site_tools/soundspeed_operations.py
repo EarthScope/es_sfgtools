@@ -69,7 +69,7 @@ def seabird_to_soundvelocity(
 
         if not lines:
             logger.logerr(
-                f"No data found in the sound speed profile file {source.local_path}"
+                f"No data found in the sound speed profile file {source}"
             )
             return None
 
