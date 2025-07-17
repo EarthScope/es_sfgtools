@@ -301,7 +301,7 @@ def merge_broadcast_files(brdn: Path, brdg: Path, output_folder: Path) -> Path:
                     num2 = eval(line[22:41])
                     num3 = eval(line[41:60])
                     num4 = eval(line[60:79])
-                    print(
+                    logger.logdebug(
                         f"{prefix}{prn:02d} {yyyy:04d} {mm:02d} {dd:02d} {hh:02d} {mi:02d} {ss:02d} {num2:.12e} {num3:.12e} {num4:.12e}\n"
                     )
                     fm.write(
