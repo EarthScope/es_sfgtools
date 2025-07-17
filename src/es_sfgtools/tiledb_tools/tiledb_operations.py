@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import List
 
 # Local imports
-from .utils import get_tile2rinex_binary_path,parse_golang_logs
+from .utils import get_tile2rinex_binary_path, parse_golang_logs
 from ..logging import ProcessLogger as logger
 
 def tile2rinex(
