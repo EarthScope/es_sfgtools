@@ -186,7 +186,7 @@ def kin_to_gnssdf(source: str|Path) -> Union[pd.DataFrame, None]:
         dataframe (GNSSDataFrame): An instance of the class.
     """
   
-    with open(source.local_path, "r") as file:
+    with open(source, "r") as file:
         lines = file.readlines()
 
     end_header_index = next(

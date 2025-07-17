@@ -422,9 +422,6 @@ class SV3Pipeline:
 
         processed_count = 0
         for kin_entry in tqdm(kin_entries, desc="Processing Kin Files"):
-            if not kin_entry.local_path.exists():
-                self.asset_catalog.delete_entry(kin_entry)
-                continue
             try:
                 gnss_df = kin_to_gnssdf(kin_entry.local_path)
                 if gnss_df is not None:
