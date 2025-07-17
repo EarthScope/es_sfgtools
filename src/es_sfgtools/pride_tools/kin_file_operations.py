@@ -196,7 +196,7 @@ def kin_to_gnssdf(source: str|Path) -> Union[pd.DataFrame, None]:
     # Read data from lines after the end of the header
     data = []
     if end_header_index is None:
-        logger.logerr(f"GNSS: No header found in FILE {source.local_path}")
+        logger.logerr(f"GNSS: No header found in FILE {str(source)}")
         return None
     for idx, line in enumerate(lines[end_header_index + 2 :]):
         split_line = line.strip().split()
