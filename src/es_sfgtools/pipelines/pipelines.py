@@ -420,7 +420,7 @@ class SV3Pipeline:
                     count += 1
                     dfo_entry.is_processed = True
                     self.asset_catalog.add_or_update(dfo_entry)
-                    logger.logdebug(f"Processed {dfo_entry.local_path}")
+                    logger.logdebug(f"{__file__}: Processed {dfo_entry.local_path}")
                 else:
                     logger.logerr(f"Failed to Process {dfo_entry.local_path}")
 

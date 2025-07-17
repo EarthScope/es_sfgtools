@@ -306,7 +306,7 @@ class WuhanIGS:
             AssertionError: If the provided constellation is not recognized.
         """
 
-        logger.logdebug(f"Generating the RemoteResource for RINEX 2 navigation file for {date} and constellation {constellation}")
+        logger.logdebug(f"{__file__}: Generating the RemoteResource for RINEX 2 navigation file for {date} and constellation {constellation}")
         assert constellation in cls.constellation_tag.keys(),f"Constellation {constellation} not recognized"
         year,doy = _parse_date(date)
         dir_extension = f"{year}/{doy}/{year[2:]}p"
@@ -324,7 +324,7 @@ class WuhanIGS:
         Returns:
             RemoteResource: An object representing the remote resource for the RINEX 3 navigation file.
         """
-        logger.logdebug(f"Generating the RemoteResource for RINEX 3 navigation file for {date}")
+        logger.logdebug(f"{__file__}: Generating the RemoteResource for RINEX 3 navigation file for {date}")
         remote_query = RemoteQuery.rnx3(date)
         year, doy = _parse_date(date)
         dir_extension = f"{year}/{doy}/{year[2:]}p"
@@ -342,7 +342,7 @@ class WuhanIGS:
             RemoteResource: An object representing the remote resource for the SP3 product.
         """
 
-        logger.logdebug(f"Generating the RemoteResource for SP3 GNSS product for {date}")
+        logger.logdebug(f"{__file__}: Generating the RemoteResource for SP3 GNSS product for {date}")
         year,doy = _parse_date(date)
         dir_extension = f"{year}/orbit"
         directory = "/".join([cls.daily_product_dir, dir_extension])
@@ -359,7 +359,7 @@ class WuhanIGS:
             RemoteResource: An object representing the remote resource for the OBX product.
         """
 
-        logger.logdebug(f"Generating the RemoteResource for OBX GNSS product for {date}")
+        logger.logdebug(f"{__file__}: Generating the RemoteResource for OBX GNSS product for {date}")
         year,doy = _parse_date(date)
         dir_extension = f"{year}/orbit"
         directory = "/".join([cls.daily_product_dir, dir_extension])
@@ -376,7 +376,7 @@ class WuhanIGS:
             RemoteResource: An object representing the remote resource for the clock product.
         """
 
-        logger.logdebug(f"Generating the RemoteResource for clock GNSS product for {date}")
+        logger.logdebug(f"{__file__}: Generating the RemoteResource for clock GNSS product for {date}")
         year,doy = _parse_date(date)
         dir_extension = f"{year}/clock"
         directory = "/".join([cls.daily_product_dir, dir_extension])
@@ -393,7 +393,7 @@ class WuhanIGS:
             RemoteResource: An object representing the remote resource containing the GNSS product sum.
         """
 
-        logger.logdebug(f"Generating the RemoteResource for sum GNSS product for {date}")
+        logger.logdebug(f"{__file__}: Generating the RemoteResource for sum GNSS product for {date}")
         year,doy = _parse_date(date)
         dir_extension = f"{year}/clock"
         directory = "/".join([cls.daily_product_dir, dir_extension])
@@ -410,7 +410,7 @@ class WuhanIGS:
             RemoteResource: An object representing the remote resource containing the product bias.
         """
 
-        logger.logdebug(f"Generating the RemoteResource for bias GNSS product for {date}")
+        logger.logdebug(f"{__file__}: Generating the RemoteResource for bias GNSS product for {date}")
         year,doy = _parse_date(date)
         dir_extension = f"{year}/bias"
         directory = "/".join([cls.daily_product_dir, dir_extension])
@@ -427,7 +427,7 @@ class WuhanIGS:
             RemoteResource: An object representing the remote resource containing the ERP product.
         """
 
-        logger.logdebug(f"Generating the RemoteResource for ERP GNSS product for {date}")
+        logger.logdebug(f"{__file__}: Generating the RemoteResource for ERP GNSS product for {date}")
         year,doy = _parse_date(date)
         dir_extension = f"{year}/orbit"
         directory = "/".join([cls.daily_product_dir, dir_extension])
@@ -473,7 +473,7 @@ class GSSC:
             AssertionError: If the provided constellation is not recognized.
         '''
 
-        logger.logdebug(f"Generating the RemoteResource for RINEX 2 navigation file for {date} and constellation {constellation}")
+        logger.logdebug(f"{__file__}: Generating the RemoteResource for RINEX 2 navigation file for {date} and constellation {constellation}")
         assert (
             constellation in cls.constellation_tag.keys()
         ), f"Constellation {constellation} not recognized"
@@ -497,7 +497,7 @@ class GSSC:
             RemoteResource: An object representing the remote resource for the RINEX 3 navigation file.
         """
 
-        logger.logdebug(f"Generating the RemoteResource for RINEX 3 navigation file for {date}")
+        logger.logdebug(f"{__file__}: Generating the RemoteResource for RINEX 3 navigation file for {date}")
         remote_query = RemoteQuery.rnx3(date)
         year, doy = _parse_date(date)
         dir_extension = f"{year}/{doy}"
@@ -531,7 +531,7 @@ class CLSIGS:
             AssertionError: If the provided constellation is not recognized.
         """
 
-        logger.logdebug(f"Generating the RemoteResource for RINEX 2 navigation file for {date} and constellation {constellation}")
+        logger.logdebug(f"{__file__}: Generating the RemoteResource for RINEX 2 navigation file for {date} and constellation {constellation}")
         assert (
             constellation in cls.constellation_tag.keys()
         ), f"Constellation {constellation} not recognized"
@@ -555,7 +555,7 @@ class CLSIGS:
             RemoteResource: An object representing the remote resource for the RINEX 3 navigation file.
         """
 
-        logger.logdebug(f"Generating the RemoteResource for RINEX 3 navigation file for {date}")
+        logger.logdebug(f"{__file__}: Generating the RemoteResource for RINEX 3 navigation file for {date}")
         remote_query = RemoteQuery.rnx3(date)
         year, doy = _parse_date(date)
         dir_extension = f"{year}/{doy}"
@@ -577,7 +577,7 @@ class CLSIGS:
             RemoteResource: An object representing the remote resource for the SP3 product.
         """
 
-        logger.logdebug(f"Generating the RemoteResource for SP3 GNSS product for {date}")
+        logger.logdebug(f"{__file__}: Generating the RemoteResource for SP3 GNSS product for {date}")
         gps_week = _date_to_gps_week(date)
         dir_extension = f"{gps_week}"
         directory = "/".join([cls.daily_products_dir, dir_extension])
@@ -595,7 +595,7 @@ class CLSIGS:
             RemoteResource: An object representing the remote resource for the clock product.
         """
 
-        logger.logdebug(f"Generating the RemoteResource for clock GNSS product for {date}")
+        logger.logdebug(f"{__file__}: Generating the RemoteResource for clock GNSS product for {date}")
         gps_week = _date_to_gps_week(date)
         dir_extension = f"{gps_week}"
         directory = "/".join([cls.daily_products_dir, dir_extension])
@@ -612,7 +612,7 @@ class CLSIGS:
             RemoteResource: An object representing the remote resource for the ERP product.
         """
 
-        logger.logdebug(f"Generating the RemoteResource for ERP GNSS product for {date}")
+        logger.logdebug(f"{__file__}: Generating the RemoteResource for ERP GNSS product for {date}")
         gps_week = _date_to_gps_week(date)
         dir_extension = f"{gps_week}"
         directory = "/".join([cls.daily_products_dir, dir_extension])
@@ -629,7 +629,7 @@ class CLSIGS:
             RemoteResource: An object representing the remote resource for the OBX product.
         """
 
-        logger.logdebug(f"Generating the RemoteResource for OBX GNSS product for {date}")
+        logger.logdebug(f"{__file__}: Generating the RemoteResource for OBX GNSS product for {date}")
         gps_week = _date_to_gps_week(date)
         dir_extension = f"{gps_week}"
         directory = "/".join([cls.daily_products_dir, dir_extension])
@@ -646,7 +646,7 @@ class CLSIGS:
             RemoteResource: An object representing the remote resource for the product bias.
         """
 
-        logger.logdebug(f"Generating the RemoteResource for bias GNSS product for {date}")
+        logger.logdebug(f"{__file__}: Generating the RemoteResource for bias GNSS product for {date}")
         gps_week = _date_to_gps_week(date)
         dir_extension = f"{gps_week}"
         directory = "/".join([cls.daily_products_dir, dir_extension])

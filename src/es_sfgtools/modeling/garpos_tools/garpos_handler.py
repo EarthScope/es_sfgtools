@@ -241,12 +241,12 @@ class GarposHandler:
         if not catalog_db_path:
             # Check if we can find it first based on the classic working directory structure, if not, raise error
             catalog_db_path = self.working_dir.parents[2]/"catalog.sqlite"
-            logger.logdebug(f"Catalog database path not provided, checking for local catalog database at: {str(catalog_db_path)}")
+            logger.logdebug(f"{__file__}: Catalog database path not provided, checking for local catalog database at: {str(catalog_db_path)}")
             if not catalog_db_path.exists():
                 raise ValueError("No local SVP found and no catalog database path provided, " \
                 "\n please provide the catalog database path to check for the CTD files or a local SVP file")
             else:
-                logger.logdebug(f"Using local catalog database found at {catalog_db_path}..")
+                logger.logdebug(f"{__file__}: Using local catalog database found at {catalog_db_path}..")
 
         logger.loginfo(f"Checking catalog database for SVP, CTD, and SEABIRD files related to campaign {campaign_name}..")
         catalog = PreProcessCatalog(db_path=catalog_db_path)

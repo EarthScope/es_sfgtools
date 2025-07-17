@@ -537,7 +537,7 @@ def novb2tile(files:List[AssetEntry],rangea_tdb:Path,n_procs:int=10) -> None:
         raise FileNotFoundError(f"NOVAB2TILE binary not found for {system} {arch}")
 
     cmd = [str(binary_path), "-tdb", str(rangea_tdb),"-procs",str(n_procs)]
-    logger.logdebug(f"Running {cmd}")
+    logger.logdebug(f"{__file__}: Running {cmd}")
     for file in files:
         cmd.append(str(file.local_path))
     logger.loginfo(f"Running NOVB2TILE on {len(files)} files")

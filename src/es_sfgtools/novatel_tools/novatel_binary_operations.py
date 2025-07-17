@@ -19,7 +19,7 @@ def novatel_770_2tile(files: List[str], rangea_tdb: Path, n_procs: int = 10) -> 
     # Generate the command to run the novb2tile golang binary
     binary_path = get_nov_770_tile_binary_path()
     cmd = [str(binary_path), "-tdb", str(rangea_tdb), "-procs", str(n_procs)]
-    logger.logdebug(f"Running {cmd}")
+    logger.logdebug(f"{__file__}: Running {cmd}")
     for file in files:
         cmd.append(str(file))
     logger.loginfo(f"Running NOVB2TILE with {' '.join(cmd)}")
@@ -42,7 +42,7 @@ def novatel_000_2tile(files: List[str], rangea_tdb: Path, n_procs: int = 10) -> 
     # Generate the command to run the nov0002tile golang binary
     binary_path = get_nov_000_tile_binary_path()
     cmd = [str(binary_path), "-tdb", str(rangea_tdb), "-procs", str(n_procs)]
-    logger.logdebug(f"Running {cmd}")
+    logger.logdebug(f"{__file__}: Running {cmd}")
     for file in files:
         cmd.append(str(file))
     logger.loginfo(f"Running NOV0002TILE with {' '.join(cmd)}")

@@ -413,7 +413,7 @@ class DataHandler:
             file_type = get_file_type_remote(file)
 
             if file_type is None: # If the file type is not recognized, skip it
-                logger.logdebug(f"File type not recognized for {file}")
+                logger.logdebug(f"{__file__}: File type not recognized for {file}")
                 not_recognized.append(file)
                 continue
 
@@ -433,7 +433,7 @@ class DataHandler:
                 file_data_list.append(file_data)
             else:
                 # Count the file as already existing in the catalog
-                logger.logdebug(f"File {file} already exists in the catalog and has a local path")
+                logger.logdebug(f"{__file__}: File {file} already exists in the catalog and has a local path")
 
         # Add each file (AssetEntry) to the catalog
         file_count = len(file_data_list)
@@ -561,11 +561,11 @@ class DataHandler:
         local_path = self.raw_dir / Path(prefix).name
 
         try:
-            logger.logdebug(f"Downloading {prefix} to {local_path}")
+            logger.logdebug(f"{__file__}: Downloading {prefix} to {local_path}")
             client.download_file(Bucket=bucket, 
                                  Key=str(prefix), 
                                  Filename=str(local_path))
-            logger.logdebug(f"Downloaded {str(prefix)} to {str(local_path)}")
+            logger.logdebug(f"{__file__}: Downloaded {str(prefix)} to {str(local_path)}")
 
         except Exception as e:
             logger.logerr(f"Error downloading {prefix} from {bucket }\n {e} \n HINT: $ aws sso login")
@@ -610,7 +610,7 @@ class DataHandler:
             if not local_path.exists(): 
                 raise Exception
 
-            logger.logdebug(f"Downloaded {str(remote_url)} to {str(local_path)}")
+            logger.logdebug(f"{__file__}: Downloaded {str(remote_url)} to {str(local_path)}")
 
         except Exception as e:
             logger.logerr(f"Error downloading {str(remote_url)} \n {e}" + "\n HINT: Check authentication credentials")

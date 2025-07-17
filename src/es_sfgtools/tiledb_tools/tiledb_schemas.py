@@ -250,7 +250,7 @@ class TBDArray:
             df (pd.DataFrame): The dataframe to write
             validate (bool, optional): Whether to validate the dataframe. Defaults to True.
         """
-        logger.logdebug(f"Writing dataframe to {self.uri}")
+        logger.logdebug(f"{__file__}: Writing dataframe to {self.uri}")
         if validate:
             df_val = self.dataframe_schema.validate(df, lazy=True)
         tiledb.from_pandas(str(self.uri), df_val, mode="append")
@@ -273,7 +273,7 @@ class TBDArray:
         Returns:
             pd.DataFrame: dataframe
         """
-        logger.logdebug(f"Reading dataframe from {self.uri}")
+        logger.logdebug(f"{__file__}: Reading dataframe from {self.uri}")
         # TODO slice array by start and end and return the dataframe
         if end is None:
             end = start + datetime.timedelta(days=1)
@@ -304,7 +304,7 @@ class TBDArray:
         config = tiledb.Config()
         config["sm.consolidation.steps"] = 3
         uri = tiledb.consolidate(uri=str(self.uri), ctx=ctx, config=config)
-        logger.logdebug(f"Consolidated {self.name} to {uri}")
+        logger.logdebug(f"{__file__}: Consolidated {self.name} to {uri}")
         tiledb.vacuum(str(self.uri))
 
     def view(self, network: str = "", station: str = ""):
@@ -398,7 +398,7 @@ class TDBShotDataArray(TBDArray):
             pd.DataFrame: dataframe
         """
 
-        logger.logdebug(f"Reading dataframe from {self.uri} for {start} to {end}")
+        logger.logdebug(f"{__file__}: Reading dataframe from {self.uri} for {start} to {end}")
         # TODO slice array by start and end and return the dataframe
         if end is None:
             end = start + datetime.timedelta(days=1)
@@ -423,7 +423,7 @@ class TDBShotDataArray(TBDArray):
             df (pd.DataFrame): The dataframe to write
             validate (bool, optional): Whether to validate the dataframe. Defaults to True.
         """
-        logger.logdebug(f"Writing dataframe to {self.uri}")
+        logger.logdebug(f"{__file__}: Writing dataframe to {self.uri}")
         if validate:
             df_val = self.dataframe_schema.validate(df)
         else:

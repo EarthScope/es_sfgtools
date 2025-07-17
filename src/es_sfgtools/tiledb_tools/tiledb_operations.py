@@ -59,7 +59,7 @@ def tile2rinex(
             "-year",
             str(processing_year),
         ]
-
+        logger.logdebug(f"{__file__}: Running {cmd}")
         result = subprocess.run(cmd, cwd=workdir)
 
         parse_golang_logs(result, logger)

@@ -35,6 +35,7 @@ def novatel_ascii_2tile(files: List[str], rangea_tdb: Path, n_procs: int = 10) -
     for file in files:
         cmd.append(str(file))
 
+    logger.logdebug(f"{__file__}: Running {cmd}")
     logger.loginfo(f"Running NOVA2TILE on {len(files)} files")
     result = subprocess.run(cmd)
 
@@ -61,16 +62,7 @@ def novatel_ascii_2rinex(file:str,writedir:Path,site:str) -> Path:
         cmd = [str(binary_path), "-meta", str(metadata_path),file]
         result = subprocess.run(cmd, check=True, capture_output=True, cwd=workdir)
 
-        if result.stdout:
-            logger.logdebug(result.stdout.decode("utf-8"))
-
-        if result.stderr:
-            logger.logdebug(result.stderr.decode("utf-8"))
-            result_message = result.stderr.decode("utf-8").split("msg=")
-            for log_line in result_message:
-                message = log_line.split("\n")[0]
-                if "Processing" in message or "Created" in message:
-                    logger.loginfo(message)
+        parse_golang_logs(result, logger)
 
         rinex_file_path = list(Path(workdir).rglob(f"*{site}*"))[0]
         logger.loginfo(
