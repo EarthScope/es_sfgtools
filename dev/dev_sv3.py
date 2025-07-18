@@ -2,8 +2,8 @@ from pathlib import Path
 import logging
 
 logging.basicConfig(level=logging.WARNING, filename="dev.log", filemode="w")
-from es_sfgtools.processing.pipeline.data_handler import DataHandler
-from es_sfgtools.processing.pipeline.pipelines import SV3Pipeline, SV3PipelineConfig
+from es_sfgtools.data_mgmt.data_handler import DataHandler
+from es_sfgtools.pipelines.pipelines import SV3Pipeline, SV3PipelineConfig
 
 
 import os
