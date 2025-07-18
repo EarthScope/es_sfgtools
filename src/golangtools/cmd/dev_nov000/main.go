@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/earthscope/gnsstools/pkg/common/gnss/observation"
@@ -183,6 +185,232 @@ func (reader Reader) NextMessage() (message novatelascii.Message, err error) {
 	return message, nil
 }
 
+type InspvaaRecord struct {
+	RecordTime time.Time
+	GNSSWeek int
+	Seconds float64
+	Latitude float64
+	Longitude float64
+	Height float64
+	NorthVelocity float64
+	EastVelocity float64
+	UpVelocity float64
+	Roll float64
+	Pitch float64
+	Azimuth float64
+	Status string
+}
+
+type INSSTDEVARecord struct {
+	RecordTime time.Time
+	LatitudeSigma float64
+	LongitudeSigma float64
+	HeightSigma float64
+	NorthVelocitySigma float64
+	EastVelocitySigma float64
+	UpVelocitySigma float64
+	RollSigma float64
+	PitchSigma float64
+	AzimuthSigma float64
+}
+
+type INSCompleteRecord struct {
+	InspvaaRecord InspvaaRecord
+	INSSTDEVARecord INSSTDEVARecord
+}
+
+func DeserializeINSPVAARecord(data string,time time.Time) (InspvaaRecord, error) {
+	// 2267,580261.050000000,45.30245563418,-124.96561111107,-28.6138,-0.2412,0.6377,0.2949,2.627875295,0.299460630,70.416827684,INS_SOLUTION_GOOD
+	record := InspvaaRecord{}
+	record.RecordTime = time
+	parts := strings.Split(data, ",")
+	if len(parts) < 12 {
+		return InspvaaRecord{}, fmt.Errorf("invalid INSPVAA record: %s", data)
+	}
+	week, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return InspvaaRecord{}, fmt.Errorf("error deserializing INSPVAA (%s)", err)
+	}
+	record.GNSSWeek = week
+	seconds, err := strconv.ParseFloat(parts[1], 64)
+	if err != nil {
+		return InspvaaRecord{}, fmt.Errorf("error deserializing INSPVAA (%s)", err)
+	}
+	record.Seconds = seconds // seconds since the start of the week
+
+	latitude, err := strconv.ParseFloat(parts[2], 64)
+	if err != nil {
+		return InspvaaRecord{}, fmt.Errorf("error deserializing INSPVAA (%s)", err)
+	}
+	record.Latitude = latitude
+
+	longitude, err := strconv.ParseFloat(parts[3], 64)
+	if err != nil {
+		return InspvaaRecord{}, fmt.Errorf("error deserializing INSPVAA (%s)", err)
+	}
+	record.Longitude = longitude
+
+	height, err := strconv.ParseFloat(parts[4], 64)
+	if err != nil {
+		return InspvaaRecord{}, fmt.Errorf("error deserializing INSPVAA (%s)", err)
+	}
+	record.Height = height
+
+	northVelocity, err := strconv.ParseFloat(parts[5], 64)
+	if err != nil {
+		return InspvaaRecord{}, fmt.Errorf("error deserializing INSPVAA (%s)", err)
+	}
+	record.NorthVelocity = northVelocity
+
+	eastVelocity, err := strconv.ParseFloat(parts[6], 64)
+	if err != nil {
+		return InspvaaRecord{}, fmt.Errorf("error deserializing INSPVAA (%s)", err)
+	}
+	record.EastVelocity = eastVelocity
+
+	upVelocity, err := strconv.ParseFloat(parts[7], 64)
+	if err != nil {		return InspvaaRecord{}, fmt.Errorf("error deserializing INSPVAA (%s)", err)
+	}
+	record.UpVelocity = upVelocity
+
+	roll, err := strconv.ParseFloat(parts[8], 64)
+	if err != nil {
+		return InspvaaRecord{}, fmt.Errorf("error deserializing INSPVAA (%s)", err)
+	}
+	record.Roll = roll
+
+	pitch, err := strconv.ParseFloat(parts[9], 64)
+	if err != nil {
+		return InspvaaRecord{}, fmt.Errorf("error deserializing INSPVAA (%s)", err)
+	}
+	record.Pitch = pitch
+
+	azimuth, err := strconv.ParseFloat(parts[10], 64)
+	if err != nil {
+		return InspvaaRecord{}, fmt.Errorf("error deserializing INSPVAA (%s)", err)
+	}
+	record.Azimuth = azimuth
+
+	status := strings.Join(parts[11:], ",")
+	record.Status = status	
+
+	return record, nil
+
+}
+
+func DeserializeINSSTDEVARecord(data string, time time.Time) (INSSTDEVARecord, error) {
+	record := INSSTDEVARecord{}
+	record.RecordTime = time
+	parts := strings.Split(data, ",")
+	if len(parts) < 9 {
+		return INSSTDEVARecord{}, fmt.Errorf("invalid INSSTDEVA record: %s", data)
+	}
+
+	latitudeSigma, err := strconv.ParseFloat(parts[0], 64)
+	if err != nil {
+		return INSSTDEVARecord{}, fmt.Errorf("error deserializing INSSTDEVA (%s)", err)
+	}
+	record.LatitudeSigma = latitudeSigma
+
+	longitudeSigma, err := strconv.ParseFloat(parts[1], 64)
+	if err != nil {
+		return INSSTDEVARecord{}, fmt.Errorf("error deserializing INSSTDEVA (%s)", err)
+	}
+	record.LongitudeSigma = longitudeSigma
+
+	heightSigma, err := strconv.ParseFloat(parts[2], 64)
+	if err != nil {
+		return INSSTDEVARecord{}, fmt.Errorf("error deserializing INSSTDEVA (%s)", err)
+	}
+	record.HeightSigma = heightSigma
+
+	northVelocitySigma, err := strconv.ParseFloat(parts[3], 64)
+	if err != nil {
+		return INSSTDEVARecord{}, fmt.Errorf("error deserializing INSSTDEVA (%s)", err)
+	}
+	record.NorthVelocitySigma = northVelocitySigma
+
+	eastVelocitySigma, err := strconv.ParseFloat(parts[4], 64)
+	if err != nil {
+		return INSSTDEVARecord{}, fmt.Errorf("error deserializing INSSTDEVA (%s)", err)
+	}
+	record.EastVelocitySigma = eastVelocitySigma
+
+	upVelocitySigma, err := strconv.ParseFloat(parts[5], 64)
+	if err != nil {
+		return INSSTDEVARecord{}, fmt.Errorf("error deserializing INSSTDEVA (%s)", err)
+	}
+	record.UpVelocitySigma = upVelocitySigma
+
+	rollSigma, err := strconv.ParseFloat(parts[6], 64)
+	if err != nil {
+		return INSSTDEVARecord{}, fmt.Errorf("error deserializing INSSTDEVA (%s)", err)
+	}
+	record.RollSigma = rollSigma
+
+	pitchSigma, err := strconv.ParseFloat(parts[7], 64)
+	if err != nil {
+		return INSSTDEVARecord{}, fmt.Errorf("error deserializing INSSTDEVA (%s)", err)
+	}
+	record.PitchSigma = pitchSigma
+
+	azimuthSigma, err := strconv.ParseFloat(parts[8], 64)
+	if err != nil {
+		return INSSTDEVARecord{}, fmt.Errorf("error deserializing INSSTDEVA (%s)", err)
+	}
+	record.AzimuthSigma = azimuthSigma
+
+	return record, nil
+}
+
+func ListMatch(listA []float64, listB []float64) [][]float64 {
+	var listC [][]float64
+	i := 0
+	j := 0
+	for i < len(listA) && j < len(listB) {
+		elemA := listA[i]
+		elemB := listB[j]
+		if elemA == elemB {
+			pair := []float64{elemA, elemB}
+			listC = append(listC, pair)
+			i++
+			j++
+		} else if elemA < elemB {
+			i++
+		} else {
+			j++
+		}
+	}
+	if len(listC) == 0 {
+		log.Warnf("No matching elements found between the two lists")
+		return nil
+	}
+	log.Infof("Found %d matching elements between the two lists", len(listC))
+	// Print the matching elements
+	return listC
+}
+func MergeINSPVAAAndINSSTDEVA(insPvaa []InspvaaRecord, insStdeva []INSSTDEVARecord) [][]float64 {
+	
+	// sort the slices by RecordTime
+	sort.Slice(insPvaa, func(i, j int) bool {
+		return insPvaa[i].RecordTime.Before(insPvaa[j].RecordTime)
+	})
+	sort.Slice(insStdeva, func(i, j int) bool {
+		return insStdeva[i].RecordTime.Before(insStdeva[j].RecordTime)
+	})
+	insPvaaTimes := make([]float64, len(insPvaa))
+	insStdevaTimes := make([]float64, len(insStdeva))
+	for i, record := range insPvaa {
+		insPvaaTimes[i] = float64(record.RecordTime.UnixNano()) / 1e9
+	}
+	for i, record := range insStdeva {
+		insStdevaTimes[i] = float64(record.RecordTime.UnixNano()) / 1e9
+	}
+	sorted_times := ListMatch(insPvaaTimes, insStdevaTimes)
+
+	return sorted_times
+}
+
 // processFileNOV000 reads a file containing GNSS data, processes it, and returns a slice of observation.Epoch.
 // It opens the specified file, reads messages using a custom reader, and processes "RANGEA" messages
 // to extract GNSS epoch data. The function handles errors appropriately and ensures the file is closed
@@ -208,9 +436,10 @@ func processFileNOV000(file string) []observation.Epoch{
 	reader := NewReader(bufio.NewReader(f))
 	epochs := []observation.Epoch{}
 
-	found_inspvaa := false
-	found_insstdeva := false
-	// found_rangea := false
+	insEpochs := []InspvaaRecord{}
+	insStdDevEpochs := []INSSTDEVARecord{}
+	//insCompleteRecords := []INSCompleteRecord{}
+	found_messages := make(map[string]bool)
 	epochLoop:
 		for {
 			message,err := reader.NextMessage()
@@ -224,9 +453,10 @@ func processFileNOV000(file string) []observation.Epoch{
 				}
 				log.Println(err)
 			}
+			
 			switch m:=message.(type) {
 				case novatelascii.LongMessage:
-				
+					found_messages[m.Msg] = true
 					if m.Msg == "RANGEA" {
 
 						rangea, err := novatelascii.DeserializeRANGEA(m.Data)
@@ -242,19 +472,35 @@ func processFileNOV000(file string) []observation.Epoch{
 						}
 						epochs = append(epochs, epoch)
 					} else if m.Msg == "INSPVAA" {
-						if !found_inspvaa {
-							found_inspvaa = true
-							print("INSPVAA + : ", m.Data, "\n")
+						record, err := DeserializeINSPVAARecord(m.Data, m.Time())
+						if err != nil {
+							log.Errorf("error deserializing INSPVAA record: %s", err)
+							continue epochLoop
 						}
+						insEpochs = append(insEpochs, record)
+				
 						
 					} else if m.Msg == "INSSTDEVA" {
-						if !found_insstdeva {
-							found_insstdeva = true
-							print("INSSTDEVA = : ", m.Data, "\n")
+				
+						record, err := DeserializeINSSTDEVARecord(m.Data, m.Time())
+						if err != nil {
+							log.Errorf("error deserializing INSSTDEVA record: %s", err)
+							continue epochLoop
 						}
-					} 
+						insStdDevEpochs = append(insStdDevEpochs, record)
+					
+					}
 				}
 		}
+	sortedTimes := MergeINSPVAAAndINSSTDEVA(insEpochs, insStdDevEpochs)
+	if len(sortedTimes) == 0 {
+		log.Warnf("no matching times found between INSPVAA and INSSTDEVA records")
+		return epochs
+	}
+	log.Infof("Found %d matching times between INSPVAA and INSSTDEVA records", len(sortedTimes))
+	log.Infof("INSSTDEVA Records: %d, INSPVAA Records: %d", len(insStdDevEpochs), len(insEpochs))
+	
+	log.Infof("Found messages: %v", found_messages)
 	return epochs
 }	
 
