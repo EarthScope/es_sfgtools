@@ -238,7 +238,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed parsing settings: %s", err)
 	}
-    // check if tdbPathPtr is a valid memory address
+    // check if tdbPathPtr points to an existing file
 	if _, err := os.Stat(*tdbPathPtr); err != nil {
 		log.Fatalf("TileDB array not found at %s: %v", *tdbPathPtr, err)
 	}
