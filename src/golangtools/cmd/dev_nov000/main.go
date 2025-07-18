@@ -215,8 +215,53 @@ type INSSTDEVARecord struct {
 }
 
 type INSCompleteRecord struct {
-	InspvaaRecord InspvaaRecord
-	INSSTDEVARecord INSSTDEVARecord
+	RecordTime time.Time
+	GNSSWeek int
+	GNSSSecondsofWeek float64
+	Latitude float64
+	Longitude float64
+	Height float64
+	NorthVelocity float64
+	EastVelocity float64
+	UpVelocity float64
+	Roll float64
+	Pitch float64
+	Azimuth float64
+	LatitudeSigma float64
+	LongitudeSigma float64
+	HeightSigma float64
+	NorthVelocitySigma float64
+	EastVelocitySigma float64
+	UpVelocitySigma float64
+	RollSigma float64
+	PitchSigma float64
+	AzimuthSigma float64
+}
+
+func MergeINSRecordsFlat(insPvaa InspvaaRecord, insStdDev INSSTDEVARecord) INSCompleteRecord {
+	return INSCompleteRecord{
+		RecordTime:               insPvaa.RecordTime,
+		GNSSWeek:                 insPvaa.GNSSWeek,
+		GNSSSecondsofWeek:        insPvaa.GNSSSecondsofWeek,
+		Latitude:                 insPvaa.Latitude,
+		Longitude:                insPvaa.Longitude,
+		Height:                   insPvaa.Height,
+		NorthVelocity:            insPvaa.NorthVelocity,
+		EastVelocity:             insPvaa.EastVelocity,
+		UpVelocity:               insPvaa.UpVelocity,
+		Roll:                     insPvaa.Roll,
+		Pitch:                    insPvaa.Pitch,
+		Azimuth:                  insPvaa.Azimuth,
+		LatitudeSigma:            insStdDev.LatitudeSigma,
+		LongitudeSigma:           insStdDev.LongitudeSigma,
+		HeightSigma:              insStdDev.HeightSigma,
+		NorthVelocitySigma:       insStdDev.NorthVelocitySigma,
+		EastVelocitySigma:        insStdDev.EastVelocitySigma,
+		UpVelocitySigma:         insStdDev.UpVelocitySigma,
+		RollSigma:                insStdDev.RollSigma,
+		PitchSigma:               insStdDev.PitchSigma,
+		AzimuthSigma:             insStdDev.AzimuthSigma,
+	}
 }
 
 func DeserializeINSPVAARecord(data string,time time.Time) (InspvaaRecord, error) {
@@ -377,9 +422,9 @@ func MergeINSPVAAAndINSSTDEVA(INSPVAARecords []InspvaaRecord, INSSTDEVRecords []
 	for i < len(INSPVAARecords) && j < len(INSSTDEVRecords) {
 		elemA := INSPVAARecords[i]
 		elemB := INSSTDEVRecords[j]
-		if elemA.RecordTime == elemB.RecordTime {
-			pair := INSCompleteRecord{elemA, elemB}
-			matchedRecords = append(matchedRecords, pair)
+		if elemA.RecordTime.Equal(elemB.RecordTime) {
+			merged := MergeINSRecordsFlat(elemA, elemB)
+			matchedRecords = append(matchedRecords, merged)
 			i++
 			j++
 		} else if elemA.RecordTime.Before(elemB.RecordTime) {
@@ -408,12 +453,8 @@ func MergeINSPVAAAndINSSTDEVA(INSPVAARecords []InspvaaRecord, INSSTDEVRecords []
 //
 // Returns:
 //   - A slice of observation.Epoch containing the processed GNSS epoch data.
-func processFileNOV000(file string) []observation.Epoch{
-    // defer func() {
-    //     if r := recover(); r != nil {
-    //         log.Printf("Recovered from panic: %v", r)
-    //     }
-    // }()
+func processFileNOV000(file string) ([]observation.Epoch, []INSCompleteRecord) {
+
 
 	f,err := os.Open(file)
 	if err != nil {
@@ -479,16 +520,16 @@ func processFileNOV000(file string) []observation.Epoch{
 					}
 				}
 		}
-	sortedTimes := MergeINSPVAAAndINSSTDEVA(insEpochs, insStdDevEpochs)
-	if len(sortedTimes) == 0 {
+	insCompleteRecords := MergeINSPVAAAndINSSTDEVA(insEpochs, insStdDevEpochs)
+	if len(insCompleteRecords) == 0 {
 		log.Warnf("no matching times found between INSPVAA and INSSTDEVA records")
-		return epochs
+		return epochs, nil
 	}
-	log.Infof("Found %d matching times between INSPVAA and INSSTDEVA records", len(sortedTimes))
+	log.Infof("Found %d matching times between INSPVAA and INSSTDEVA records", len(insCompleteRecords))
 	log.Infof("INSSTDEVA Records: %d, INSPVAA Records: %d", len(insStdDevEpochs), len(insEpochs))
 	
-	log.Infof("Found messages: %v", found_messages)
-	return epochs
+
+	return epochs, insCompleteRecords
 }	
 
 func main() {
