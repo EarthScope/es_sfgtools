@@ -188,7 +188,7 @@ func (reader Reader) NextMessage() (message novatelascii.Message, err error) {
 type InspvaaRecord struct {
 	RecordTime time.Time
 	GNSSWeek int
-	Seconds float64
+	GNSSSecondsofWeek float64
 	Latitude float64
 	Longitude float64
 	Height float64
@@ -236,7 +236,7 @@ func DeserializeINSPVAARecord(data string,time time.Time) (InspvaaRecord, error)
 	if err != nil {
 		return InspvaaRecord{}, fmt.Errorf("error deserializing INSPVAA (%s)", err)
 	}
-	record.Seconds = seconds // seconds since the start of the week
+	record.GNSSSecondsofWeek = seconds // seconds since the start of the week
 
 	latitude, err := strconv.ParseFloat(parts[2], 64)
 	if err != nil {
@@ -363,53 +363,40 @@ func DeserializeINSSTDEVARecord(data string, time time.Time) (INSSTDEVARecord, e
 	return record, nil
 }
 
-func ListMatch(listA []float64, listB []float64) [][]float64 {
-	var listC [][]float64
+func MergeINSPVAAAndINSSTDEVA(INSPVAARecords []InspvaaRecord, INSSTDEVRecords []INSSTDEVARecord) []INSCompleteRecord {
+	// sort the slices by RecordTime
+	sort.Slice(INSPVAARecords, func(i, j int) bool {
+		return INSPVAARecords[i].RecordTime.Before(INSPVAARecords[j].RecordTime)
+	})
+	sort.Slice(INSSTDEVRecords, func(i, j int) bool {
+		return INSSTDEVRecords[i].RecordTime.Before(INSSTDEVRecords[j].RecordTime)
+	})
+	var matchedRecords []INSCompleteRecord
 	i := 0
 	j := 0
-	for i < len(listA) && j < len(listB) {
-		elemA := listA[i]
-		elemB := listB[j]
-		if elemA == elemB {
-			pair := []float64{elemA, elemB}
-			listC = append(listC, pair)
+	for i < len(INSPVAARecords) && j < len(INSSTDEVRecords) {
+		elemA := INSPVAARecords[i]
+		elemB := INSSTDEVRecords[j]
+		if elemA.RecordTime == elemB.RecordTime {
+			pair := INSCompleteRecord{elemA, elemB}
+			matchedRecords = append(matchedRecords, pair)
 			i++
 			j++
-		} else if elemA < elemB {
+		} else if elemA.RecordTime.Before(elemB.RecordTime) {
 			i++
 		} else {
 			j++
 		}
 	}
-	if len(listC) == 0 {
+	if len(matchedRecords) == 0 {
 		log.Warnf("No matching elements found between the two lists")
 		return nil
 	}
-	log.Infof("Found %d matching elements between the two lists", len(listC))
+	log.Infof("Found %d matching elements between the two lists", len(matchedRecords))
 	// Print the matching elements
-	return listC
+	return matchedRecords
 }
-func MergeINSPVAAAndINSSTDEVA(insPvaa []InspvaaRecord, insStdeva []INSSTDEVARecord) [][]float64 {
-	
-	// sort the slices by RecordTime
-	sort.Slice(insPvaa, func(i, j int) bool {
-		return insPvaa[i].RecordTime.Before(insPvaa[j].RecordTime)
-	})
-	sort.Slice(insStdeva, func(i, j int) bool {
-		return insStdeva[i].RecordTime.Before(insStdeva[j].RecordTime)
-	})
-	insPvaaTimes := make([]float64, len(insPvaa))
-	insStdevaTimes := make([]float64, len(insStdeva))
-	for i, record := range insPvaa {
-		insPvaaTimes[i] = float64(record.RecordTime.UnixNano()) / 1e9
-	}
-	for i, record := range insStdeva {
-		insStdevaTimes[i] = float64(record.RecordTime.UnixNano()) / 1e9
-	}
-	sorted_times := ListMatch(insPvaaTimes, insStdevaTimes)
 
-	return sorted_times
-}
 
 // processFileNOV000 reads a file containing GNSS data, processes it, and returns a slice of observation.Epoch.
 // It opens the specified file, reads messages using a custom reader, and processes "RANGEA" messages
