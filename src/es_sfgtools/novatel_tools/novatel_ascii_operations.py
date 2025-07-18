@@ -14,7 +14,7 @@ from .utils import (
     get_nova2tile_binary_path,
     get_nova2rnxo_binary_path,
     get_metadata,
-    parse_golang_logs,
+    parse_cli_logs,
 )
 from ..logging import ProcessLogger as logger
 
@@ -35,11 +35,11 @@ def novatel_ascii_2tile(files: List[str], rangea_tdb: Path, n_procs: int = 10) -
     for file in files:
         cmd.append(str(file))
 
-    logger.logdebug(f"{__file__}: Running {cmd}")
+    logger.logdebug(f" Running {cmd}")
     logger.loginfo(f"Running NOVA2TILE on {len(files)} files")
     result = subprocess.run(cmd)
 
-    parse_golang_logs(result, logger)
+    parse_cli_logs(result, logger)
 
 def novatel_ascii_2rinex(file:str,writedir:Path,site:str) -> Path:
 
@@ -62,7 +62,7 @@ def novatel_ascii_2rinex(file:str,writedir:Path,site:str) -> Path:
         cmd = [str(binary_path), "-meta", str(metadata_path),file]
         result = subprocess.run(cmd, check=True, capture_output=True, cwd=workdir)
 
-        parse_golang_logs(result, logger)
+        parse_cli_logs(result, logger)
 
         rinex_file_path = list(Path(workdir).rglob(f"*{site}*"))[0]
         logger.loginfo(

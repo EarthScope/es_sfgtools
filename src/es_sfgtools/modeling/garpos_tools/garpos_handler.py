@@ -1,13 +1,8 @@
 # GarposHandler class for processing and preparing shot data for the GARPOS model.
 
 from pathlib import Path
-<<<<<<< HEAD
 from typing import List, Optional, Tuple, Union
-from es_sfgtools.processing.operations.site_ops import CTDfile_to_svp, seabird_to_soundvelocity
 from es_sfgtools.utils.archive_pull import download_file_from_archive
-=======
-from typing import List, Tuple, Optional
->>>>>>> 158-corrupted-pride-accessory-files-are-causing-runtime-issues
 import pandas as pd
 import matplotlib.pyplot as plt
 from datetime import datetime
@@ -148,7 +143,6 @@ class GarposHandler:
             Runs the GARPOS model for a specific date or for all dates.
     """
 
-<<<<<<< HEAD
     def __init__(self, 
                  network: str,
                  station: str,
@@ -156,17 +150,6 @@ class GarposHandler:
                  station_data: StationData,
                  site_data: Site,
                  working_dir: Path):
-=======
-    def __init__(
-        self,
-        network: str,
-        station: str,
-        campaign: str,
-        station_data: StationData,
-        site_data: Site,
-        working_dir: Path,
-    ):
->>>>>>> 158-corrupted-pride-accessory-files-are-causing-runtime-issues
         """
         Initializes the class with shot data, site configuration, and working directory.
         Args:
@@ -182,15 +165,8 @@ class GarposHandler:
         # Create directories for GARPOS processing and results
         self.working_dir = working_dir
         if not self.working_dir.exists():
-<<<<<<< HEAD
             raise ValueError(f"Working directory {self.working_dir} does not exist. Please provide a valid directory.")
         
-=======
-            raise ValueError(
-                f"Working directory {self.working_dir} does not exist. Please provide a valid directory."
-            )
-
->>>>>>> 158-corrupted-pride-accessory-files-are-causing-runtime-issues
         self.shotdata_dir = working_dir / SHOTDATA_DIR_NAME
         self.shotdata_dir.mkdir(exist_ok=True, parents=True)
 
@@ -204,11 +180,6 @@ class GarposHandler:
         self.network = network
         self.station = station
         self.campaign_name = campaign
-<<<<<<< HEAD
-        
-=======
-
->>>>>>> 158-corrupted-pride-accessory-files-are-causing-runtime-issues
         # Set class variables to be used later
         self.current_survey = None
         self.coord_transformer = None
@@ -216,17 +187,12 @@ class GarposHandler:
         # Set up the campaign with metadata from the site
         self._setup_campaign()
 
-<<<<<<< HEAD
-        self.garpos_fixed._to_datafile(path=self.working_dir/DEFAULT_SETTINGS_FILE_NAME)
-        logger.loginfo(f"Garpos Handler initialized with working directory: {self.working_dir}")
-=======
         self.garpos_fixed._to_datafile(
             path=self.working_dir / DEFAULT_SETTINGS_FILE_NAME
         )
         logger.loginfo(
             f"Garpos Handler initialized with working directory: {self.working_dir}"
         )
->>>>>>> 158-corrupted-pride-accessory-files-are-causing-runtime-issues
 
     def _setup_campaign(self):
         """
@@ -242,13 +208,6 @@ class GarposHandler:
                 self.coord_transformer = CoordTransformer(
                     latitude=self.site.arrayCenter.latitude,
                     longitude=self.site.arrayCenter.longitude,
-<<<<<<< HEAD
-                    elevation=-float(self.site.localGeoidHeight) # use negatiive value to account for garpos error "ys is shallower than layer" TODO: <--?
-                )
-                self.current_survey = None
-
-                logger.loginfo(f"Campaign {self.campaign_name} set. Current campaign directory: {self.working_dir}")
-=======
                     elevation=-float(
                         self.site.localGeoidHeight
                     ),  # use negatiive value to account for garpos error "ys is shallower than layer" TODO: <--?
@@ -258,21 +217,15 @@ class GarposHandler:
                 logger.loginfo(
                     f"Campaign {self.campaign_name} set. Current campaign directory: {self.working_dir}"
                 )
->>>>>>> 158-corrupted-pride-accessory-files-are-causing-runtime-issues
                 return
 
         raise ValueError(
             f"campaign {self.campaign_name} not found among: {[x.name for x in self.site.campaigns]}"
         )
-<<<<<<< HEAD
-    
-    def load_sound_speed_data(self, local_svp: Optional[Path] = None, local_ctd: Optional[Path] = None):
-=======
 
     def load_sound_speed_data(
         self, local_svp: Optional[Path] = None, local_ctd: Optional[Path] = None
     ):
->>>>>>> 158-corrupted-pride-accessory-files-are-causing-runtime-issues
         """
         Load the sound speed profile from a local file or from the catalog.
         Args:
@@ -293,11 +246,6 @@ class GarposHandler:
             )
         else:
             self._check_CTDs_in_catalog()
-<<<<<<< HEAD
-    
-=======
-
->>>>>>> 158-corrupted-pride-accessory-files-are-causing-runtime-issues
     def _check_CTDs_in_catalog(self, catalog_db_path: Optional[Path] = None):
         """
         This function will check the catalog database for SVP or CTD files related to the current campaign. If found and local, set as sound
@@ -314,17 +262,12 @@ class GarposHandler:
 
         if not catalog_db_path:
             # Check if we can find it first based on the classic working directory structure, if not, raise error
-<<<<<<< HEAD
-            catalog_db_path = self.working_dir.parents[3]/"catalog.sqlite"  # 3 levels up from working dir, assuming the classic structure
-            logger.logdebug(f"Catalog database path not provided, checking for local catalog database at: {str(catalog_db_path)}")
-=======
             catalog_db_path = (
                 self.working_dir.parents[3] / "catalog.sqlite"
             )  # 3 levels up from working dir, assuming the classic structure
             logger.logdebug(
                 f"Catalog database path not provided, checking for local catalog database at: {str(catalog_db_path)}"
             )
->>>>>>> 158-corrupted-pride-accessory-files-are-causing-runtime-issues
             if not catalog_db_path.exists():
                 raise ValueError(
                     "No local SVP found and no catalog database path provided, "
@@ -335,20 +278,6 @@ class GarposHandler:
                     f"Using local catalog database found at {catalog_db_path}.."
                 )
 
-<<<<<<< HEAD
-        logger.loginfo(f"Checking catalog database for SVP, CTD, and SEABIRD files related to campaign {self.campaign_name}..")
-        catalog = PreProcessCatalog(db_path=catalog_db_path)
-
-        # Get the CTD files related to the current campaign
-        ctd_assets: List[AssetEntry] = catalog.get_ctds(station=self.site.names[0], campaign=self.campaign_name)
-
-        if not ctd_assets:
-            raise ValueError(f"No SVP, CTD, or SEABIRD files found for campaign {self.campaign_name} in the catalog, " \
-                             "use the data handler add_ctds_to_catalog() to catalog available CTD files, or provide a local SVP file")
-
-        for file in ctd_assets:
-            logger.loginfo(f"Found {file.type} files related to campaign {self.campaign_name}")
-=======
         logger.loginfo(
             f"Checking catalog database for SVP, CTD, and SEABIRD files related to campaign {self.campaign_name}.."
         )
@@ -369,7 +298,6 @@ class GarposHandler:
             logger.loginfo(
                 f"Found {file.type} files related to campaign {self.campaign_name}"
             )
->>>>>>> 158-corrupted-pride-accessory-files-are-causing-runtime-issues
 
         # Prioritize SVP then CTD then Seabird  # TODO: ask which is preferred (ctd vs seabird)
         preferred_types = [AssetType.SVP, AssetType.CTD, AssetType.SEABIRD]
@@ -379,15 +307,10 @@ class GarposHandler:
                     # Check if the file is local or remote only
                     if file.local_path is None and file.remote_path is not None:
                         local_path = self.working_dir / file.remote_path.split("/")[-1]
-<<<<<<< HEAD
-                        download_file_from_archive(url=file.remote_path, dest_dir=str(self.working_dir))
-                        
-=======
                         download_file_from_archive(
                             url=file.remote_path, dest_dir=str(self.working_dir)
                         )
 
->>>>>>> 158-corrupted-pride-accessory-files-are-causing-runtime-issues
                         if not local_path.exists():
                             raise ValueError(f"File {local_path} not downloaded")
 
@@ -637,11 +560,7 @@ class GarposHandler:
             garpos_input = GarposInput(
                 site_name=self.site.names[0],
                 campaign_id=self.campaign.name,
-<<<<<<< HEAD
-                survey_id=survey.id ,
-=======
                 survey_id=survey.id,
->>>>>>> 158-corrupted-pride-accessory-files-are-causing-runtime-issues
                 site_center_llh=GPPositionLLH(
                     latitude=self.site.arrayCenter.latitude,
                     longitude=self.site.arrayCenter.longitude,
@@ -781,11 +700,6 @@ class GarposHandler:
         results_dir.mkdir(exist_ok=True, parents=True)
 
         obsfile_path = self.get_obsfile_path(survey_id=survey_id)
-<<<<<<< HEAD
-        
-=======
-
->>>>>>> 158-corrupted-pride-accessory-files-are-causing-runtime-issues
         if not obsfile_path.exists():
             raise ValueError(f"Observation file not found at {obsfile_path}")
 
@@ -797,14 +711,10 @@ class GarposHandler:
         )
 
     def run_garpos(
-<<<<<<< HEAD
-        self, survey_id: Optional[str] = None, run_id: int | str = 0, override: bool = False
-=======
         self,
         survey_id: Optional[str] = None,
         run_id: int | str = 0,
         override: bool = False,
->>>>>>> 158-corrupted-pride-accessory-files-are-causing-runtime-issues
     ) -> None:
         """
         Run the GARPOS model for a specific date or for all dates.
@@ -820,19 +730,12 @@ class GarposHandler:
         logger.loginfo(f"Running GARPOS model. Run ID: {run_id}")
         if survey_id is None:
             for survey in self.campaign.surveys:
-<<<<<<< HEAD
-                logger.loginfo(f"Running GARPOS model for survey {survey.id}. Run ID: {run_id}")
-                self._run_garpos_survey(survey_id=survey.id, 
-                                        run_id=run_id, 
-                                        override=override)
-=======
                 logger.loginfo(
                     f"Running GARPOS model for survey {survey.id}. Run ID: {run_id}"
                 )
                 self._run_garpos_survey(
                     survey_id=survey.id, run_id=run_id, override=override
                 )
->>>>>>> 158-corrupted-pride-accessory-files-are-causing-runtime-issues
                 run_id += 1
         else:
             logger.loginfo(
@@ -848,15 +751,9 @@ class GarposHandler:
                 )
 
     def plot_ts_results(
-<<<<<<< HEAD
-        self, 
-        survey_id: str, 
-        run_id: int | str = 0, 
-=======
         self,
         survey_id: str,
         run_id: int | str = 0,
->>>>>>> 158-corrupted-pride-accessory-files-are-causing-runtime-issues
         res_filter: float = 10,
         savefig: bool = False,
     ) -> None:

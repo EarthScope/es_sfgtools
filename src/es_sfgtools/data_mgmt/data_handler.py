@@ -411,9 +411,12 @@ class DataHandler:
             if file_type is not None:
                 symlinked_path = self.raw_dir / file_path.name
                 # symlink to the raw directory
-                file_path.symlink_to(symlinked_path, target_is_directory=False)
+                try:
+                    file_path.symlink_to(symlinked_path, target_is_directory=False)
+                except FileExistsError:
+                    pass
                 file_data = AssetEntry(
-                    local_path=symlinked_path,
+                    local_path=file_path,
                     type=file_type,
                     network=self.network,
                     station=self.station,

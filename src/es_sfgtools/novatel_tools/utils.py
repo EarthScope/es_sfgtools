@@ -5,7 +5,7 @@ import subprocess
 from typing import Tuple
 # Local imports
 from ..logging import ProcessLogger as logger
-from ..utils.golang_binary_utils import GOLANG_BINARY_BUILD_DIR,get_system_architecture, parse_golang_logs
+from ..utils.command_line_utils import GOLANG_BINARY_BUILD_DIR,get_system_architecture, parse_cli_logs
 
 
 RINEX_BIN_PATH = {

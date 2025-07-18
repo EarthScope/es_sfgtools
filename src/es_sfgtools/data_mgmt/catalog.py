@@ -62,7 +62,7 @@ class PreProcessCatalog:
                 logger.logerr(f"Invalid asset type {type}")
                 return False
 
-        logger.logdebug(f"{__file__}: Deleting assets for {network} {station} {campaign} {str(type)}")
+        logger.logdebug(f" Deleting assets for {network} {station} {campaign} {str(type)}")
 
         with self.engine.begin() as conn:
             try:
@@ -95,7 +95,7 @@ class PreProcessCatalog:
                 logger.logerr(f"Invalid asset type {type}")
                 return []
 
-        logger.logdebug(f"{__file__}: Getting assets for {network} {station} {campaign} {str(type)}")
+        logger.logdebug(f" Getting assets for {network} {station} {campaign} {str(type)}")
 
         with self.engine.connect() as conn:
             query = sa.select(Assets).where(
@@ -127,7 +127,7 @@ class PreProcessCatalog:
             List[AssetEntry]: A list of AssetEntry objects.    
         """
 
-        logger.logdebug(f"{__file__}: Getting ctds for {station} {campaign}")
+        logger.logdebug(f" Getting ctds for {station} {campaign}")
 
         with self.engine.connect() as conn:
             query = sa.select(Assets).where(
@@ -165,7 +165,7 @@ class PreProcessCatalog:
             List[AssetEntry]: A list of AssetEntry objects.    
         """
 
-        logger.logdebug(f"{__file__}: Getting local assets for {network} {station} {campaign} {str(type)}")
+        logger.logdebug(f" Getting local assets for {network} {station} {campaign} {str(type)}")
 
         with self.engine.connect() as conn:
             query = sa.select(Assets).where(
@@ -309,7 +309,7 @@ class PreProcessCatalog:
                 conn.execute(sa.insert(Assets).values(entry.model_dump()))
             return True
         except sa.exc.IntegrityError as e:
-            logger.logdebug(f"{__file__}: Integrity error adding entry {entry} to catalog: {e}")
+            logger.logdebug(f" Integrity error adding entry {entry} to catalog: {e}")
             return False
 
     def delete_entry(self, entry:AssetEntry) -> bool:

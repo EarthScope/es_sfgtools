@@ -197,7 +197,7 @@ class PositionData(BaseModel):
     sdz: Optional[Decimal] = None
 
     def update(self, data: dict):
-        # logger.logdebug(f"{__file__}: Updating Position Data")
+        # logger.logdebug(f" Updating Position Data")
         # update position,time, and standard deviation
         self.time = datetime.fromtimestamp(data.get("time").get("common"))
         self.latitude = data.get("latitude")

@@ -4,7 +4,7 @@ from typing import List
 import subprocess
 
 # Local imports
-from .utils import get_nov_770_tile_binary_path,parse_golang_logs,get_nov_000_tile_binary_path
+from .utils import get_nov_770_tile_binary_path,parse_cli_logs,get_nov_000_tile_binary_path
 from ..logging import ProcessLogger as logger
 
 def novatel_770_2tile(files: List[str], rangea_tdb: Path, n_procs: int = 10) -> None:
@@ -19,7 +19,7 @@ def novatel_770_2tile(files: List[str], rangea_tdb: Path, n_procs: int = 10) -> 
     # Generate the command to run the novb2tile golang binary
     binary_path = get_nov_770_tile_binary_path()
     cmd = [str(binary_path), "-tdb", str(rangea_tdb), "-procs", str(n_procs)]
-    logger.logdebug(f"{__file__}: Running {cmd}")
+    logger.logdebug(f" Running {cmd}")
     for file in files:
         cmd.append(str(file))
     logger.loginfo(f"Running NOVB2TILE with {' '.join(cmd)}")
@@ -28,7 +28,7 @@ def novatel_770_2tile(files: List[str], rangea_tdb: Path, n_procs: int = 10) -> 
     result = subprocess.run(cmd)
 
     # Parse the output and log messages
-    parse_golang_logs(result,logger)
+    parse_cli_logs(result,logger)
 
 def novatel_000_2tile(files: List[str], rangea_tdb: Path, n_procs: int = 10) -> None:
     """Given a list of novatel 000 binary files, get all the rangea logs and add them to a single tdb array
@@ -42,7 +42,7 @@ def novatel_000_2tile(files: List[str], rangea_tdb: Path, n_procs: int = 10) -> 
     # Generate the command to run the nov0002tile golang binary
     binary_path = get_nov_000_tile_binary_path()
     cmd = [str(binary_path), "-tdb", str(rangea_tdb), "-procs", str(n_procs)]
-    logger.logdebug(f"{__file__}: Running {cmd}")
+    logger.logdebug(f" Running {cmd}")
     for file in files:
         cmd.append(str(file))
     logger.loginfo(f"Running NOV0002TILE with {' '.join(cmd)}")
@@ -51,4 +51,4 @@ def novatel_000_2tile(files: List[str], rangea_tdb: Path, n_procs: int = 10) -> 
     result = subprocess.run(cmd)
 
     # Parse the output and log messages
-    parse_golang_logs(result,logger)
+    parse_cli_logs(result,logger)

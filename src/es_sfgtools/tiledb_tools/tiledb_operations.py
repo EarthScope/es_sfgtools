@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import List
 
 # Local imports
-from .utils import get_tile2rinex_binary_path, parse_golang_logs
+from .utils import get_tile2rinex_binary_path, parse_cli_logs
 from ..logging import ProcessLogger as logger
 
 def tile2rinex(
@@ -59,10 +59,10 @@ def tile2rinex(
             "-year",
             str(processing_year),
         ]
-        logger.logdebug(f"{__file__}: Running {cmd}")
+        logger.logdebug(f" Running {cmd}")
         result = subprocess.run(cmd, cwd=workdir)
 
-        parse_golang_logs(result, logger)
+        parse_cli_logs(result, logger)
 
         rinex_files = list(Path(workdir).rglob("*"))
         rinex_assets = []

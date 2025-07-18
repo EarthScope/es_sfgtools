@@ -10,11 +10,7 @@ from .gnss_product_operations import get_gnss_products
 from .pride_cli_config import PrideCLIConfig
 from .rinex_utils import rinex_get_time_range
 from ..logging import PRIDELogger as logger
-from ..utils.golang_binary_utils import parse_golang_logs
-
-def remove_ansi_escape(text):
-    ansi_escape = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
-    return ansi_escape.sub("", text)
+from ..utils.command_line_utils import parse_cli_logs
 
 # make output of subprocess.Popen identical to  subprocess.run
 result = namedtuple("result", ["stdout", "stderr"])
@@ -115,7 +111,7 @@ def rinex_to_kin(
 
     stdout, stderr = process.communicate()
     _results = result(stdout=stdout, stderr=stderr)
-    parse_golang_logs(result=_results, logger=logger)
+    parse_cli_logs(result=_results, logger=logger)
 
     year, doy = (
         timestamp_data_start.year,

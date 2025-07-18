@@ -542,7 +542,7 @@ def get_nav_file(rinex_path: Path, override: bool = False) -> Path:
             gps_dl_path = Path(tempdir) / gps_local_name
             glonass_dl_path = Path(tempdir) / glonass_local_name
 
-            logger.logdebug(f"{__file__}: Attemping to download {source} From {str(gps_url)}")
+            logger.logdebug(f" Attemping to download {source} From {str(gps_url)}")
 
             try:
 
@@ -566,7 +566,7 @@ def get_nav_file(rinex_path: Path, override: bool = False) -> Path:
                     )
                 ) is not None:
 
-                    logger.logdebug(f"{__file__}: Successfully built {brdm_path}")
+                    logger.logdebug(f" Successfully built {brdm_path}")
 
                     return brdm_path
             else:
@@ -678,7 +678,7 @@ def get_gnss_products(
     product_status = {}
 
     for product_type, sources in remote_resource_dict.items():
-        logger.logdebug(f"{__file__}: Attempting to download {product_type} products")
+        logger.logdebug(f" Attempting to download {product_type} products")
         if product_type not in product_status:
             product_status[product_type] = "False"
 
@@ -698,7 +698,7 @@ def get_gnss_products(
                         if prod_type in f.name:
                             found_files.insert(0, found_files.pop(idx))
             if found_files and not override:
-                logger.logdebug(f"{__file__}: Found {found_files[0]} for product {product_type}")
+                logger.logdebug(f" Found {found_files[0]} for product {product_type}")
                 to_decompress = found_files[0]
                 if to_decompress.suffix == ".gz":
                     decompressed_file = uncompress_file(
@@ -729,7 +729,7 @@ def get_gnss_products(
                 )
                 if local_path.suffix == ".gz":
                     local_path = uncompress_file(local_path, common_product_dir)
-                    logger.logdebug(f"{__file__}: Uncompressed {str(local_path)}")
+                    logger.logdebug(f" Uncompressed {str(local_path)}")
                 product_status[product_type] = str(
                     local_path.name
                 )  # Need to return the file name only
@@ -741,7 +741,7 @@ def get_gnss_products(
                 continue
 
     for product_type, product_path in product_status.items():
-        logger.logdebug(f"{__file__}: {product_type} : {product_path}")
+        logger.logdebug(f" {product_type} : {product_path}")
 
     # Generate the config file
     satellite_products = SatelliteProducts(
