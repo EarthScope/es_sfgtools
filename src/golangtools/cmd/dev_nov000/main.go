@@ -442,6 +442,53 @@ func MergeINSPVAAAndINSSTDEVA(INSPVAARecords []InspvaaRecord, INSSTDEVRecords []
 	return matchedRecords
 }
 
+func getTimeDiffsINSPVA(list []INSCompleteRecord ) []float64 {
+	var diffs []float64
+	minDiff := 100000.0 // 1000 seconds
+	for i := 1; i < len(list); i++ {
+		difference := list[i].RecordTime.Sub(list[i-1].RecordTime).Seconds()
+		if difference < minDiff {
+			minDiff = difference
+		}
+		if difference < 1 {
+			diffs = append(diffs, difference)
+		}
+	}
+	var diffs_average float64
+	if len(diffs) > 0 {
+		var sum float64
+		for _, v := range diffs {
+			sum += v
+		}
+		diffs_average = sum / float64(len(diffs))
+	}
+	log.Infof("INSPVA Average time difference: %f seconds Minimum time difference: %f seconds", diffs_average, minDiff)
+	return diffs
+}
+
+func getTimeDiffGNSS(list []observation.Epoch ) []float64 {
+	var diffs []float64
+	minDiff := 100000.0 // 1000 seconds
+	for i := 1; i < len(list); i++ {
+		difference := list[i].Time.Sub(list[i-1].Time).Seconds()
+		if difference < minDiff {
+			minDiff = difference
+		}
+		if difference < 1 {
+			diffs = append(diffs, difference)
+		}
+	}
+	var diffs_average float64
+	if len(diffs) > 0 {
+		var sum float64
+		for _, v := range diffs {
+			sum += v
+		}
+		diffs_average = sum / float64(len(diffs))
+	}
+	log.Infof("GNSS Average time difference: %f seconds Minimum time difference: %f seconds", diffs_average, minDiff)
+	return diffs
+}
 
 // processFileNOV000 reads a file containing GNSS data, processes it, and returns a slice of observation.Epoch.
 // It opens the specified file, reads messages using a custom reader, and processes "RANGEA" messages
@@ -521,54 +568,6 @@ func processFileNOV000(file string) ([]observation.Epoch, []INSCompleteRecord) {
 	
 	return epochs, insCompleteRecords
 }	
-
-func getTimeDiffsINSPVA(list []INSCompleteRecord ) []float64 {
-	var diffs []float64
-	minDiff := 100000.0 // 1000 seconds
-	for i := 1; i < len(list); i++ {
-		difference := list[i].RecordTime.Sub(list[i-1].RecordTime).Seconds()
-		if difference < minDiff {
-			minDiff = difference
-		}
-		if difference < 1 {
-			diffs = append(diffs, difference)
-		}
-	}
-	var diffs_average float64
-	if len(diffs) > 0 {
-		var sum float64
-		for _, v := range diffs {
-			sum += v
-		}
-		diffs_average = sum / float64(len(diffs))
-	}
-	log.Infof("INSPVA Average time difference: %f seconds Minimum time difference: %f seconds", diffs_average, minDiff)
-	return diffs
-}
-
-func getTimeDiffGNSS(list []observation.Epoch ) []float64 {
-	var diffs []float64
-	minDiff := 100000.0 // 1000 seconds
-	for i := 1; i < len(list); i++ {
-		difference := list[i].Time.Sub(list[i-1].Time).Seconds()
-		if difference < minDiff {
-			minDiff = difference
-		}
-		if difference < 1 {
-			diffs = append(diffs, difference)
-		}
-	}
-	var diffs_average float64
-	if len(diffs) > 0 {
-		var sum float64
-		for _, v := range diffs {
-			sum += v
-		}
-		diffs_average = sum / float64(len(diffs))
-	}
-	log.Infof("GNSS Average time difference: %f seconds Minimum time difference: %f seconds", diffs_average, minDiff)
-	return diffs
-}
 
 func main() {
 
