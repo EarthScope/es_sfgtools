@@ -454,8 +454,6 @@ func MergeINSPVAAAndINSSTDEVA(INSPVAARecords []InspvaaRecord, INSSTDEVRecords []
 // Returns:
 //   - A slice of observation.Epoch containing the processed GNSS epoch data.
 func processFileNOV000(file string) ([]observation.Epoch, []INSCompleteRecord) {
-
-
 	f,err := os.Open(file)
 	if err != nil {
 		log.Fatalf("failed opening file %s, %s ",file, err)
@@ -463,11 +461,9 @@ func processFileNOV000(file string) ([]observation.Epoch, []INSCompleteRecord) {
 	defer f.Close()
 	reader := NewReader(bufio.NewReader(f))
 	epochs := []observation.Epoch{}
-
 	insEpochs := []InspvaaRecord{}
 	insStdDevEpochs := []INSSTDEVARecord{}
-	//insCompleteRecords := []INSCompleteRecord{}
-	found_messages := make(map[string]bool)
+
 	epochLoop:
 		for {
 			message,err := reader.NextMessage()
@@ -484,21 +480,18 @@ func processFileNOV000(file string) ([]observation.Epoch, []INSCompleteRecord) {
 			
 			switch m:=message.(type) {
 				case novatelascii.LongMessage:
-					found_messages[m.Msg] = true
+					
 					if m.Msg == "RANGEA" {
-
 						rangea, err := novatelascii.DeserializeRANGEA(m.Data)
 						if err != nil {
-							
 							continue epochLoop
-
 						}
 						epoch, err := rangea.SerializeGNSSEpoch(m.Time())
 						if err != nil {
-						
 							continue epochLoop
 						}
 						epochs = append(epochs, epoch)
+
 					} else if m.Msg == "INSPVAA" {
 						record, err := DeserializeINSPVAARecord(m.Data, m.Time())
 						if err != nil {
@@ -509,14 +502,12 @@ func processFileNOV000(file string) ([]observation.Epoch, []INSCompleteRecord) {
 				
 						
 					} else if m.Msg == "INSSTDEVA" {
-				
 						record, err := DeserializeINSSTDEVARecord(m.Data, m.Time())
 						if err != nil {
 							log.Errorf("error deserializing INSSTDEVA record: %s", err)
 							continue epochLoop
 						}
 						insStdDevEpochs = append(insStdDevEpochs, record)
-					
 					}
 				}
 		}
@@ -528,9 +519,56 @@ func processFileNOV000(file string) ([]observation.Epoch, []INSCompleteRecord) {
 	log.Infof("Found %d matching times between INSPVAA and INSSTDEVA records", len(insCompleteRecords))
 	log.Infof("INSSTDEVA Records: %d, INSPVAA Records: %d", len(insStdDevEpochs), len(insEpochs))
 	
-
 	return epochs, insCompleteRecords
 }	
+
+func getTimeDiffsINSPVA(list []INSCompleteRecord ) []float64 {
+	var diffs []float64
+	minDiff := 100000.0 // 1000 seconds
+	for i := 1; i < len(list); i++ {
+		difference := list[i].RecordTime.Sub(list[i-1].RecordTime).Seconds()
+		if difference < minDiff {
+			minDiff = difference
+		}
+		if difference < 1 {
+			diffs = append(diffs, difference)
+		}
+	}
+	var diffs_average float64
+	if len(diffs) > 0 {
+		var sum float64
+		for _, v := range diffs {
+			sum += v
+		}
+		diffs_average = sum / float64(len(diffs))
+	}
+	log.Infof("INSPVA Average time difference: %f seconds Minimum time difference: %f seconds", diffs_average, minDiff)
+	return diffs
+}
+
+func getTimeDiffGNSS(list []observation.Epoch ) []float64 {
+	var diffs []float64
+	minDiff := 100000.0 // 1000 seconds
+	for i := 1; i < len(list); i++ {
+		difference := list[i].Time.Sub(list[i-1].Time).Seconds()
+		if difference < minDiff {
+			minDiff = difference
+		}
+		if difference < 1 {
+			diffs = append(diffs, difference)
+		}
+	}
+	var diffs_average float64
+	if len(diffs) > 0 {
+		var sum float64
+		for _, v := range diffs {
+			sum += v
+		}
+		diffs_average = sum / float64(len(diffs))
+	}
+	log.Infof("GNSS Average time difference: %f seconds Minimum time difference: %f seconds", diffs_average, minDiff)
+	return diffs
+}
 
 func main() {
 
@@ -542,16 +580,21 @@ func main() {
 	}
 	
 	for _, filename := range filenames {
-		
-		epochs := processFileNOV000(filename)
+
+		epochs, insCompleteRecords := processFileNOV000(filename)
 		if len(epochs) == 0 {
 			log.Warnf("no epochs found in file %s", filename)
 			return
 		}
-		log.Infof("processed %d epochs from file %s", len(epochs), filename)
-		
+		log.Infof("processed %d GNSSOBS epochs from file %s", len(epochs), filename)
+		log.Infof("processed %d INSCompleteRecords from file %s", len(insCompleteRecords), filename)
+		insdiffs := getTimeDiffsINSPVA(insCompleteRecords)
+		if len(insdiffs) > 0 {
+			print("")
+		}
+		gnssdiffs := getTimeDiffGNSS(epochs)
+		if len(gnssdiffs) > 0 {
+			print("")
 		}
 	}
-
-
-
+}
