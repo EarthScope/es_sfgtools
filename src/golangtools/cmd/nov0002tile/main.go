@@ -18,6 +18,8 @@ import (
 	"gitlab.com/earthscope/gnsstools/pkg/encoding/tiledbgnss"
 )
 
+
+
 func removeBeforeASCIISyncChar(s string) (string, error) {
 	longMessageIndex := strings.Index(s, "#")
 	shortMessageIndex := strings.Index(s, "%")
@@ -197,13 +199,7 @@ func (reader Reader) NextMessage() (message novatelascii.Message, err error) {
 //
 // Returns:
 //   - A slice of observation.Epoch containing the processed GNSS epoch data.
-func processFileNOV000(file string) []observation.Epoch{
-    // defer func() {
-    //     if r := recover(); r != nil {
-    //         log.Printf("Recovered from panic: %v", r)
-    //     }
-    // }()
-
+func processFileNOV000(file string) ([]observation.Epoch, []sfg_utils.INSCompleteRecord) {
 	f,err := os.Open(file)
 	if err != nil {
 		log.Fatalf("failed opening file %s, %s ",file, err)
@@ -211,6 +207,8 @@ func processFileNOV000(file string) []observation.Epoch{
 	defer f.Close()
 	reader := NewReader(bufio.NewReader(f))
 	epochs := []observation.Epoch{}
+	insEpochs := []sfg_utils.InspvaaRecord{}
+	insStdDevEpochs := []sfg_utils.INSSTDEVARecord{}
 
 	epochLoop:
 		for {
@@ -225,37 +223,56 @@ func processFileNOV000(file string) []observation.Epoch{
 				}
 				log.Println(err)
 			}
+			
 			switch m:=message.(type) {
 				case novatelascii.LongMessage:
-				
+					
 					if m.Msg == "RANGEA" {
-
 						rangea, err := novatelascii.DeserializeRANGEA(m.Data)
 						if err != nil {
-							
 							continue epochLoop
-
 						}
 						epoch, err := rangea.SerializeGNSSEpoch(m.Time())
 						if err != nil {
-						
 							continue epochLoop
 						}
 						epochs = append(epochs, epoch)
-					}
 
-					if m.Msg == "INSPVAA" {
-						print("INSPVAA: ", m.Data, "\n")
+					} else if m.Msg == "INSPVAA" {
+						record, err := sfg_utils.DeserializeINSPVAARecord(m.Data, m.Time())
+						if err != nil {
+							log.Errorf("error deserializing INSPVAA record: %s", err)
+							continue epochLoop
+						}
+						insEpochs = append(insEpochs, record)
+				
+						
+					} else if m.Msg == "INSSTDEVA" {
+						record, err := sfg_utils.DeserializeINSSTDEVARecord(m.Data, m.Time())
+						if err != nil {
+							log.Errorf("error deserializing INSSTDEVA record: %s", err)
+							continue epochLoop
+						}
+						insStdDevEpochs = append(insStdDevEpochs, record)
 					}
 				}
 		}
-	return epochs
+	insCompleteRecords := sfg_utils.MergeINSPVAAAndINSSTDEVA(insEpochs, insStdDevEpochs)
+	if len(insCompleteRecords) == 0 {
+		log.Warnf("no matching times found between INSPVAA and INSSTDEVA records")
+		return epochs, nil
+	}
+	log.Infof("Found %d matching times between INSPVAA and INSSTDEVA records", len(insCompleteRecords))
+	log.Infof("INSSTDEVA Records: %d, INSPVAA Records: %d", len(insStdDevEpochs), len(insEpochs))
+	
+	return epochs, insCompleteRecords
 }	
 
 func main() {
 	sfg_utils.LoadEnv()
-	tdbPathPtr := flag.String("tdb", "", "Path to the TileDB array")
+	tdbPathPtr := flag.String("tdb", "", "Path to the TileDB GNSS array")
 	numProcsPtr := flag.Int("procs", 10, "Number of concurrent processes")
+	tdbPositionPtr := flag.String("tdbpos", "", "Path to the TileDB position array")
 	flag.Parse()
 	filenames := flag.Args()
 	if len(filenames) == 0 {
@@ -278,15 +295,26 @@ func main() {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			epochs := processFileNOV000(filename)
+			epochs,insCompleteRecords := processFileNOV000(filename)
 			if len(epochs) == 0 {
-				log.Warnf("no epochs found in file %s", filename)
+				log.Warnf("no GNSS epochs found in file %s", filename)
+				return
+			}
+			if len(insCompleteRecords) == 0 {
+				log.Warnf("no INS records found in file %s", filename)
 				return
 			}
 			log.Infof("processed %d epochs from file %s", len(epochs), filename)
 			err := tiledbgnss.WriteObsV3Array( *tdbPathPtr,"us-east-2",epochs)
 			if err != nil {
 				log.Errorf("error writing epochs to array: %v",err)
+			}
+			if *tdbPositionPtr != "" {
+				log.Infof("writing INS position records to TileDB array %s", *tdbPositionPtr)
+				err := sfg_utils.WriteINSPOSRecordToTileDB(*tdbPositionPtr, "us-east-2", insCompleteRecords)
+				if err != nil {
+					log.Errorf("error writing INS position records to array: %v", err)
+				}
 			}
 		}(filename)
 	
