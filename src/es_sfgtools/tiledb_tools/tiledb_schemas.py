@@ -31,6 +31,9 @@ attribute_dict: Dict[str, tiledb.Attr] = {
     "latitude": tiledb.Attr(name="latitude", dtype=np.float64),
     "longitude": tiledb.Attr(name="longitude", dtype=np.float64),
     "height": tiledb.Attr(name="height", dtype=np.float64),
+    "latitude_std": tiledb.Attr(name="latitude_std", dtype=np.float64, nullable=True),
+    "longitude_std": tiledb.Attr(name="longitude_std", dtype=np.float64, nullable=True),
+    "height_std": tiledb.Attr(name="height_std", dtype=np.float64, nullable=True),
     "returnTime": tiledb.Attr(name="returnTime", dtype="datetime64[ns]"),
     "tt": tiledb.Attr(name="tt", dtype=np.float64),
     "dbv": tiledb.Attr(name="dbv", dtype=np.float32),
@@ -50,7 +53,7 @@ attribute_dict: Dict[str, tiledb.Attr] = {
     "roll_std": tiledb.Attr(name="roll_std", dtype=np.float64, nullable=True),
     "pitch_std": tiledb.Attr(name="pitch_std", dtype=np.float64, nullable=True),
     "azimuth_std": tiledb.Attr(name="azimuth_std", dtype=np.float64, nullable=True),
-    "status": tiledb.Attr(name="status", dtype=str, nullable=True),
+    #"status": tiledb.Attr(name="status", dtype=str, nullable=True),
 }
 
 GNSSAttributes = [
@@ -83,9 +86,9 @@ PositionAttributes = [
     attribute_dict["latitude"],
     attribute_dict["longitude"],
     attribute_dict["height"],
-    attribute_dict["north_sigma"],
-    attribute_dict["east_sigma"],
-    attribute_dict["up_sigma"],
+    attribute_dict["latitude_std"],
+    attribute_dict["longitude_std"],
+    attribute_dict["height_std"],
     attribute_dict["northVelocity"],
     attribute_dict["eastVelocity"],
     attribute_dict["upVelocity"],
@@ -95,7 +98,7 @@ PositionAttributes = [
     attribute_dict["roll_std"],
     attribute_dict["pitch_std"],
     attribute_dict["azimuth_std"],
-    attribute_dict["status"],
+    #attribute_dict["status"],
 ]
 PositionArraySchema = tiledb.ArraySchema(
     sparse=True,

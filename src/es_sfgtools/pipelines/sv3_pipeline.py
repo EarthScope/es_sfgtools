@@ -149,6 +149,9 @@ class SV3Pipeline:
         self.shot_data_pre = TDBShotDataArray(
             self.data_catalog.catalog.networks[network].stations[station].shotdata_pre
         )
+        self.position_data_dest = TDBGNSSArray(
+            self.data_catalog.catalog.networks[network].stations[station].positiondata
+        )
 
     def pre_process_novatel(self) -> None:
         """
@@ -227,6 +230,7 @@ class SV3Pipeline:
                 novb_ops.novatel_000_2tile(
                     files=[x.local_path for x in novatel_000_entries],
                     rangea_tdb=self.rangea_data_dest.uri,
+                    position_tdb=self.position_data_dest.uri,
                     n_procs=self.config.novatel_config.n_processes,
                 )
 

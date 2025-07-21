@@ -257,19 +257,14 @@ func processFileNOV000(file string) ([]observation.Epoch, []sfg_utils.INSComplet
 					}
 				}
 		}
+	log.Infof("Found %d INSPVAA records, %d INSSTDEVA records", len(insEpochs), len(insStdDevEpochs))
 	insCompleteRecords := sfg_utils.MergeINSPVAAAndINSSTDEVA(insEpochs, insStdDevEpochs)
-	if len(insCompleteRecords) == 0 {
-		log.Warnf("no matching times found between INSPVAA and INSSTDEVA records")
-		return epochs, nil
-	}
-	log.Infof("Found %d matching times between INSPVAA and INSSTDEVA records", len(insCompleteRecords))
-	log.Infof("INSSTDEVA Records: %d, INSPVAA Records: %d", len(insStdDevEpochs), len(insEpochs))
-	
+
 	return epochs, insCompleteRecords
 }	
 
 func main() {
-	sfg_utils.LoadEnv()
+	//sfg_utils.LoadEnv()
 	tdbPathPtr := flag.String("tdb", "", "Path to the TileDB GNSS array")
 	numProcsPtr := flag.Int("procs", 10, "Number of concurrent processes")
 	tdbPositionPtr := flag.String("tdbpos", "", "Path to the TileDB position array")

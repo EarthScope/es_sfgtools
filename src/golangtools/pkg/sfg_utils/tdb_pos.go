@@ -20,19 +20,28 @@ func WriteINSPOSRecordToTileDB(arr string, region string, insRecords []INSComple
 	latitudeBuffer := []float64{}
 	longitudeBuffer := []float64{}
 	heightBuffer := []float64{}
-	northSigmaBuffer := []float64{}
-	eastSigmaBuffer := []float64{}
-	upSigmaBuffer := []float64{}
+	latitudeSTDBuffer := []float64{}
+	longitudeSTDBuffer := []float64{}
+	heightSTDBuffer := []float64{}
 	northVelocityBuffer := []float64{}
 	eastVelocityBuffer := []float64{}
 	upVelocityBuffer := []float64{}
-	northVelocitySigmaBuffer := []float64{}
-	eastVelocitySigmaBuffer := []float64{}
-	upVelocitySigmaBuffer := []float64{}
+	northVelocity_stdBuffer := []float64{}
+	eastVelocity_stdBuffer := []float64{}
+	upVelocity_stdBuffer := []float64{}
 	rollStdBuffer := []float64{}
 	pitchStdBuffer := []float64{}
 	azimuthStdBuffer := []float64{}
-	statusBuffer := []string{}
+	//statusBuffer := []string{}
+	latitudeSTDBufferValidity := []uint8{}
+	longitudeSTDBufferValidity := []uint8{}
+	heightSTDBufferValidity := []uint8{}
+	northVelocity_stdBufferValidity := []uint8{}
+	eastVelocity_stdBufferValidity := []uint8{}
+	upVelocity_stdBufferValidity := []uint8{}
+	rollStdBufferValidity := []uint8{}
+	pitchStdBufferValidity := []uint8{}
+	azimuthStdBufferValidity := []uint8{}
 /*
 PositionAttributes = [
     attribute_dict["azimuth"],
@@ -41,7 +50,7 @@ PositionAttributes = [
     attribute_dict["latitude"],
     attribute_dict["longitude"],
     attribute_dict["height"],
-    attribute_dict["north_sigma"],
+    attribute_dict["latitude_std"],
     attribute_dict["east_sigma"],
     attribute_dict["up_sigma"],
     attribute_dict["northVelocity"],
@@ -64,19 +73,64 @@ PositionAttributes = [
 		latitudeBuffer = append(latitudeBuffer, record.latitude)
 		longitudeBuffer = append(longitudeBuffer, record.longitude)
 		heightBuffer = append(heightBuffer, record.height)
-		northSigmaBuffer = append(northSigmaBuffer, record.north_std)
-		eastSigmaBuffer = append(eastSigmaBuffer, record.east_std)
-		upSigmaBuffer = append(upSigmaBuffer, record.up_std)
+		latitudeSTDBuffer = append(latitudeSTDBuffer, record.latitude_std)
+		longitudeSTDBuffer = append(longitudeSTDBuffer, record.longitude_std)
+		heightSTDBuffer = append(heightSTDBuffer, record.height_std)
 		northVelocityBuffer = append(northVelocityBuffer, record.northVelocity)
 		eastVelocityBuffer = append(eastVelocityBuffer, record.eastVelocity)
 		upVelocityBuffer = append(upVelocityBuffer, record.upVelocity)
-		northVelocitySigmaBuffer = append(northVelocitySigmaBuffer, record.northVelocitySigma)
-		eastVelocitySigmaBuffer = append(eastVelocitySigmaBuffer, record.eastVelocitySigma)
-		upVelocitySigmaBuffer = append(upVelocitySigmaBuffer, record.upVelocitySigma)
+		northVelocity_stdBuffer = append(northVelocity_stdBuffer, record.northVelocity_std)
+		eastVelocity_stdBuffer = append(eastVelocity_stdBuffer, record.eastVelocity_std)
+		upVelocity_stdBuffer = append(upVelocity_stdBuffer, record.upVelocity_std)
 		rollStdBuffer = append(rollStdBuffer, record.roll_std)
 		pitchStdBuffer = append(pitchStdBuffer, record.pitch_std)
 		azimuthStdBuffer = append(azimuthStdBuffer, record.azimuth_std)
-		statusBuffer = append(statusBuffer, record.status)
+		//statusBuffer = append(statusBuffer, record.status)
+		if record.latitude_std != 0 {
+			latitudeSTDBufferValidity = append(latitudeSTDBufferValidity, 1)
+		} else {
+			latitudeSTDBufferValidity = append(latitudeSTDBufferValidity, 0)
+		}
+		if record.longitude_std != 0 {
+			longitudeSTDBufferValidity = append(longitudeSTDBufferValidity, 1)
+		} else {
+			longitudeSTDBufferValidity = append(longitudeSTDBufferValidity, 0)
+		}
+		if record.height_std != 0 {
+			heightSTDBufferValidity = append(heightSTDBufferValidity, 1)
+		} else {
+			heightSTDBufferValidity = append(heightSTDBufferValidity, 0)
+		}
+		if record.northVelocity_std != 0 {
+			northVelocity_stdBufferValidity = append(northVelocity_stdBufferValidity, 1)
+		} else {
+			northVelocity_stdBufferValidity = append(northVelocity_stdBufferValidity, 0)
+		}
+		if record.eastVelocity_std != 0 {
+			eastVelocity_stdBufferValidity = append(eastVelocity_stdBufferValidity, 1)
+		} else {
+			eastVelocity_stdBufferValidity = append(eastVelocity_stdBufferValidity, 0)
+		}
+		if record.upVelocity_std != 0 {
+			upVelocity_stdBufferValidity = append(upVelocity_stdBufferValidity, 1)
+		} else {
+			upVelocity_stdBufferValidity = append(upVelocity_stdBufferValidity, 0)
+		}
+		if record.roll_std != 0 {
+			rollStdBufferValidity = append(rollStdBufferValidity, 1)
+		} else {
+			rollStdBufferValidity = append(rollStdBufferValidity, 0)
+		}
+		if record.pitch_std != 0 {
+			pitchStdBufferValidity = append(pitchStdBufferValidity, 1)
+		} else {
+			pitchStdBufferValidity = append(pitchStdBufferValidity, 0)
+		}
+		if record.azimuth_std != 0 {
+			azimuthStdBufferValidity = append(azimuthStdBufferValidity, 1)
+		} else {
+			azimuthStdBufferValidity = append(azimuthStdBufferValidity, 0)
+		}
 	}
 	// Create TileDB context
 	config, err := tiledb.NewConfig()
@@ -145,39 +199,63 @@ PositionAttributes = [
 	if err != nil {
 		return err
 	}
-	_, err = query.SetDataBuffer("north_sigma", northSigmaBuffer)
+	_, err = query.SetDataBuffer("latitude_std", latitudeSTDBuffer)
 	if err != nil {
 		return err
 	}
-	_, err = query.SetDataBuffer("east_sigma", eastSigmaBuffer)
+	_, err = query.SetValidityBuffer("latitude_std", latitudeSTDBufferValidity)
 	if err != nil {
 		return err
 	}
-	_, err = query.SetDataBuffer("up_sigma", upSigmaBuffer)
+	_, err = query.SetDataBuffer("longitude_std", longitudeSTDBuffer)
 	if err != nil {
 		return err
 	}
-	_, err = query.SetDataBuffer("north_velocity", northVelocityBuffer)
+	_, err = query.SetValidityBuffer("longitude_std", longitudeSTDBufferValidity)
 	if err != nil {
 		return err
 	}
-	_, err = query.SetDataBuffer("east_velocity", eastVelocityBuffer)
+	_, err = query.SetDataBuffer("height_std", heightSTDBuffer)
 	if err != nil {
 		return err
 	}
-	_, err = query.SetDataBuffer("up_velocity", upVelocityBuffer)
+	_, err = query.SetValidityBuffer("height_std", heightSTDBufferValidity)
 	if err != nil {
 		return err
 	}
-	_, err = query.SetDataBuffer("north_velocity_sigma", northVelocitySigmaBuffer)
+	_, err = query.SetDataBuffer("northVelocity", northVelocityBuffer)
 	if err != nil {
 		return err
 	}
-	_, err = query.SetDataBuffer("east_velocity_sigma", eastVelocitySigmaBuffer)
+	_, err = query.SetDataBuffer("eastVelocity", eastVelocityBuffer)
 	if err != nil {
 		return err
 	}
-	_, err = query.SetDataBuffer("up_velocity_sigma", upVelocitySigmaBuffer)
+	_, err = query.SetDataBuffer("upVelocity", upVelocityBuffer)
+	if err != nil {
+		return err
+	}
+	_, err = query.SetDataBuffer("northVelocity_std", northVelocity_stdBuffer)
+	if err != nil {
+		return err
+	}
+	_, err = query.SetValidityBuffer("northVelocity_std", northVelocity_stdBufferValidity)
+	if err != nil {
+		return err
+	}
+	_, err = query.SetDataBuffer("eastVelocity_std", eastVelocity_stdBuffer)
+	if err != nil {
+		return err
+	}
+	_, err = query.SetValidityBuffer("eastVelocity_std", eastVelocity_stdBufferValidity)
+	if err != nil {
+		return err
+	}
+	_, err = query.SetDataBuffer("upVelocity_std", upVelocity_stdBuffer)
+	if err != nil {
+		return err
+	}
+	_, err = query.SetValidityBuffer("upVelocity_std", upVelocity_stdBufferValidity)
 	if err != nil {
 		return err
 	}
@@ -185,7 +263,15 @@ PositionAttributes = [
 	if err != nil {
 		return err
 	}
+	_, err = query.SetValidityBuffer("roll_std", rollStdBufferValidity)
+	if err != nil {
+		return err
+	}
 	_, err = query.SetDataBuffer("pitch_std", pitchStdBuffer)
+	if err != nil {
+		return err
+	}
+	_, err = query.SetValidityBuffer("pitch_std", pitchStdBufferValidity)
 	if err != nil {
 		return err
 	}
@@ -193,10 +279,14 @@ PositionAttributes = [
 	if err != nil {
 		return err
 	}
-	_, err = query.SetDataBuffer("status", statusBuffer)
+	_, err = query.SetValidityBuffer("azimuth_std", azimuthStdBufferValidity)
 	if err != nil {
 		return err
 	}
+	// _, err = query.SetDataBuffer("status", statusBuffer)
+	// if err != nil {
+	// 	return err
+	// }
 
 	err = query.Submit()
 	if err != nil {

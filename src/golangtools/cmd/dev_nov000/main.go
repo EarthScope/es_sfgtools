@@ -206,9 +206,9 @@ type INSSTDEVARecord struct {
 	LatitudeSigma float64
 	LongitudeSigma float64
 	HeightSigma float64
-	NorthVelocitySigma float64
-	EastVelocitySigma float64
-	UpVelocitySigma float64
+	northVelocity_std float64
+	eastVelocity_std float64
+	upVelocity_std float64
 	RollSigma float64
 	PitchSigma float64
 	AzimuthSigma float64
@@ -230,9 +230,9 @@ type INSCompleteRecord struct {
 	LatitudeSigma float64
 	LongitudeSigma float64
 	HeightSigma float64
-	NorthVelocitySigma float64
-	EastVelocitySigma float64
-	UpVelocitySigma float64
+	northVelocity_std float64
+	eastVelocity_std float64
+	upVelocity_std float64
 	RollSigma float64
 	PitchSigma float64
 	AzimuthSigma float64
@@ -255,9 +255,9 @@ func MergeINSRecordsFlat(insPvaa InspvaaRecord, insStdDev INSSTDEVARecord) INSCo
 		LatitudeSigma:            insStdDev.LatitudeSigma,
 		LongitudeSigma:           insStdDev.LongitudeSigma,
 		HeightSigma:              insStdDev.HeightSigma,
-		NorthVelocitySigma:       insStdDev.NorthVelocitySigma,
-		EastVelocitySigma:        insStdDev.EastVelocitySigma,
-		UpVelocitySigma:         insStdDev.UpVelocitySigma,
+		northVelocity_std:       insStdDev.northVelocity_std,
+		eastVelocity_std:        insStdDev.eastVelocity_std,
+		upVelocity_std:         insStdDev.upVelocity_std,
 		RollSigma:                insStdDev.RollSigma,
 		PitchSigma:               insStdDev.PitchSigma,
 		AzimuthSigma:             insStdDev.AzimuthSigma,
@@ -369,23 +369,23 @@ func DeserializeINSSTDEVARecord(data string, time time.Time) (INSSTDEVARecord, e
 	}
 	record.HeightSigma = heightSigma
 
-	northVelocitySigma, err := strconv.ParseFloat(parts[3], 64)
+	northVelocity_std, err := strconv.ParseFloat(parts[3], 64)
 	if err != nil {
 		return INSSTDEVARecord{}, fmt.Errorf("error deserializing INSSTDEVA (%s)", err)
 	}
-	record.NorthVelocitySigma = northVelocitySigma
+	record.northVelocity_std = northVelocity_std
 
-	eastVelocitySigma, err := strconv.ParseFloat(parts[4], 64)
+	eastVelocity_std, err := strconv.ParseFloat(parts[4], 64)
 	if err != nil {
 		return INSSTDEVARecord{}, fmt.Errorf("error deserializing INSSTDEVA (%s)", err)
 	}
-	record.EastVelocitySigma = eastVelocitySigma
+	record.eastVelocity_std = eastVelocity_std
 
-	upVelocitySigma, err := strconv.ParseFloat(parts[5], 64)
+	upVelocity_std, err := strconv.ParseFloat(parts[5], 64)
 	if err != nil {
 		return INSSTDEVARecord{}, fmt.Errorf("error deserializing INSSTDEVA (%s)", err)
 	}
-	record.UpVelocitySigma = upVelocitySigma
+	record.upVelocity_std = upVelocity_std
 
 	rollSigma, err := strconv.ParseFloat(parts[6], 64)
 	if err != nil {
@@ -419,25 +419,39 @@ func MergeINSPVAAAndINSSTDEVA(INSPVAARecords []InspvaaRecord, INSSTDEVRecords []
 	var matchedRecords []INSCompleteRecord
 	i := 0
 	j := 0
-	for i < len(INSPVAARecords) && j < len(INSSTDEVRecords) {
-		elemA := INSPVAARecords[i]
-		elemB := INSSTDEVRecords[j]
-		if elemA.RecordTime.Equal(elemB.RecordTime) {
-			merged := MergeINSRecordsFlat(elemA, elemB)
+	foundMatch := 0
+	elemB := INSSTDEVARecord{}
+	if len(INSSTDEVRecords) != 0 {
+		elemB = INSSTDEVRecords[j]
+	} 
+	
+	for i < len(INSPVAARecords) {
+		inspvaarecord := INSPVAARecords[i]
+		if j < len(INSSTDEVRecords) {
+			elemB = INSSTDEVRecords[j]
+		} else {
+			elemB = INSSTDEVARecord{}
+		}
+	
+		
+	    if inspvaarecord.RecordTime.Equal(elemB.RecordTime) {
+			foundMatch++
+			merged := MergeINSRecordsFlat(inspvaarecord, elemB)
 			matchedRecords = append(matchedRecords, merged)
 			i++
 			j++
-		} else if elemA.RecordTime.Before(elemB.RecordTime) {
+			inspvaarecord = INSPVAARecords[i]
+		} else{
+			merged := MergeINSRecordsFlat(inspvaarecord, INSSTDEVARecord{})
+			matchedRecords = append(matchedRecords, merged)
 			i++
-		} else {
-			j++
+
 		}
+	
 	}
-	if len(matchedRecords) == 0 {
-		log.Warnf("No matching elements found between the two lists")
-		return nil
-	}
-	log.Infof("Found %d matching elements between the two lists", len(matchedRecords))
+		
+
+	log.Infof("Found %d matching elements between the two lists", foundMatch)
 	// Print the matching elements
 	return matchedRecords
 }
@@ -558,14 +572,9 @@ func processFileNOV000(file string) ([]observation.Epoch, []INSCompleteRecord) {
 					}
 				}
 		}
+	log.Infof("Found %d INSPVAA records, %d INSSTDEVA records", len(insEpochs), len(insStdDevEpochs))
 	insCompleteRecords := MergeINSPVAAAndINSSTDEVA(insEpochs, insStdDevEpochs)
-	if len(insCompleteRecords) == 0 {
-		log.Warnf("no matching times found between INSPVAA and INSSTDEVA records")
-		return epochs, nil
-	}
-	log.Infof("Found %d matching times between INSPVAA and INSSTDEVA records", len(insCompleteRecords))
-	log.Infof("INSSTDEVA Records: %d, INSPVAA Records: %d", len(insStdDevEpochs), len(insEpochs))
-	
+
 	return epochs, insCompleteRecords
 }	
 

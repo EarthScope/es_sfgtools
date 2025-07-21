@@ -24,17 +24,17 @@ type InspvaaRecord struct {
 	roll float64
 	pitch float64
 	azimuth float64
-	status string
+	// status string
 }
 
 type INSSTDEVARecord struct {
 	time time.Time
-	north_std float64
-	east_std float64
-	up_std float64
-	northVelocitySigma float64
-	eastVelocitySigma float64
-	upVelocitySigma float64
+	latitude_std float64
+	longitude_std float64
+	height_std float64
+	northVelocity_std float64
+	eastVelocity_std float64
+	upVelocity_std float64
 	roll_std float64
 	pitch_std float64
 	azimuth_std float64
@@ -53,16 +53,16 @@ type INSCompleteRecord struct {
 	roll float64
 	pitch float64
 	azimuth float64
-	north_std float64
-	east_std float64
-	up_std float64
-	northVelocitySigma float64
-	eastVelocitySigma float64
-	upVelocitySigma float64
+	latitude_std float64
+	longitude_std float64
+	height_std float64
+	northVelocity_std float64
+	eastVelocity_std float64
+	upVelocity_std float64
 	roll_std float64
 	pitch_std float64
 	azimuth_std float64
-	status string
+	// status string
 }
 
 func MergeINSRecordsFlat(insPvaa InspvaaRecord, insStdDev INSSTDEVARecord) INSCompleteRecord {
@@ -79,16 +79,16 @@ func MergeINSRecordsFlat(insPvaa InspvaaRecord, insStdDev INSSTDEVARecord) INSCo
 		roll:                     insPvaa.roll,
 		pitch:                    insPvaa.pitch,
 		azimuth:                  insPvaa.azimuth,
-		north_std:            insStdDev.north_std,
-		east_std:           insStdDev.east_std,
-		up_std:              insStdDev.up_std,
-		northVelocitySigma:       insStdDev.northVelocitySigma,
-		eastVelocitySigma:        insStdDev.eastVelocitySigma,
-		upVelocitySigma:         insStdDev.upVelocitySigma,
+		latitude_std:            insStdDev.latitude_std,
+		longitude_std:           insStdDev.longitude_std,
+		height_std:              insStdDev.height_std,
+		northVelocity_std:       insStdDev.northVelocity_std,
+		eastVelocity_std:        insStdDev.eastVelocity_std,
+		upVelocity_std:         insStdDev.upVelocity_std,
 		roll_std:                insStdDev.roll_std,
 		pitch_std:               insStdDev.pitch_std,
 		azimuth_std:             insStdDev.azimuth_std,
-		status:                  insPvaa.status,
+		// status:                  insPvaa.status,
 	}
 }
 
@@ -164,8 +164,8 @@ func DeserializeINSPVAARecord(data string,time time.Time) (InspvaaRecord, error)
 	}
 	record.azimuth = azimuth
 
-	status := strings.Join(parts[11:], ",")
-	record.status = status
+	// status := strings.Join(parts[11:], ",")
+	// record.status = status
 
 	return record, nil
 
@@ -179,41 +179,41 @@ func DeserializeINSSTDEVARecord(data string, time time.Time) (INSSTDEVARecord, e
 		return INSSTDEVARecord{}, fmt.Errorf("invalid INSSTDEVA record: %s", data)
 	}
 
-	north_std, err := strconv.ParseFloat(parts[0], 64)
+	latitude_std, err := strconv.ParseFloat(parts[0], 64)
 	if err != nil {
 		return INSSTDEVARecord{}, fmt.Errorf("error deserializing INSSTDEVA (%s)", err)
 	}
-	record.north_std = north_std
+	record.latitude_std = latitude_std
 
-	east_std, err := strconv.ParseFloat(parts[1], 64)
+	longitude_std, err := strconv.ParseFloat(parts[1], 64)
 	if err != nil {
 		return INSSTDEVARecord{}, fmt.Errorf("error deserializing INSSTDEVA (%s)", err)
 	}
-	record.east_std = east_std
+	record.longitude_std = longitude_std
 
-	up_std, err := strconv.ParseFloat(parts[2], 64)
+	height_std, err := strconv.ParseFloat(parts[2], 64)
 	if err != nil {
 		return INSSTDEVARecord{}, fmt.Errorf("error deserializing INSSTDEVA (%s)", err)
 	}
-	record.up_std = up_std
+	record.height_std = height_std
 
-	northVelocitySigma, err := strconv.ParseFloat(parts[3], 64)
+	northVelocity_std, err := strconv.ParseFloat(parts[3], 64)
 	if err != nil {
 		return INSSTDEVARecord{}, fmt.Errorf("error deserializing INSSTDEVA (%s)", err)
 	}
-	record.northVelocitySigma = northVelocitySigma
+	record.northVelocity_std = northVelocity_std
 
-	eastVelocitySigma, err := strconv.ParseFloat(parts[4], 64)
+	eastVelocity_std, err := strconv.ParseFloat(parts[4], 64)
 	if err != nil {
 		return INSSTDEVARecord{}, fmt.Errorf("error deserializing INSSTDEVA (%s)", err)
 	}
-	record.eastVelocitySigma = eastVelocitySigma
+	record.eastVelocity_std = eastVelocity_std
 
-	upVelocitySigma, err := strconv.ParseFloat(parts[5], 64)
+	upVelocity_std, err := strconv.ParseFloat(parts[5], 64)
 	if err != nil {
 		return INSSTDEVARecord{}, fmt.Errorf("error deserializing INSSTDEVA (%s)", err)
 	}
-	record.upVelocitySigma = upVelocitySigma
+	record.upVelocity_std = upVelocity_std
 
 	roll_std, err := strconv.ParseFloat(parts[6], 64)
 	if err != nil {
@@ -247,25 +247,36 @@ func MergeINSPVAAAndINSSTDEVA(INSPVAARecords []InspvaaRecord, INSSTDEVRecords []
 	var matchedRecords []INSCompleteRecord
 	i := 0
 	j := 0
-	for i < len(INSPVAARecords) && j < len(INSSTDEVRecords) {
-		elemA := INSPVAARecords[i]
-		elemB := INSSTDEVRecords[j]
-		if elemA.time.Equal(elemB.time) {
-			merged := MergeINSRecordsFlat(elemA, elemB)
+	foundMatch := 0
+	var elemB INSSTDEVARecord
+	
+	for i < len(INSPVAARecords) {
+		inspvaarecord := INSPVAARecords[i]
+		if j < len(INSSTDEVRecords) {
+			elemB = INSSTDEVRecords[j]
+		} else {
+			elemB = INSSTDEVARecord{}
+		}
+	
+		
+	    if inspvaarecord.time.Equal(elemB.time) {
+			foundMatch++
+			merged := MergeINSRecordsFlat(inspvaarecord, elemB)
 			matchedRecords = append(matchedRecords, merged)
 			i++
 			j++
-		} else if elemA.time.Before(elemB.time) {
+			inspvaarecord = INSPVAARecords[i]
+		} else{
+			merged := MergeINSRecordsFlat(inspvaarecord, INSSTDEVARecord{})
+			matchedRecords = append(matchedRecords, merged)
 			i++
-		} else {
-			j++
+
 		}
+	
 	}
-	if len(matchedRecords) == 0 {
-		log.Warnf("No matching elements found between the two lists")
-		return nil
-	}
-	log.Infof("Found %d matching elements between the two lists", len(matchedRecords))
+		
+
+	log.Infof("Found %d matching elements between the two lists", foundMatch)
 	// Print the matching elements
 	return matchedRecords
 }
