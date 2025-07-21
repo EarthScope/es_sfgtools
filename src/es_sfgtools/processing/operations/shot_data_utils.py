@@ -1,9 +1,81 @@
 import pandas as pd
 import numpy as np
 import pymap3d as pm
+import os
+import re
 
 from es_sfgtools.utils.loggers import GarposLogger as logger
 
+def load_all_campaign_shot_data(garpos_dir: str, campaign_name: str) -> dict[str, pd.DataFrame]:
+    """
+    Load all survey shot data from a directory of CSV files into a list of DataFrames.
+    
+    Parameters:
+    - file_path: Path to the GARPOS directory containing CSV files with shot data.
+
+    Returns:
+    - dict[str, pd.DataFrame]: Dictionary mapping survey names to DataFrames containing the shot data.
+    """
+
+    shot_data_dict = {}
+    try:
+        # Walk through all subdirectories to find CSV files
+        for root, dirs, files in os.walk(garpos_dir):
+            for file in files:
+                if file.endswith('.csv'):
+                    # If campaign_name is provided, check if file matches the pattern
+                    if campaign_name:
+                        # Create regex pattern: campaign_name + _number + _anything + .csv
+                        pattern = rf"^{re.escape(campaign_name)}_\d+_.*\.csv$"
+                        if not re.match(pattern, file):
+                            continue  # Skip files that don't match the campaign pattern
+                    
+                    survey_name = file.replace('.csv', '')
+                    full_file_path = os.path.join(root, file)
+                    df = pd.read_csv(full_file_path)
+                    shot_data_dict[survey_name] = df
+                    logger.loginfo(f"Loaded {survey_name} shot data with {len(df)} records from {full_file_path}")
+    except Exception as e:
+        logger.logerr(f"Error loading shot data from {garpos_dir}: {e}")
+    
+    return shot_data_dict
+
+
+def load_shot_data(file_path: str) -> pd.DataFrame:
+    """
+    Load shot data from a CSV file into a pandas DataFrame.
+    
+    Parameters:
+    - file_path: Path to the CSV file containing shot data.
+    
+    Returns:
+    - pd.DataFrame: DataFrame containing the shot data.
+    """
+    try:
+        df = pd.read_csv(file_path)
+        logger.loginfo(f"Loaded shot data from {file_path} with {len(df)} records")
+        return df
+    except Exception as e:
+        logger.logerr(f"Error loading shot data from {file_path}: {e}")
+        return pd.DataFrame()
+    
+
+def write_shot_data(df: pd.DataFrame, file_path: str) -> None:
+    """
+    Write shot data to a CSV file.
+    
+    Parameters:
+    - df: DataFrame containing the shot data.
+    - file_path: Path to save the CSV file.
+    
+    Returns:
+    - None
+    """
+    try:
+        df.to_csv(file_path, index=False)
+        logger.loginfo(f"Shot data written to {file_path} with {len(df)} records")
+    except Exception as e:
+        logger.logerr(f"Error writing shot data to {file_path}: {e}")
 
 def filter_wg_distance_from_center(df: pd.DataFrame, array_center_lat: float, array_center_lon: float, max_distance_m: float = 150) -> pd.DataFrame:
     """
@@ -180,7 +252,7 @@ def difficult_acoustic_diagnostics(df):
     """
     return filter_acoustic_diagnostics(df)
 
-def filter_minimum_replies(df, min_replies=3):
+def filter_ping_replies(df, min_replies=3):
     """
     Require minimum number of replies for each ping (e.g., 3 replies for the 3 transponders).
     

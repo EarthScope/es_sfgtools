@@ -16,6 +16,7 @@ import seaborn as sns
 sns.set_theme()
 import matplotlib.gridspec as gridspec
 import os
+from enum import Enum
 
 from sfg_metadata.metadata.src.catalogs import StationData
 from sfg_metadata.metadata.src.site import Site
@@ -35,6 +36,7 @@ from es_sfgtools.modeling.garpos_tools.schemas import (
 )
 from es_sfgtools.modeling.garpos_tools.functions import CoordTransformer, process_garpos_results, rectify_shotdata
 from es_sfgtools.utils.loggers import GarposLogger as logger
+from es_sfgtools.processing.operations.shot_data_utils import difficult_acoustic_diagnostics, filter_wg_distance_from_center, filter_SNR, filter_dbv, filter_xc, filter_acoustic_diagnostics, good_acoustic_diagnostics, filter_ping_replies, ok_acoustic_diagnostics
 
 from ...processing.assets.tiledb import TDBShotDataArray
 from .load_utils import load_drive_garpos
@@ -58,6 +60,15 @@ colors = [
     "orange",
     "pink",
 ]
+
+class acoustic_filter_level(Enum):
+    """
+    Enum for different levels of filtering.
+    """
+    GOOD = "GOOD"
+    OK = "OK"
+    DIFFICULT = "DIFFICULT"
+    NONE = "NONE"
 
 SHOTDATA_DIR_NAME = "shotdata"
 RESULTS_DIR_NAME = "results"
@@ -420,7 +431,7 @@ class GarposHandler:
             if obsfile_path.exists() and not overwrite:
                 continue
 
-            # Read shotdata datafram and then check if the shot data is empty, if empty, skip..
+            # Read shotdata dataframe and then check if the shot data is empty, if empty, skip..
             shot_data_queried: pd.DataFrame = self.shotdata.read_df(
                     start=survey.start, end=survey.end
                 )
@@ -451,8 +462,8 @@ class GarposHandler:
                                 current_transponder = transponder
                                 break
                     
-                gp_transponder = self._create_GPTransponder(benchmark=benchmark, 
-                                                       transponder=current_transponder)
+                gp_transponder = self._create_GPTransponder(benchmark=benchmark,
+                                                            transponder=current_transponder)
                 GPtransponders.append(gp_transponder)
 
             # Check if any transponders were found for the survey
@@ -538,6 +549,36 @@ class GarposHandler:
             # Save the survey metadata
             with open(survey_dir/SURVEY_METADATA_FILE_NAME, 'w') as file:
                 file.write(survey.model_dump_json(indent=2))
+
+    def filter_shotdata(self, shot_data: pd.DataFrame, acoustic_level: acoustic_filter_level = acoustic_filter_level.OK, ping_replies: int = 3) -> pd.DataFrame:
+        """
+        Filter the shot data based on the specified acoustic level and minimum ping replies.
+        Args:
+            shot_data (pd.DataFrame): The shot data to filter.
+            acoustic_level (acoustic_filter_level): The level of acoustic filtering to apply.
+            ping_replies (int): The minimum number of replies required for each ping.
+        Returns:
+            pd.DataFrame: The filtered shot data.
+        """
+
+        # Filter by acoustic diagnostics level
+        if acoustic_level == acoustic_filter_level.GOOD:
+            new_shot_data_df = good_acoustic_diagnostics(shot_data)
+        elif acoustic_level == acoustic_filter_level.OK:
+            new_shot_data_df = ok_acoustic_diagnostics(shot_data)
+        elif acoustic_level == acoustic_filter_level.DIFFICULT:
+            new_shot_data_df = difficult_acoustic_diagnostics(shot_data)
+        else:
+            logger.loginfo(f"No acoustic filtering applied, using original shot data")
+            new_shot_data_df = shot_data.copy()
+
+        # Filter by ping replies
+        if ping_replies > 0:
+            new_shot_data_df = filter_ping_replies(new_shot_data_df, min_replies=ping_replies)
+
+        return new_shot_data_df
+    
+
 
     def set_inversion_params(self, parameters: dict | InversionParams):
         """
