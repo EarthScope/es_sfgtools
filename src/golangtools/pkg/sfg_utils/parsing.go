@@ -269,7 +269,6 @@ func MergeINSPVAAAndINSSTDEVA(INSPVAARecords []InspvaaRecord, INSSTDEVRecords []
 			matchedRecords = append(matchedRecords, merged)
 			i++
 			j++
-			inspvaarecord = INSPVAARecords[i]
 		} else{
 			merged := MergeINSRecordsFlat(inspvaarecord, INSSTDEVARecord{})
 			matchedRecords = append(matchedRecords, merged)
