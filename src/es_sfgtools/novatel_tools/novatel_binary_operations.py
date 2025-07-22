@@ -30,7 +30,7 @@ def novatel_770_2tile(files: List[str], rangea_tdb: Path, n_procs: int = 10) -> 
     # Parse the output and log messages
     parse_cli_logs(result,logger)
 
-def novatel_000_2tile(files: List[str], rangea_tdb: Path, n_procs: int = 10) -> None:
+def novatel_000_2tile(files: List[str], rangea_tdb: Path, position_tdb:Path, n_procs: int = 10) -> None:
     """Given a list of novatel 000 binary files, get all the rangea logs and add them to a single tdb array
 
     Args:
@@ -41,7 +41,7 @@ def novatel_000_2tile(files: List[str], rangea_tdb: Path, n_procs: int = 10) -> 
 
     # Generate the command to run the nov0002tile golang binary
     binary_path = get_nov_000_tile_binary_path()
-    cmd = [str(binary_path), "-tdb", str(rangea_tdb), "-procs", str(n_procs)]
+    cmd = [str(binary_path), "-tdb", str(rangea_tdb), "-tdbpos", str(position_tdb), "-procs", str(n_procs)]
     logger.logdebug(f" Running {cmd}")
     for file in files:
         cmd.append(str(file))
