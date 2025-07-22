@@ -1,5 +1,6 @@
 # GarposHandler class for processing and preparing shot data for the GARPOS model.
 
+from enum import Enum
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
 from es_sfgtools.utils.archive_pull import download_file_from_archive
@@ -15,7 +16,6 @@ import seaborn as sns
 sns.set_theme()
 import matplotlib.gridspec as gridspec
 import os
-from enum import Enum
 
 from sfg_metadata.metadata.src.catalogs import StationData
 from sfg_metadata.metadata.src.site import Site
@@ -33,10 +33,13 @@ from es_sfgtools.modeling.garpos_tools.schemas import (
     GPPositionLLH,
     ObservationData
 )
-from es_sfgtools.modeling.garpos_tools.functions import CoordTransformer, process_garpos_results, rectify_shotdata
-from es_sfgtools.utils.loggers import GarposLogger as logger
 
-from ...processing.assets.tiledb import TDBShotDataArray
+from es_sfgtools.modeling.garpos_tools.functions import CoordTransformer, process_garpos_results, rectify_shotdata
+from es_sfgtools.utils.archive_pull import download_file_from_archive
+from es_sfgtools.modeling.garpos_tools.functions import CoordTransformer, process_garpos_results, rectify_shotdata
+from ...logging import GarposLogger as logger
+from ...seafloor_site_tools.soundspeed_operations import CTDfile_to_svp,seabird_to_soundvelocity
+from ...tiledb_tools.tiledb_schemas import TDBShotDataArray
 from .load_utils import load_drive_garpos
 from es_sfgtools.data_mgmt.catalog import PreProcessCatalog
 from es_sfgtools.data_mgmt.file_schemas import AssetEntry, AssetType
@@ -59,6 +62,13 @@ colors = [
     "pink",
 ]
 
+SHOTDATA_DIR_NAME = "shotdata"
+RESULTS_DIR_NAME = "results"
+DEFAULT_SETTINGS_FILE_NAME = "default_settings.ini"
+SVP_FILE_NAME = "svp.csv"
+SURVEY_METADATA_FILE_NAME = "survey_meta.json"
+OBSERVATION_FILE_NAME = "observation.ini"
+
 class acoustic_filter_level(Enum):
     """
     Enum for different levels of filtering.
@@ -67,13 +77,6 @@ class acoustic_filter_level(Enum):
     OK = "OK"
     DIFFICULT = "DIFFICULT"
     NONE = "NONE"
-
-SHOTDATA_DIR_NAME = "shotdata"
-RESULTS_DIR_NAME = "results"
-DEFAULT_SETTINGS_FILE_NAME = "default_settings.ini"
-SVP_FILE_NAME = "svp.csv"
-SURVEY_METADATA_FILE_NAME = "survey_meta.json"
-OBSERVATION_FILE_NAME = "observation.ini"
 
 
 def avg_transponder_position(
@@ -475,7 +478,7 @@ class GarposHandler:
             if obsfile_path.exists() and not overwrite:
                 continue
 
-            # Read shotdata dataframe and then check if the shot data is empty, if empty, skip..
+            # Read shotdata datafram and then check if the shot data is empty, if empty, skip..
             shot_data_queried: pd.DataFrame = self.shotdata.read_df(
                 start=survey.start, end=survey.end
             )
@@ -505,9 +508,10 @@ class GarposHandler:
                             if transponder.end is None or transponder.end >= survey.end:
                                 current_transponder = transponder
                                 break
-                    
-                gp_transponder = self._create_GPTransponder(benchmark=benchmark, 
-                                                       transponder=current_transponder)
+
+                gp_transponder = self._create_GPTransponder(
+                    benchmark=benchmark, transponder=current_transponder
+                )
                 GPtransponders.append(gp_transponder)
 
             # Check if any transponders were found for the survey
@@ -624,8 +628,6 @@ class GarposHandler:
             new_shot_data_df = filter_ping_replies(new_shot_data_df, min_replies=ping_replies)
 
         return new_shot_data_df
-    
-
 
     def set_inversion_params(self, parameters: dict | InversionParams):
         """
