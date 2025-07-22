@@ -1,7 +1,9 @@
 package sfg_utils
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"sort"
 	"strconv"
 	"strings"
@@ -9,6 +11,7 @@ import (
 
 	"github.com/labstack/gommon/log"
 	"gitlab.com/earthscope/gnsstools/pkg/common/gnss/observation"
+	novatelascii "gitlab.com/earthscope/gnsstools/pkg/encoding/novatel/novatel_ascii"
 )
 
 type InspvaaRecord struct {
@@ -280,7 +283,7 @@ func MergeINSPVAAAndINSSTDEVA(INSPVAARecords []InspvaaRecord, INSSTDEVRecords []
 	// Print the matching elements
 	return matchedRecords
 }
-func getTimeDiffsINSPVA(list []INSCompleteRecord ) []float64 {
+func GetTimeDiffsINSPVA(list []INSCompleteRecord ) []float64 {
 	var diffs []float64
 	minDiff := 100000.0 // 1000 seconds
 	for i := 1; i < len(list); i++ {
@@ -304,7 +307,7 @@ func getTimeDiffsINSPVA(list []INSCompleteRecord ) []float64 {
 	return diffs
 }
 
-func getTimeDiffGNSS(list []observation.Epoch ) []float64 {
+func GetTimeDiffGNSS(list []observation.Epoch ) []float64 {
 	var diffs []float64
 	minDiff := 100000.0 // 1000 seconds
 	for i := 1; i < len(list); i++ {
@@ -326,4 +329,155 @@ func getTimeDiffGNSS(list []observation.Epoch ) []float64 {
 	}
 	log.Infof("GNSS Average time difference: %f seconds Minimum time difference: %f seconds", diffs_average, minDiff)
 	return diffs
+}
+
+func removeBeforeASCIISyncChar(s string) (string, error) {
+	longMessageIndex := strings.Index(s, "#")
+	shortMessageIndex := strings.Index(s, "%")
+	switch {
+	case longMessageIndex != -1:
+		return s[longMessageIndex:], nil
+	case shortMessageIndex != -1:
+		return s[shortMessageIndex:], nil
+	default:
+		return "", fmt.Errorf("novatel ASCII sync char not found")
+	}
+}
+
+
+func processBuffer(buffer []byte) (message novatelascii.Message, err error) {
+	stringArray := string(buffer)
+	trimmedLine,err := removeBeforeASCIISyncChar(stringArray)
+	if err != nil {
+		return message, err
+	}
+	//fmt.Print("\n Trimmed Line: ", trimmedLine)
+	endOfHeaderIndex := strings.Index(trimmedLine, ";")
+	endOfDataIndex := strings.Index(trimmedLine, "*")
+
+	if endOfDataIndex <= endOfHeaderIndex {
+		return message, fmt.Errorf("message is missing checksum")
+		// endOfDataIndex = len(trimmedLine) - 1
+	}
+	if endOfDataIndex == -1 {
+		return message, fmt.Errorf("message is missing checksum")
+		// endOfDataIndex = len(trimmedLine) - 1
+	}
+	if endOfHeaderIndex< 2 {
+		return message, fmt.Errorf("message is too short")
+	}
+	splitHeaderText := strings.Split(trimmedLine[1:endOfHeaderIndex], ",")
+	if len(splitHeaderText) < 10 {
+		return message, fmt.Errorf("message header is too short")
+	}
+	switch trimmedLine[0] {
+		case '#': // long
+			sequence, err := strconv.Atoi(splitHeaderText[2])
+			if err != nil {
+				return message, err
+			}
+			idleTime, err := strconv.ParseFloat(splitHeaderText[3], 64)
+			if err != nil {
+				return message, err
+			}
+			week, err := strconv.ParseFloat(splitHeaderText[5], 64)
+			if err != nil {
+				return message, err
+			}
+			seconds, err := strconv.ParseFloat(splitHeaderText[6], 64)
+			if err != nil {
+				return message, err
+			}
+			recStatus, err := strconv.ParseFloat(splitHeaderText[7], 64)
+			if err != nil {
+				return message, err
+			}
+			recSWVersion, err := strconv.ParseFloat(splitHeaderText[9], 64)
+			if err != nil {
+				return message, err
+			}
+			longMessage := novatelascii.LongMessage{
+				Sync:         string(trimmedLine[0]),
+				Msg:          splitHeaderText[0],
+				Port:         splitHeaderText[1],
+				Sequence:     sequence,
+				IdleTime:     idleTime,
+				TimeStatus:   splitHeaderText[4],
+				Week:         week,
+				Seconds:      seconds,
+				RecStatus:    recStatus,
+				Reserved:     splitHeaderText[8],
+				RecSWVersion: recSWVersion,
+				Data:         trimmedLine[endOfHeaderIndex+1 : endOfDataIndex],
+				Checksum:     trimmedLine[endOfDataIndex:],
+			}
+			return longMessage, nil
+	default:
+		return novatelascii.LongMessage{}, fmt.Errorf("unknown error")
+	}
+
+}
+
+	
+func DeserializeNOV00bin(r *bufio.Reader) (message novatelascii.Message, err error) {
+	var stx byte = 0x2 // start of text, 2 in decimal
+	var etx byte = 0x3 // end of text, 3 in decimal
+	var log_start byte = 0x23 // log start, 35 in decimal ASCII #
+	var log_done byte = 0x2A// log done, 2 in decimal, * in Ascii
+	var got_start_of_text bool = false
+	var got_end_of_text bool = false
+	var got_start_of_log bool = false
+	var got_end_of_log bool = false
+	var buffer []byte
+
+	for {
+		peekByte, err := r.Peek(1)
+		if err != nil {
+			switch {
+			case err == io.EOF || err == bufio.ErrBufferFull:
+				// do not advance the reader
+				return message, err
+			default:
+				// advance the reader
+				_, err := r.Discard(1)
+				if err != nil {
+					log.Warnf("error discarding byte (%s)", err)
+				}
+				return message, fmt.Errorf("error peeking byte (%s)", err)
+			}
+		}
+		if peekByte[0] == stx {
+			got_start_of_text = true
+		} else if peekByte[0] == log_start {
+			got_start_of_log = true
+			buffer = []byte{}
+		} else if peekByte[0] == etx{
+			got_end_of_text = true
+		} else if peekByte[0] == log_done {
+			got_end_of_log = true
+			got_end_of_text = false
+		}
+		if got_end_of_text && got_end_of_log {
+			buffer = append(buffer, peekByte[0])
+			_, err := r.Discard(1)
+			if err != nil {
+				log.Warnf("error discarding byte (%s)", err)
+			}
+			message, err := processBuffer(buffer)
+			if err != nil {
+				break
+			}
+			return message, err
+		} else if got_start_of_text && got_start_of_log{
+			buffer = append(buffer, peekByte[0])
+		}
+		_, err = r.Discard(1)
+		if err != nil {
+			log.Warnf("error discarding byte (%s)", err)
+		}
+	}
+	
+
+	return novatelascii.LongMessage{}, fmt.Errorf("unknown error")
+
 }
