@@ -145,7 +145,8 @@ func DeserializeINSPVAARecord(data string,time time.Time) (InspvaaRecord, error)
 	record.eastVelocity = eastVelocity
 
 	upVelocity, err := strconv.ParseFloat(parts[7], 64)
-	if err != nil {		return InspvaaRecord{}, fmt.Errorf("error deserializing INSPVAA (%s)", err)
+	if err != nil {
+		return InspvaaRecord{}, fmt.Errorf("error deserializing INSPVAA (%s)", err)
 	}
 	record.upVelocity = upVelocity
 
