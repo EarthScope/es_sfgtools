@@ -9,8 +9,8 @@ import numpy as np
 import pandas as pd
 from datetime import datetime
 from configparser import ConfigParser
-from ...processing.assets.observables import SoundVelocityDataFrame
-from es_sfgtools.utils.loggers import GarposLogger as logger
+from ...data_models.observables import SoundVelocityDataFrame
+from ...logging import GarposLogger as logger
 import julian
 from .load_utils import load_lib
 

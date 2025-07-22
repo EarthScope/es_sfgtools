@@ -25,7 +25,7 @@ import matplotlib.gridspec as gridspec
 from sfg_metadata.metadata.src.site import Site
 
 
-from es_sfgtools.processing.assets.observables import (
+from es_sfgtools.data_models.observables import (
     ShotDataFrame,
     SoundVelocityDataFrame,
 )
@@ -42,7 +42,7 @@ from es_sfgtools.modeling.garpos_tools.schemas import (
     GPTransponder,
     GPPositionLLH,
 )
-from es_sfgtools.utils.loggers import GarposLogger as logger
+from ...logging import GarposLogger as logger
 
 from .load_utils import load_drive_garpos
 
@@ -496,7 +496,6 @@ def rectify_shotdata(coord_transformer: CoordTransformer, shot_data: pd.DataFram
     rename_dict = {
         "pingTime": "ST",
         "hae0": "height",
-        # "triggerTime": "ST",
         "returnTime": "RT",
         "tt": "TT",
         "transponderID": "MT",
@@ -520,6 +519,7 @@ def rectify_shotdata(coord_transformer: CoordTransformer, shot_data: pd.DataFram
             "head1",
             "pitch1",
             "roll1",
+            "isUpdated",
         ],
     ]
 

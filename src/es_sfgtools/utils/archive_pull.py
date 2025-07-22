@@ -13,7 +13,7 @@ from earthscope_sdk import EarthScopeClient
 from earthscope_sdk.config.settings import SdkSettings
 from earthscope_cli.login import login as es_login
 
-from es_sfgtools.utils.loggers import ProcessLogger as logger
+from ..logging import ProcessLogger as logger
 
 
 ssl._create_default_https_context = ssl._create_stdlib_context
@@ -38,7 +38,7 @@ def retrieve_token(profile=None):
     except Exception as e:
         logger.logerr(f"Failed to refresh token: {e} Attempting to login...")
         es_login(sdk=es)
-    
+
     token = es.ctx.auth_flow.access_token
     return token
 
@@ -318,7 +318,6 @@ def load_site_metadata(network: str, station: str, profile: str = None, local_pa
     return site
 
 
-
 def list_file_counts_by_type(file_list: list, url: Optional[str] = None, show_logs=True) -> dict:
     """
     Counts files by type, and builds a dictionary.
@@ -408,7 +407,7 @@ def list_campaign_files(network: str, station: str, campaign: str) -> list:
     file_list = raw_file_list + metadata_file_list
 
     return file_list
-    
+
 
 def list_campaign_files_by_type(network: str, station: str, campaign: str, show_logs: bool=True) -> dict:
     """
@@ -442,7 +441,7 @@ def list_campaign_files_by_type(network: str, station: str, campaign: str, show_
     file_dict = raw_file_dict | metadata_file_dict
 
     return file_dict
-    
+
 
 def list_s3_directory_files(bucket_name: str, prefix: str) -> List[str]:
     """

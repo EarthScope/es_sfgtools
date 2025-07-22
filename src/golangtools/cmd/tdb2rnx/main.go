@@ -238,8 +238,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed parsing settings: %s", err)
 	}
-
-
+    // check if tdbPathPtr points to an existing file
+	if _, err := os.Stat(*tdbPathPtr); err != nil {
+		log.Fatalf("TileDB array not found at %s: %v", *tdbPathPtr, err)
+	}
 	timeStart,timeEnd,err := tiledbgnss.GetTimeRange(*tdbPathPtr,"us-east-2")
 	if err != nil {
 		log.Fatalln(err)

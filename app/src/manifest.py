@@ -5,7 +5,7 @@ from enum import Enum
 import json
 import os
 from pydantic import BaseModel, Field, field_serializer, field_validator
-from es_sfgtools.processing.pipeline.pipelines import SV3PipelineConfig
+from es_sfgtools.pipelines.sv3_pipeline import SV3PipelineConfig
 from es_sfgtools.modeling.garpos_tools.schemas import (
     InversionParams
 )
@@ -68,11 +68,15 @@ class GARPOSConfig(BaseModel):
         coerce= True
 
     @field_serializer("garpos_path")
-    def _garpos_path_s(cls, v: Path):
+    def _garpos_path_s( v: Path):
+        if v is None:
+            return None
         return str(v)
     
     @field_validator("garpos_path", mode="before")
     def _garpos_path_v(cls, v: str):
+        if v is None:
+            return None
         garpos_path = Path(v.strip())
         if not garpos_path.exists():
             raise ValueError(f"GARPOS path {garpos_path} does not exist")

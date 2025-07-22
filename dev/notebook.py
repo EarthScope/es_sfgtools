@@ -2,7 +2,7 @@
 import os
 from pathlib import Path
 
-from es_sfgtools.processing.pipeline.data_handler import DataHandler
+from es_sfgtools.data_mgmt.data_handler import DataHandler
 from es_sfgtools.processing.assets.siteconfig import GPSiteConfig, Site
 from es_sfgtools.processing.operations.site_ops import (
     CTDfile_to_svp,
