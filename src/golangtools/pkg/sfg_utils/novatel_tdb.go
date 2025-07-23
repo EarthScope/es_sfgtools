@@ -44,7 +44,7 @@ func WriteINSPOSRecordToTileDB(arr string, region string, insRecords []INSComple
 	azimuthStdBufferValidity := []uint8{}
 
 	for _, record := range insRecords {
-		d0Buffer = append(d0Buffer, record.time.UnixNano())
+		d0Buffer = append(d0Buffer, record.time.UnixMilli())
 		azimuthBuffer = append(azimuthBuffer, record.azimuth)
 		pitchBuffer = append(pitchBuffer, record.pitch)
 		rollBuffer = append(rollBuffer, record.roll)
