@@ -59,8 +59,8 @@ def tile2rinex(
             "-year",
             str(processing_year),
         ]
-        logger.logdebug(f" Running {cmd}")
-        result = subprocess.run(cmd, cwd=workdir)
+        logger.loginfo(f" Running {cmd}")
+        result = subprocess.run(cmd, cwd=workdir,capture_output=True)
 
         parse_cli_logs(result, logger)
 
