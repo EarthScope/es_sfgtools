@@ -293,50 +293,55 @@ class SV3Pipeline:
             self.config.rinex_config.override
             or not self.asset_catalog.is_merge_complete(**merge_signature)
         ):
-            rinex_paths: List[Path] = tile2rinex(
-                rangea_tdb=self.rangea_data_dest.uri,
-                settings=self.config.rinex_config.settings_path,
-                writedir=self.inter_dir,
-                time_interval=self.config.rinex_config.time_interval,
+            try:
+                rinex_paths: List[Path] = tile2rinex(
+                    rangea_tdb=self.rangea_data_dest.uri,
+                    settings=self.config.rinex_config.settings_path,
+                    writedir=self.inter_dir,
+                    time_interval=self.config.rinex_config.time_interval,
                 processing_year=year,  # TODO pass down
-            )
-            if len(rinex_paths) == 0:
+                )
+                if len(rinex_paths) == 0:
+                    logger.logwarn(
+                        f"No Rinex Files generated for {self.network} {self.station} {self.campaign} {year}."
+                    )
+                    return
+                rinex_entries: List[AssetEntry] = []
+                uploadCount = 0
+                for rinex_path in rinex_paths:
+                    rinex_time_start, rinex_time_end = rinex_utils.rinex_get_time_range(rinex_path)
+                    rinex_entry = AssetEntry(
+                        local_path=rinex_path,
+                        network=self.network,
+                        station=self.station,
+                        campaign=self.campaign,
+                        timestamp_data_start=rinex_time_start,
+                        timestamp_data_end=rinex_time_end,
+                        type=AssetType.RINEX,
+                        timestamp_created=datetime.datetime.now()
+                    )
+                    rinex_entries.append(rinex_entry)
+                    if self.asset_catalog.add_entry(rinex_entry):
+                        uploadCount += 1
+
+                self.asset_catalog.add_merge_job(**merge_signature)
+
                 logger.loginfo(
-                    f"No Rinex Files generated for {self.network} {self.station} {self.campaign} {year}."
+                    f"Generated {len(rinex_entries)} Rinex files spanning {rinex_entries[0].timestamp_data_start} to {rinex_entries[-1].timestamp_data_end}"
                 )
-                return
-            rinex_entries: List[AssetEntry] = []
-            uploadCount = 0
-            for rinex_path in rinex_paths:
-                rinex_time_start, rinex_time_end = rinex_utils.rinex_get_time_range(rinex_path)
-                rinex_entry = AssetEntry(
-                    local_path=rinex_path,
-                    network=self.network,
-                    station=self.station,
-                    campaign=self.campaign,
-                    timestamp_data_start=rinex_time_start,
-                    timestamp_data_end=rinex_time_end,
-                    type=AssetType.RINEX,
-                    timestamp_created=datetime.datetime.now()
+                logger.logdebug(
+                    f"Added {uploadCount} out of {len(rinex_entries)} Rinex files to the catalog"
                 )
-                rinex_entries.append(rinex_entry)
-                if self.asset_catalog.add_entry(rinex_entry):
-                    uploadCount += 1
-
-            self.asset_catalog.add_merge_job(**merge_signature)
-
-            logger.loginfo(
-                f"Generated {len(rinex_entries)} Rinex files spanning {rinex_entries[0].timestamp_data_start} to {rinex_entries[-1].timestamp_data_end}"
-            )
-            logger.loginfo(
-                f"Added {uploadCount} out of {len(rinex_entries)} Rinex files to the catalog"
-            )
+            except Exception as e:
+                if (message := logger.logerr(f"Error generating RINEX files: {e}")) is not None:
+                    print(message)
+                sys.exit(1)
         else:
             rinex_entries = self.asset_catalog.get_local_assets(
                 self.network, self.station, self.campaign, AssetType.RINEX
             )
             num_rinex_entries = len(rinex_entries)
-            logger.loginfo(
+            logger.logdebug(
                 f"RINEX files have already been generated for {self.network}, {self.station}, and {year} Found {num_rinex_entries} entries."
             )
 
