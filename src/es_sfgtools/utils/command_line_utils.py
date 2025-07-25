@@ -5,7 +5,7 @@ import re
 import warnings
 # Local imports
 from ..logging import ProcessLogger as logger
-from .custom_warnings import WARNINGS_DICT
+from .custom_warnings_exceptions import WARNINGS_DICT,EXCEPTIONS_DICT_LINUX, EXCEPTIONS_DICT_MACOS
 
 GOLANG_BINARY_BUILD_DIR = "src/golangtools/build"
 SELF_PATH = Path(__file__).resolve()
@@ -51,6 +51,19 @@ def parse_error(string: str) -> Warning | None:
             return warning_
     return None
 
+def raise_exception(string: str) -> Exception | None:
+    string = string.strip()
+    sys, _ = get_system_architecture()
+    if sys == "linux":
+        exceptions_dict = EXCEPTIONS_DICT_LINUX
+    else:
+        exceptions_dict = EXCEPTIONS_DICT_MACOS
+
+    for key, exception in exceptions_dict.items():
+        if key.strip() in string:
+            return exception
+    return None
+
 def parse_cli_logs(result, logger):
     if result.stdout:
         stdout_decoded = result.stdout.decode("utf-8") if isinstance(result.stdout, bytes) else result.stdout
@@ -61,7 +74,8 @@ def parse_cli_logs(result, logger):
             message = log_line.split("\n")[0]
             if "Processed" in message or "Created" in message:
                 logger.loginfo(message)
-
+            if (exception := raise_exception(message)) is not None:
+                raise exception
     if result.stderr:
         stderr_decoded = result.stderr.decode("utf-8") if isinstance(result.stderr, bytes) else result.stderr
         stderr_decoded = remove_ansi_escape(stderr_decoded)
@@ -78,3 +92,5 @@ def parse_cli_logs(result, logger):
             message = log_line.split("\n")[0]
             if "Processing" in message or "Created" in message:
                 logger.loginfo(message)
+            if (exception := raise_exception(message)) is not None:
+                raise exception

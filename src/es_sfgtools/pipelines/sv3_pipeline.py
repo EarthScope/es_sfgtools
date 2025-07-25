@@ -8,6 +8,7 @@ from typing import List, Optional
 from pathlib import Path
 import concurrent.futures
 from sfg_metadata.metadata.src.catalogs import Catalog
+import sys 
 
 # Local imports
 from ..data_mgmt.catalog import PreProcessCatalog
@@ -187,18 +188,22 @@ class SV3Pipeline:
             if (
                 self.config.novatel_config.override
                 or not self.asset_catalog.is_merge_complete(**merge_signature)
-            ):
-                novb_ops.novatel_770_2tile(
-                    files=[x.local_path for x in novatel_770_entries],
-                    rangea_tdb=self.rangea_data_dest.uri,
-                    n_procs=self.config.novatel_config.n_processes,
-                )
+            ):  
+                try:
+                    novb_ops.novatel_770_2tile(
+                        files=[x.local_path for x in novatel_770_entries],
+                        rangea_tdb=self.rangea_data_dest.uri,
+                        n_procs=self.config.novatel_config.n_processes,
+                    )
 
-                self.asset_catalog.add_merge_job(**merge_signature)
-                response = f"Added merge job for {len(novatel_770_entries)} Novatel 770 Entries to the catalog"
-                logger.loginfo(response)
-                # if self.config.novatel_config.show_details:
-                #     print(response)
+
+                    self.asset_catalog.add_merge_job(**merge_signature)
+                    response = f"Added merge job for {len(novatel_770_entries)} Novatel 770 Entries to the catalog"
+                    logger.loginfo(response)
+                except Exception as e:
+                    if (message := logger.logerr(f"Error processing Novatel 770 files: {e}")) is not None:
+                        print(message)
+                    sys.exit(1)
             else:
                 response = f"Novatel 770 Data Already Processed for {self.network} {self.station} {self.campaign}"
                 logger.loginfo(response)
@@ -227,19 +232,23 @@ class SV3Pipeline:
                 self.config.novatel_config.override
                 or not self.asset_catalog.is_merge_complete(**merge_signature)
             ):
-                novb_ops.novatel_000_2tile(
-                    files=[x.local_path for x in novatel_000_entries],
-                    rangea_tdb=self.rangea_data_dest.uri,
-                    position_tdb=self.position_data_dest.uri,
-                    n_procs=self.config.novatel_config.n_processes,
-                )
+                try:
+                    novb_ops.novatel_000_2tile(
+                        files=[x.local_path for x in novatel_000_entries],
+                        rangea_tdb=self.rangea_data_dest.uri,
+                        position_tdb=self.position_data_dest.uri,
+                        n_procs=self.config.novatel_config.n_processes,
+                    )
 
-                self.asset_catalog.add_merge_job(**merge_signature)
-                logger.loginfo(
-                    f"Added merge job for {len(novatel_000_entries)} Novatel 000 Entries to the catalog"
-                )
-                # if self.config.novatel_config.show_details:
-                #     print(response) # TODO: should the logger handle this?
+                    self.asset_catalog.add_merge_job(**merge_signature)
+                    logger.loginfo(
+                        f"Added merge job for {len(novatel_000_entries)} Novatel 000 Entries to the catalog"
+                    )
+                except Exception as e:
+                    if (message := logger.logerr(f"Error processing Novatel 000 files: {e}")) is not None:
+                        print(message)
+                    sys.exit(1)
+
         else:
             logger.loginfo(
                 f"No Novatel 000 Files Found to Process for {self.network} {self.station} {self.campaign}"

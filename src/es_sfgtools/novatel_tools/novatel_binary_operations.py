@@ -25,7 +25,7 @@ def novatel_770_2tile(files: List[str], rangea_tdb: Path, n_procs: int = 10) -> 
     logger.loginfo(f"Running NOVB2TILE with {' '.join(cmd)}")
 
     # Run the command
-    result = subprocess.run(cmd)
+    result = subprocess.run(cmd,capture_output=True)
 
     # Parse the output and log messages
     parse_cli_logs(result,logger)
