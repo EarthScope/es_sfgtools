@@ -509,7 +509,7 @@ class GarposInput(BaseModel):
             f.write(obs_str)
 
     @classmethod
-    def from_datafile(cls,path:Path) -> "GarposInput":
+    def from_datafile(cls,path:Path,survey_id:str=None) -> "GarposInput":
         config = ConfigParser()
         config.read(path)
 
@@ -563,7 +563,7 @@ class GarposInput(BaseModel):
         garpos_input = cls(
             site_name=observation_section["Site_name"],
             campaign_id=observation_section["Campaign"],
-            survey_id=data_section.get("SurveyID", ""),
+            survey_id=survey_id if survey_id else "",
             site_center_llh=GPPositionLLH(
                 latitude=float(site_section["Latitude0"]),
                 longitude=float(site_section["Longitude0"]),
