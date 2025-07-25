@@ -185,6 +185,10 @@ class _BaseLogger:
             self.console_handler.setLevel(logging.INFO)
             self.logger.addHandler(self.console_handler)
 
+    def non_negotiable_console_log(self,message: str) -> str| None:
+        if not hasattr(self, "console_handler"):
+            return message
+
     def remove_console(self):
         """
         Removes the console handler from the logger.
@@ -202,9 +206,10 @@ class _BaseLogger:
         """Log an info message with stacklevel=2 (logging module goes up the stack to get the calling function)"""
         self.logger.info(message, stacklevel=2)
 
-    def logerr(self, message) -> None:
+    def logerr(self, message) -> None|str:
         """Log an error message with stacklevel=2 (logging module goes up the stack to get the calling function)"""
         self.logger.error(message, stacklevel=2)
+        return self.non_negotiable_console_log(message)
 
     def logwarn(self, message) -> None:
         """Log a warning message with stacklevel=2 (logging module goes up the stack to get the calling function)"""
