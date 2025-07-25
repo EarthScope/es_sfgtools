@@ -15,3 +15,4 @@ ADJ_LEAP = 1.0  # this is the leap second adjustment TODO Ask James why this is 
 
 STATION_OFFSETS = {"5209": 200, "5210": 320, "5211": 440, "5212": 560}
 MASTER_STATION_ID = {"0": "5209", "1": "5210", "2": "5211", "3": "5212"}
+LEAP_SECONDS = 18  # Leap seconds
