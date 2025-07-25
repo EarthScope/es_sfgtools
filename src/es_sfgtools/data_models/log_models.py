@@ -81,6 +81,43 @@ def getPingtime(dt: datetime, triggerDelay: Decimal = TRIGGER_DELAY_SV3) -> date
 #         logger.loginfo(f"Found {found_bad.shape[0]} invalid ping-reply sequences")
 #     return df[~filter_main]
 
+class GNSSData(BaseModel):
+    hae: Decimal = Field(
+        description="Height above ellipsoid in meters",
+        ge=-1000,
+        le=1000,
+    )
+    latitude: Decimal = Field(
+        description="Latitude in degrees",
+        ge=-90,
+        le=90,
+    )
+    longitude: Decimal = Field(
+        description="Longitude in degrees",
+        ge=-180,
+        le=180,
+    )
+    q: int= Field(
+        description="Quality indicator",
+        ge=0,
+        le=100,
+    )
+    sdx: Optional[Decimal] = Field(
+        description="Standard deviation in east direction in meters",
+        ge=0,
+    )
+    sdy: Optional[Decimal] = Field(
+        description="Standard deviation in north direction in meters",
+        ge=0,
+    )
+    sdz: Optional[Decimal] = Field(
+        description="Standard deviation in up direction in meters",
+        ge=0,
+    )
+    separation: Optional[Decimal] = Field(
+        description="Separation",
+        ge=0,
+    )
 
 class BestGNSSPOSDATA(BaseModel):
     # https://docs.novatel.com/OEM7/Content/SPAN_Logs/BESTGNSSPOS.htm?tocpath=Commands%20%2526%20Logs%7CLogs%7CSPAN%20Logs%7C_____1

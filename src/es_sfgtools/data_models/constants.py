@@ -1,6 +1,9 @@
 from datetime import datetime, timezone,timedelta
 import julian
+from decimal import Decimal, getcontext
 
+# Set precision for Decimal operations
+getcontext().prec = 10
 GNSS_START_TIME = datetime(1980, 1, 6, tzinfo=timezone.utc)  # GNSS start time
 GNSS_START_TIME_JULIAN = julian.to_jd(GNSS_START_TIME.replace(tzinfo=None), "mjd")
 GNSS_START_TIME_JULIAN_BOUNDS = julian.to_jd(
