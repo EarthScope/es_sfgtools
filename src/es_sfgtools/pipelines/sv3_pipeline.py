@@ -310,6 +310,7 @@ class SV3Pipeline:
                     type=AssetType.RINEX,
                     timestamp_created=datetime.datetime.now()
                 )
+                rinex_entries.append(rinex_entry)
                 if self.asset_catalog.add_entry(rinex_entry):
                     uploadCount += 1
 
