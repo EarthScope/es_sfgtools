@@ -5,7 +5,7 @@ from typing import List, Optional, Tuple, Union
 from es_sfgtools.utils.archive_pull import download_file_from_archive
 import pandas as pd
 import matplotlib.pyplot as plt
-from datetime import datetime
+from datetime import datetime,timedelta
 import numpy as np
 import json
 from matplotlib.colors import Normalize
@@ -543,8 +543,12 @@ class GarposHandler:
                 logger.loginfo(f"Shot data prepared and saved to {str(shot_data_path)}")
 
             except Exception as e:
+        
+                start_date = datetime(year=survey.start.year, month=1, day=1) + timedelta(
+                    days=start_doy - 1
+                )
                 msg = (
-                    f"Shot data for {survey.id} {survey_type} {start_doy} {end_doy} failed validation. "
+                    f"Shot data for {survey.id} {survey_type} |{start_doy} {end_doy} | {start_date} failed validation. "
                     f"Original error: {e}"
                 )
                 logger.logerr(msg)
