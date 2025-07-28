@@ -69,7 +69,7 @@ def novatelInterrogation_to_garpos_interrogation(
         east_std=novatel_interrogation.observations.GNSS.sdx,
         north_std=novatel_interrogation.observations.GNSS.sdy,
         up_std=novatel_interrogation.observations.GNSS.sdz,
-        pingTime=float(novatel_interrogation.time.common) - LEAP_SECONDS,
+        pingTime=novatel_interrogation.time.common,
     )
     return sv3Interrogation
 
@@ -108,7 +108,7 @@ def novatelReply_to_garpos_reply(
         snr=novatel_reply.range.diag.snr,
         dbv=novatel_reply.range.diag.dbv,
         xc=novatel_reply.range.diag.xc,
-        returnTime=float(novatel_reply.time.common) - LEAP_SECONDS,
+        returnTime=novatel_reply.time.common,
         tt=travelTime,
     )
     return sv3Reply
