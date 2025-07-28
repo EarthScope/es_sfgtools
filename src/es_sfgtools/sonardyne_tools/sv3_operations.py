@@ -11,32 +11,6 @@ from ..data_models.observables import ShotDataFrame
 from ..data_models.constants import LEAP_SECONDS,TRIGGER_DELAY_SV3
 from ..logging import ProcessLogger as logger
 
-def qcpin_to_shotdata(
-    source: str | Path,
-) -> DataFrame[ShotDataFrame] | None:
-
-    processed = []
-    interrogation = None
-    with open(source.local_path, "r") as f:
-        try:
-            data = json.load(f)
-        except json.decoder.JSONDecodeError as e:
-            logger.logerr(f"Error reading {source.local_path} {e}")
-            return None
-        for key, value in data.items():
-            if key == "interrogation":
-                interrogation = SV3InterrogationData.from_qcpin_line(value)
-            else:
-                if interrogation is not None:
-                    range_data = SV3ReplyData.from_qcpin_line(value)
-                    if range_data is not None:
-                        processed.append((dict(interrogation) | dict(range_data)))
-    if not processed:
-        return None
-    df = pd.DataFrame(processed)
-    df["isUpdated"] = False
-    return ShotDataFrame(df)
-
 
 def novatelInterrogation_to_garpos_interrogation(
         novatel_interrogation: NovatelInterrogationEvent
@@ -207,3 +181,4 @@ def dfop00_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
     df = pd.DataFrame(processed)
     df["isUpdated"] = False
     return ShotDataFrame(df)
+
