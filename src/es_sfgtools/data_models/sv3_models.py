@@ -103,8 +103,8 @@ class NovatelHeadingData(BaseModel):
     )
     h: Decimal = Field(
         description="GNSS Computed Heading in degrees",
-        ge=-180,
-        le=180,
+        ge=0,
+        le=360,
     )
     p: Decimal = Field(
         description="GNSS Computed Pitch in degrees",
@@ -148,8 +148,8 @@ class NovatelINSData(BaseModel):
     )
     h: Decimal = Field(
         description="SPAN INS Computed Heading in degrees",
-        ge=-180,
-        le=180,
+        ge=0,
+        le=360,
     )
     p: Decimal = Field(
         description="SPAN INS Computed Pitch in degrees",
@@ -293,9 +293,12 @@ class NovatelRangeReplyData(BaseModel):
         description="Two way travel time in seconds, including beacons turn around time",
     )
     tat: Decimal = Field(
-        description="Beacon turn around time in milli-seconds",
+        description="Beacon turn around time in seconds",
         ge=0,
     )
+    @field_validator("tat",mode="after")
+    def convert_tat(cls,value:Decimal):
+        return float(value) / 1000.0  # Convert from milliseconds to seconds
 
 class NovatelObservations(BaseModel):
     AHRS: Optional[NovatelAHRSData] = Field(
