@@ -12,11 +12,7 @@ from typing import Optional
 # Local imports
 from .constants import (
     GNSS_START_TIME,
-    GNSS_START_TIME_JULIAN,
-    GNSS_START_TIME_JULIAN_BOUNDS,
-    TRIGGER_DELAY_SV2,
-    TRIGGER_DELAY_SV3,
-    ADJ_LEAP,
+    LEAP_SECONDS,
 )
 
 
@@ -38,16 +34,16 @@ class AcousticDataFrame(pa.DataFrameModel):
     )
 
     pingTime: Series[float] = pa.Field(
-        ge=GNSS_START_TIME.timestamp(),
+        ge=GNSS_START_TIME.timestamp() - LEAP_SECONDS,
         coerce=True,
-        description="Time when ping was received in seconds of day [seconds]",
+        description="Time when ping was sent in GPS time [seconds]",
     )
 
     returnTime: Series[float] = pa.Field(
-        ge=GNSS_START_TIME.timestamp(),
+        ge=GNSS_START_TIME.timestamp() - LEAP_SECONDS,
  
         coerce=True,
-        description="Return time in seconds since the start of day (modified Julian day) [days]",
+        description="Return time in GPS time [seconds]",
     )
 
     tt: Series[float] = pa.Field(
