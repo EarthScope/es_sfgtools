@@ -584,27 +584,23 @@ def get_gnss_products(
     source: Literal["all", "wuhan", "cligs"] = "all",
     date: Optional[datetime.date | datetime.datetime] = None,
     override_config: bool = True,
-) -> dict:
-    """
-    Retrieves GNSS products associated with the given RINEX file.
-
-    ### The following GNSS products are retrieved:
-    #### SP3 - Satellite Position
-    #### CLK - Satellite Clock
-    #### BIAS - Phase Bias
-    #### SUM - Satellite Summary
-    #### OBX - Quaternions
-    #### ERP - Earth Rotation
+) -> Path | None:
+ 
+    """ Generates or retrieves GNSS products for a given RINEX file or date and returns a pride config file path that
+    catalogs the products.
 
     Args:
         rinex_path (Path): The path to the RINEX file.
-        pride_dir (Path): The directory where the GNSS products will be stored.
-        override (bool): If True, the function will attempt to download the GNSS products even if they already exist.
-        source (Literal['all','wuhan', 'cligs']): The source of the GNSS products to download. (default: "all")
+        pride_dir (Path): The directory where the PRIDE products are stored.
+        override (bool): If True, the function will attempt to download the products even if they already exist.
+        source (Literal["all", "wuhan", "cligs"]): The source from which to download the products. Defaults to "all".
+        date (Optional[datetime.date | datetime.datetime]): The date for which to retrieve the products. If provided, it will be used
+            to determine the year and day of year (DOY) for the products. If rinex_path is provided, this will be ignored.
+        override_config (bool): If True, the function will attempt to re-download the products even if a config file already exists.
+
     Returns:
-        product_status (dict): A dictionary containing the status of the GNSS products downloaded.
-    Raises:
-        Exception: If there is an error while downloading the GNSS products.
+        Path | None: The path to the config file that catalogs the products, or None if the products could not be retrieved or generated.
+
 
     """
     assert source in ["all", "wuhan", "cligs"], f"Invalid source {source}"

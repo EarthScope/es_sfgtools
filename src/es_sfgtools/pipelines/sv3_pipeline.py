@@ -8,6 +8,7 @@ from typing import List, Optional
 from pathlib import Path
 import concurrent.futures
 from sfg_metadata.metadata.src.catalogs import Catalog
+import sys 
 
 # Local imports
 from ..data_mgmt.catalog import PreProcessCatalog
@@ -149,6 +150,9 @@ class SV3Pipeline:
         self.shot_data_pre = TDBShotDataArray(
             self.data_catalog.catalog.networks[network].stations[station].shotdata_pre
         )
+        self.position_data_dest = TDBGNSSArray(
+            self.data_catalog.catalog.networks[network].stations[station].positiondata
+        )
 
     def pre_process_novatel(self) -> None:
         """
@@ -184,18 +188,22 @@ class SV3Pipeline:
             if (
                 self.config.novatel_config.override
                 or not self.asset_catalog.is_merge_complete(**merge_signature)
-            ):
-                novb_ops.novatel_770_2tile(
-                    files=[x.local_path for x in novatel_770_entries],
-                    rangea_tdb=self.rangea_data_dest.uri,
-                    n_procs=self.config.novatel_config.n_processes,
-                )
+            ):  
+                try:
+                    novb_ops.novatel_770_2tile(
+                        files=[x.local_path for x in novatel_770_entries],
+                        rangea_tdb=self.rangea_data_dest.uri,
+                        n_procs=self.config.novatel_config.n_processes,
+                    )
 
-                self.asset_catalog.add_merge_job(**merge_signature)
-                response = f"Added merge job for {len(novatel_770_entries)} Novatel 770 Entries to the catalog"
-                logger.loginfo(response)
-                # if self.config.novatel_config.show_details:
-                #     print(response)
+
+                    self.asset_catalog.add_merge_job(**merge_signature)
+                    response = f"Added merge job for {len(novatel_770_entries)} Novatel 770 Entries to the catalog"
+                    logger.loginfo(response)
+                except Exception as e:
+                    if (message := logger.logerr(f"Error processing Novatel 770 files: {e}")) is not None:
+                        print(message)
+                    sys.exit(1)
             else:
                 response = f"Novatel 770 Data Already Processed for {self.network} {self.station} {self.campaign}"
                 logger.loginfo(response)
@@ -224,18 +232,23 @@ class SV3Pipeline:
                 self.config.novatel_config.override
                 or not self.asset_catalog.is_merge_complete(**merge_signature)
             ):
-                novb_ops.novatel_000_2tile(
-                    files=[x.local_path for x in novatel_000_entries],
-                    rangea_tdb=self.rangea_data_dest.uri,
-                    n_procs=self.config.novatel_config.n_processes,
-                )
+                try:
+                    novb_ops.novatel_000_2tile(
+                        files=[x.local_path for x in novatel_000_entries],
+                        rangea_tdb=self.rangea_data_dest.uri,
+                        position_tdb=self.position_data_dest.uri,
+                        n_procs=self.config.novatel_config.n_processes,
+                    )
 
-                self.asset_catalog.add_merge_job(**merge_signature)
-                logger.loginfo(
-                    f"Added merge job for {len(novatel_000_entries)} Novatel 000 Entries to the catalog"
-                )
-                # if self.config.novatel_config.show_details:
-                #     print(response) # TODO: should the logger handle this?
+                    self.asset_catalog.add_merge_job(**merge_signature)
+                    logger.loginfo(
+                        f"Added merge job for {len(novatel_000_entries)} Novatel 000 Entries to the catalog"
+                    )
+                except Exception as e:
+                    if (message := logger.logerr(f"Error processing Novatel 000 files: {e}")) is not None:
+                        print(message)
+                    sys.exit(1)
+
         else:
             logger.loginfo(
                 f"No Novatel 000 Files Found to Process for {self.network} {self.station} {self.campaign}"
@@ -280,49 +293,55 @@ class SV3Pipeline:
             self.config.rinex_config.override
             or not self.asset_catalog.is_merge_complete(**merge_signature)
         ):
-            rinex_paths: List[Path] = tile2rinex(
-                rangea_tdb=self.rangea_data_dest.uri,
-                settings=self.config.rinex_config.settings_path,
-                writedir=self.inter_dir,
-                time_interval=self.config.rinex_config.time_interval,
+            try:
+                rinex_paths: List[Path] = tile2rinex(
+                    rangea_tdb=self.rangea_data_dest.uri,
+                    settings=self.config.rinex_config.settings_path,
+                    writedir=self.inter_dir,
+                    time_interval=self.config.rinex_config.time_interval,
                 processing_year=year,  # TODO pass down
-            )
-            if len(rinex_paths) == 0:
+                )
+                if len(rinex_paths) == 0:
+                    logger.logwarn(
+                        f"No Rinex Files generated for {self.network} {self.station} {self.campaign} {year}."
+                    )
+                    return
+                rinex_entries: List[AssetEntry] = []
+                uploadCount = 0
+                for rinex_path in rinex_paths:
+                    rinex_time_start, rinex_time_end = rinex_utils.rinex_get_time_range(rinex_path)
+                    rinex_entry = AssetEntry(
+                        local_path=rinex_path,
+                        network=self.network,
+                        station=self.station,
+                        campaign=self.campaign,
+                        timestamp_data_start=rinex_time_start,
+                        timestamp_data_end=rinex_time_end,
+                        type=AssetType.RINEX,
+                        timestamp_created=datetime.datetime.now()
+                    )
+                    rinex_entries.append(rinex_entry)
+                    if self.asset_catalog.add_entry(rinex_entry):
+                        uploadCount += 1
+
+                self.asset_catalog.add_merge_job(**merge_signature)
+
                 logger.loginfo(
-                    f"No Rinex Files generated for {self.network} {self.station} {self.campaign} {year}."
+                    f"Generated {len(rinex_entries)} Rinex files spanning {rinex_entries[0].timestamp_data_start} to {rinex_entries[-1].timestamp_data_end}"
                 )
-                return
-            rinex_entries: List[AssetEntry] = []
-            uploadCount = 0
-            for rinex_path in rinex_paths:
-                rinex_time_start, rinex_time_end = rinex_utils.rinex_get_time_range(rinex_path)
-                rinex_entry = AssetEntry(
-                    local_path=rinex_path,
-                    network=self.network,
-                    station=self.station,
-                    campaign=self.campaign,
-                    timestamp_data_start=rinex_time_start,
-                    timestamp_data_end=rinex_time_end,
-                    type=AssetType.RINEX,
-                    timestamp_created=datetime.datetime.now()
+                logger.logdebug(
+                    f"Added {uploadCount} out of {len(rinex_entries)} Rinex files to the catalog"
                 )
-                if self.asset_catalog.add_entry(rinex_entry):
-                    uploadCount += 1
-
-            self.asset_catalog.add_merge_job(**merge_signature)
-
-            logger.loginfo(
-                f"Generated {len(rinex_entries)} Rinex files spanning {rinex_entries[0].timestamp_data_start} to {rinex_entries[-1].timestamp_data_end}"
-            )
-            logger.loginfo(
-                f"Added {uploadCount} out of {len(rinex_entries)} Rinex files to the catalog"
-            )
+            except Exception as e:
+                if (message := logger.logerr(f"Error generating RINEX files: {e}")) is not None:
+                    print(message)
+                sys.exit(1)
         else:
             rinex_entries = self.asset_catalog.get_local_assets(
                 self.network, self.station, self.campaign, AssetType.RINEX
             )
             num_rinex_entries = len(rinex_entries)
-            logger.loginfo(
+            logger.logdebug(
                 f"RINEX files have already been generated for {self.network}, {self.station}, and {year} Found {num_rinex_entries} entries."
             )
 

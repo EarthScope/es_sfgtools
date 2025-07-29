@@ -1,1 +1,1 @@
-from .loggers import PRIDELogger,ProcessLogger,GarposLogger,PRIDELogger, remove_all_loggers_from_console,route_all_loggers_to_console,set_all_logger_levels,change_all_logger_dirs
+from .loggers import PRIDELogger,ProcessLogger,GarposLogger,PRIDELogger, BaseLogger,remove_all_loggers_from_console,route_all_loggers_to_console,set_all_logger_levels,change_all_logger_dirs

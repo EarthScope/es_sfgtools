@@ -4,11 +4,8 @@ package main
 import (
 	"bufio"
 	"flag"
-	"fmt"
 	"io"
 	"os"
-	"strconv"
-	"strings"
 	"sync"
 
 	sfg_utils "github.com/EarthScope/es_sfgtools/src/golangtools/pkg/sfg_utils"
@@ -18,157 +15,7 @@ import (
 	"gitlab.com/earthscope/gnsstools/pkg/encoding/tiledbgnss"
 )
 
-func removeBeforeASCIISyncChar(s string) (string, error) {
-	longMessageIndex := strings.Index(s, "#")
-	shortMessageIndex := strings.Index(s, "%")
-	switch {
-	case longMessageIndex != -1:
-		return s[longMessageIndex:], nil
-	case shortMessageIndex != -1:
-		return s[shortMessageIndex:], nil
-	default:
-		return "", fmt.Errorf("novatel ASCII sync char not found")
-	}
-}
 
-
-func processBuffer(buffer []byte) (message novatelascii.Message, err error) {
-	stringArray := string(buffer)
-	trimmedLine,err := removeBeforeASCIISyncChar(stringArray)
-	if err != nil {
-		return message, err
-	}
-	//fmt.Print("\n Trimmed Line: ", trimmedLine)
-	endOfHeaderIndex := strings.Index(trimmedLine, ";")
-	endOfDataIndex := strings.Index(trimmedLine, "*")
-
-	if endOfDataIndex <= endOfHeaderIndex {
-		return message, fmt.Errorf("message is missing checksum")
-		// endOfDataIndex = len(trimmedLine) - 1
-	}
-	if endOfDataIndex == -1 {
-		return message, fmt.Errorf("message is missing checksum")
-		// endOfDataIndex = len(trimmedLine) - 1
-	}
-	if endOfHeaderIndex< 2 {
-		return message, fmt.Errorf("message is too short")
-	}
-	splitHeaderText := strings.Split(trimmedLine[1:endOfHeaderIndex], ",")
-	if len(splitHeaderText) < 10 {
-		return message, fmt.Errorf("message header is too short")
-	}
-	switch trimmedLine[0] {
-		case '#': // long
-			sequence, err := strconv.Atoi(splitHeaderText[2])
-			if err != nil {
-				return message, err
-			}
-			idleTime, err := strconv.ParseFloat(splitHeaderText[3], 64)
-			if err != nil {
-				return message, err
-			}
-			week, err := strconv.ParseFloat(splitHeaderText[5], 64)
-			if err != nil {
-				return message, err
-			}
-			seconds, err := strconv.ParseFloat(splitHeaderText[6], 64)
-			if err != nil {
-				return message, err
-			}
-			recStatus, err := strconv.ParseFloat(splitHeaderText[7], 64)
-			if err != nil {
-				return message, err
-			}
-			recSWVersion, err := strconv.ParseFloat(splitHeaderText[9], 64)
-			if err != nil {
-				return message, err
-			}
-			longMessage := novatelascii.LongMessage{
-				Sync:         string(trimmedLine[0]),
-				Msg:          splitHeaderText[0],
-				Port:         splitHeaderText[1],
-				Sequence:     sequence,
-				IdleTime:     idleTime,
-				TimeStatus:   splitHeaderText[4],
-				Week:         week,
-				Seconds:      seconds,
-				RecStatus:    recStatus,
-				Reserved:     splitHeaderText[8],
-				RecSWVersion: recSWVersion,
-				Data:         trimmedLine[endOfHeaderIndex+1 : endOfDataIndex],
-				Checksum:     trimmedLine[endOfDataIndex:],
-			}
-			return longMessage, nil
-	default:
-		return novatelascii.LongMessage{}, fmt.Errorf("unknown error")
-	}
-
-}
-
-	
-func DeserializeNOV00bin(r *bufio.Reader) (message novatelascii.Message, err error) {
-	var stx byte = 0x2 // start of text, 2 in decimal
-	var etx byte = 0x3 // end of text, 3 in decimal
-	var log_start byte = 0x23 // log start, 35 in decimal ASCII #
-	var log_done byte = 0x2A// log done, 2 in decimal, * in Ascii
-	var got_start_of_text bool = false
-	var got_end_of_text bool = false
-	var got_start_of_log bool = false
-	var got_end_of_log bool = false
-	var buffer []byte
-
-	for {
-		peekByte, err := r.Peek(1)
-		if err != nil {
-			switch {
-			case err == io.EOF || err == bufio.ErrBufferFull:
-				// do not advance the reader
-				return message, err
-			default:
-				// advance the reader
-				_, err := r.Discard(1)
-				if err != nil {
-					log.Warnf("error discarding byte (%s)", err)
-				}
-				return message, fmt.Errorf("error peeking byte (%s)", err)
-			}
-		}
-		if peekByte[0] == stx {
-			got_start_of_text = true
-		} else if peekByte[0] == log_start {
-			got_start_of_log = true
-			buffer = []byte{}
-		} else if peekByte[0] == etx{
-			got_end_of_text = true
-		} else if peekByte[0] == log_done {
-			got_end_of_log = true
-			got_end_of_text = false
-		}
-		if got_end_of_text && got_end_of_log {
-			buffer = append(buffer, peekByte[0])
-			_, err := r.Discard(1)
-			if err != nil {
-				log.Warnf("error discarding byte (%s)", err)
-			}
-			message, err := processBuffer(buffer)
-			if err != nil {
-				break
-			}
-			return message, err
-		} else if got_start_of_text && got_start_of_log{
-			buffer = append(buffer, peekByte[0])
-		}
-		_, err = r.Discard(1)
-		if err != nil {
-			log.Warnf("error discarding byte (%s)", err)
-		}
-	}
-	
-
-	return novatelascii.LongMessage{}, fmt.Errorf("unknown error")
-
-}
-	
 type Reader struct {
 	Reader *bufio.Reader
 }
@@ -178,7 +25,7 @@ func NewReader(r io.Reader) Reader {
 }
 
 func (reader Reader) NextMessage() (message novatelascii.Message, err error) {
-	message,err = DeserializeNOV00bin(reader.Reader)
+	message,err = sfg_utils.DeserializeNOV00bin(reader.Reader)
 	if err != nil {
 		if err == io.EOF {
 			return message, err
@@ -187,23 +34,23 @@ func (reader Reader) NextMessage() (message novatelascii.Message, err error) {
 	return message, nil
 }
 
-// processFileNOV000 reads a file containing GNSS data, processes it, and returns a slice of observation.Epoch.
-// It opens the specified file, reads messages using a custom reader, and processes "RANGEA" messages
-// to extract GNSS epoch data. The function handles errors appropriately and ensures the file is closed
-// after processing.
+
+// processFileNOV000 processes a NOV000 file containing GNSS and INS messages.
+// It reads the file, parses messages such as RANGEA, INSPVAA, and INSSTDEVA,
+// and deserializes them into corresponding records. The function merges INSPVAA
+// and INSSTDEVA records into complete INS records, computes time differences for
+// GNSS and INS epochs, and returns slices of GNSS epochs and merged INS records.
 //
 // Parameters:
-//   - file: The path to the file to be processed.
+//   - file: The path to the NOV000.bin file to be processed.
 //
 // Returns:
-//   - A slice of observation.Epoch containing the processed GNSS epoch data.
-func processFileNOV000(file string) []observation.Epoch{
-    // defer func() {
-    //     if r := recover(); r != nil {
-    //         log.Printf("Recovered from panic: %v", r)
-    //     }
-    // }()
-
+//   - []observation.Epoch: A slice of GNSS epoch records parsed from the file.
+//   - []sfg_utils.INSCompleteRecord: A slice of merged INS complete records.
+//
+// The function logs errors encountered during file reading and message deserialization,
+// and logs the number of INSPVAA and INSSTDEVA records found.
+func processFileNOV000(file string) ([]observation.Epoch, []sfg_utils.INSCompleteRecord) {
 	f,err := os.Open(file)
 	if err != nil {
 		log.Fatalf("failed opening file %s, %s ",file, err)
@@ -211,6 +58,8 @@ func processFileNOV000(file string) []observation.Epoch{
 	defer f.Close()
 	reader := NewReader(bufio.NewReader(f))
 	epochs := []observation.Epoch{}
+	insEpochs := []sfg_utils.InspvaaRecord{}
+	insStdDevEpochs := []sfg_utils.INSSTDEVARecord{}
 
 	epochLoop:
 		for {
@@ -225,33 +74,56 @@ func processFileNOV000(file string) []observation.Epoch{
 				}
 				log.Println(err)
 			}
+			
 			switch m:=message.(type) {
 				case novatelascii.LongMessage:
-				
-					if m.Msg == "RANGEA" {
+					
+					// Deserialize the message based on its type
 
+					// Check if the message is a GNSS RANGEA message
+					if m.Msg == "RANGEA" {
 						rangea, err := novatelascii.DeserializeRANGEA(m.Data)
 						if err != nil {
-							
 							continue epochLoop
-
 						}
 						epoch, err := rangea.SerializeGNSSEpoch(m.Time())
 						if err != nil {
-						
 							continue epochLoop
 						}
 						epochs = append(epochs, epoch)
+					// Check if the message is an INSPVAA message
+					} else if m.Msg == "INSPVAA" {
+						record, err := sfg_utils.DeserializeINSPVAARecord(m.Data, m.Time())
+						if err != nil {
+							log.Errorf("error deserializing INSPVAA record: %s", err)
+							continue epochLoop
+						}
+						insEpochs = append(insEpochs, record)
+				
+					// Check if the message is an INSSTDEVA message
+					} else if m.Msg == "INSSTDEVA" {
+						record, err := sfg_utils.DeserializeINSSTDEVARecord(m.Data, m.Time())
+						if err != nil {
+							log.Errorf("error deserializing INSSTDEVA record: %s", err)
+							continue epochLoop
+						}
+						insStdDevEpochs = append(insStdDevEpochs, record)
 					}
 				}
 		}
-	return epochs
+	log.Infof("Found %d INSPVAA records, %d INSSTDEVA records", len(insEpochs), len(insStdDevEpochs))
+	// Merge INSPVAA and INSSTDEVA records
+	insCompleteRecords := sfg_utils.MergeINSPVAAAndINSSTDEVA(insEpochs, insStdDevEpochs)
+	sfg_utils.GetTimeDiffGNSS(epochs)
+	sfg_utils.GetTimeDiffsINSPVA(insCompleteRecords)
+	return epochs, insCompleteRecords
 }	
 
 func main() {
 	sfg_utils.LoadEnv()
-	tdbPathPtr := flag.String("tdb", "", "Path to the TileDB array")
+	tdbPathPtr := flag.String("tdb", "", "Path to the TileDB GNSS array")
 	numProcsPtr := flag.Int("procs", 10, "Number of concurrent processes")
+	tdbPositionPtr := flag.String("tdbpos", "", "Path to the TileDB position array")
 	flag.Parse()
 	filenames := flag.Args()
 	if len(filenames) == 0 {
@@ -274,15 +146,26 @@ func main() {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			epochs := processFileNOV000(filename)
+			epochs,insCompleteRecords := processFileNOV000(filename)
 			if len(epochs) == 0 {
-				log.Warnf("no epochs found in file %s", filename)
+				log.Warnf("no GNSS epochs found in file %s", filename)
 				return
 			}
-			log.Infof("processed %d epochs from file %s", len(epochs), filename)
-			err := tiledbgnss.WriteObsV3Array( *tdbPathPtr,"us-east-2",epochs)
+			if len(insCompleteRecords) == 0 {
+				log.Warnf("no INS records found in file %s", filename)
+				return
+			}
+			log.Infof("Writing %d GNS epochs from file %s to TileDB array %s", len(epochs), filename, *tdbPathPtr)
+			err := tiledbgnss.WriteObsV3Array(*tdbPathPtr, "us-east-2", epochs)
 			if err != nil {
 				log.Errorf("error writing epochs to array: %v",err)
+			}
+			if *tdbPositionPtr != "" {
+				log.Infof("writing %d INS position records from file %s to TileDB array %s", len(insCompleteRecords), filename, *tdbPositionPtr)
+				err := sfg_utils.WriteINSPOSRecordToTileDB(*tdbPositionPtr, "us-east-2", insCompleteRecords)
+				if err != nil {
+					log.Errorf("error writing INS position records to array: %v", err)
+				}
 			}
 		}(filename)
 	
