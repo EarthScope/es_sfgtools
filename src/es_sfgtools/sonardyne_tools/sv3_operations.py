@@ -165,8 +165,8 @@ def dfop00_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
                 reply_data_parsed = novatelReply_to_garpos_reply(reply_data)
 
             except Exception as e:
-                reply_data = None
-            if reply_data is not None:
+                reply_data_parsed = None
+            if reply_data_parsed is not None:
                 try:
                     merged_data = merge_interrogation_reply(interrogation_parsed, reply_data_parsed)
                 except AssertionError as e:
