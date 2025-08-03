@@ -1,45 +1,8 @@
 import pandas as pd
 import numpy as np
 import pymap3d as pm
-import os
-import re
 
-from es_sfgtools.utils.loggers import GarposLogger as logger
-
-def load_all_campaign_shot_data(garpos_dir: str, campaign_name: str) -> dict[str, pd.DataFrame]:
-    """
-    Load all survey shot data from a directory of CSV files into a list of DataFrames.
-    
-    Parameters:
-    - file_path: Path to the GARPOS directory containing CSV files with shot data.
-
-    Returns:
-    - dict[str, pd.DataFrame]: Dictionary mapping survey names to DataFrames containing the shot data.
-    """
-
-    shot_data_dict = {}
-    try:
-        # Walk through all subdirectories to find CSV files
-        for root, dirs, files in os.walk(garpos_dir):
-            for file in files:
-                if file.endswith('.csv'):
-                    # If campaign_name is provided, check if file matches the pattern
-                    if campaign_name:
-                        # Create regex pattern: campaign_name + _number + _anything + .csv
-                        pattern = rf"^{re.escape(campaign_name)}_\d+_.*\.csv$"
-                        if not re.match(pattern, file):
-                            continue  # Skip files that don't match the campaign pattern
-                    
-                    survey_name = file.replace('.csv', '')
-                    full_file_path = os.path.join(root, file)
-                    df = pd.read_csv(full_file_path)
-                    shot_data_dict[survey_name] = df
-                    logger.loginfo(f"Loaded {survey_name} shot data with {len(df)} records from {full_file_path}")
-    except Exception as e:
-        logger.logerr(f"Error loading shot data from {garpos_dir}: {e}")
-    
-    return shot_data_dict
-
+from es_sfgtools.logging.loggers import GarposLogger as logger
 
 def load_shot_data(file_path: str) -> pd.DataFrame:
     """
