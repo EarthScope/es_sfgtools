@@ -4,6 +4,25 @@ import pymap3d as pm
 
 from es_sfgtools.logging.loggers import GarposLogger as logger
 
+DEFAULT_FILTER_CONFIG = {
+    "acoustic_filters": {
+        "enabled": True, 
+        "level": "OK"  # Options: "GOOD", "OK", "DIFFICULT"
+        },
+    "min_ping_replies": {
+        "enabled": True, 
+        "min_replies": 3
+        },
+    "max_distance_from_center": {
+        "enabled": False, 
+        "max_distance_m": 150  # in meters, applied to center surveys only
+    },
+    "pride_residuals": {
+        "enabled": False, 
+        "max_residual": 5  
+    }
+}
+
 def load_shot_data(file_path: str) -> pd.DataFrame:
     """
     Load shot data from a CSV file into a pandas DataFrame.
@@ -23,9 +42,9 @@ def load_shot_data(file_path: str) -> pd.DataFrame:
         return pd.DataFrame()
     
 
-def write_shot_data(df: pd.DataFrame, file_path: str) -> None:
+def write_filtered_shot_data(df: pd.DataFrame, file_path: str) -> None:
     """
-    Write shot data to a CSV file.
+    Write filtered shot data to a CSV file.
     
     Parameters:
     - df: DataFrame containing the shot data.
@@ -34,11 +53,13 @@ def write_shot_data(df: pd.DataFrame, file_path: str) -> None:
     Returns:
     - None
     """
+    # Add "filtered" to the file name to indicate it's filtered data
+    new_file_path = file_path.replace('.csv', '_filtered.csv')
     try:
-        df.to_csv(file_path, index=False)
-        logger.loginfo(f"Shot data written to {file_path} with {len(df)} records")
+        df.to_csv(new_file_path, index=False)
+        logger.loginfo(f"Shot data written to {new_file_path} with {len(df)} records")
     except Exception as e:
-        logger.logerr(f"Error writing shot data to {file_path}: {e}")
+        logger.logerr(f"Error writing shot data to {new_file_path}: {e}")
 
 def filter_wg_distance_from_center(df: pd.DataFrame, array_center_lat: float, array_center_lon: float, max_distance_m: float = 150) -> pd.DataFrame:
     """
