@@ -26,6 +26,11 @@ class RinexConfig(BaseModel):
     processing_year: Optional[int] = Field(
         default=-1, description="Processing year to query tiledb", le=2100
     )
+    use_secondary: bool = Field(
+        False,
+        title="Use Secondary GNSS observation Data",
+        description="If True, uses the secondary GNSS observation data for processing.",
+    )
 
     class Config:
         arbitrary_types_allowed = True
@@ -87,15 +92,15 @@ class PrepSiteData(BaseModel):
     campaign: str = Field(..., title="Campaign Name")
     inter_dir: Path = Field(..., title="Intermediate Directory")
     pride_dir: Path = Field(..., title="Pride Directory")
-    rangea_data_dest: str | Path = Field(..., title="GNSS Data Destination")
-    gnss_data_dest: str | Path = Field(..., title="GNSS Data Destination")
+    gnss_obs_data_dest: str | Path = Field(..., title="GNSS Obs Data Destination")
+    kin_position_data_dest: str | Path = Field(..., title="Kin Position Data Destination")
     shot_data_dest: str | Path = Field(..., title="Shot Data Destination")
 
     class Config:
         arbitrary_types_allowed = True
 
     @field_serializer(
-        "inter_dir", "rangea_data_dest", "gnss_data_dest", "shot_data_dest", "pride_dir"
+        "inter_dir", "gnss_obs_data_dest", "kin_position_data_dest", "shot_data_dest", "pride_dir"
     )
     def _s_path(self, v):
         if isinstance(v, Path):

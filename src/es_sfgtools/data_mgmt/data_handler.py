@@ -23,7 +23,7 @@ from sfg_metadata.metadata.src.catalogs import Catalog, NetworkData, StationData
 from es_sfgtools.utils.archive_pull import download_file_from_archive, list_campaign_files, list_campaign_files_by_type
 from es_sfgtools.logging import ProcessLogger as logger, change_all_logger_dirs
 from es_sfgtools.data_mgmt.file_schemas import AssetEntry, AssetType
-from es_sfgtools.tiledb_tools.tiledb_schemas import TDBAcousticArray,TDBGNSSArray,TDBPositionArray,TDBShotDataArray,TDBGNSSObsArray
+from es_sfgtools.tiledb_tools.tiledb_schemas import TDBAcousticArray,TDBKinPositionArray,TDBIMUPositionArray,TDBShotDataArray,TDBGNSSObsArray
 from es_sfgtools.data_mgmt.catalog import PreProcessCatalog
 from es_sfgtools.pipelines.sv3_pipeline import SV3Pipeline, SV3PipelineConfig
 from es_sfgtools.novatel_tools.utils import get_metadata,get_metadatav2
@@ -237,7 +237,7 @@ class DataHandler:
         """
         Build the TileDB arrays for the current station. TileDB directory is /network/station/TileDB.
         """
-        logger.loginfo(f"Building TileDB arrays for {self.station}")
+        logger.loginfo(f"Creating TileDB arrays for {self.station}")
 
         try:
             station_data = self.data_catalog.catalog.networks[self.network].stations[
@@ -249,42 +249,56 @@ class DataHandler:
         acoustic_tdb_uri = (
             station_data.acousticdata
             if station_data.acousticdata is not None
-            else self.tileb_dir / "acoustic_db.tdb"
+            else self.tileb_dir / "acoustic.tdb"
         )
         self.acoustic_tdb = TDBAcousticArray(acoustic_tdb_uri)
-        gnss_tdb_uri = (
-            station_data.gnssdata
-            if station_data.gnssdata is not None
-            else self.tileb_dir / "gnss_db.tdb"
+        kin_position_tdb_uri = (
+            station_data.kinpositiondata
+            if station_data.kinpositiondata is not None
+            else self.tileb_dir / "kin_position.tdb"
         )
-        self.gnss_tdb = TDBGNSSArray(gnss_tdb_uri)
-        position_tdb_uri = (
-            station_data.positiondata
-            if station_data.positiondata is not None
-            else self.tileb_dir / "position_db.tdb"
+        self.kin_position_tdb = TDBKinPositionArray(kin_position_tdb_uri)
+        imu_position_tdb_uri = (
+            station_data.imupositiondata
+            if station_data.imupositiondata is not None
+            else self.tileb_dir / "imu_position.tdb"
         )
-        self.position_tdb = TDBPositionArray(position_tdb_uri)
+        self.imu_position_tdb = TDBIMUPositionArray(imu_position_tdb_uri)
         shotdata_tdb_uri = (
             station_data.shotdata
             if station_data.shotdata is not None
-            else self.tileb_dir / "shotdata_db.tdb"
+            else self.tileb_dir / "shotdata.tdb"
         )
         self.shotdata_tdb = TDBShotDataArray(shotdata_tdb_uri)
-        # Use a pre-array for dfoprocessing, self.shotdata_tdb is where we store the updated version
+        # Use a pre-array for dfo processing, self.shotdata_tdb is where we store the updated version
         shotdata_tdb_uri_pre = (
             station_data.shotdata_pre
             if station_data.shotdata_pre is not None
-            else self.tileb_dir / "shotdata_db_pre.tdb"
+            else self.tileb_dir / "shotdata_pre.tdb"
         )
         self.shotdata_tdb_pre = TDBShotDataArray(shotdata_tdb_uri_pre)
-        rangea_tdb_uri = (
+        
+        #this is the primary GNSS observables (10hz NOV770 collected on USB3 for SV3, 5hz bcnovatel for SV2)
+        gnss_obs_tdb_uri = (
             station_data.gnssobsdata
             if station_data.gnssobsdata is not None
-            else self.tileb_dir / "rangea_db.tdb"
+            else self.tileb_dir / "gnss_obs.tdb"
         )
-        self.rangea_tdb = TDBGNSSObsArray(
-            rangea_tdb_uri
+        self.gnss_obs_tdb = TDBGNSSObsArray(
+            gnss_obs_tdb_uri
         )  # golang binaries will be used to interact with this array
+        
+        # this is the secondary GNSS observables (5hz NOV000 collected on USB2 for SV3)
+        # can choose to use this instead of the primary GNSS observables if desired
+        gnss_obs_secondary_tdb_uri = (
+            station_data.gnssobsdata_secondary
+            if station_data.gnssobsdata_secondary is not None
+            else self.tileb_dir / "gnss_obs_secondary.tdb"
+        )
+        self.gnss_obs_secondary_tdb = TDBGNSSObsArray(
+            gnss_obs_secondary_tdb_uri
+        )
+        
 
         self.data_catalog.add_station(
             network_name=self.network,
@@ -292,18 +306,21 @@ class DataHandler:
             station_data=StationData(
                 name=self.station,
                 shotdata=str(shotdata_tdb_uri),
-                gnssdata=str(gnss_tdb_uri),
-                gnssobsdata=str(rangea_tdb_uri),
-                positiondata=str(position_tdb_uri),
+                kinpositiondata=str(kin_position_tdb_uri),
+                gnssobsdata=str(gnss_obs_tdb_uri),
+                gnssobsdata_secondary=str(gnss_obs_secondary_tdb_uri),
+                imupositiondata=str(imu_position_tdb_uri),
                 acousticdata=str(acoustic_tdb_uri),
                 shotdata_pre=str(self.shotdata_tdb_pre.uri),
             ),
         )
+        logger.loginfo(f"Consolidating existing TileDB arrays for {self.station}")
         self.acoustic_tdb.consolidate()
-        self.gnss_tdb.consolidate()
-        self.position_tdb.consolidate()
+        self.kin_position_tdb.consolidate()
+        self.imu_position_tdb.consolidate()
         self.shotdata_tdb.consolidate()
-        self.rangea_tdb.consolidate()
+        self.gnss_obs_tdb.consolidate()
+        self.gnss_obs_secondary_tdb.consolidate()
 
     @check_network_station_campaign
     def _build_rinex_meta(self) -> None:
@@ -747,17 +764,17 @@ class DataHandler:
     @check_network_station_campaign
     def view_data(self):
         shotdata_dates = self.shotdata_tdb.get_unique_dates().tolist()
-        gnss_dates = self.gnss_tdb.get_unique_dates().tolist()
-        date_set = shotdata_dates + gnss_dates
+        kin_position_dates = self.kin_position_tdb.get_unique_dates().tolist()
+        date_set = shotdata_dates + kin_position_dates
         date_set = sorted(list(set(date_set)))
 
         date_tick_map = {date: i for i, date in enumerate(date_set)}
         fig, ax = plt.subplots()
-        # plot the gnss dates with red vertical line
-        gnss_x = [date_tick_map[date] for date in gnss_dates]
-        gnss_y = [1 for _ in gnss_dates]
+        # plot the kin_position dates with red vertical line
+        kin_position_x = [date_tick_map[date] for date in kin_position_dates]
+        kin_position_y = [1 for _ in kin_position_dates]
 
-        ax.scatter(x=gnss_x, y=gnss_y, c="r", marker="o", label="Pride GNSS Positions")
+        ax.scatter(x=kin_position_x, y=kin_position_y, c="r", marker="o", label="Pride GNSS Positions")
         # plot the shotdata dates with blue vertical line
         shotdata_x = [date_tick_map[date] for date in shotdata_dates]
         shotdata_y = [2 for _ in shotdata_dates]
@@ -778,7 +795,7 @@ class DataHandler:
         Creates and returns an SV3Pipeline object along with its configuration.
         This method initializes an SV3PipelineConfig object using the instance
         attributes such as network, station, campaign, writedir, pride_dir,
-        shot_data_dest, gnss_data_dest, and catalog_path. It then creates an
+        shot_data_dest, kin_position_data_dest, and catalog_path. It then creates an
         SV3Pipeline object using the catalog and the created configuration.
         Returns:
             Tuple[SV3Pipeline, SV3PipelineConfig]: A tuple containing the

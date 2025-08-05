@@ -19,19 +19,19 @@ from ..tiledb_tools.tiledb_operations import tile2rinex
 from ..pride_tools import (
     PrideCLIConfig,
     rinex_to_kin,
-    kin_to_gnssdf,
+    kin_to_kin_position_df,
     get_nav_file,
     get_gnss_products,
     rinex_utils
 )
 from ..tiledb_tools.tiledb_schemas import (
-    TDBGNSSArray,
+    TDBKinPositionArray,
     TDBShotDataArray,
     TDBGNSSObsArray,
 )
 from ..data_mgmt.utils import (
     get_merge_signature_shotdata,
-    merge_shotdata_gnss,
+    merge_shotdata_kinposition,
 )
 from ..logging import ProcessLogger as logger
 
@@ -138,11 +138,14 @@ class SV3Pipeline:
         self.campaign = campaign
         self.inter_dir = inter_dir
         self.pride_dir = pride_dir
-        self.rangea_data_dest = TDBGNSSObsArray(
+        self.gnss_obs_data_dest = TDBGNSSObsArray(
             self.data_catalog.catalog.networks[network].stations[station].gnssobsdata
         )
-        self.gnss_data_dest = TDBGNSSArray(
-            self.data_catalog.catalog.networks[network].stations[station].gnssdata
+        self.gnss_obs_data_dest_secondary = TDBGNSSObsArray(
+            self.data_catalog.catalog.networks[network].stations[station].gnssobsdata_secondary
+        )
+        self.kin_position_data_dest = TDBKinPositionArray(
+            self.data_catalog.catalog.networks[network].stations[station].kinpositiondata
         )
         self.shot_data_dest = TDBShotDataArray(
             self.data_catalog.catalog.networks[network].stations[station].shotdata
@@ -150,8 +153,8 @@ class SV3Pipeline:
         self.shot_data_pre = TDBShotDataArray(
             self.data_catalog.catalog.networks[network].stations[station].shotdata_pre
         )
-        self.position_data_dest = TDBGNSSArray(
-            self.data_catalog.catalog.networks[network].stations[station].positiondata
+        self.imu_position_data_dest = TDBKinPositionArray(
+            self.data_catalog.catalog.networks[network].stations[station].imupositiondata
         )
 
     def pre_process_novatel(self) -> None:
@@ -182,7 +185,7 @@ class SV3Pipeline:
             )
             merge_signature = {
                 "parent_type": AssetType.NOVATEL770.value,
-                "child_type": AssetType.RANGEATDB.value,
+                "child_type": AssetType.GNSSOBSTDB.value,
                 "parent_ids": [x.id for x in novatel_770_entries],
             }
             if (
@@ -192,7 +195,7 @@ class SV3Pipeline:
                 try:
                     novb_ops.novatel_770_2tile(
                         files=[x.local_path for x in novatel_770_entries],
-                        rangea_tdb=self.rangea_data_dest.uri,
+                        gnss_obs_tdb=self.gnss_obs_data_dest.uri,
                         n_procs=self.config.novatel_config.n_processes,
                     )
 
@@ -225,7 +228,7 @@ class SV3Pipeline:
         if novatel_000_entries:
             merge_signature = {
                 "parent_type": AssetType.NOVATEL000.value,
-                "child_type": AssetType.RANGEATDB.value,
+                "child_type": AssetType.GNSSOBSTDB.value,
                 "parent_ids": [x.id for x in novatel_000_entries],
             }
             if (
@@ -235,8 +238,8 @@ class SV3Pipeline:
                 try:
                     novb_ops.novatel_000_2tile(
                         files=[x.local_path for x in novatel_000_entries],
-                        rangea_tdb=self.rangea_data_dest.uri,
-                        position_tdb=self.position_data_dest.uri,
+                        gnss_obs_tdb=self.gnss_obs_data_dest_secondary.uri,
+                        position_tdb=self.imu_position_data_dest.uri,
                         n_procs=self.config.novatel_config.n_processes,
                     )
 
@@ -259,7 +262,7 @@ class SV3Pipeline:
         """
         Generates and catalogs daily RINEX files for the specified network, station, and campaign year.
 
-        1. Consolidates the rangea data in the destination TDB array.
+        1. Consolidates the range data in the destination TDB array.
         2. Determines the processing year based on the configuration or campaign name.
         3. Checks if RINEX files need to be generated.
         4. If generation is required, it invokes the `tile2rinex` function to create RINEX files from the GNSS observation TileDB array.
@@ -268,9 +271,15 @@ class SV3Pipeline:
         Returns:
             None
         """
+        if self.config.rinex_config.use_secondary:
+            logger.loginfo(
+                f"Using secondary GNSS data for RINEX generation for {self.network} {self.station} {self.campaign}"
+            )
+            gnss_obs_data_dest = self.gnss_obs_data_dest_secondary
+        else:
+            gnss_obs_data_dest = self.gnss_obs_data_dest
 
-
-        self.rangea_data_dest.consolidate()
+        gnss_obs_data_dest.consolidate()
 
         if self.config.rinex_config.processing_year != -1:
             year = self.config.rinex_config.processing_year
@@ -282,9 +291,9 @@ class SV3Pipeline:
         logger.loginfo(
             f"Generating Rinex Files for {self.network} {self.station} {year}. This may take a few minutes..."
         )
-        parent_ids = f"N-{self.network}|ST-{self.station}|SV-{self.campaign}|TDB-{self.rangea_data_dest.uri}|YEAR-{year}"
+        parent_ids = f"N-{self.network}|ST-{self.station}|SV-{self.campaign}|TDB-{gnss_obs_data_dest.uri}|YEAR-{year}"
         merge_signature = {
-            "parent_type": AssetType.RANGEATDB.value,
+            "parent_type": AssetType.GNSSOBSTDB.value,
             "child_type": AssetType.RINEX.value,
             "parent_ids": [parent_ids],
         }
@@ -295,7 +304,7 @@ class SV3Pipeline:
         ):
             try:
                 rinex_paths: List[Path] = tile2rinex(
-                    rangea_tdb=self.rangea_data_dest.uri,
+                    gnss_obs_tdb=gnss_obs_data_dest.uri,
                     settings=self.config.rinex_config.settings_path,
                     writedir=self.inter_dir,
                     time_interval=self.config.rinex_config.time_interval,
@@ -455,10 +464,10 @@ class SV3Pipeline:
 
     def process_kin(self):
         """
-        Generates GNSS dataframes from KIN files for the specified network, station, and campaign.
+        Generates KinPosition dataframes from KIN files for the specified network, station, and campaign.
 
         This method searches for KIN and KINRESIDUALS asset entries to process. For each KIN entry found:
-        - Attempts to convert the KIN file to a GNSS dataframe using `kin_to_gnssdf`.
+        - Attempts to convert the KIN file to a KinPosition dataframe using `kin_to_kin_position_df`.
         - If successful, marks the entry as processed, updates the asset catalog, and writes the dataframe to the destination.
         - Logs errors encountered during processing.
 
@@ -499,17 +508,17 @@ class SV3Pipeline:
         processed_count = 0
         for kin_entry in tqdm(kin_entries, desc="Processing Kin Files"):
             try:
-                gnss_df = kin_to_gnssdf(kin_entry.local_path)
-                if gnss_df is not None:
+                kin_position_df = kin_to_kin_position_df(kin_entry.local_path)
+                if kin_position_df is not None:
                     processed_count += 1
                     kin_entry.is_processed = True
                     self.asset_catalog.add_or_update(kin_entry)
-                    self.gnss_data_dest.write_df(gnss_df)
+                    self.kin_position_data_dest.write_df(kin_position_df)
             except Exception as e:
                 logger.logerr(f"Error processing {kin_entry.local_path}: {e}")
 
         logger.loginfo(
-            f"Generated {processed_count} GNSS Dataframes From {len(kin_entries)} Kin Files"
+            f"Generated {processed_count} KinPosition Dataframes From {len(kin_entries)} Kin Files"
         )
 
     def process_dfop00(self) -> None:
@@ -567,27 +576,27 @@ class SV3Pipeline:
 
     def update_shotdata(self):
         """
-        Refines acoustic ping-reply sequences in the shotdata_pre tiledb array with interpolated GNSS data.
+        Refines acoustic ping-reply sequences in the shotdata_pre tiledb array with interpolated KinPosition data.
 
         Steps:
-            1. Retrieves the merge signature and relevant dates for shotdata and GNSS data.
+            1. Retrieves the merge signature and relevant dates for shotdata and KinPosition data.
             2. Checks if the merge job is complete or if override is enabled.
-            3. Extends the date range and performs the merge using GNSS data.
+            3. Extends the date range and performs the merge using KinPosition data.
             4. Records the merge job in the asset catalog.
     
         """
 
-        logger.loginfo("Updating shotdata with interpolated gnss data")
+        logger.loginfo("Updating shotdata with interpolated KinPosition data")
 
         try:
             merge_signature, dates = get_merge_signature_shotdata(
-                self.shot_data_pre, self.gnss_data_dest
+                self.shot_data_pre, self.kin_position_data_dest
             )
         except Exception as e:
             logger.logerr(e)
             return
         merge_job = {
-            "parent_type": AssetType.GNSS.value,
+            "parent_type": AssetType.KINPOSITION.value,
             "child_type": AssetType.SHOTDATA.value,
             "parent_ids": merge_signature,
         }
@@ -596,10 +605,10 @@ class SV3Pipeline:
             or self.config.position_update_config.override
         ):
             dates.append(dates[-1] + datetime.timedelta(days=1))
-            merge_shotdata_gnss(
+            merge_shotdata_kinposition(
                 shotdata_pre=self.shot_data_pre,
                 shotdata=self.shot_data_dest,
-                gnss=self.gnss_data_dest,
+                kin_position=self.kin_position_data_dest,
                 dates=dates,
                 lengthscale=self.config.position_update_config.lengthscale,
                 plot=self.config.position_update_config.plot,

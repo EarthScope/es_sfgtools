@@ -14,7 +14,7 @@ import pandas as pd
 from sklearn.preprocessing import MaxAbsScaler
 
 # Local imports
-from ..tiledb_tools.tiledb_schemas import TDBGNSSArray,TDBShotDataArray
+from ..tiledb_tools.tiledb_schemas import TDBKinPositionArray,TDBShotDataArray
 from ..logging import ProcessLogger as logger
 
 
@@ -78,7 +78,7 @@ def interpolate_enu(
     return tenu_r.astype(float), enu_r_sig.astype(float)
 
 def interpolate_enu_kernalridge(
-    gnss_data: np.ndarray,
+    kin_position_data: np.ndarray,
     shot_data: np.ndarray,
     lengthscale: float = 0.5
     
@@ -97,36 +97,36 @@ def interpolate_enu_kernalridge(
     logger.loginfo("Interpolating ENU values using Kernel Ridge Regression")
     # First, we need to find the indices of tenu_l that are within the lengthscale of tenu_r
     # We will use a KDTree to find the indices efficiently
-    GNSS_DATA_TREE = KDTree(gnss_data[:, 0].astype(float).reshape(-1, 1))
+    KIN_POSITION_DATA_TREE = KDTree(kin_position_data[:, 0].astype(float).reshape(-1, 1))
 
-    shotdata_near_gnss_count = GNSS_DATA_TREE.query_radius(
+    shotdata_near_kin_position_count = KIN_POSITION_DATA_TREE.query_radius(
         shot_data[:, 0].astype(float).reshape(-1, 1),
         r=lengthscale,  # seconds
         count_only=True,
     )
-    shotdata_to_update_filter = shotdata_near_gnss_count > 0
+    shotdata_to_update_filter = shotdata_near_kin_position_count > 0
     shotdata_to_update = shot_data[shotdata_to_update_filter,:]
 
     if shotdata_to_update.shape[0] == 0:
         logger.loginfo("No points to update, returning original shot_data")
         return shot_data
 
-    gnss_training_data_inds = GNSS_DATA_TREE.query_radius(
+    kin_position_training_data_inds = KIN_POSITION_DATA_TREE.query_radius(
         shotdata_to_update[:, 0].astype(float).reshape(-1, 1),
         r=lengthscale,  # seconds
         return_distance=False,
         count_only=False,
     )
-    gnss_training_data_inds = np.unique(list(itertools.chain.from_iterable(gnss_training_data_inds))).astype(int)
+    kin_position_training_data_inds = np.unique(list(itertools.chain.from_iterable(kin_position_training_data_inds))).astype(int)
 
-    if len(gnss_training_data_inds) == 0:
+    if len(kin_position_training_data_inds) == 0:
         logger.loginfo("No points to update, returning original tenu_r")
         return shot_data
 
     scaler = StandardScaler(with_std=False)  # we do not want to scale the standard deviation
-    scaler.fit(gnss_data[gnss_training_data_inds,:])
+    scaler.fit(kin_position_data[kin_position_training_data_inds,:])
 
-    XY_train = scaler.transform(gnss_data[gnss_training_data_inds, :])  # East, North, Up values
+    XY_train = scaler.transform(kin_position_data[kin_position_training_data_inds, :])  # East, North, Up values
     XY_predict = scaler.transform(shotdata_to_update[:, 0:-1])  # East, North, Up values
 
     X_train = XY_train[:, 0][:, np.newaxis]  # timestamps
@@ -190,13 +190,13 @@ def interpolate_enu_kernalridge(
 
 
 def interpolate_enu_radius_regression(
-        gnss_df:pd.DataFrame,
+        kin_position_df:pd.DataFrame,
         shotdata_df:pd.DataFrame,
         lengthscale:float=0.1,
 ) -> pd.DataFrame:
    
-    X_train = gnss_df[["time"]].to_numpy()
-    Y_train = gnss_df[["east", "north", "up"]].to_numpy()
+    X_train = kin_position_df[["time"]].to_numpy()
+    Y_train = kin_position_df[["east", "north", "up"]].to_numpy()
 
     XY_predict_ping = shotdata_df[["pingTime", "east0", "north0", "up0"]].to_numpy()
     XY_predict_return = shotdata_df[["returnTime", "east1", "north1", "up1"]].to_numpy()
@@ -204,14 +204,14 @@ def interpolate_enu_radius_regression(
 
     X_train = np.vstack((X_train,XY_predict_ping[:, 0][:,np.newaxis],XY_predict_return[:, 0][:,np.newaxis]))
     Y_train = np.vstack((Y_train, XY_predict_ping[:, 1:], XY_predict_return[:, 1:]))
-    GNSS_DATA_TREE = RadiusNeighborsRegressor(
+    KIN_POSITION_DATA_TREE = RadiusNeighborsRegressor(
         radius=lengthscale, weights="uniform", algorithm="kd_tree"
     )
-    GNSS_DATA_TREE.fit(X_train, Y_train)
-    train_score = GNSS_DATA_TREE.score(X_train, Y_train)
+    KIN_POSITION_DATA_TREE.fit(X_train, Y_train)
+    train_score = KIN_POSITION_DATA_TREE.score(X_train, Y_train)
     logger.loginfo(f"Training Score: {train_score}")
-    pred_ping = GNSS_DATA_TREE.predict(XY_predict_ping[:, 0][:, np.newaxis])
-    pred_return = GNSS_DATA_TREE.predict(XY_predict_return[:, 0][:, np.newaxis])
+    pred_ping = KIN_POSITION_DATA_TREE.predict(XY_predict_ping[:, 0][:, np.newaxis])
+    pred_return = KIN_POSITION_DATA_TREE.predict(XY_predict_return[:, 0][:, np.newaxis])
 
     # Get offsets between predicted and original values
     offset_ping = np.abs(pred_ping - XY_predict_ping[:, 1:])
@@ -232,13 +232,13 @@ def interpolate_enu_radius_regression(
     logger.loginfo(f"Interpolated {percentage_updated:.2f}% points using Radius Neighbors Regression with lengthscale {lengthscale:.2f} seconds")
     return shotdata_df
 
-def get_merge_signature_shotdata(shotdata: TDBShotDataArray, gnss: TDBGNSSArray) -> Tuple[List[str], List[np.datetime64]]:
+def get_merge_signature_shotdata(shotdata: TDBShotDataArray, kin_position: TDBKinPositionArray) -> Tuple[List[str], List[np.datetime64]]:
     """
-    Get the merge signature for the shotdata and gnss data
+    Get the merge signature for the shotdata and kin_position data
     
     Args:
         shotdata (TDBShotDataArray): The shotdata array
-        gnss (TDBGNSSArray): The gnss array
+        kin_position (TDBKinPositionArray): The kinposition array
         
     Returns:
         Tuple[List[str], List[np.datetime64]]: The merge signature and the dates to merge
@@ -248,14 +248,14 @@ def get_merge_signature_shotdata(shotdata: TDBShotDataArray, gnss: TDBGNSSArray)
     shotdata_dates: np.ndarray = shotdata.get_unique_dates(
         "pingTime"
     )  # get the unique dates from the shotdata
-    gnss_dates: np.ndarray = gnss.get_unique_dates(
+    kin_position_dates: np.ndarray = kin_position.get_unique_dates(
         "time"
-    )  # get the unique dates from the gnss
+    )  # get the unique dates from the kin_position
 
     # get the intersection of the dates
-    dates = np.intersect1d(shotdata_dates, gnss_dates).tolist()
+    dates = np.intersect1d(shotdata_dates, kin_position_dates).tolist()
     if len(dates) == 0:
-        error_message = "No common dates found between shotdata and gnss"   
+        error_message = "No common dates found between shotdata and kin_position"   
         logger.logerr(error_message)
         raise ValueError(error_message)
     
@@ -264,42 +264,41 @@ def get_merge_signature_shotdata(shotdata: TDBShotDataArray, gnss: TDBGNSSArray)
     
     return merge_signature, dates
 
-def merge_shotdata_gnss(
+def merge_shotdata_kinposition(
         shotdata_pre: TDBShotDataArray,
         shotdata: TDBShotDataArray, 
-        gnss: TDBGNSSArray,
+        kin_position: TDBKinPositionArray,
         dates:List[datetime64],
         lengthscale:float=0.1,
         plot:bool=False) -> TDBShotDataArray:
 
     """
-    Merge the shotdata and gnss data
+    Merge the shotdata and kin_position data
 
     Args:
-        shotdata (TDBShotDataArray): The shotdata array
-        gnss (TDBGNSSArray): The TileDB gnss array
+        shotdata_pre (TDBShotDataArray): the DFOP00 data
+        shotdata (TDBShotDataArray): The shotdata array to write to
+        kin_position (TDBKinPositionArray): The TileDB KinPosition array
         dates (List[datetime64]): The dates to merge
         plot (bool, optional): Plot the interpolated values. Defaults to False.
 
-    Returns:
-        TDBShotDataArray: The shotdata array with the interpolated values
     """
 
-    logger.loginfo("Merging shotdata and gnss data")
+    logger.loginfo("Merging shotdata and kin_position data")
     for start,end in zip(dates,dates[1:]):
         logger.loginfo(f"Interpolating shotdata for date {str(start)}")
 
         shotdata_df = shotdata_pre.read_df(start=start,end=end)
-        gnss_df = gnss.read_df(start=start, end=end)
+        kin_position_df = kin_position.read_df(start=start, end=end)
 
-        if shotdata_df.empty or gnss_df.empty:
+        if shotdata_df.empty or kin_position_df.empty:
             continue
 
-        gnss_df.time = gnss_df.time.apply(lambda x:x.timestamp())
+        kin_position_df.time = kin_position_df.time.apply(lambda x:x.timestamp())
        
         # interpolate the enu values
         shotdata_df_updated = interpolate_enu_radius_regression(
-            gnss_df=gnss_df,
+            kin_position_df=kin_position_df,
             shotdata_df=shotdata_df.copy(),
             lengthscale=lengthscale
         )

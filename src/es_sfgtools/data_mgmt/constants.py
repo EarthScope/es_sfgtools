@@ -45,13 +45,13 @@ DEFAULT_FILE_TYPES_TO_DOWNLOAD = [x for x in DOWNLOAD_TYPES]
 
 
 class DATA_TYPE(Enum):
-    GNSS = "gnss"
+    KINPOSITION = "kinposition"
     ACOUSTIC = "acoustic"
     SITECONFIG = "siteconfig"
     ATDOFFSET = "atdoffset"
     SVP = "svp"
     SHOTDATA = "shotdata"
-    POSITION = "position"
+    IMUPOSITION = "imuposition"
 
     @classmethod
     def to_schema(cls):

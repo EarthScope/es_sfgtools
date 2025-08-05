@@ -43,7 +43,7 @@ def novatelInterrogation_to_garpos_interrogation(
         east_std=novatel_interrogation.observations.GNSS.sdx,
         north_std=novatel_interrogation.observations.GNSS.sdy,
         up_std=novatel_interrogation.observations.GNSS.sdz,
-        pingTime=float(novatel_interrogation.time.common) - LEAP_SECONDS,
+        pingTime=float(novatel_interrogation.time.common) + LEAP_SECONDS, #GPS time is ahead of UTC by 18 seconds
     )
     return sv3Interrogation
 
@@ -82,7 +82,7 @@ def novatelReply_to_garpos_reply(
         snr=novatel_reply.range.diag.snr,
         dbv=novatel_reply.range.diag.dbv,
         xc=novatel_reply.range.diag.xc,
-        returnTime=float(novatel_reply.time.common) - LEAP_SECONDS,
+        returnTime=float(novatel_reply.time.common) + LEAP_SECONDS, #GPS time is ahead of UTC by 18 seconds
         tt=travelTime,
     )
     return sv3Reply
@@ -157,7 +157,7 @@ def dfop00_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
                 interrogation = NovatelInterrogationEvent(**data)
                 interrogation_parsed = novatelInterrogation_to_garpos_interrogation(interrogation)
             except Exception as e:
-                interrogation = None
+                interrogation_parsed = None
 
         if data.get("event") == "range":
             try:
@@ -166,7 +166,7 @@ def dfop00_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
 
             except Exception as e:
                 reply_data_parsed = None
-            if reply_data_parsed is not None:
+            if reply_data_parsed is not None and interrogation_parsed is not None:
                 try:
                     merged_data = merge_interrogation_reply(interrogation_parsed, reply_data_parsed)
                 except AssertionError as e:
