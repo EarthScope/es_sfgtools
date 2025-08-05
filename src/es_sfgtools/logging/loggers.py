@@ -10,7 +10,7 @@ The notebook logger is used for the notebook module and prints to the console wi
 
 import logging
 import os
-from functools import wraps
+import sys
 from pathlib import Path
 from typing import Literal
 
@@ -180,7 +180,8 @@ class _BaseLogger:
             console_handler (logging.StreamHandler): The handler for routing log messages to the console.
         """
         if not any(isinstance(h, logging.StreamHandler) for h in self.logger.handlers):
-            self.console_handler = logging.StreamHandler()
+            print(f"\nRouting {self.name} logger to console \n")
+            self.console_handler = logging.StreamHandler(sys.stdout)
             self.console_handler.setFormatter(self.console_format)
             self.console_handler.setLevel(logging.INFO)
             self.logger.addHandler(self.console_handler)
@@ -196,6 +197,7 @@ class _BaseLogger:
         effectively stopping the logger from outputting logs to the console.
         """
         if hasattr(self, "console_handler"):
+            print(f"\nRemoving {self.name} logger from console \n")
             self.logger.removeHandler(self.console_handler)
 
     def logdebug(self, message) -> None:
