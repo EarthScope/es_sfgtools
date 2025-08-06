@@ -109,7 +109,8 @@ class _BaseLogger:
 
         # Remove all handlers to avoid duplicates
         for handler in list(self.logger.handlers):
-            self.logger.removeHandler(handler)
+            if type(handler) == logging.FileHandler:
+                self.logger.removeHandler(handler)
         try:
             self.file_handler = logging.FileHandler(self.path)
             self.file_handler.setFormatter(self.format)
@@ -179,12 +180,12 @@ class _BaseLogger:
         Attributes:
             console_handler (logging.StreamHandler): The handler for routing log messages to the console.
         """
-        if not any(isinstance(h, logging.StreamHandler) for h in self.logger.handlers):
-            print(f"\nRouting {self.name} logger to console \n")
-            self.console_handler = logging.StreamHandler(sys.stdout)
+        if not any(type(h) == logging.StreamHandler for h in self.logger.handlers):
+            self.console_handler = logging.StreamHandler()
             self.console_handler.setFormatter(self.console_format)
             self.console_handler.setLevel(logging.INFO)
             self.logger.addHandler(self.console_handler)
+            self.logdebug(f"Routing {self.name} logger to console")
 
     def non_negotiable_console_log(self,message: str) -> str| None:
         if not hasattr(self, "console_handler"):

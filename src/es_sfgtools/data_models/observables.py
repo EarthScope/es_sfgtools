@@ -142,6 +142,7 @@ class KinPositionDataFrame(pa.DataFrameModel):
         le=1000,
         coerce=True,  # todo unsure of the full range
         description="Weighted Root Mean Square of the position solution",
+        nullable=True,
     )
     east_std: Optional[Series[float]] = pa.Field(
         nullable=True,

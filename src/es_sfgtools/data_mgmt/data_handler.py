@@ -160,6 +160,7 @@ class DataHandler:
 
         # Create the directory structures
         self.main_directory = Path(directory)
+
         logger.set_dir(self.main_directory)
 
         # Create the main and pride directory
@@ -358,7 +359,6 @@ class DataHandler:
             start_date (date): The start date for the data. Default is None.
             end_date (date): The end date for the data. Default is None.
         """
-
         # Set class attributes & create the directory structure
         self.station = station
         self.network = network
@@ -841,6 +841,13 @@ class DataHandler:
             station_data=station_data,
             working_dir=self.garpos_dir,
         )
+    
+    def test_logger(self):
+        logger.loginfo(f"testing logger {logger} with handlers {logger.logger.handlers}")
+        logger.logdebug("logdebug test")
+        logger.loginfo("loginfo test")
+        logger.logwarn("logwarn test")
+        logger.logerr("logerr test")
 
     # TODO: this wouldn't work anymore, logger is process logger, not pulling in gnss logger. Maybe put this in the logger class.
     def print_logs(self, log: Literal["base", "gnss", "process"]):

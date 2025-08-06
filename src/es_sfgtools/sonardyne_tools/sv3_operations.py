@@ -4,6 +4,7 @@ import json
 from pandera.typing import DataFrame
 import pandas as pd
 import pymap3d as pm
+from datetime import datetime
 # Local imports
 from ..data_models.log_models import SV3InterrogationData, SV3ReplyData
 from ..data_models.sv3_models import NovatelRangeEvent,NovatelInterrogationEvent
@@ -107,13 +108,18 @@ def merge_interrogation_reply(
     Raises:
         AssertionError: If the calculated return time does not match the reply's returnTime.
     """
+    #validate that tt > 0 (we actually got a range value in the reply)
+    range = float(reply.tt) + float(reply.tat) + TRIGGER_DELAY_SV3
+    assert (abs(range > 1e-3)), (f"Transponder {reply.transponderID} has range={abs(round(range,1))} for ping at {interrogation.pingTime} {datetime.fromtimestamp(float(interrogation.pingTime))}")
+    
     # Validate that pingTime + tt + tat + TRIGGER_DELAY_SV3 equals returnTime
     # calculate original range
-    range_original = float(reply.tt) + float(reply.tat)
+    range_original = float(reply.tt) + float(reply.tat) 
     calc_return_time = (
         float(interrogation.pingTime)
         + range_original
     )
+    
     assert abs(calc_return_time - float(reply.returnTime)) < 1e-6, (
         f"Calculated return time {calc_return_time} does not match reply return time {reply.returnTime}"
     )
@@ -156,6 +162,7 @@ def dfop00_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
             try:
                 interrogation = NovatelInterrogationEvent(**data)
                 interrogation_parsed = novatelInterrogation_to_garpos_interrogation(interrogation)
+                #logger.loginfo(f"Interrogation: pingTime: {interrogation_parsed.pingTime}")
             except Exception as e:
                 interrogation_parsed = None
 
@@ -163,6 +170,7 @@ def dfop00_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
             try:
                 reply_data = NovatelRangeEvent(**data)
                 reply_data_parsed = novatelReply_to_garpos_reply(reply_data)
+                #logger.loginfo(f"Reply: \n  returnTime: {reply_data_parsed.returnTime}\n  tt: {reply_data_parsed.tt}")
 
             except Exception as e:
                 reply_data_parsed = None
@@ -170,7 +178,7 @@ def dfop00_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
                 try:
                     merged_data = merge_interrogation_reply(interrogation_parsed, reply_data_parsed)
                 except AssertionError as e:
-                    logger.logerr(f"Assertion error in merging data: {e}")
+                    logger.logerr(f"Assertion error in merging ping/reply data: {e}")
                     merged_data = None
                 if merged_data is not None:
                     processed.append(merged_data)

@@ -92,7 +92,7 @@ class PridePPP(BaseModel):
                 data_dict[field] = item
             return cls(**data_dict)
         except ValidationError as e:
-            raise Exception(f"Error parsing into PridePPP {e}")
+            raise Exception(f"Error parsing PridePPP kin file {e}")
 
 
 # read res and caculate wrms
