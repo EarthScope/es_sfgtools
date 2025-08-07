@@ -197,9 +197,11 @@ class _BaseLogger:
         This method detaches the console handler from the logger instance,
         effectively stopping the logger from outputting logs to the console.
         """
-        if hasattr(self, "console_handler"):
-            print(f"\nRemoving {self.name} logger from console \n")
-            self.logger.removeHandler(self.console_handler)
+        
+        for handler in list(self.logger.handlers):
+            if type(handler) == logging.StreamHandler:
+                self.logger.removeHandler(handler)
+                self.logdebug(f"Removed console handler from {self.name} logger")
 
     def logdebug(self, message) -> None:
         """Log a debug message with stacklevel=2 (logging module goes up the stack to get the calling function)"""
