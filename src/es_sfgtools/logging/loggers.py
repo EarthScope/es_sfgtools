@@ -180,7 +180,7 @@ class _BaseLogger:
         Attributes:
             console_handler (logging.StreamHandler): The handler for routing log messages to the console.
         """
-        if not any(type(h) == logging.StreamHandler for h in self.logger.handlers):
+        if not any(isinstance(h, logging.StreamHandler) for h in self.logger.handlers):
             self.console_handler = logging.StreamHandler()
             self.console_handler.setFormatter(self.console_format)
             self.console_handler.setLevel(logging.INFO)
