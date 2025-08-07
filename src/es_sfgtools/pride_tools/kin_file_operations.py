@@ -92,7 +92,7 @@ class PridePPP(BaseModel):
                 data_dict[field] = item
             return cls(**data_dict)
         except ValidationError as e:
-            raise Exception(f"Error parsing into PridePPP {e}")
+            raise Exception(f"Error parsing PridePPP kin file {e}")
 
 
 # read res and caculate wrms
@@ -175,15 +175,15 @@ def plot_kin_results_wrms(kin_df, title=None, save_as=None):
         plt.savefig(save_as)
 
 
-def kin_to_gnssdf(source: str|Path) -> Union[pd.DataFrame, None]:
+def kin_to_kin_position_df(source: str|Path) -> Union[pd.DataFrame, None]:
     """
-    Create an GNSSDataFrame from a kin file from PRIDE-PPP
+    Create an KinPositionDataFrame from a kin file from PRIDE-PPP
 
     Parameters:
         file_path (str): The path to the kin file
 
     Returns:
-        dataframe (GNSSDataFrame): An instance of the class.
+        dataframe (KinPositionDataFrame): An instance of the class.
     """
   
     with open(source, "r") as file:

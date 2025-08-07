@@ -18,20 +18,20 @@ from .utils import (
 )
 from ..logging import ProcessLogger as logger
 
-def novatel_ascii_2tile(files: List[str], rangea_tdb: Path, n_procs: int = 10) -> None:
+def novatel_ascii_2tile(files: List[str], gnss_obs_tdb: Path, n_procs: int = 10) -> None:
     """
     This function is a python wrapper for the nova2tile golang binary.
     Given a list of novatel ascii files, get all the rangea logs and add them to a single tdb array
 
     Args:
         files (List[str]):  List of asset entries to process
-        rangea_tdb (Path): Path to the rangea tiledb array
+        gnss_obs_tdb (Path): Path to the gnss_obs tiledb array
         n_procs (int, optional): number of processes to use. Defaults to 10.
     """
 
     binary_path = get_nova2tile_binary_path()
 
-    cmd = [str(binary_path), "-tdb", str(rangea_tdb), "-procs", str(n_procs)]
+    cmd = [str(binary_path), "-tdb", str(gnss_obs_tdb), "-procs", str(n_procs)]
     for file in files:
         cmd.append(str(file))
 

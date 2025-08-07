@@ -88,7 +88,7 @@ class AcousticDataFrame(pa.DataFrameModel):
         #     "RT": "returnTime",
         # }
 
-class GNSSDataFrame(pa.DataFrameModel):
+class KinPositionDataFrame(pa.DataFrameModel):
     """
     Data frame Schema for GNSS Position Data
     """
@@ -137,6 +137,13 @@ class GNSSDataFrame(pa.DataFrameModel):
         coerce=True,  # todo unsure of the full range, below 4 is great, 4-8 acceptable, above 8 is poor (should we throw these out?)
         description="Position Dilution of Precision",
     )
+    wrms: Series[float] = pa.Field(
+        ge=0,
+        le=1000,
+        coerce=True,  # todo unsure of the full range
+        description="Weighted Root Mean Square of the position solution",
+        nullable=True,
+    )
     east_std: Optional[Series[float]] = pa.Field(
         nullable=True,
         description="Standard deviation of the ECEF X coordinate [m]",
@@ -158,7 +165,7 @@ class GNSSDataFrame(pa.DataFrameModel):
         coerce = True
         add_missing_columns = True
 
-class PositionDataFrame(pa.DataFrameModel):
+class IMUPositionDataFrame(pa.DataFrameModel):
     time: Series[pd.Timestamp] = pa.Field(
         ge=GNSS_START_TIME.replace(tzinfo=None),
         coerce=True,
