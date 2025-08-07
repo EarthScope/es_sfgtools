@@ -109,7 +109,7 @@ class _BaseLogger:
 
         # Remove all handlers to avoid duplicates
         for handler in list(self.logger.handlers):
-            if type(handler) == logging.FileHandler:
+            if isinstance(handler, logging.FileHandler):
                 self.logger.removeHandler(handler)
         try:
             self.file_handler = logging.FileHandler(self.path)
