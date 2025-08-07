@@ -110,7 +110,7 @@ def merge_interrogation_reply(
     """
     #validate that tt > 0 (we actually got a range value in the reply)
     range = float(reply.tt) + float(reply.tat) + TRIGGER_DELAY_SV3
-    assert (abs(range > 1e-3)), (f"Transponder {reply.transponderID} has range={abs(round(range,1))} for ping at {interrogation.pingTime} {datetime.fromtimestamp(float(interrogation.pingTime))}")
+    assert (abs(range) > 1e-3), (f"Transponder {reply.transponderID} has range={abs(round(range,1))} for ping at {interrogation.pingTime} {datetime.fromtimestamp(float(interrogation.pingTime))}")
     
     # Validate that pingTime + tt + tat + TRIGGER_DELAY_SV3 equals returnTime
     # calculate original range
