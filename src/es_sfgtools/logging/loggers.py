@@ -199,7 +199,7 @@ class _BaseLogger:
         """
         
         for handler in list(self.logger.handlers):
-            if type(handler) == logging.StreamHandler:
+            if isinstance(handler, logging.StreamHandler):
                 self.logger.removeHandler(handler)
                 self.logdebug(f"Removed console handler from {self.name} logger")
 
