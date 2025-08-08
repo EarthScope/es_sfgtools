@@ -11,8 +11,8 @@ import matplotlib.pyplot as plt
 
 from ..data_models.observables import (
     AcousticDataFrame,
-    GNSSDataFrame,
-    PositionDataFrame,
+    KinPositionDataFrame,
+    IMUPositionDataFrame,
     ShotDataFrame
 )
 
@@ -56,7 +56,7 @@ attribute_dict: Dict[str, tiledb.Attr] = {
     #"status": tiledb.Attr(name="status", dtype=str, nullable=True),
 }
 
-GNSSAttributes = [
+KinPositionAttributes = [
     attribute_dict["latitude"],
     attribute_dict["longitude"],
     attribute_dict["height"],
@@ -68,18 +68,19 @@ GNSSAttributes = [
     # attribute_dict["up_std"],
     tiledb.Attr(name="number_of_satellites", dtype="uint8"),
     tiledb.Attr(name="pdop", dtype=np.float64),
+    tiledb.Attr(name="wrms", dtype=np.float64),
 ]
-GNSSArraySchema = tiledb.ArraySchema(
+KinPositionArraySchema = tiledb.ArraySchema(
     sparse=True,
     domain=tiledb.Domain(TimeDomain),
-    attrs=GNSSAttributes,
+    attrs=KinPositionAttributes,
     cell_order="col-major",
     tile_order="row-major",
     allows_duplicates=False,
     coords_filters=filters,
 )
 
-PositionAttributes = [
+IMUPositionAttributes = [
     attribute_dict["azimuth"],
     attribute_dict["pitch"],
     attribute_dict["roll"],
@@ -100,10 +101,10 @@ PositionAttributes = [
     attribute_dict["azimuth_std"],
     #attribute_dict["status"],
 ]
-PositionArraySchema = tiledb.ArraySchema(
+IMUPositionArraySchema = tiledb.ArraySchema(
     sparse=True,
     domain=tiledb.Domain(TimeDomain),
-    attrs=PositionAttributes,
+    attrs=IMUPositionAttributes,
     cell_order="col-major",
     tile_order="row-major",
     allows_duplicates=False,
@@ -378,10 +379,10 @@ class TDBAcousticArray(TBDArray):
         return df
 
 
-class TDBGNSSArray(TBDArray):
-    dataframe_schema = GNSSDataFrame
-    array_schema = GNSSArraySchema
-    name = "GNSS Data"
+class TDBKinPositionArray(TBDArray):
+    dataframe_schema = KinPositionDataFrame
+    array_schema = KinPositionArraySchema
+    name = "Kin Position Data"
 
     def __init__(self, uri: Path | str):
         super().__init__(uri)
@@ -390,9 +391,9 @@ class TDBGNSSArray(TBDArray):
         return super().get_unique_dates(field)
 
 
-class TDBPositionArray(TBDArray):
-    dataframe_schema = PositionDataFrame
-    array_schema = PositionArraySchema
+class TDBIMUPositionArray(TBDArray):
+    dataframe_schema = IMUPositionDataFrame
+    array_schema = IMUPositionArraySchema
 
     def __init__(self, uri: Path | str):
         super().__init__(uri)

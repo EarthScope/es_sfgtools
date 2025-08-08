@@ -109,7 +109,8 @@ class _BaseLogger:
 
         # Remove all handlers to avoid duplicates
         for handler in list(self.logger.handlers):
-            self.logger.removeHandler(handler)
+            if isinstance(handler, logging.FileHandler):
+                self.logger.removeHandler(handler)
         try:
             self.file_handler = logging.FileHandler(self.path)
             self.file_handler.setFormatter(self.format)
@@ -180,11 +181,11 @@ class _BaseLogger:
             console_handler (logging.StreamHandler): The handler for routing log messages to the console.
         """
         if not any(isinstance(h, logging.StreamHandler) for h in self.logger.handlers):
-            print(f"\nRouting {self.name} logger to console \n")
-            self.console_handler = logging.StreamHandler(sys.stdout)
+            self.console_handler = logging.StreamHandler()
             self.console_handler.setFormatter(self.console_format)
             self.console_handler.setLevel(logging.INFO)
             self.logger.addHandler(self.console_handler)
+            self.logdebug(f"Routing {self.name} logger to console")
 
     def non_negotiable_console_log(self,message: str) -> str| None:
         if not hasattr(self, "console_handler"):
@@ -196,9 +197,11 @@ class _BaseLogger:
         This method detaches the console handler from the logger instance,
         effectively stopping the logger from outputting logs to the console.
         """
-        if hasattr(self, "console_handler"):
-            print(f"\nRemoving {self.name} logger from console \n")
-            self.logger.removeHandler(self.console_handler)
+        
+        for handler in list(self.logger.handlers):
+            if isinstance(handler, logging.StreamHandler):
+                self.logger.removeHandler(handler)
+                self.logdebug(f"Removed console handler from {self.name} logger")
 
     def logdebug(self, message) -> None:
         """Log a debug message with stacklevel=2 (logging module goes up the stack to get the calling function)"""

@@ -76,15 +76,15 @@ class AssetType(Enum):
     MASTER = "master"
     QCPIN = "qcpin"
     NOVATELPIN = "novatelpin"
-    GNSS = "gnss"
+    KINPOSITION = "kinposition"
     ACOUSTIC = "acoustic"
     SITECONFIG = "siteconfig"
     ATDOFFSET = "atdoffset"
     SVP = "svp"             # maybe doesn't work
     SHOTDATA = "shotdata"
-    POSITION = "position"
+    IMUPOSITION = "imuposition"
     KINRESIDUALS = "kinresiduals"
-    RANGEATDB = "rangeatdb"
+    GNSSOBSTDB = "GNSSOBSTDB"
 
     _ = "default"
 

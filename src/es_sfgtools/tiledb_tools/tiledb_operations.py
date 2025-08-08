@@ -12,21 +12,21 @@ from .utils import get_tile2rinex_binary_path, parse_cli_logs
 from ..logging import ProcessLogger as logger
 
 def tile2rinex(
-    rangea_tdb: Path,
+    gnss_obs_tdb: Path,
     settings: Path,
     writedir: Path,
     time_interval: int = 1,
     processing_year: int = 0,
 ) -> List[Path]:
     """
-    Converts GNSS tile data to RINEX format using the TILE2RINEX binary.
+    Converts GNSS observation tileDB data to RINEX format using the TILE2RINEX binary.
 
     Args:
-        rangea_tdb (Path): Path to the GNSS tiledb array.
+        gnss_obs_tdb (Path): Path to the GNSS tiledb array.
         settings (Path): Path to the RINEX settings file.
         writedir (Path): Directory where the generated RINEX files will be written.
-        time_interval (int, optional): Time interval (hours) of GNSS epochs loaded into memory from the tiledb array found at rangea_tdb.
-        processing_year (int, optional): Year of GNSS observations used to generate RINEX files from the tiledb array found at rangea_tdb. Defaults to 0.
+        time_interval (int, optional): Time interval (hours) of GNSS epochs loaded into memory from the tiledb array found at gnss_obs_tdb.
+        processing_year (int, optional): Year of GNSS observations used to generate RINEX files from the tiledb array found at gnss_obs_tdb. Defaults to 0.
 
     Returns:
         List[Path]: A list of Paths representing the generated RINEX files.
@@ -51,7 +51,7 @@ def tile2rinex(
         cmd = [
             str(binary_path),
             "-tdb",
-            str(rangea_tdb),
+            str(gnss_obs_tdb),
             "-settings",
             str(settings),
             "-timeint",

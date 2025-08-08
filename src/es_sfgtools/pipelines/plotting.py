@@ -4,7 +4,7 @@ import numpy as np
 import datetime
 from typing import List
 
-from ..processing.assets.tiledb import TDBGNSSArray   
+from ..processing.assets.tiledb import TDBKinPositionArray   
 from ..data_mgmt.file_schemas import AssetEntry
 from ..data_mgmt.catalog import PreProcessCatalog
 
@@ -40,29 +40,29 @@ def get_rinex_timelast(rinex_asset:AssetEntry) -> datetime.datetime:
                     pass
     return ref_date
 
-def plot_gnss_data(gnss_data:TDBGNSSArray,rinex_entries:List[AssetEntry] = []) -> None:
+def plot_kin_position_data(kin_position_data:TDBKinPositionArray,rinex_entries:List[AssetEntry] = []) -> None:
 
     """
-    Plots GNSS data over time, with each subplot representing a unique month of data.
+    Plots KinPosition data over time, with each subplot representing a unique month of data.
     The function performs the following steps:
-    1. Extracts unique dates from the GNSS data.
+    1. Extracts unique dates from the KinPosition data.
     2. Organizes the dates by year and month.
     3. Creates a subplot for each unique month.
-    4. Reads the GNSS data for the date range of each month.
-    5. Plots the GNSS data points as scatter plots.
+    4. Reads the KinPosition data for the date range of each month.
+    5. Plots the KinPosition data points as scatter plots.
     6. Adds vertical lines to indicate daily and hourly markers.
     7. Formats the x-axis with hourly ticks and rotates the labels for better readability.
     8. Sets the title for each subplot to indicate the date range of the data.
     9. Adjusts the layout and displays the plot.
 
     Args:
-        gnss_data (TDBGNSSArray): An object containing GNSS data with methods to retrieve unique dates and read data frames.
+        kin_position_data (TDBKinPositionArray): An object containing KinPosition data with methods to retrieve unique dates and read data frames.
     
     Returns:
         None: The function displays the plot
     """
 
-    gnss_dates = gnss_data.get_unique_dates().tolist()
+    kin_position_dates = kin_position_data.get_unique_dates().tolist()
     year_month_map = defaultdict(dict)
     rinex_ym_map = defaultdict(dict)
     
@@ -71,13 +71,13 @@ def plot_gnss_data(gnss_data:TDBGNSSArray,rinex_entries:List[AssetEntry] = []) -
         for entry in rinex_entries:
             if entry.timestamp_data_end is None:
                 entry.timestamp_data_end = get_rinex_timelast(entry)
-            gnss_dates.extend(
+            kin_position_dates.extend(
                 [entry.timestamp_data_start.date(), entry.timestamp_data_end.date()])
             rinex_ym_map[entry.timestamp_data_start.year].setdefault(
                 entry.timestamp_data_start.month, []).append(entry)  
 
     unique_months = []
-    for date in gnss_dates:
+    for date in kin_position_dates:
         year_month_map[date.year].setdefault(date.month, []).append(date)
         y_m = f"{date.year}-{date.month}"
         if y_m not in unique_months:
@@ -93,7 +93,7 @@ def plot_gnss_data(gnss_data:TDBGNSSArray,rinex_entries:List[AssetEntry] = []) -
 
         year, month = ym
         dates = sorted(year_month_map[year][month])
-        df = gnss_data.read_df(dates[0], dates[-1])
+        df = kin_position_data.read_df(dates[0], dates[-1])
         df_dates = df["time"].values
 
       
@@ -136,7 +136,7 @@ def plot_gnss_data(gnss_data:TDBGNSSArray,rinex_entries:List[AssetEntry] = []) -
 
         y_df = np.ones_like(df_dates)
 
-        current_ax.scatter(df_timestamps, y_df, marker="_", label="GNSS Data", color="b",s=300,linewidth=20)
+        current_ax.scatter(df_timestamps, y_df, marker="_", label="Kin Position Data", color="b",s=300,linewidth=20)
         [current_ax.axvline(d, color="r", linestyle="-") for d in day_tick_points]
         current = date_min.copy().astype("datetime64[D]").astype("datetime64[h]")
         while current < date_max:
@@ -157,7 +157,7 @@ def plot_gnss_data(gnss_data:TDBGNSSArray,rinex_entries:List[AssetEntry] = []) -
         )
         current_ax.tick_params(direction="in", length=5, pad=5)
         current_ax.set_title(
-            f"GNSS Data spanning {date_min.astype('datetime64[D]')} to {date_max.astype('datetime64[D]')}"
+            f"Kin Position Data spanning {date_min.astype('datetime64[D]')} to {date_max.astype('datetime64[D]')}"
         )
     fig.subplots_adjust(bottom=0.2)
     plt.legend()
