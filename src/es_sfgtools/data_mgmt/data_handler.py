@@ -18,8 +18,8 @@ from datetime import date
 import seaborn 
 seaborn.set_theme(style="whitegrid")
 
-from sfg_metadata.metadata.src.catalogs import Catalog, NetworkData, StationData
-
+from es_sfgtools.data_models.metadata import MetaDataCatalog as Catalog
+from es_sfgtools.data_models.metadata import NetworkData,StationData
 from es_sfgtools.utils.archive_pull import download_file_from_archive, list_campaign_files, list_campaign_files_by_type
 from es_sfgtools.logging import ProcessLogger as logger, change_all_logger_dirs
 from es_sfgtools.data_mgmt.file_schemas import AssetEntry, AssetType

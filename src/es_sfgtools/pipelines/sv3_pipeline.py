@@ -7,7 +7,7 @@ import pandas as pd
 from typing import List, Optional
 from pathlib import Path
 import concurrent.futures
-from sfg_metadata.metadata.src.catalogs import Catalog
+from es_sfgtools.data_models.metadata import MetaDataCatalog as Catalog
 import sys 
 
 # Local imports

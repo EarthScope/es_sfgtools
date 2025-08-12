@@ -16,9 +16,9 @@ sns.set_theme()
 import matplotlib.gridspec as gridspec
 import os
 
-from sfg_metadata.metadata.src.catalogs import StationData
-from sfg_metadata.metadata.src.site import Site
-from sfg_metadata.metadata.src.benchmark import Benchmark, Transponder
+from es_sfgtools.data_models.metadata.catalogs import StationData
+from es_sfgtools.data_models.metadata.site import Site
+from es_sfgtools.data_models.metadata.benchmark import Benchmark, Transponder
 
 
 from es_sfgtools.data_models.observables import ShotDataFrame

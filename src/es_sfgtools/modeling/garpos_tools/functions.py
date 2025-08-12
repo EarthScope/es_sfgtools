@@ -22,7 +22,7 @@ import seaborn as sns
 sns.set_theme()
 import matplotlib.gridspec as gridspec
 
-from sfg_metadata.metadata.src.site import Site
+from es_sfgtools.data_models.metadata.site import Site
 
 
 from es_sfgtools.data_models.observables import (
