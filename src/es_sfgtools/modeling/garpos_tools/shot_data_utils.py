@@ -1,8 +1,12 @@
+from datetime import datetime
 import pandas as pd
 import numpy as np
 import pymap3d as pm
 
+from sfg_metadata.metadata.src.catalogs import StationData
+
 from es_sfgtools.logging.loggers import GarposLogger as logger
+from es_sfgtools.tiledb_tools.tiledb_schemas import TDBKinPositionArray
 
 DEFAULT_FILTER_CONFIG = {
     "acoustic_filters": {
@@ -14,11 +18,11 @@ DEFAULT_FILTER_CONFIG = {
         "min_replies": 3
         },
     "max_distance_from_center": {
-        "enabled": False, 
+        "enabled": True, 
         "max_distance_m": 150  # in meters, applied to center surveys only
     },
     "pride_residuals": {
-        "enabled": False, 
+        "enabled": True, 
         "max_residual": 5  
     }
 }
@@ -27,7 +31,7 @@ def load_shot_data(file_path: str) -> pd.DataFrame:
     """
     Load shot data from a CSV file into a pandas DataFrame.
     
-    Parameters:
+    Args:
     - file_path: Path to the CSV file containing shot data.
     
     Returns:
@@ -46,12 +50,9 @@ def write_filtered_shot_data(df: pd.DataFrame, file_path: str) -> None:
     """
     Write filtered shot data to a CSV file.
     
-    Parameters:
-    - df: DataFrame containing the shot data.
-    - file_path: Path to save the CSV file.
-    
-    Returns:
-    - None
+    Args:
+        df: DataFrame containing the shot data.
+        file_path: Path to save the CSV file.
     """
     # Add "filtered" to the file name to indicate it's filtered data
     new_file_path = file_path.replace('.csv', '_filtered.csv')
@@ -65,14 +66,14 @@ def filter_wg_distance_from_center(df: pd.DataFrame, array_center_lat: float, ar
     """
     Remove data where waveglider is > x meters from array center. Typically used for center surveys.
     
-    Parameters:
-    - df: DataFrame with shotdata
-    - array_center_lat: Latitude of array center
-    - array_center_lon: Longitude of array center  
-    - max_distance_m: Maximum distance in meters (default 150)
+    Args:
+        df: DataFrame with shotdata
+        array_center_lat: Latitude of array center
+        array_center_lon: Longitude of array center  
+        max_distance_m: Maximum distance in meters (default 150)
     
     Returns:
-    - Filtered DataFrame
+        Filtered DataFrame
     """
     # Convert array center lat/lon to ECEF coordinates (assuming sea level)
     center_x, center_y, center_z = pm.geodetic2ecef(lat=array_center_lat, lon=array_center_lon, alt=0)
@@ -106,12 +107,12 @@ def filter_SNR(df, snr_min=12):
     OKAY: 12-20
     DIFFICULT(default): < 12
     
-    Parameters:
-    - df: DataFrame with shotdata
-    - snr_min: Minimum SNR threshold (default 12)
+    Args:
+        df: DataFrame with shotdata
+        snr_min: Minimum SNR threshold (default 12)
     
     Returns:
-    - Filtered DataFrame
+        Filtered DataFrame
     """
     if 'snr' not in df.columns:
         logger.logerr("SNR column not found, skipping filter")
@@ -131,13 +132,13 @@ def filter_dbv(df, dbv_min=-36, dbv_max=-3):
     OKAY: -26 to -36
     DIFFICULT (default): <-36 or >-3
     
-    Parameters:
-    - df: DataFrame with shotdata
-    - dbv_min: Minimum DBV threshold (default -36)
-    - dbv_max: Maximum DBV threshold (default -3) 
+    Args:
+        df: DataFrame with shotdata
+        dbv_min: Minimum DBV threshold (default -36)
+        dbv_max: Maximum DBV threshold (default -3) 
     
     Returns:
-    - Filtered DataFrame
+        Filtered DataFrame
     """
     if 'dbv' not in df.columns:
         logger.logerr("DBV column not found, skipping filter")
@@ -156,12 +157,12 @@ def filter_xc(df, xc_min=45):
     OKAY: 45-60
     DIFFICULT (Default): < 45
     
-    Parameters:
-    - df: DataFrame with shotdata
-    - xc_min: Minimum XC threshold (default 45)
+    Args:
+        df: DataFrame with shotdata
+        xc_min: Minimum XC threshold (default 45)
     
     Returns:
-    - Filtered DataFrame
+        Filtered DataFrame
     """
     if 'xc' not in df.columns:
         logger.logerr("XC column not found, skipping filter")
@@ -177,11 +178,11 @@ def filter_acoustic_diagnostics(df, snr_min=12, dbv_min=-36, dbv_max=-3, xc_min=
     """
     Remove data based on acoustic diagnostics (SNR, DBV, XC)
     
-    Parameters:
-    - df: DataFrame with shotdata
-    - snr_min: Minimum SNR threshold
-    - dbv_max: Maximum DBV threshold
-    - xc_min: Minimum XC threshold
+    Args:
+        df: DataFrame with shotdata
+        snr_min: Minimum SNR threshold
+        dbv_max: Maximum DBV threshold
+        xc_min: Minimum XC threshold
     
     Quality thresholds:
     - Good: SNR>20, DBV(-3 to -26), XC>60
@@ -189,7 +190,7 @@ def filter_acoustic_diagnostics(df, snr_min=12, dbv_min=-36, dbv_max=-3, xc_min=
     - Difficult (default): SNR<12, DBV(<-36 or >-3), XC<45
     
     Returns:
-    - Filtered DataFrame
+        Filtered DataFrame
     """
 
     initial_count = len(df)
@@ -204,7 +205,7 @@ def good_acoustic_diagnostics(df):
     """
     Filter for "good" level acoustic diagnostics.
     
-    Parameters:
+    Args:
     - df: DataFrame with shotdata
     
     Returns:
@@ -216,11 +217,11 @@ def ok_acoustic_diagnostics(df):
     """
     Filter for "ok" level acoustic diagnostics.
     
-    Parameters:
-    - df: DataFrame with shotdata
+    Args:
+        df: DataFrame with shotdata
     
     Returns:
-    - Filtered DataFrame with "ok" level acoustic diagnostics
+        Filtered DataFrame with "ok" level acoustic diagnostics
     """
     return filter_acoustic_diagnostics(df, snr_min=12, dbv_min=-36, dbv_max=-3, xc_min=45)
 
@@ -228,11 +229,11 @@ def difficult_acoustic_diagnostics(df):
     """
     Filter for "difficult" level acoustic diagnostics.
     
-    Parameters:
-    - df: DataFrame with shotdata
+    Args:
+        df: DataFrame with shotdata
     
     Returns:
-    - Filtered DataFrame with "difficult" level acoustic diagnostics
+        Filtered DataFrame with "difficult" level acoustic diagnostics
     """
     return filter_acoustic_diagnostics(df)
 
@@ -240,12 +241,12 @@ def filter_ping_replies(df, min_replies=3):
     """
     Require minimum number of replies for each ping (e.g., 3 replies for the 3 transponders).
     
-    Parameters:
-    - df: DataFrame with shotdata
-    - min_replies: Minimum number of replies required (default 3)
+    Args:
+        df: DataFrame with shotdata
+        min_replies: Minimum number of replies required (default 3)
     
     Returns:
-    - Filtered DataFrame
+        Filtered DataFrame
     """
     if 'pingTime' not in df.columns:
         logger.logerr("pingTime column not found, skipping filter")
@@ -266,6 +267,76 @@ def filter_ping_replies(df, min_replies=3):
     logger.loginfo(f"Removed {removed_pings} ping times with < {min_replies} replies ({removed_records} total records)")
     
     return filtered_df
+
+def filter_pride_residuals(df, station_data: StationData, start_time: datetime, end_time: datetime, max_wrms=15): 
+    """
+    Filter Pride PPP data based on wrms residuals in position tileDB array.
+    
+    Args:
+        df: DataFrame with shotdata
+        station_data: StationData object 
+        start_time: Start time for filtering
+        end_time: End time for filtering
+        max_wrms: Maximum WRMS threshold in mm (default 15mm)
+    
+    Returns:
+        Filtered DataFrame
+    """
+
+    # Convert tileDB array to dataframe
+    pride_data = TDBKinPositionArray(station_data.kinpositiondata) 
+    ppp_df = pride_data.read_df(start=start_time, end=end_time)
+    if ppp_df.empty:
+        logger.logerr("No Pride PPP data found, skipping residual filter")
+        return df
+    
+    # Check if wrms column exists
+    if 'wrms' not in ppp_df.columns:
+        logger.logerr("WRMS column not found in Pride data, skipping residual filter")
+        return df
+
+    # Filter Pride data for high WRMS values
+    high_wrms_times = ppp_df[ppp_df['wrms'] > max_wrms]['time'].tolist()
+    
+    if not high_wrms_times:
+        logger.loginfo(f"No Pride PPP data exceeds WRMS threshold of {max_wrms}mm")
+        return df
+    
+    # Convert Pride PPP datetime to Unix timestamp to match pingTime format
+    high_wrms_unix_times = []
+    for bad_time in high_wrms_times:
+        if pd.isna(bad_time):
+            continue
+        # Convert datetime to Unix timestamp
+        unix_timestamp = bad_time.timestamp()
+        high_wrms_unix_times.append(unix_timestamp)
+    
+    # Create exclusion time ranges using Unix timestamps
+    exclusion_ranges = []
+    time_buffer_seconds = 1  # 1 second buffer before/after
+    
+    for bad_unix_time in high_wrms_unix_times:
+        exclusion_ranges.append({
+            'start': bad_unix_time - time_buffer_seconds,
+            'end': bad_unix_time + time_buffer_seconds
+        })
+    
+    # Filter shot data - remove shots that fall within any exclusion range
+    initial_count = len(df)
+    mask = pd.Series(True, index=df.index)  # Start with all True
+    
+    for time_range in exclusion_ranges:
+        # Mark shots within this exclusion range as False (pingTime is Unix timestamp)
+        in_range = (df['pingTime'] >= time_range['start']) & (df['pingTime'] <= time_range['end'])
+        mask = mask & ~in_range  # Remove shots in this range
+
+    filtered_df = df[mask].copy()
+    
+    removed_count = initial_count - len(filtered_df)
+    logger.loginfo(f"Removed {removed_count} shot records due to high WRMS (>{max_wrms}mm) in Pride PPP data")
+    logger.loginfo(f"Used {len(exclusion_ranges)} time exclusion ranges with ±1s buffer")
+
+    return filtered_df  # Return filtered_df instead of original df
 
 
 # Example usage:

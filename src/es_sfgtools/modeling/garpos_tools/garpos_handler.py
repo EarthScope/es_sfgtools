@@ -45,6 +45,7 @@ from .load_utils import load_drive_garpos
 from es_sfgtools.data_mgmt.catalog import PreProcessCatalog
 from es_sfgtools.data_mgmt.file_schemas import AssetEntry, AssetType
 from es_sfgtools.modeling.garpos_tools.shot_data_utils import (
+    filter_pride_residuals,
     filter_wg_distance_from_center, 
     good_acoustic_diagnostics, 
     ok_acoustic_diagnostics, 
@@ -182,6 +183,10 @@ class GarposHandler:
         """
         Initializes the class with shot data, site configuration, and working directory.
         Args:
+            network (str): The network name.
+            station (str): The station name.
+            campaign (str): The campaign name.
+            station_data (StationData): The station data containing shot data
             shotdata (TDBShotDataArray): The shot data array.
             site_config (SiteConfig): The site configuration.
             working_dir (Path): The directory path to store results and shot data. *data handler sets this to the campaign directory*
@@ -190,6 +195,7 @@ class GarposHandler:
         self.garpos_fixed = GarposFixed()
         self.shotdata = TDBShotDataArray(station_data.shotdata)
         self.site: Site = site_data
+        self.station_data = station_data
 
         # Create directories for GARPOS processing and results
         self.working_dir = working_dir
@@ -568,6 +574,8 @@ class GarposHandler:
             # -- Apply shot data filters --
             shot_data_filtered = self.filter_shotdata(survey_type=survey.type,
                                                       shot_data=shot_data_queried,
+                                                      start_time=survey.start,
+                                                      end_time=survey.end,
                                                       custom_filters=custom_filters)
             # Save filtered shot data to CSV for reference or to use later
             shot_data_filtered.to_csv(self.shotdata_dir / f"{survey.id}_shotdata_filtered.csv")
@@ -740,6 +748,8 @@ class GarposHandler:
     def filter_shotdata(self, 
                         survey_type: str,
                         shot_data: pd.DataFrame,
+                        start_time: datetime,
+                        end_time: datetime,
                         custom_filters: Optional[dict] = None) -> pd.DataFrame:
         """
         Filter the shot data based on the specified acoustic level and minimum ping replies.
@@ -790,7 +800,15 @@ class GarposHandler:
                                                                     max_distance_m=max_distance_from_center)
         
         # TODO Pride residuals 
-
+        if self.shotdata_filter_config.get("pride_residuals", {}).get("enabled", True):
+            max_wrms = self.shotdata_filter_config["pride_residuals"].get("max_residual", None)
+            if max_wrms is not None:
+                new_shot_data_df = filter_pride_residuals(df=new_shot_data_df,
+                                                        station_data=self.station_data,
+                                                        start_time=start_time,
+                                                        end_time=end_time,
+                                                        max_wrms=max_wrms
+                                                        )
 
         filtered_count = len(new_shot_data_df)
         logger.loginfo(f"Filtered {initial_count - filtered_count} records from shot data based on filtering criteria: {self.shotdata_filter_config}")
