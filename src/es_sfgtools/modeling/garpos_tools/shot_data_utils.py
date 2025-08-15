@@ -27,40 +27,6 @@ DEFAULT_FILTER_CONFIG = {
     }
 }
 
-def load_shot_data(file_path: str) -> pd.DataFrame:
-    """
-    Load shot data from a CSV file into a pandas DataFrame.
-    
-    Args:
-    - file_path: Path to the CSV file containing shot data.
-    
-    Returns:
-    - pd.DataFrame: DataFrame containing the shot data.
-    """
-    try:
-        df = pd.read_csv(file_path)
-        logger.loginfo(f"Loaded shot data from {file_path} with {len(df)} records")
-        return df
-    except Exception as e:
-        logger.logerr(f"Error loading shot data from {file_path}: {e}")
-        return pd.DataFrame()
-    
-
-def write_filtered_shot_data(df: pd.DataFrame, file_path: str) -> None:
-    """
-    Write filtered shot data to a CSV file.
-    
-    Args:
-        df: DataFrame containing the shot data.
-        file_path: Path to save the CSV file.
-    """
-    # Add "filtered" to the file name to indicate it's filtered data
-    new_file_path = file_path.replace('.csv', '_filtered.csv')
-    try:
-        df.to_csv(new_file_path, index=False)
-        logger.loginfo(f"Shot data written to {new_file_path} with {len(df)} records")
-    except Exception as e:
-        logger.logerr(f"Error writing shot data to {new_file_path}: {e}")
 
 def filter_wg_distance_from_center(df: pd.DataFrame, array_center_lat: float, array_center_lon: float, max_distance_m: float = 150) -> pd.DataFrame:
     """
