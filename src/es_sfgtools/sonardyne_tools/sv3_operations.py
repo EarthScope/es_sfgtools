@@ -156,6 +156,10 @@ def dfop00_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
     except (FileNotFoundError, PermissionError, UnicodeDecodeError) as e:
         logger.logerr(f"Error reading {source}: {e}")
         return None
+    
+    interrogation_parsed = None
+    reply_data_parsed = None
+    
     for line in lines:
         data = json.loads(line)
         if data.get("event") == "interrogation":
@@ -174,9 +178,12 @@ def dfop00_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
 
             except Exception as e:
                 reply_data_parsed = None
+
             if reply_data_parsed is not None and interrogation_parsed is not None:
                 try:
                     merged_data = merge_interrogation_reply(interrogation_parsed, reply_data_parsed)
+                    interrogation_parsed = None  # Reset interrogation after merging
+                    reply_data_parsed = None  # Reset reply after merging
                 except AssertionError as e:
                     logger.logerr(f"Assertion error in merging ping/reply data: {e}")
                     merged_data = None
