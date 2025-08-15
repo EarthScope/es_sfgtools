@@ -113,7 +113,7 @@ def filter_dbv(df, dbv_min=-36, dbv_max=-3):
     initial_count = len(df)
     df = df[(df['dbv'] >= dbv_min) & (df['dbv'] <= dbv_max)].copy()
     
-    logger.loginfo(f"Removed {initial_count - len(df)} records with DBV < {dbv_max} and > {dbv_min}")
+    logger.loginfo(f"Removed {initial_count - len(df)} records with DBV < {dbv_min} or > {dbv_max}")
     return df
 
 def filter_xc(df, xc_min=45):

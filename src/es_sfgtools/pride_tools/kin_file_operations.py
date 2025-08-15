@@ -118,11 +118,11 @@ def get_wrms_from_res(res_path):
                 if '.' in seconds_str:
                     SS, fractional = seconds_str.split('.')
                     SS = int(SS)
-                    # Pad fractional part to 3 digits or truncate if longer
-                    fractional = fractional.ljust(3, '0')[:3]  # "400"
+                    # Pad fractional part to 6 digits or truncate if longer
+                    fractional = fractional.ljust(6, '0')[:36]  # example "4000000" -> "400000"
                 else:
                     SS = int(seconds_str)
-                    fractional = "000"
+                    fractional = "000000"
                 
                 isodate = f"{line_data[1]}-{line_data[2].zfill(2)}-{line_data[3].zfill(2)}T{line_data[4].zfill(2)}:{line_data[5].zfill(2)}:{str(SS).zfill(2)}.{fractional}+00:00"
 

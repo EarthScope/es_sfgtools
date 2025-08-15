@@ -783,9 +783,9 @@ class GarposHandler:
                 logger.loginfo(f"No acoustic filtering applied, using original shot data")
 
         # Filter by ping replies
-        ping_config = self.shotdata_filter_config.get("ping_replies", {})
-        if ping_config.get("enabled", True):
-            min_replies = ping_config.get("min_replies", 3)
+        ping_replies_config = self.shotdata_filter_config.get("ping_replies", {})
+        if ping_replies_config.get("enabled", True):
+            min_replies = ping_replies_config.get("min_replies", 3)
             new_shot_data_df = filter_ping_replies(new_shot_data_df, min_replies=min_replies)
 
         # Filter by maximum distance from array center for center surveys
