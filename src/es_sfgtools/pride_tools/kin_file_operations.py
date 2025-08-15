@@ -346,11 +346,7 @@ def read_kin_data(kin_path):
         on_bad_lines="skip",
     )
     # kin_df = pd.read_csv(kin_path, sep="\s+", names=cols, header=end_of_header, on_bad_lines='skip')
-    # kin_df.set_index(
-    #     pd.to_datetime(kin_df["Mjd"] + 2400000.5, unit="D", origin="julian")
-    #     + pd.TimedeltaIndex(kin_df["Sod"], unit="s"),
-    #     inplace=True,
-    # )
+
     kin_df.set_index(
         pd.to_datetime(kin_df["Mjd"] + 2400000.5, unit="D", origin="julian")
         + pd.to_timedelta(kin_df["Sod"], unit="sec"),
