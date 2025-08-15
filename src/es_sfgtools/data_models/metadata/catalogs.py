@@ -21,13 +21,16 @@ class StationData(BaseModel):
     shotdata_pre: str = Field(
         default=None, description="Pre-update shotdata"
     )
-    gnssdata: str = Field(
+    kinpositiondata: str = Field(
         default=None, description="The station's RINEX derived position TileDB URI"
     )
     gnssobsdata: str = Field(
         default=None, description="The station's raw gnss observables TileDB URI"
     )
-    positiondata: str = Field(
+    gnssobsdata_secondary: str = Field(
+        default=None, description="The station's secondary gnss observables TileDB URI"
+    )
+    imupositiondata: str = Field(
         default=None, description="The station's position data TileDB URI"
     )
     acousticdata: str = Field(
