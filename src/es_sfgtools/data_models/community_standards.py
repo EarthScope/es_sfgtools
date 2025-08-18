@@ -1,9 +1,15 @@
+"""
+GNSS-A Community data/meta-data standard schemas. A full description can be found at the site:
+https://hal.science/hal-04319233
+"""
+
 import pandera as pa
 from pandera.typing import Series
 from typing import Optional
+from pydantic import BaseModel as Basemodel
+import datetime
 
-
-class SeafloorAcousticData(pa.DataFrameModel):
+class SFGDSTFSeafloorAcousticData(pa.DataFrameModel):
     """
     Data frame model of seafloor acoustic data defined by the Seafloor Geodesy Data Standardization Task Force (SFGDSTF)
     """
@@ -147,3 +153,12 @@ class SeafloorAcousticData(pa.DataFrameModel):
     )
 
     # Additional optional pa.Fields can be added as needed for [other] category
+
+class SFGDTSFSite(Basemodel):
+    Site_name: str # GNSS-A site name or code
+    Campaign: str # Observation campaign name
+    TimeOrigin: datetime.datetime # Origin of time used in the file [UTC]
+    RefFrame:str = "ITRF" # Reference frame used in the file
+    MTlist: list[str] = [] # List of ID of mirror transponders
+    MT_appPos: dict[str, list[float]] = {} # Approximate positions of transponders in ECEF[m]
+    ATDoffset: list[float] = [0.0, 0.0, 0.0] # Antenna to transponder offset [m] with [forward,rightward,downward]
