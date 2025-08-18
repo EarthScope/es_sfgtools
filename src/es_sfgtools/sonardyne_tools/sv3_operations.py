@@ -1,7 +1,6 @@
 # External imports
 from pathlib import Path
 import json
-from numpy import source
 from pandera.typing import DataFrame
 import pandas as pd
 import pymap3d as pm
