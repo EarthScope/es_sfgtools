@@ -119,7 +119,7 @@ def get_wrms_from_res(res_path):
                     SS, fractional = seconds_str.split('.')
                     SS = int(SS)
                     # Pad fractional part to 6 digits or truncate if longer
-                    fractional = fractional.ljust(6, '0')[:36]  # example "4000000" -> "400000"
+                    fractional = fractional.ljust(6, '0')[:6]  # example "4000000" -> "400000"
                 else:
                     SS = int(seconds_str)
                     fractional = "000000"
