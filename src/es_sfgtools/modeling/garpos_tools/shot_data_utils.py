@@ -13,7 +13,7 @@ DEFAULT_FILTER_CONFIG = {
         "enabled": True, 
         "level": "OK"  # Options: "GOOD", "OK", "DIFFICULT"
         },
-    "min_ping_replies": {
+    "ping_replies": {
         "enabled": True, 
         "min_replies": 3
         },
@@ -23,7 +23,7 @@ DEFAULT_FILTER_CONFIG = {
     },
     "pride_residuals": {
         "enabled": True, 
-        "max_residual": 5  
+        "max_residual": 5  # in millimeters
     }
 }
 
@@ -243,8 +243,8 @@ def filter_pride_residuals(df, station_data: StationData, start_time: datetime, 
         station_data: StationData object 
         start_time: Start time for filtering
         end_time: End time for filtering
-        max_wrms: Maximum WRMS threshold in mm (default 15mm)
-    
+        max_wrms: Maximum WRMS threshold in millimeters (default 15mm)
+
     Returns:
         Filtered DataFrame
     """
