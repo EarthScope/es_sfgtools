@@ -37,7 +37,6 @@ from es_sfgtools.modeling.garpos_tools.schemas import (
 
 from es_sfgtools.modeling.garpos_tools.functions import CoordTransformer, process_garpos_results, rectify_shotdata
 from es_sfgtools.utils.archive_pull import download_file_from_archive
-from es_sfgtools.modeling.garpos_tools.functions import CoordTransformer, process_garpos_results, rectify_shotdata
 from ...logging import GarposLogger as logger
 from ...seafloor_site_tools.soundspeed_operations import CTDfile_to_svp,seabird_to_soundvelocity
 from ...tiledb_tools.tiledb_schemas import TDBShotDataArray
