@@ -23,7 +23,7 @@ DEFAULT_FILTER_CONFIG = {
     },
     "pride_residuals": {
         "enabled": True, 
-        "max_residual": 5  # in millimeters
+        "max_residual_mm": 5  # in millimeters
     }
 }
 

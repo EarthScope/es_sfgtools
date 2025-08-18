@@ -800,7 +800,7 @@ class GarposHandler:
         
         # TODO Pride residuals 
         if self.shotdata_filter_config.get("pride_residuals", {}).get("enabled", True):
-            max_wrms = self.shotdata_filter_config["pride_residuals"].get("max_residual", None)
+            max_wrms = self.shotdata_filter_config["pride_residuals"].get("max_residual_mm", None)
             if max_wrms is not None:
                 new_shot_data_df = filter_pride_residuals(df=new_shot_data_df,
                                                         station_data=self.station_data,
