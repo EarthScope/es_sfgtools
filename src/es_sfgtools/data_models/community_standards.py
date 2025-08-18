@@ -8,13 +8,15 @@ from pandera.typing import Series
 from typing import Optional
 from pydantic import BaseModel as Basemodel
 import datetime
+import pymap3d as pm
+from .metadata import Site, Vessel
 
 class SFGDSTFSeafloorAcousticData(pa.DataFrameModel):
     """
     Data frame model of seafloor acoustic data defined by the Seafloor Geodesy Data Standardization Task Force (SFGDSTF)
     """
     # Essential pa.Fields
-    MT_ID: Series[str] = pa.Field(description="ID of mirror transponder", max_length=50)
+    MT_ID: Series[str] = pa.Field(description="ID of mirror transponder")
     TravelTime: Series[float] = pa.Field(
         description="Observed travel time (net value) [sec.]", ge=0
     )
@@ -45,12 +47,12 @@ class SFGDSTFSeafloorAcousticData(pa.DataFrameModel):
 
     # Optional pa.Fields
     TDC_ID: Optional[Series[str]] = pa.Field(
-        default=None, description="ID of the reception transducer", max_length=50
+        default=None, description="ID of the reception transducer"
     )
     aSNR: Optional[Series[float]] = pa.Field(
         default=None, description="Signal/Noise Ratio of the acoustic ping"
     )
-    acc: Optional[Series[float]] = pa.Field(
+    acc: Optional[Series[int]] = pa.Field(
         default=None, description="acoustic Cross Correlation of the acoustic ping"
     )
     dbV: Optional[Series[float]] = pa.Field(
@@ -59,7 +61,7 @@ class SFGDSTFSeafloorAcousticData(pa.DataFrameModel):
     quality_flag: Optional[Series[str]] = pa.Field(
         default=None,
         description="Series[str]ing defining the quality of the record",
-        max_length=10,
+       
     )
     trans_sigX0: Optional[Series[float]] = pa.Field(
         default=None, description="Transducer position std at transmit"
@@ -162,3 +164,25 @@ class SFGDTSFSite(Basemodel):
     MTlist: list[str] = [] # List of ID of mirror transponders
     MT_appPos: dict[str, list[float]] = {} # Approximate positions of transponders in ECEF[m]
     ATDoffset: list[float] = [0.0, 0.0, 0.0] # Antenna to transponder offset [m] with [forward,rightward,downward]
+
+    @classmethod
+    def from_site_vessel(cls, site: Site, vessel: Vessel) -> "SFGDTSFSite":
+        mt_app_pos = {}
+        for benchmark in site.benchmarks:
+            east,north,up = pm.geodetic2ecef(
+                lat=benchmark.aPrioriLocation.latitude,
+                lon=benchmark.aPrioriLocation.longitude,
+                alt=benchmark.aPrioriLocation.elevation,
+            )
+            mt_app_pos[benchmark.benchmarkID] = [east, north, up]
+
+            
+        return cls(
+            Site_name=site.names[0],  # Assuming the first name is the primary site name
+            Campaign=site.campaigns[0].name,  # Assuming the first campaign is the primary one
+            TimeOrigin=site.timeOrigin,
+            RefFrame= (site.referenceFrames[0] if site.referenceFrames else "ITRF"),
+            MTlist=[b.benchmarkID for b in site.benchmarks],
+            MT_appPos=mt_app_pos,
+            ATDoffset=[dict(vessel.atdOffsets[0]).get(key) for key in ["x", "y", "z"]],
+        )

@@ -26,9 +26,9 @@ class SV3InterrogationData(BaseModel):
     east0: Decimal
     north0: Decimal
     up0: Decimal
-    east_std: Optional[Decimal] = None
-    north_std: Optional[Decimal] = None
-    up_std: Optional[Decimal] = None
+    east_std0: Optional[Decimal] = None
+    north_std0: Optional[Decimal] = None
+    up_std0: Optional[Decimal] = None
     pingTime: Decimal
 
 class SV3ReplyData(BaseModel):
@@ -45,3 +45,6 @@ class SV3ReplyData(BaseModel):
     tt: Decimal
     tat: Decimal
     returnTime: Decimal
+    east_std1: Optional[Decimal] = None
+    north_std1: Optional[Decimal] = None
+    up_std1: Optional[Decimal] = None
