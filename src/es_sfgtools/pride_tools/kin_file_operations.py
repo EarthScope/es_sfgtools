@@ -95,7 +95,6 @@ class PridePPP(BaseModel):
             raise Exception(f"Error parsing PridePPP kin file {e}")
 
 
-# read res and caculate wrms
 def get_wrms_from_res(res_path):
     with open(res_path, "r") as res_file:
         timestamps = []
@@ -104,6 +103,7 @@ def get_wrms_from_res(res_path):
         sumOfSquares = 0
         sumOfWeights = 0
         line = res_file.readline()  # first line is header and we can throw away
+
         while True:
             if line == "":  # break at EOF
                 break
@@ -112,10 +112,20 @@ def get_wrms_from_res(res_path):
                 sumOfSquares = 0
                 sumOfWeights = 0
                 # parse date fields and make a timestamp
-                seconds = float(line_data[6])
-                SS = int(seconds)
-                f = str(seconds - SS).split(".")[-1]
-                isodate = f"{line_data[1]}-{line_data[2].zfill(2)}-{line_data[3].zfill(2)}T{line_data[4].zfill(2)}:{line_data[5].zfill(2)}:{str(SS).zfill(2)}.{str(f).zfill(6)}"
+                seconds_str = line_data[6]  # Keep as string: "49.4000000"
+                
+                # Fix the microseconds calculation
+                if '.' in seconds_str:
+                    SS, fractional = seconds_str.split('.')
+                    SS = int(SS)
+                    # Pad fractional part to 6 digits or truncate if longer
+                    fractional = fractional.ljust(6, '0')[:6]  # example "4000000" -> "400000"
+                else:
+                    SS = int(seconds_str)
+                    fractional = "000000"
+                
+                isodate = f"{line_data[1]}-{line_data[2].zfill(2)}-{line_data[3].zfill(2)}T{line_data[4].zfill(2)}:{line_data[5].zfill(2)}:{str(SS).zfill(2)}.{fractional}+00:00"
+
                 timestamp = datetime.fromisoformat(isodate)
                 timestamps.append(timestamp)
                 # loop through SV data for that epoch, stop at next timestamp
@@ -174,18 +184,18 @@ def plot_kin_results_wrms(kin_df, title=None, save_as=None):
     if save_as is not None:
         plt.savefig(save_as)
 
-
 def kin_to_kin_position_df(source: str|Path) -> Union[pd.DataFrame, None]:
     """
-    Create an KinPositionDataFrame from a kin file from PRIDE-PPP
+    Create a KinPositionDataFrame from a kin file from PRIDE-PPP, including WRMS residuals.
 
     Parameters:
-        file_path (str): The path to the kin file
+        source (str|Path): The path to the kin file
 
     Returns:
-        dataframe (KinPositionDataFrame): An instance of the class.
+        dataframe (pd.DataFrame): DataFrame with kinematic data and residuals.
     """
   
+    logger.loginfo(f"Parsing KIN file: {source}")
     with open(source, "r") as file:
         lines = file.readlines()
 
@@ -216,15 +226,72 @@ def kin_to_kin_position_df(source: str|Path) -> Union[pd.DataFrame, None]:
         logger.logerr(f"GNSS: No data found in FILE {source}")
         return None
 
-    # TODO convert lat/long to ecef
+    # Create the main dataframe
     dataframe = pd.DataFrame([dict(pride_ppp) for pride_ppp in data])
-    # dataframe.drop(columns=["modified_julian_date", "second_of_day"], inplace=True)
-
-    logger.loginfo(
-        f"GNSS Parser: {dataframe.shape[0]} shots from FILE {str(source)}"
-    )
     dataframe["time"] = dataframe["time"].dt.tz_localize("UTC")
-    return dataframe.drop(columns=["modified_julian_date", "second_of_day"])
+    
+    # Set time as index for easier merging
+    dataframe.set_index("time", inplace=True)
+    logger.loginfo(f"Parsed {len(dataframe)} records from KIN file {source}")
+    
+    # Add residuals data
+    try:
+        # Find corresponding RES file
+        source_path = Path(source)
+        # Assume RES file is in same directory with pattern: res_YYYYDDD_station.res
+        # Extract pattern from KIN filename to find RES file
+        res_pattern = source_path.stem.replace("kin_", "res_").replace(".kin", "")
+        res_file = source_path.parent / f"{res_pattern}.res"
+                
+        if res_file.exists():
+            logger.loginfo(f"Adding residuals from {res_file}")
+            wrms_df = get_wrms_from_res(res_file)
+            
+            if not wrms_df.empty:
+                # Set date as index for merging
+                wrms_df.set_index("date", inplace=True)
+
+                # # Merge on timestamp using exact match
+                # dataframe = dataframe.merge(
+                #     wrms_df, 
+                #     left_index=True, 
+                #     right_index=True, 
+                #     how='left'  # Keep all KIN records, add WRMS where available
+                # )
+                # TODO TIME ISSUE
+                 # Sort both DataFrames by index for merge_asof
+                dataframe_sorted = dataframe.sort_index()
+                wrms_sorted = wrms_df.sort_index()
+                # Merge with 0.01 second tolerance
+                dataframe = pd.merge_asof(
+                    dataframe_sorted,
+                    wrms_sorted, 
+                    left_index=True, 
+                    right_index=True, 
+                    direction='nearest',  # Find nearest match
+                    tolerance=pd.Timedelta(seconds=0.01)  # Within 0.01 seconds
+                )
+
+                logger.loginfo(f"Added WRMS residuals for {dataframe['wrms'].notna().sum()} of {len(dataframe)} records")
+                
+            else:
+                logger.logwarn(f"No WRMS data found in {res_file}")
+                dataframe["wrms"] = None
+        else:
+            logger.logwarn(f"No corresponding RES file found for {source}")
+            dataframe["wrms"] = None
+            
+    except Exception as e:
+        logger.logerr(f"Error adding residuals: {e}")
+        dataframe["wrms"] = None
+
+    # Drop the MJD and SOD columns and reset index
+    dataframe = dataframe.drop(columns=["modified_julian_date", "second_of_day"], errors='ignore')
+    dataframe.reset_index(inplace=True)  # Move time back to a column
+    
+    logger.loginfo(f"GNSS Parser: {dataframe.shape[0]} shots from FILE {str(source)}")
+    
+    return dataframe
 
 
 def read_kin_data(kin_path):
@@ -279,6 +346,7 @@ def read_kin_data(kin_path):
         on_bad_lines="skip",
     )
     # kin_df = pd.read_csv(kin_path, sep="\s+", names=cols, header=end_of_header, on_bad_lines='skip')
+
     kin_df.set_index(
         pd.to_datetime(kin_df["Mjd"] + 2400000.5, unit="D", origin="julian")
         + pd.to_timedelta(kin_df["Sod"], unit="sec"),
