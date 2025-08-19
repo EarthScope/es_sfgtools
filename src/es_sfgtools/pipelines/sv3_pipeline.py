@@ -7,7 +7,7 @@ import pandas as pd
 from typing import List, Optional
 from pathlib import Path
 import concurrent.futures
-from sfg_metadata.metadata.src.catalogs import Catalog
+from es_sfgtools.data_models.metadata import MetaDataCatalog as MetaDataCatalog
 import sys 
 
 # Local imports
@@ -104,7 +104,7 @@ class SV3Pipeline:
     def __init__(
         self,
         asset_catalog: PreProcessCatalog = None,
-        data_catalog: Catalog = None,
+        data_catalog: MetaDataCatalog = None,
         config: SV3PipelineConfig = None,
     ):
         """

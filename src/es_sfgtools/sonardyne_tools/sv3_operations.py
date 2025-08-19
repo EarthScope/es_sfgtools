@@ -10,6 +10,7 @@ from ..data_models.log_models import SV3InterrogationData, SV3ReplyData
 from ..data_models.sv3_models import NovatelRangeEvent,NovatelInterrogationEvent
 from ..data_models.observables import ShotDataFrame
 from ..data_models.constants import LEAP_SECONDS,TRIGGER_DELAY_SV3
+from ..data_models.community_standards import SFGDTSFSite,SFGDSTFSeafloorAcousticData
 from ..logging import ProcessLogger as logger
 
 
@@ -41,9 +42,9 @@ def novatelInterrogation_to_garpos_interrogation(
         east0=east_ecef,
         north0=north_ecef,
         up0=up_ecef,
-        east_std=novatel_interrogation.observations.GNSS.sdx,
-        north_std=novatel_interrogation.observations.GNSS.sdy,
-        up_std=novatel_interrogation.observations.GNSS.sdz,
+        east_std0=novatel_interrogation.observations.GNSS.sdx,
+        north_std0=novatel_interrogation.observations.GNSS.sdy,
+        up_std0=novatel_interrogation.observations.GNSS.sdz,
         pingTime=float(novatel_interrogation.time.common) + LEAP_SECONDS, #GPS time is ahead of UTC by 18 seconds
     )
     return sv3Interrogation
@@ -75,9 +76,9 @@ def novatelReply_to_garpos_reply(
         east1 = east_ecef,
         north1 = north_ecef,
         up1 = up_ecef,
-        east_std=novatel_reply.observations.GNSS.sdx,
-        north_std=novatel_reply.observations.GNSS.sdy,
-        up_std=novatel_reply.observations.GNSS.sdz,
+        east_std1=novatel_reply.observations.GNSS.sdx,
+        north_std1=novatel_reply.observations.GNSS.sdy,
+        up_std1=novatel_reply.observations.GNSS.sdz,
         range=novatel_reply.range.range,
         tat=novatel_reply.range.tat,
         snr=novatel_reply.range.diag.snr,
@@ -156,6 +157,10 @@ def dfop00_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
     except (FileNotFoundError, PermissionError, UnicodeDecodeError) as e:
         logger.logerr(f"Error reading {source}: {e}")
         return None
+    
+    interrogation_parsed = None
+    reply_data_parsed = None
+    
     for line in lines:
         data = json.loads(line)
         if data.get("event") == "interrogation":
@@ -174,12 +179,19 @@ def dfop00_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
 
             except Exception as e:
                 reply_data_parsed = None
+
             if reply_data_parsed is not None and interrogation_parsed is not None:
                 try:
                     merged_data = merge_interrogation_reply(interrogation_parsed, reply_data_parsed)
+                    interrogation_parsed = None  # Reset interrogation after merging
+                    reply_data_parsed = None  # Reset reply after merging
                 except AssertionError as e:
                     logger.logerr(f"Assertion error in merging ping/reply data: {e}")
                     merged_data = None
+
+                interrogation_parsed = None  # Reset interrogation after merging attempt  
+                reply_data_parsed = None  # Reset reply after merging attempt  
+                
                 if merged_data is not None:
                     processed.append(merged_data)
 
@@ -190,3 +202,75 @@ def dfop00_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
     df["isUpdated"] = False
     return ShotDataFrame(df)
 
+
+def dfop00_to_SFGDSTFSeafloorAcousticData(source: str | Path,siteData:SFGDTSFSite) -> SFGDSTFSeafloorAcousticData | None:
+    """
+    Parses a DFOP00-format file containing Sonardyne event data and converts it into a SFGDSTFSeafloorAcousticData.
+
+    The function reads the specified file line by line, expecting each line to be a JSON object
+    representing either an "interrogation" or "range" event. It processes and merges interrogation
+    and range events, transforming them into a unified format suitable for geodetic analysis.
+
+    Args:
+        source (str | Path): Path to the DFOP00-format file containing event data.
+
+    Returns:
+        SFGDSTFSeafloorAcousticData | None: A SFGDSTFSeafloorAcousticData containing processed and merged event data,
+        or None if no valid data was found or an error occurred during file reading.
+
+    Raises:
+        None explicitly, but logs errors for file access issues and data processing problems.
+    """
+
+    shotdata = dfop00_to_shotdata(source)
+    if shotdata is None:
+        logger.logerr(f"Failed to convert {source} to ShotDataFrame")
+        return None
+
+    # Convert ShotDataFrame to SFGDSTFSeafloorAcousticData
+    X_transmit = shotdata.east0.apply(lambda x: x+siteData.ATDoffset[0])
+    Y_transmit = shotdata.north0.apply(lambda x: x+siteData.ATDoffset[1])
+    Z_transmit = shotdata.up0.apply(lambda x: x+siteData.ATDoffset[2])
+
+    X_receive = shotdata.east1.apply(lambda x: x+siteData.ATDoffset[0])
+    Y_receive = shotdata.north1.apply(lambda x: x+siteData.ATDoffset[1])
+    Z_receive = shotdata.up1.apply(lambda x: x+siteData.ATDoffset[2])
+
+    df = pd.DataFrame(
+        {
+            "MT_ID": shotdata.transponderID,
+            "TravelTime": shotdata.tt,
+            "T_transmit": shotdata.pingTime,
+            "X_transmit": X_transmit,
+            "Y_transmit": Y_transmit,
+            "Z_transmit": Z_transmit,
+            "T_receive": shotdata.returnTime,
+            "X_receive": X_receive,
+            "Y_receive": Y_receive,
+            "Z_receive": Z_receive,
+            "roll0": shotdata.roll0,
+            "pitch0": shotdata.pitch0,
+            "heading0": shotdata.head0,
+            "roll1": shotdata.roll1,
+            "pitch1": shotdata.pitch1,
+            "heading1": shotdata.head1,
+            "ant_X0": shotdata.east0,
+            "ant_Y0": shotdata.north0,
+            "ant_Z0": shotdata.up0,
+            "ant_X1": shotdata.east1,
+            "ant_Y1": shotdata.north1,
+            "ant_Z1": shotdata.up1,
+            "aSNR":shotdata.snr,
+            "dBV":shotdata.dbv,
+            "acc":shotdata.xc,
+            "ant_sigX0": shotdata.east_std0,
+            "ant_sigY0": shotdata.north_std0,
+            "ant_sigZ0": shotdata.up_std0,
+            "ant_sigX1": shotdata.east_std1,
+            "ant_sigY1": shotdata.north_std1,
+            "ant_sigZ1": shotdata.up_std1,
+
+        }
+    )
+
+    return SFGDSTFSeafloorAcousticData(df)

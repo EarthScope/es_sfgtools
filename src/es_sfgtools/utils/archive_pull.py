@@ -7,8 +7,8 @@ from typing import List, Optional
 import boto3
 from enum import Enum
 
-from sfg_metadata.metadata.src.site import Site, import_site
-from sfg_metadata.metadata.src.vessel import Vessel, import_vessel
+from es_sfgtools.data_models.metadata import Site,import_site
+from es_sfgtools.data_models.metadata import Vessel, import_vessel
 from earthscope_sdk import EarthScopeClient
 from earthscope_sdk.config.settings import SdkSettings
 from earthscope_cli.login import login as es_login

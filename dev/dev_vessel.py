@@ -1,4 +1,4 @@
-from sfg_metadata.metadata.src.vessel import Vessel
+from es_sfgtools.data_models.metadata.vessel import Vessel
 from sfg_metadata.metadata_io.meta_io import masterfile_to_siteconfig, leverarmfile_to_atdoffset
 from pathlib import Path
 test_meta = {

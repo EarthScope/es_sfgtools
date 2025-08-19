@@ -266,16 +266,28 @@ class ShotDataFrame(AcousticDataFrame):
         description="ECEF North position of the vessel at the time of the ping [m]")
     up1: Series[float] = pa.Field(
         description="Height above ellipsoid of the vessel at the time of the ping")
-    east_std: Series[float] = pa.Field(
+    east_std0: Optional[Series[float]] = pa.Field(
         description="Standard deviation of the ECEF East position of the vessel at the time of the ping [m]",
         nullable=True,
     )
-    north_std: Series[float] = pa.Field(
+    north_std0: Optional[Series[float]] = pa.Field(
         description="Standard deviation of the ECEF North position of the vessel at the time of the ping [m]",
         nullable=True,
     )
-    up_std: Series[float] = pa.Field(
+    up_std0: Optional[Series[float]] = pa.Field(
         description="Standard deviation of the height above ellipsoid of the vessel at the time of the ping",
+        nullable=True,
+    )
+    east_std1: Optional[Series[float]] = pa.Field(
+        description="Standard deviation of the ECEF East position of the vessel at the time of the reply [m]",
+        nullable=True,
+    )
+    north_std1: Optional[Series[float]] = pa.Field(
+        description="Standard deviation of the ECEF North position of the vessel at the time of the reply [m]",
+        nullable=True,
+    )
+    up_std1: Optional[Series[float]] = pa.Field(
+        description="Standard deviation of the height above ellipsoid of the vessel at the time of the reply",
         nullable=True,
     )
 

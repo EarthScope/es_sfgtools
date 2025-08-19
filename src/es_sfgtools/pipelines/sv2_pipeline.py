@@ -17,7 +17,7 @@ NOT YET IMPLEMENTED
 # import concurrent.futures
 
 
-# from sfg_metadata.metadata.src.catalogs import Catalog
+# from es_sfgtools.data_models.metadata import MetaDataCatalog as Catalog
 
 # # Local imports
 # from ..data_mgmt.catalog import PreProcessCatalog
