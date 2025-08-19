@@ -76,12 +76,12 @@
       "system": "GREC23J",
       "tides": "SOP",
       "override_products_download": false,
-      "override": false
+      "override": true
     },
     "rinex_config": {
       "n_processes": 5,
       "time_interval": 24,
-      "override": false
+      "override": true
     }
   }
 }

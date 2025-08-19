@@ -42,6 +42,7 @@ from ...tiledb_tools.tiledb_schemas import TDBShotDataArray
 from .load_utils import load_drive_garpos
 from es_sfgtools.data_mgmt.catalog import PreProcessCatalog
 from es_sfgtools.data_mgmt.file_schemas import AssetEntry, AssetType
+from es_sfgtools.data_models.metadata import Survey
 from es_sfgtools.modeling.garpos_tools.shot_data_utils import (
     filter_pride_residuals,
     filter_wg_distance_from_center, 
