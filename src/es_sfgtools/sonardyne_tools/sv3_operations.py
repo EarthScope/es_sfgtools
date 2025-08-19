@@ -188,6 +188,10 @@ def dfop00_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
                 except AssertionError as e:
                     logger.logerr(f"Assertion error in merging ping/reply data: {e}")
                     merged_data = None
+
+                interrogation_parsed = None  # Reset interrogation after merging attempt  
+                reply_data_parsed = None  # Reset reply after merging attempt  
+                
                 if merged_data is not None:
                     processed.append(merged_data)
 

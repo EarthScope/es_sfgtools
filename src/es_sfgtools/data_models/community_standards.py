@@ -176,13 +176,18 @@ class SFGDTSFSite(Basemodel):
             )
             mt_app_pos[benchmark.benchmarkID] = [east, north, up]
 
-            
         return cls(
             Site_name=site.names[0],  # Assuming the first name is the primary site name
-            Campaign=site.campaigns[0].name,  # Assuming the first campaign is the primary one
+            Campaign=site.campaigns[
+                0
+            ].name,  # Assuming the first campaign is the primary one
             TimeOrigin=site.timeOrigin,
-            RefFrame= (site.referenceFrames[0] if site.referenceFrames else "ITRF"),
+            RefFrame=(site.referenceFrames[0].name if site.referenceFrames else "ITRF"),
             MTlist=[b.benchmarkID for b in site.benchmarks],
             MT_appPos=mt_app_pos,
-            ATDoffset=[dict(vessel.atdOffsets[0]).get(key) for key in ["x", "y", "z"]],
+            ATDoffset=[
+                vessel.atdOffsets[0].x,
+                vessel.atdOffsets[0].y,
+                vessel.atdOffsets[0].z,
+            ],
         )
