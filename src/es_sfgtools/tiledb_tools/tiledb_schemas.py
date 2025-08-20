@@ -290,8 +290,8 @@ class TBDArray:
 
     def read_df(
         self,
-        start: datetime.datetime,
-        end: datetime.datetime = None,
+        start: datetime.datetime| np.datetime64,
+        end: datetime.datetime|np.datetime64 = None,
         validate: bool = True,
         **kwargs,
     ) -> pd.DataFrame:
@@ -306,6 +306,14 @@ class TBDArray:
         Returns:
             pd.DataFrame: dataframe
         """
+        if isinstance(start,np.datetime64):
+            start = start.astype(datetime.datetime)
+        if isinstance(end, np.datetime64):
+            end = end.astype(datetime.datetime)
+        if isinstance(start,datetime.date):
+            start = datetime.datetime.combine(start, datetime.datetime.min.time())
+        if isinstance(end, datetime.date):
+            end = datetime.datetime.combine(end, datetime.datetime.min.time())
         logger.logdebug(f" Reading dataframe from {self.uri}")
         # TODO slice array by start and end and return the dataframe
         if end is None:
