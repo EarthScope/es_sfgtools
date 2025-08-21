@@ -1,36 +1,59 @@
 {
   "names": {
     "type": "List[string]",
-    "description": "The names of the site, including the 4 character ID"
+    "description": "The name(s) of the site, including the 4 character ID",
+    "example": ["SEM1"]
   },
   "networks": {
     "type": "List[string]",
-    "description": "A list of networks the site is part of"
+    "description": "A list of networks the site is a member of",
+    "example": ["alaska-shumagins"]
   },
   "timeOrigin": {
     "type": "datetime",
-    "description": "The time origin of the site"
+    "description": "The date and time the site was installed",
+    "format": "YYYY-MM-DDTHH:MM:SS",
+    "example": "2020-01-01T00:00:00"
   },
   "localGeoidHeight": {
     "type": "float",
-    "description": "The local geoid height of the site"
+    "description": "The local geoid height of the site in meters"
   },
   "arrayCenter": {
-    "type": "Optional[ArrayCenter]",
+    "type": "ArrayCenter",
     "description": "The array center of the site",
     "items": {
-      "x": {
+      "latitude": {
         "type": "float",
-        "description": "The x-coordinate of the array center"
+        "description": "The latitude of the array center"
       },
-      "y": {
+      "longitude": {
         "type": "float",
-        "description": "The y-coordinate of the array center"
+        "description": "The longitude of the array center"
       },
-      "z": {
+      "elevation": {
         "type": "float",
-        "description": "The z-coordinate of the array center"
+        "description": "The elevation (m) of the array center"
       }
+  }
+},
+  "referenceFrames": {
+    "type": "List[ReferenceFrame]",
+    "description": "Optional[The reference frame(s) used for the site]",
+    "items": {
+      "name": {
+        "type": "string",
+        "description": "The name of the reference frame"
+      },
+      "start": {
+        "type": "datetime",
+        "description": "The start date and time of the reference frame"
+      },
+      "end": {
+        "type": "Optional[datetime]",
+        "description": "The end date and time of the reference frame"
+      }
+    }
   },
   "campaigns": {
     "type": "List[Campaign]",
@@ -38,15 +61,19 @@
     "items": {
       "name": {
         "type": "string",
-        "description": "The name of the campaign"
+        "description": "The name of the campaign",
+        "format": "<YYYY>_<campaign_letter>_<waveglider_4charID>",
+        "example": "2023_A_1063 is the first campaign of 2023, using waveglider 1063"
       },
       "type": {
         "type": "string",
-        "description": "The type of the campaign"
+        "description": "The type of the campaign",
+        "enum": ["deploy", "measure"]
       },
       "vesselCode": {
         "type": "string",
-        "description": "The vessel code associated with the campaign"
+        "description": "The vessel 4 character ID associated with the campaign",
+        "example": "1063"
       },
       "start": {
         "type": "datetime",
@@ -58,27 +85,27 @@
       },
       "principalInvestigator": {
         "type": "string",
-        "description": "The principal investigator of the campaign"
+        "description": "Optional[The principal investigator of the campaign]"
       },
       "launchVesselName": {
         "type": "string",
-        "description": "The name of the launch vessel"
+        "description": "Optional[The principal investigator of the campaign]"
       },
       "recoveryVesselName": {
         "type": "string",
-        "description": "The name of the recovery vessel"
+        "description": "Optional[The recovery vessel name of the campaign]"
       },
       "cruiseName": {
         "type": "string",
-        "description": "The name of the cruise"
+        "description": "Optional[The name of the cruise]"
       },
       "technicianName": {
         "type": "string",
-        "description": "The name of the technician"
+        "description": "Optional[The name of the technician]"
       },
       "technicianContact": {
         "type": "string",
-        "description": "The contact information of the technician"
+        "description": "Optional[The contact information of the technician]"
       },
       "surveys": {
         "type": "List[Survey]",
@@ -86,15 +113,19 @@
         "items": {
           "id": {
             "type": "string",
-            "description": "The unique ID of the survey"
+            "description": "The unique ID of the survey",
+            "format": "<campaign_name>_<survey_number>",
+            "example": "2023_A_1063_1"
           },
           "type": {
             "type": "string",
-            "description": "The type of the survey"
+            "description": "The type of the survey",
+            "enum": ["circle drive", "center", "move around"]
           },
           "benchmarkIDs": {
             "type": "List[string]",
-            "description": "The benchmark IDs associated with the survey"
+            "description": "The benchmark IDs associated with the survey",
+            "example": ["SEM1-1", "SEM1-2", "SEM1-3"]
           },
           "start": {
             "type": "datetime",
@@ -106,11 +137,12 @@
           },
           "notes": {
             "type": "string",
-            "description": "Any additional notes about the survey"
+            "description": "Optional[Any additional notes about the survey]",
+            "example": "GARPOS 1R pattern"
           },
           "commands": {
             "type": "string",
-            "description": "The log of commands for the survey"
+            "description": "Optional[Any additional commands for the survey]"
           }
         }
       }
@@ -122,11 +154,13 @@
     "items": {
       "name": {
         "type": "string",
-        "description": "The name of the benchmark"
+        "description": "The name of the benchmark",
+        "format": "<benchmark_name>-<number>",
+        "example": "SEM1-1"
       },
       "benchmarkID": {
         "type": "string",
-        "description": "The benchmark ID"
+        "description": "Optional[The benchmark serial number]"
       },
       "aPrioriLocation": {
         "type": "Location",
@@ -142,7 +176,7 @@
           },
           "elevation": {
             "type": "float",
-            "description": "The elevation of the location"
+            "description": "The elevation (m) of the location"
           }
         }
       },
@@ -152,11 +186,11 @@
       },
       "end": {
         "type": "datetime",
-        "description": "The end date of the benchmark"
+        "description": "Optional[The end date of the benchmark]"
       },
       "dropPointLocation": {
         "type": "Location",
-        "description": "The drop point location of the benchmark",
+        "description": "Optional[The drop point location of the benchmark]",
         "items": {
           "latitude": {
             "type": "float",
@@ -168,39 +202,35 @@
           },
           "elevation": {
             "type": "float",
-            "description": "The elevation of the location"
+            "description": "The elevation (m) of the location"
           }
         }
       },
       "transponders": {
         "type": "List[Transponder]",
-        "description": "The transponders attached to the benchmark",
+        "description": "The transponder(s) attached to the benchmark",
         "items": {
           "address": {
             "type": "string",
-            "description": "The address of the transponder"
+            "description": "The address of the transponder",
+            "example": "5209"
           },
           "tat": {
             "type": "List[TAT]",
-            "description": "The turn around time (TAT) of the transponder",
+            "description": "The turn around time(s) (TAT) of the transponder",
             "items": {
               "value": {
                 "type": "float",
-                "description": "Turn around time (TAT) in ms"
+                "description": "Turn around time (TAT) in ms",
+                "example": 200.0
               },
-              "timeIntervals": {
-                "type": "List[Dict[str, datetime]]",
-                "description": "List of time intervals with start and end times for TAT",
-                "items": {
-                  "start": {
-                    "type": "datetime",
-                    "description": "The start time of the interval"
-                  },
-                  "end": {
-                    "type": "datetime",
-                    "description": "The end time of the interval"
-                  }
-                }
+              "start": {
+                "type": "datetime",
+                "description": "Optional[The start time of the interval]"
+              },
+              "end": {
+                "type": "datetime",
+                "description": "Optional[The end time of the interval]"
               }
             }
           },
@@ -210,31 +240,33 @@
           },
           "end": {
             "type": "datetime",
-            "description": "The end date of the transponder (if removed)"
+            "description": "Optional[The end date of the transponder (if removed)]"
           },
           "uid": {
             "type": "string",
-            "description": "The UID of the transponder"
+            "description": "Optional[The UID of the transponder]",
+            "example": "00611A"
           },
           "model": {
             "type": "string",
-            "description": "The model of the transponder"
+            "description": "Optional[The model of the transponder]"
           },
           "serialNumber": {
             "type": "string",
-            "description": "The serial number of the transponder"
+            "description": "Optional[The serial number of the transponder]"
           },
           "batteryCapacity": {
             "type": "string",
-            "description": "The battery capacity of the transponder, e.g 4 Ah"
+            "description": "Optional[The battery capacity of the transponder]",
+            "example": "4 Ah"
           },
           "notes": {
             "type": "string",
-            "description": "Additional notes about the transponder or deployment"
+            "description": "Optional[Additional notes about the transponder or deployment]"
           },
           "batteryVoltage": {
             "type": "List[BatteryVoltage]",
-            "description": "The battery voltage of the transponder, including date and voltage",
+            "description": "Optional[The battery voltage of the transponder, including date and voltage]",
             "items": {
               "date": {
                 "type": "datetime",
@@ -248,41 +280,24 @@
           },
           "extraSensors": {
             "type": "List[ExtraSensors]",
-            "description": "Extra sensors attached to the transponder",
+            "description": "Optional[Extra sensors attached to the transponder]",
             "items": {
               "type": {
                 "type": "string",
-                "description": "The type of the extra sensor"
+                "description": "The type of the extra sensor",
+                "enum": ["pressure", "tilt"]
               },
               "serialNumber": {
                 "type": "string",
-                "description": "The serial number of the extra sensor"
+                "description": "Optional[The serial number of the extra sensor]"
               },
               "model": {
                 "type": "string",
-                "description": "The model of the extra sensor"
+                "description": "Optional[The model of the extra sensor]"
               }
             }
           }
         }
-      }
-    }
-  },
-  "referenceFrames": {
-    "type": "List[ReferenceFrame]",
-    "description": "The reference frames used for the site",
-    "items": {
-      "name": {
-        "type": "string",
-        "description": "The name of the reference frame"
-      },
-      "start": {
-        "type": "datetime",
-        "description": "The start date and time of the reference frame"
-      },
-      "end": {
-        "type": "datetime",
-        "description": "The end date and time of the reference frame"
       }
     }
   }
