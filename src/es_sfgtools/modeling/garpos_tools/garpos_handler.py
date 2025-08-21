@@ -19,6 +19,7 @@ import os
 
 from es_sfgtools.data_models.metadata.catalogs import StationData
 from es_sfgtools.data_models.metadata.site import Site
+from es_sfgtools.data_models.metadata.campaign import Survey
 from es_sfgtools.data_models.metadata.benchmark import Benchmark, Transponder
 
 
