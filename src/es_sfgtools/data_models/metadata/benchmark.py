@@ -33,32 +33,19 @@ class BatteryVoltage(AttributeUpdater, BaseModel):
 class TAT(AttributeUpdater, BaseModel):
     # Required
     value: float = Field(..., description="Turn around time (TAT) in ms", ge=0, le=1000)
-
-    # Optional
-    timeIntervals: Optional[List[Dict[str, Union[str, datetime, None]]]] = Field(
-        default_factory=list,
-        description="List of time intervals with start and end times for TAT",
+    start: datetime = Field(
+        ..., description="The start date of the TAT", gt=datetime(1901, 1, 1)
     )
 
-    @field_validator("timeIntervals", mode="before")
-    def validate_time_intervals(cls, time_intervals):
-        for interval in time_intervals:
-            start = interval.get("start")
-            end = interval.get("end")
+    # Optional
+    end: Optional[datetime] = Field(
+        default=None,
+        description="The end date of the TAT",
+        gt=datetime(1901, 1, 1),
+    )
 
-            # Parse start and end times if they exist
-            if start:
-                interval["start"] = parse_datetime(cls, start)
-            if end:
-                interval["end"] = parse_datetime(cls, end)
-
-            # Validate that start is before end
-            if start and end and start >= end:
-                raise ValueError(
-                    "'end' time must be after 'start' time in each interval"
-                )
-
-        return time_intervals
+    _parse_datetime = field_validator("start", "end", mode="before")(parse_datetime)
+    _check_dates = field_validator("end")(check_dates)
 
 
 class Transponder(AttributeUpdater, BaseModel):
@@ -104,16 +91,15 @@ class Transponder(AttributeUpdater, BaseModel):
     _parse_datetime = field_validator("start", "end", mode="before")(parse_datetime)
     _check_dates = field_validator("end")(check_dates)
 
-    def get_tat_by_datetime(self, dt: datetime) -> Optional[TAT]:
-
+    def get_tat_by_datetime(self, dt: datetime) -> Optional[float]:
         # If there is only 1 TAT available, return that TAT
         if len(self.tat) == 1:
             return self.tat[0].value
 
         # If there are multiple TATs, check if the datetime is within the time intervals
         for tat in self.tat:
-            for interval in tat.timeIntervals:
-                if interval["start"] <= dt <= interval["end"]:
+            if tat.start <= dt:
+                if tat.end is None or tat.end >= dt:
                     return tat.value
 
         return None
@@ -124,7 +110,7 @@ class Benchmark(AttributeUpdater, BaseModel):
     name: str = Field(..., description="The name of the benchmark")
     benchmarkID: Optional[str] = Field("", description="The benchmark ID")
     aPrioriLocation: Optional[Location] = Field(
-       None, description="The a priori location of the benchmark"
+        None, description="The a priori location of the benchmark"
     )
     start: Optional[datetime] = Field(
         None, description="The start date of the benchmark", gt=datetime(1901, 1, 1)
@@ -146,7 +132,7 @@ class Benchmark(AttributeUpdater, BaseModel):
     _parse_datetime = field_validator("start", "end", mode="before")(parse_datetime)
     _check_dates = field_validator("end")(check_dates)
 
-    def get_transponder_by_datetime(self,  dt: datetime) -> Optional[Transponder]:
+    def get_transponder_by_datetime(self, dt: datetime) -> Optional[Transponder]:
         # If there is only 1 transponder available, return that transponder
         if len(self.transponders) == 1:
             return self.transponders[0]

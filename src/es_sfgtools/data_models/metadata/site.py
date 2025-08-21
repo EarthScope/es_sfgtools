@@ -142,7 +142,8 @@ class Site(BaseModel):
             )
 
     def return_tats_for_campaign(
-        self, campaign_name: str
+        self,
+        campaign_name: str,
     ) -> Optional[List[Dict[str, Any]]]:
         """
         Return all TATs for a given campaign
@@ -202,7 +203,9 @@ class Site(BaseModel):
             self._delete_equipment(component_type, component_metadata["name"])
 
     def _new_component(
-        self, component_type: TopLevelSiteGroups, component_metadata: dict
+        self,
+        component_type: TopLevelSiteGroups,
+        component_metadata: dict,
     ):
         """
         Add a new equipment to the site dictionary
@@ -230,7 +233,9 @@ class Site(BaseModel):
         print(f"New {component_type} added successfully.")
 
     def _update_existing_component(
-        self, component_type: TopLevelSiteGroups, component_metadata: dict
+        self,
+        component_type: TopLevelSiteGroups,
+        component_metadata: dict,
     ):
         """
         Update an existing equipment in the site dictionary
@@ -429,25 +434,6 @@ class Site(BaseModel):
                                 )
                                 print(
                                     f"Added battery voltage to transponder {transponder.address}."
-                                )
-
-                            elif "new_tat" in sub_component_metadata:
-
-                                new_tat: TAT = sub_component_metadata["new_tat"]
-                                for tat in transponder.tat:
-                                    if tat.value == new_tat.value:
-                                        # Only add start and end times to original tat
-                                        tat.timeIntervals.append(
-                                            new_tat.timeIntervals[0]
-                                        )
-                                        print(
-                                            f"Added time interval to TAT {tat.value} for transponder {transponder.address}."
-                                        )
-                                        return
-
-                                transponder.tat.append(new_tat)
-                                print(
-                                    f"Added new TAT to transponder {transponder.address}."
                                 )
 
                             else:
