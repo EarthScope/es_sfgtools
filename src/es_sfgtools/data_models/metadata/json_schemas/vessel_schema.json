@@ -26,6 +26,13 @@
     "type": "datetime",
     "description": "Optional[The end date and time of the vessel's usage]"
   },
+  "payload": {
+    "serialNumber": {
+      "type": "string",
+      "description": "The serial number of the payload",
+      "example": "PSN011153"
+    }
+  },
   "atdOffsets": [
     {
       "type": "List[ATDOffset]",
@@ -74,7 +81,7 @@
         },
         "end": {
           "type": "datetime",
-          "description": "The end date and time of the IMU sensor's usage"
+          "description": "Optional[The end date and time of the IMU sensor's usage]"
         }
       }
     }
@@ -150,7 +157,7 @@
             },
             "end": {
               "type": "datetime",
-              "description": "The end date and time of the firmware version's usage"
+              "description": "Optional[The end date and time of the firmware version's usage]"
             }
           }
         },
@@ -160,7 +167,7 @@
         },
         "end": {
           "type": "datetime",
-          "description": "The end date and time of the GNSS receiver's usage"
+          "description": "Optional[The end date and time of the GNSS receiver's usage]"
         }
       }
     }
