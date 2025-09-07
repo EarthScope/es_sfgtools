@@ -2,7 +2,7 @@ import sys
 from pathlib import Path
 import os
 sys.path.append((test:=str(Path(__file__).parent.parent)))
-
+os.environ["DYLD_LIBRARY_PATH"] = os.environ.get("CONDA_PREFIX", "") + "/lib"
 from pathlib import Path
 
 

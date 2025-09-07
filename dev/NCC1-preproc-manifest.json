@@ -6,12 +6,6 @@
       "station": "NCC1",
       "campaign": "2023_A_1063",
       "jobs": [{ "type": "preprocessing" }]
-    },
-    {
-      "network": "cascadia-gorda",
-      "station": "NCC1",
-      "campaign": "2022_A_1065",
-      "jobs": [{ "type": "preprocessing" }]
     }
   ],
 
@@ -59,7 +53,7 @@
       "override": true
     },
     "position_update_config": {
-      "override": true,
+      "override": false,
       "lengthscale": 0.1,
       "plot": false
     },
@@ -71,7 +65,7 @@
       "interval": null,
       "local_pdp3_path": null,
       "loose_edit": true,
-      "sample_frequency": 1,
+      "sample_frequency": 0.1,
       "start": null,
       "system": "GREC23J",
       "tides": "SOP",
