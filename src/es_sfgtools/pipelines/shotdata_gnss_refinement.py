@@ -11,6 +11,13 @@ import matplotlib.pyplot as plt
 import gnatss
 from gnatss.ops.kalman import run_filter_simulation
 import gnatss.constants as constants
+from numpy import datetime64
+from typing import List
+
+# Local imports
+from ..tiledb_tools.tiledb_schemas import TDBKinPositionArray, TDBShotDataArray,TDBIMUPositionArray
+from ..logging import ProcessLogger as logger
+
 
 MEDIAN_EAST_POSITION = 0
 MEDIAN_NORTH_POSITION = 0
@@ -151,7 +158,7 @@ def prepare_kinematic_data(kin_positions: pd.DataFrame) -> pd.DataFrame:
     gps_df = gps_df[east_z_filter & north_z_filter & up_z_filter]
 
     filtered_len = len(gps_df)
-    print(f"Kinematic data filtered from {original_len} to {filtered_len} rows for a {((original_len - filtered_len) / original_len * 100):.2f} % reduction using z-score threshold of {z_thresh}.")
+    logger.loginfo(f"Kinematic data filtered from {original_len} to {filtered_len} rows for a {((original_len - filtered_len) / original_len * 100):.2f} % reduction using z-score threshold of {z_thresh}.")
     return gps_df
 
 
@@ -181,7 +188,7 @@ def combine_data(positions_data: pd.DataFrame, gps_data: pd.DataFrame) -> pd.Dat
     df_all = df_all.sort_values(by="time")
     # Don't dropna here, as kinematic velocities are NaN
     
-    print(f"Combined data shape: {df_all.shape}")
+    logger.loginfo(f"Combined data shape: {df_all.shape}")
     return df_all
 
 def run_kalman_filter_and_smooth(df_all: pd.DataFrame, start_dt: float, gnss_pos_psd: float, vel_psd: float, cov_err: float) -> pd.DataFrame:
@@ -215,7 +222,7 @@ def run_kalman_filter_and_smooth(df_all: pd.DataFrame, start_dt: float, gnss_pos
         df_all.to_numpy(),
         start_dt, gnss_pos_psd, vel_psd, cov_err
     )
-    print(f"Filter Parameters - Start DT: {start_dt}, GNSS_POS_PSD: {gnss_pos_psd}, VEL_PSD: {vel_psd}, COV_ERR: {cov_err}")
+    logger.loginfo(f"Filter Parameters - Start DT: {start_dt}, GNSS_POS_PSD: {gnss_pos_psd}, VEL_PSD: {vel_psd}, COV_ERR: {cov_err}")
 
     # Process positions covariance
     ant_cov = P[:, :3, :3]
@@ -259,7 +266,7 @@ def analyze_offsets(merged_positions: pd.DataFrame):
     """
   
     if merged_positions.empty:
-        print("No merged positions to analyze.")
+        logger.loginfo("No merged positions to analyze.")
         return
 
     offset_x = (merged_positions["ant_x_smoothed"] - merged_positions["ant_x"]).abs()
@@ -272,14 +279,14 @@ def analyze_offsets(merged_positions: pd.DataFrame):
         'Offset Z (m)': offset_z.describe()
     })
     
-    print(summary_df.round(6).to_string())
+    logger.loginfo(summary_df.round(6).to_string())
 
 def update_shotdata_with_smoothed_positions(shotdata: pd.DataFrame, smoothed_results: pd.DataFrame):
     """
     Interpolates smoothed positions onto shotdata ping and return times.
     """
     if smoothed_results.empty:
-        print("No smoothed results to interpolate from.")
+        logger.loginfo("No smoothed results to interpolate from.")
         return shotdata
 
     X_train = smoothed_results.time.to_numpy().reshape(-1, 1)
@@ -289,7 +296,7 @@ def update_shotdata_with_smoothed_positions(shotdata: pd.DataFrame, smoothed_res
     position_interpolator.fit(X_train, Y_train)
     
     train_score = position_interpolator.score(X_train, Y_train)
-    print(f"Position Interpolator Train Score: {train_score:.4f}")
+    logger.loginfo(f"Position Interpolator Train Score: {train_score:.4f}")
     
     ping_times = shotdata.pingTime.to_numpy().reshape(-1, 1)
     return_times = shotdata.returnTime.to_numpy().reshape(-1, 1)
@@ -303,9 +310,9 @@ def update_shotdata_with_smoothed_positions(shotdata: pd.DataFrame, smoothed_res
     nan_pings = np.isnan(predicted_ping_pos).any(axis=1).sum()
     nan_returns = np.isnan(predicted_return_pos).any(axis=1).sum()
     if nan_pings > 0:
-        print(f"Warning: {nan_pings} ping times could not be interpolated (no smoothed data within radius).")
+        logger.loginfo(f"Warning: {nan_pings} ping times could not be interpolated (no smoothed data within radius).")
     if nan_returns > 0:
-        print(f"Warning: {nan_returns} return times could not be interpolated (no smoothed data within radius).")
+        logger.loginfo(f"Warning: {nan_returns} return times could not be interpolated (no smoothed data within radius).")
 
     return shotdata
 
@@ -331,7 +338,7 @@ def filter_spatial_outliers(df: pd.DataFrame, radius: float = 5000) -> pd.DataFr
     )
     df_filtered = df[position_filters]
     filtered_len = len(df_filtered)
-    print(f"Data filtered from {original_len} to {filtered_len} rows for a {((original_len - filtered_len) / original_len * 100):.2f} % reduction using {radius}m position threshold.")
+    logger.loginfo(f"Data filtered from {original_len} to {filtered_len} rows for a {((original_len - filtered_len) / original_len * 100):.2f} % reduction using {radius}m position threshold.")
     return df_filtered
 
 
@@ -380,13 +387,13 @@ def main(
     """
 
     if positions_data.empty:
-        print("No positions data provided.")
+        logger.loginfo("No positions data provided.")
         return shotdata
 
     positions_data_copy = prepare_positions_data(positions_data)
 
     if kin_positions.empty:
-        print("No kinematic positions data provided.")
+        logger.loginfo("No kinematic positions data provided.")
         gps_data = pd.DataFrame(columns=positions_data_copy.columns)
     else:
         gps_data = prepare_kinematic_data(kin_positions)
@@ -400,7 +407,7 @@ def main(
     smoothed_results = run_kalman_filter_and_smooth(df_all, start_dt, gnss_pos_psd, vel_psd, cov_err)
 
     if smoothed_results.empty:
-        print("Kalman filter returned no results.")
+        logger.loginfo("Kalman filter returned no results.")
         return shotdata
 
     merged_positions = pd.merge_asof(
@@ -411,8 +418,8 @@ def main(
         direction="nearest",
         suffixes=("", "_smoothed"),
     )
-    print("\n--- Offset Analysis ---")
-    print("----Results vs Original Positions----")
+    logger.loginfo("\n--- Offset Analysis ---")
+    logger.loginfo("----Results vs Original Positions----")
     analyze_offsets(merged_positions)
 
     merged_positions_kinematic = pd.merge_asof(
@@ -423,7 +430,7 @@ def main(
         direction="nearest",
         suffixes=("", "_smoothed"),
     )
-    print("----Results vs Kinematic Positions----")
+    logger.loginfo("----Results vs Kinematic Positions----")
     analyze_offsets(merged_positions_kinematic)
 
     shotdata_updated = update_shotdata_with_smoothed_positions(shotdata, smoothed_results)
@@ -438,13 +445,60 @@ def main(
         shotdata_updated["ant_u0"] - shotdata_updated["up0"]
     ).describe()
 
-    print("\n--- Shotdata Antenna Position Offsets ---")
-    print("----Ping Time Antenna Position Offsets----")
-    print("----East0------")
-    print(ant_east0_offset.round(6).to_string(name="East Offset (m)"))
-    print("----North0------")
-    print(ant_north0_offset.round(6).to_string(name="North Offset (m)"))
-    print("----Up0------")
-    print(ant_up0_offset.round(6).to_string(name="Up Offset (m)"))
+    logger.loginfo("\n--- Shotdata Antenna Position Offsets ---")
+    logger.loginfo("----Ping Time Antenna Position Offsets----")
+    logger.loginfo("----East0------")
+    logger.loginfo(ant_east0_offset.round(6).to_string(name="East Offset (m)"))
+    logger.loginfo("----North0------")
+    logger.loginfo(ant_north0_offset.round(6).to_string(name="North Offset (m)"))
+    logger.loginfo("----Up0------")
+    logger.loginfo(ant_up0_offset.round(6).to_string(name="Up Offset (m)"))
 
     return shotdata_updated
+
+
+def merge_shotdata_kinposition(
+    shotdata_pre: TDBShotDataArray,
+    shotdata: TDBShotDataArray,
+    kin_position: TDBKinPositionArray,
+    position_data:TDBIMUPositionArray,
+    dates: List[datetime64]
+) -> TDBShotDataArray:
+    """
+    Merge the shotdata and kin_position data
+
+    Args:
+        shotdata_pre (TDBShotDataArray): the DFOP00 data
+        shotdata (TDBShotDataArray): The shotdata array to write to
+        kin_position (TDBKinPositionArray): The TileDB KinPosition array
+        dates (List[datetime64]): The dates to merge
+        plot (bool, optional): Plot the interpolated values. Defaults to False.
+
+    """
+
+    logger.loginfo("Merging shotdata and kin_position data")
+    for start, end in zip(dates, dates[1:]):
+        logger.loginfo(f"Interpolating shotdata for date {str(start)}")
+
+        shotdata_df = shotdata_pre.read_df(start=start, end=end)
+        kin_position_df = kin_position.read_df(start=start, end=end)
+        position_df = position_data.read_df(start=start, end=end)
+
+        if shotdata_df.empty or kin_position_df.empty or position_df.empty:
+            continue
+
+        
+
+        # interpolate the enu values
+        shotdata_df_updated = main(
+            shotdata=shotdata_df,
+            kin_positions=kin_position_df,
+            positions_data=position_df,
+            gnss_pos_psd=constants.GNSS_POS_PSD,
+            vel_psd=constants.VEL_PSD,
+            cov_err=constants.COV_ERR,
+            start_dt=constants.START_DT,
+            filter_radius=5000,
+        )
+
+        shotdata.write_df(shotdata_df_updated, validate=False)

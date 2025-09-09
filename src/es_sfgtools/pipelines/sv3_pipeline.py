@@ -31,8 +31,8 @@ from ..tiledb_tools.tiledb_schemas import (
 )
 from ..data_mgmt.utils import (
     get_merge_signature_shotdata,
-    merge_shotdata_kinposition,
 )
+from .shotdata_gnss_refinement import merge_shotdata_kinposition
 from ..logging import ProcessLogger as logger
 
 from .config import SV3PipelineConfig
@@ -609,9 +609,9 @@ class SV3Pipeline:
                 shotdata_pre=self.shot_data_pre,
                 shotdata=self.shot_data_dest,
                 kin_position=self.kin_position_data_dest,
+                position_data=self.imu_position_data_dest,
                 dates=dates,
-                lengthscale=self.config.position_update_config.lengthscale,
-                plot=self.config.position_update_config.plot,
+             
             )
             self.asset_catalog.add_merge_job(**merge_job)
 
