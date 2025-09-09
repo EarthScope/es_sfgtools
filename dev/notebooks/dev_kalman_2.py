@@ -1,4 +1,4 @@
-# %%
+
 import os
 from pathlib import Path
 import pandas as pd
@@ -10,48 +10,18 @@ from scipy.stats import zscore
 from sklearn.neighbors import RadiusNeighborsRegressor
 import matplotlib.pyplot as plt
 
-# Assuming 'gnatss' and 'es_sfgtools' are installed or in the path
 from es_sfgtools.data_mgmt.data_handler import DataHandler
-# It's better to handle path modifications carefully.
-# If gnatss is a package, it should be installed.
-# For development, this is okay.
+
 sys.path.append("/Users/franklyndunbar/Project/SeaFloorGeodesy/gnatss/src")
 import gnatss
 from gnatss.ops.kalman import run_filter_simulation
 import gnatss.constants as constants
 
-# Matplotlib is commented out as requested
-# import matplotlib.pyplot as plt
-# %matplotlib ipympl
-
-# %% 
-# Constants
-GPS_EPOCH = datetime.datetime(1980, 1, 6, 0, 0, 0)
-J200_EPOCH = datetime.datetime(2000, 1, 1, 12, 0, 0)
-
-# %% 
-# Helper Functions
 
 MEDIAN_EAST_POSITION = 0
 MEDIAN_NORTH_POSITION = 0
 MEDIAN_UP_POSITION = 0
 
-def time_to_gpsweek_seconds(time: datetime.datetime) -> tuple[int, float]:
-    """
-    Convert a datetime object to GPS week and seconds of week.
-    """
-    delta = time - GPS_EPOCH
-    total_seconds = delta.total_seconds()
-    gps_week = int(total_seconds // (7 * 24 * 3600))
-    seconds_of_week = total_seconds % (7 * 24 * 3600)
-    return gps_week, seconds_of_week
-
-def time_to_j200(time: datetime.datetime) -> float:
-    """
-    Convert a datetime object to seconds since J2000 epoch.
-    """
-    delta = time - J200_EPOCH
-    return delta.total_seconds()
 
 def load_data(dh: DataHandler, start_date, end_date):
     """
@@ -68,32 +38,7 @@ def load_data(dh: DataHandler, start_date, end_date):
     
     return kin_positions, shotdata, positions_data
 
-def split_data_into_chunks(df, columns = {}, index_column='time', max_gap_seconds=300):
-    """
-    Splits a DataFrame into chunks based on time gaps.
-    """
-    # first ensure the DataFrame is sorted by time
-    df = df.sort_values(by=index_column).reset_index(drop=True)
-    time_diffs = df[index_column].diff()
-    split_indices = time_diffs[time_diffs > max_gap_seconds].index.tolist()
-    
-    # now check for jumps in specified columns
-    for column,val in columns.items():
-        if column in df.columns:
-            col_diffs = df[column].diff().abs()
-            col_split_indices = col_diffs[col_diffs > val].index.tolist()
-            split_indices.extend(col_split_indices)
-    
-    split_indices = sorted(set(split_indices))
-    chunks = []
-    start_idx = 0
-    for split_idx in split_indices:
-        chunks.append(df.iloc[start_idx:split_idx])
-        start_idx = split_idx
-    chunks.append(df.iloc[start_idx:])
-    
-    print(f"Data split into {len(chunks)} chunks based on a {max_gap_seconds}s gap threshold.")
-    return [chunk for chunk in chunks if not chunk.empty]
+
 
 def prepare_positions_data(positions_data):
     """
@@ -112,18 +57,20 @@ def prepare_positions_data(positions_data):
     positions_data["up"] = positions_data.upVelocity
     
     positions_data_copy = positions_data.copy()
-    positions_data_copy["ant_sigx"] = positions_data_copy["latitude_std"]
-    positions_data_copy["ant_sigy"] = positions_data_copy["longitude_std"]
-    positions_data_copy["ant_sigz"] = positions_data_copy["height_std"]
+    positions_data_copy["ant_sigx"] = positions_data_copy["latitude_std"].fillna(method='bfill').fillna(method='ffill')
+    positions_data_copy["ant_sigy"] = positions_data_copy["longitude_std"].fillna(method='bfill').fillna(method='ffill')
+    positions_data_copy["ant_sigz"] = positions_data_copy["height_std"].fillna(method='bfill').fillna(method='ffill')
     positions_data_copy["rho_xy"] = 0
     positions_data_copy["rho_xz"] = 0
     positions_data_copy["rho_yz"] = 0
-    positions_data_copy["east_sig"] = positions_data_copy["eastVelocity_std"]
-    positions_data_copy["north_sig"] = positions_data_copy["northVelocity_std"]
-    positions_data_copy["up_sig"] = positions_data_copy["upVelocity_std"]
-    positions_data_copy["v_sden"] = 1
-    positions_data_copy["v_sdeu"] = 1
-    positions_data_copy["v_sdnu"] = 1
+    positions_data_copy["east_sig"] = positions_data_copy["eastVelocity_std"].fillna(method='bfill').fillna(method='ffill')
+    positions_data_copy["north_sig"] = positions_data_copy["northVelocity_std"].fillna(method='bfill').fillna(method='ffill')
+    positions_data_copy["up_sig"] = positions_data_copy["upVelocity_std"].fillna(method='bfill').fillna(method='ffill')
+
+    
+    positions_data_copy["v_sden"] = 0
+    positions_data_copy["v_sdeu"] = 0
+    positions_data_copy["v_sdnu"] = 0
     
     return positions_data_copy
 
@@ -151,12 +98,11 @@ def prepare_kinematic_data(kin_positions,max_speed=2):
     gps_df["east_sig"] = .1
     gps_df["north_sig"] = .1
     gps_df["up_sig"] = .1
-    gps_df["v_sden"] = .1
-    gps_df["v_sdeu"] = .1
-    gps_df["v_sdnu"] = .1
+    gps_df["v_sden"] = 0
+    gps_df["v_sdeu"] = 0
+    gps_df["v_sdnu"] = 0
 
     time_diff = gps_df.time.diff().fillna(method='bfill')
-    time_diff.iloc[-1] = time_diff.iloc[-2]  # Handle last value
 
     ant_x_diff = gps_df.ant_x.diff()
     ant_y_diff = gps_df.ant_y.diff()
@@ -190,27 +136,6 @@ def prepare_kinematic_data(kin_positions,max_speed=2):
     print(f"Kinematic data filtered from {original_len} to {filtered_len} rows for a {((original_len - filtered_len) / original_len * 100):.2f} % reduction using z-score threshold of {z_thresh}.")
     return gps_df
 
-# def calculate_and_clamp_kinematic_velocity(chunk, max_speed=2):
-#     """
-#     Calculates and clamps kinematic velocity for a single data chunk.
-#     """
-    
-#     time_diff = chunk.loc[kin_rows, 'time'].diff()
-    
-#     # Calculate velocities
-#     chunk.loc[kin_rows, 'east'] = (chunk.loc[kin_rows, 'ant_x'].diff() / time_diff)
-#     chunk.loc[kin_rows, 'north'] = (chunk.loc[kin_rows, 'ant_y'].diff() / time_diff)
-#     chunk.loc[kin_rows, 'up'] = (chunk.loc[kin_rows, 'ant_z'].diff() / time_diff)
-
-#     chunk.loc[kin_rows, 'east'].fillna(method='bfill', inplace=True)
-#     chunk.loc[kin_rows, 'north'].fillna(method='bfill', inplace=True)
-#     chunk.loc[kin_rows, 'up'].fillna(method='bfill', inplace=True)
-
-#     # Clamp the velocities to a reasonable range
-#     vel_cols = ['east', 'north', 'up']
-#     chunk[vel_cols] = chunk[vel_cols].clip(-max_speed, max_speed)
-    
-#     return chunk
 
 def combine_data(positions_data, gps_data):
     """
@@ -285,7 +210,7 @@ def analyze_offsets(merged_positions):
         'Offset Z (m)': offset_z.describe()
     })
     
-    print(summary_df.round(4).to_string())
+    print(summary_df.round(6).to_string())
 
 def update_shotdata_with_smoothed_positions(shotdata, smoothed_results):
     """
@@ -322,6 +247,18 @@ def update_shotdata_with_smoothed_positions(shotdata, smoothed_results):
 
     return shotdata
 
+def filter_spatial_outliers(df, radius=5000):
+    original_len = len(df)
+    position_filters = (
+        (df.ant_x.between(MEDIAN_EAST_POSITION - radius, MEDIAN_EAST_POSITION + radius)) &
+        (df.ant_y.between(MEDIAN_NORTH_POSITION - radius, MEDIAN_NORTH_POSITION + radius)) &
+        (df.ant_z.between(MEDIAN_UP_POSITION - radius, MEDIAN_UP_POSITION + radius))
+    )
+    df_filtered = df[position_filters]
+    filtered_len = len(df_filtered)
+    print(f"Data filtered from {original_len} to {filtered_len} rows for a {((original_len - filtered_len) / original_len * 100):.2f} % reduction using {radius}m position threshold.")
+    return df_filtered
+
 def main():
     """
     Main function to run the Kalman filter processing pipeline.
@@ -330,8 +267,8 @@ def main():
     
     START_DT = constants.start_dt
     GNSS_POS_PSD = constants.gnss_pos_psd 
-    VEL_PSD = constants.vel_psd 
-    COV_ERR = constants.cov_err 
+    VEL_PSD = constants.vel_psd
+    COV_ERR = constants.cov_err
 
     # Setup DataHandler
     main_dir = Path("/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain")
@@ -352,24 +289,8 @@ def main():
     kin_data_prepared = prepare_kinematic_data(kin_positions)
 
     # Filter out rows where the positions are greater than 5km from median
-    pos_filter_positions = (
-        (positions_data_prepared.ant_x.between(MEDIAN_EAST_POSITION - 5000, MEDIAN_EAST_POSITION + 5000)) &
-        (positions_data_prepared.ant_y.between(MEDIAN_NORTH_POSITION - 5000, MEDIAN_NORTH_POSITION + 5000)) &
-        (positions_data_prepared.ant_z.between(MEDIAN_UP_POSITION - 5000, MEDIAN_UP_POSITION + 5000))
-    )
-    pos_filter_kinematic = (
-        (kin_data_prepared.ant_x.between(MEDIAN_EAST_POSITION - 5000, MEDIAN_EAST_POSITION + 5000)) &
-        (kin_data_prepared.ant_y.between(MEDIAN_NORTH_POSITION - 5000, MEDIAN_NORTH_POSITION + 5000)) &
-        (kin_data_prepared.ant_z.between(MEDIAN_UP_POSITION - 5000, MEDIAN_UP_POSITION + 5000))
-    )
-    pos_filter_original_count = len(positions_data_prepared)
-    kin_filter_original_count = len(kin_data_prepared)
-
-    positions_data_prepared = positions_data_prepared[pos_filter_positions]
-    kin_data_prepared = kin_data_prepared[pos_filter_kinematic]
-
-    print(f"Positions data filtered from {pos_filter_original_count} to {len(positions_data_prepared)} rows for a {((pos_filter_original_count - len(positions_data_prepared)) / pos_filter_original_count * 100):.2f} % reduction using 5km position threshold.")
-    print(f"Kinematic data filtered from {kin_filter_original_count} to {len(kin_data_prepared)} rows for a {((kin_filter_original_count - len(kin_data_prepared)) / kin_filter_original_count * 100):.2f} % reduction using 5km position threshold.")
+    positions_data_prepared = filter_spatial_outliers(positions_data_prepared, radius=5000)
+    kin_data_prepared = filter_spatial_outliers(kin_data_prepared, radius=5000)
 
     df_all = combine_data(positions_data_prepared, kin_data_prepared)
 
@@ -436,65 +357,17 @@ def main():
     print("----Results vs Kinematic Positions----")
     analyze_offsets(merged_positions_kinematic)
 
-    
+    updated_shotdata = update_shotdata_with_smoothed_positions(shotdata, smoothed_results)
 
-    # # Split data into chunks based on time gaps
-    # data_chunks = split_data_into_chunks(df_all, columns={"ant_x": 0.5, "ant_y": 0.5, "ant_z": 0.5}, max_gap_seconds=MAX_GAP_SECONDS)
+    ant_east0_offset = (updated_shotdata["ant_e0"] - updated_shotdata["east0"]).describe()
+    ant_north0_offset = (updated_shotdata["ant_n0"] - updated_shotdata["north0"]).describe()
+    ant_up0_offset = (updated_shotdata["ant_u0"] - updated_shotdata["up0"]).describe()
 
-    # all_merged_positions = []
-    # all_shotdata_updated = []
-
-
-    # for i, chunk in enumerate(data_chunks):
-    #     print(f"\n--- Processing Chunk {i+1}/{len(data_chunks)} ({len(chunk)} rows) ---")
-    #     if len(chunk) < 10: # Need a few points to initialize the filter
-    #         print("Chunk too small to process, skipping.")
-    #         continue
-
-    #     # Calculate and clamp kinematic velocity for the chunk
-    #     chunk_with_vel = calculate_and_clamp_kinematic_velocity(chunk, max_speed=MAX_SPEED)
-
-    #     # Run Kalman Filter on the chunk
-    #     smoothed_results = run_kalman_filter_and_smooth(chunk_with_vel, START_DT, GNSS_POS_PSD, VEL_PSD, COV_ERR)
-        
-    #     if smoothed_results.empty:
-    #         print("No smoothed results for this chunk, skipping analysis.")
-    #         continue
-
-    #     # Analyze offsets for the current chunk
-    #     chunk_positions_prepared = positions_data_prepared[
-    #         positions_data_prepared.time.between(chunk.time.min(), chunk.time.max())
-    #     ]
-    #     merged_positions = pd.merge_asof(
-    #         chunk_positions_prepared.sort_values("time"),
-    #         smoothed_results.sort_values("time"),
-    #         on="time",
-    #         direction="nearest",
-    #         suffixes=('', '_smoothed')
-    #     )
-    #     analyze_offsets(merged_positions)
-    #     all_merged_positions.append(merged_positions)
-
-    #     # Update shotdata for the time range of the current chunk
-    #     chunk_shotdata = shotdata[
-    #         shotdata.pingTime.between(chunk.time.min(), chunk.time.max())
-    #     ]
-    #     if not chunk_shotdata.empty:
-    #         shotdata_updated = update_shotdata_with_smoothed_positions(chunk_shotdata.copy(), smoothed_results)
-    #         all_shotdata_updated.append(shotdata_updated)
-
-    # # --- Aggregate and Finalize Results ---
-    # if all_merged_positions:
-    #     final_merged_positions = pd.concat(all_merged_positions, ignore_index=True)
-    #     print("\n--- Final Combined Offset Analysis ---")
-    #     analyze_offsets(final_merged_positions)
-    
-    # if all_shotdata_updated:
-    #     final_shotdata_updated = pd.concat(all_shotdata_updated, ignore_index=True)
-    #     print("\n--- Final Combined Newly Computed Ping Positions (ECEF m) ---")
-    #     print(final_shotdata_updated[[ "ant_e0", "ant_n0", "ant_u0"]].describe().round(4).to_string())
-    #     print("\n--- Final Combined Newly Computed Reply Positions (ECEF m) ---")
-    #     print(final_shotdata_updated[[ "ant_e1", "ant_n1", "ant_u1"]].describe().round(4).to_string())
+    print("\n--- Shotdata Antenna Position Offsets ---")
+    print("----Ping Time Antenna Position Offsets----")
+    print(ant_east0_offset.round(6).to_string(name="East Offset (m)"))
+    print(ant_north0_offset.round(6).to_string(name="North Offset (m)"))
+    print(ant_up0_offset.round(6).to_string(name="Up Offset (m)"))
 
 if __name__ == "__main__":
     main()
