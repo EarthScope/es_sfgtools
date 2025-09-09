@@ -24,12 +24,12 @@ import gnatss.constants as constants
 # import matplotlib.pyplot as plt
 # %matplotlib ipympl
 
-# %%
+# %% 
 # Constants
 GPS_EPOCH = datetime.datetime(1980, 1, 6, 0, 0, 0)
 J200_EPOCH = datetime.datetime(2000, 1, 1, 12, 0, 0)
 
-# %%
+# %% 
 # Helper Functions
 
 MEDIAN_EAST_POSITION = 0
@@ -148,12 +148,12 @@ def prepare_kinematic_data(kin_positions,max_speed=2):
     gps_df["rho_xy"] = 0
     gps_df["rho_xz"] = 0
     gps_df["rho_yz"] = 0
-    gps_df["east_sig"] = 2
-    gps_df["north_sig"] = 2
-    gps_df["up_sig"] = 2
-    gps_df["v_sden"] = 2
-    gps_df["v_sdeu"] = 2
-    gps_df["v_sdnu"] = 2
+    gps_df["east_sig"] = .1
+    gps_df["north_sig"] = .1
+    gps_df["up_sig"] = .1
+    gps_df["v_sden"] = .1
+    gps_df["v_sdeu"] = .1
+    gps_df["v_sdnu"] = .1
 
     time_diff = gps_df.time.diff().fillna(method='bfill')
     time_diff.iloc[-1] = time_diff.iloc[-2]  # Handle last value
@@ -327,10 +327,11 @@ def main():
     Main function to run the Kalman filter processing pipeline.
     """
     # Configurable Parameters
+    
     START_DT = constants.start_dt
-    GNSS_POS_PSD = constants.gnss_pos_psd * 100
-    VEL_PSD = constants.vel_psd * 100
-    COV_ERR = constants.cov_err * 100
+    GNSS_POS_PSD = constants.gnss_pos_psd 
+    VEL_PSD = constants.vel_psd 
+    COV_ERR = constants.cov_err 
 
     # Setup DataHandler
     main_dir = Path("/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain")
@@ -421,7 +422,21 @@ def main():
         suffixes=('', '_smoothed')
     )
     print("\n--- Offset Analysis ---")
+    print("----Results vs Original Positions----")
     analyze_offsets(merged_positions)
+
+    merged_positions_kinematic = pd.merge_asof(
+        kin_data_prepared.sort_values("time"),
+        smoothed_results.sort_values("time"),
+        on="time",
+        tolerance=pd.Timedelta('10ms').total_seconds(),
+        direction="nearest",
+        suffixes=('', '_smoothed')
+    )
+    print("----Results vs Kinematic Positions----")
+    analyze_offsets(merged_positions_kinematic)
+
+    
 
     # # Split data into chunks based on time gaps
     # data_chunks = split_data_into_chunks(df_all, columns={"ant_x": 0.5, "ant_y": 0.5, "ant_z": 0.5}, max_gap_seconds=MAX_GAP_SECONDS)
