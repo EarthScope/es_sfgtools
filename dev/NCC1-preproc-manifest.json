@@ -5,7 +5,7 @@
       "network": "cascadia-gorda",
       "station": "NCC1",
       "campaign": "2023_A_1063",
-      "jobs": [{ "type": "preprocessing" }]
+      "jobs": [{"type":"download"}, {"type": "preprocessing" }]
     }
   ],
 
@@ -50,10 +50,10 @@
     },
     "novatel_config": {
       "n_processes": 14,
-      "override": true
+      "override": false
     },
     "position_update_config": {
-      "override": false,
+      "override": true,
       "lengthscale": 0.1,
       "plot": false
     },
@@ -65,17 +65,17 @@
       "interval": null,
       "local_pdp3_path": null,
       "loose_edit": true,
-      "sample_frequency": 0.1,
+      "sample_frequency": 1,
       "start": null,
       "system": "GREC23J",
       "tides": "SOP",
       "override_products_download": false,
-      "override": true
+      "override": false
     },
     "rinex_config": {
       "n_processes": 5,
       "time_interval": 24,
-      "override": true
+      "override": false
     }
   }
 }

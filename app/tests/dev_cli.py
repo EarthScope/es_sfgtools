@@ -4,7 +4,8 @@ import os
 sys.path.append((test:=str(Path(__file__).parent.parent)))
 os.environ["DYLD_LIBRARY_PATH"] = os.environ.get("CONDA_PREFIX", "") + "/lib"
 from pathlib import Path
-
+sys.path.append("/Users/franklyndunbar/Project/SeaFloorGeodesy/gnatss/src")
+import gnatss
 
 if __name__ == "__main__":
     from src import run_manifest, PipelineManifest

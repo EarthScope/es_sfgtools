@@ -48,20 +48,23 @@ def prepare_positions_data(positions_data:pd.DataFrame) -> pd.DataFrame:
     Also sets global variables MEDIAN_EAST_POSITION, MEDIAN_NORTH_POSITION, and MEDIAN_UP_POSITION
     to the median ECEF coordinates.
     """
- 
+
+    positions_data_copy = positions_data.copy()
+    positions_data_copy.time = positions_data_copy.time.apply(lambda x: x.timestamp())
+
     global MEDIAN_EAST_POSITION, MEDIAN_NORTH_POSITION, MEDIAN_UP_POSITION
-    e, n, u = pymap3d.geodetic2ecef(lat=positions_data.latitude, lon=positions_data.longitude, alt=positions_data.height)
+    e, n, u = pymap3d.geodetic2ecef(lat=positions_data_copy.latitude, lon=positions_data_copy.longitude, alt=positions_data_copy.height)
 
     MEDIAN_EAST_POSITION = np.median(e)
     MEDIAN_NORTH_POSITION = np.median(n)
     MEDIAN_UP_POSITION = np.median(u)
 
-    positions_data["ant_x"], positions_data["ant_y"], positions_data["ant_z"] = e, n, u
-    positions_data["east"] = positions_data.eastVelocity
-    positions_data["north"] = positions_data.northVelocity
-    positions_data["up"] = positions_data.upVelocity
-    
-    positions_data_copy = positions_data.copy()
+    positions_data_copy["ant_x"], positions_data_copy["ant_y"], positions_data_copy["ant_z"] = e, n, u
+    positions_data_copy["east"] = positions_data_copy.eastVelocity
+    positions_data_copy["north"] = positions_data_copy.northVelocity
+    positions_data_copy["up"] = positions_data_copy.upVelocity
+
+
     positions_data_copy["ant_sigx"] = positions_data_copy["latitude_std"].fillna(method='bfill').fillna(method='ffill')
     positions_data_copy["ant_sigy"] = positions_data_copy["longitude_std"].fillna(method='bfill').fillna(method='ffill')
     positions_data_copy["ant_sigz"] = positions_data_copy["height_std"].fillna(method='bfill').fillna(method='ffill')
@@ -72,11 +75,10 @@ def prepare_positions_data(positions_data:pd.DataFrame) -> pd.DataFrame:
     positions_data_copy["north_sig"] = positions_data_copy["northVelocity_std"].fillna(method='bfill').fillna(method='ffill')
     positions_data_copy["up_sig"] = positions_data_copy["upVelocity_std"].fillna(method='bfill').fillna(method='ffill')
 
-    
     positions_data_copy["v_sden"] = 0
     positions_data_copy["v_sdeu"] = 0
     positions_data_copy["v_sdnu"] = 0
-    
+
     return positions_data_copy
 
 def prepare_kinematic_data(kin_positions: pd.DataFrame) -> pd.DataFrame:
@@ -104,6 +106,7 @@ def prepare_kinematic_data(kin_positions: pd.DataFrame) -> pd.DataFrame:
     """
 
     gps_df = kin_positions.copy()
+    gps_df.time = gps_df.time.apply(lambda x: x.timestamp())
 
     gps_df["ant_x"] = gps_df["east"]
     gps_df["ant_y"] = gps_df["north"]
@@ -291,22 +294,29 @@ def update_shotdata_with_smoothed_positions(shotdata: pd.DataFrame, smoothed_res
 
     X_train = smoothed_results.time.to_numpy().reshape(-1, 1)
     Y_train = smoothed_results[[ "ant_x", "ant_y", "ant_z"]].to_numpy()
-    
-    position_interpolator = RadiusNeighborsRegressor(radius=0.1, weights='distance')
+
+    position_interpolator = RadiusNeighborsRegressor(radius=0.2, weights='distance')
     position_interpolator.fit(X_train, Y_train)
-    
+
     train_score = position_interpolator.score(X_train, Y_train)
     logger.loginfo(f"Position Interpolator Train Score: {train_score:.4f}")
-    
+
     ping_times = shotdata.pingTime.to_numpy().reshape(-1, 1)
     return_times = shotdata.returnTime.to_numpy().reshape(-1, 1)
-    
+
     predicted_ping_pos = position_interpolator.predict(ping_times)
     predicted_return_pos = position_interpolator.predict(return_times)
-    
-    shotdata.loc[:,["ant_e0","ant_n0","ant_u0"]]= predicted_ping_pos
-    shotdata.loc[:,["ant_e1","ant_n1","ant_u1"]]= predicted_return_pos
-    
+
+    shotdata.loc[:, ["east0", "north0", "up0"]][~np.isnan(predicted_ping_pos[:,0])] = (
+        predicted_ping_pos[~np.isnan(predicted_ping_pos[:, 0]), :]
+    )
+    shotdata.loc[:, ["isUpdated"]][~np.isnan(predicted_ping_pos[:, 0])] = True
+
+    shotdata.loc[:, ["east1", "north1", "up1"]][~np.isnan(predicted_return_pos[:, 0])] = (
+        predicted_return_pos[~np.isnan(predicted_return_pos[:, 0]), :]
+    )
+    shotdata.loc[:, ["isUpdated"]][~np.isnan(predicted_return_pos[:, 0])] = True
+
     nan_pings = np.isnan(predicted_ping_pos).any(axis=1).sum()
     nan_returns = np.isnan(predicted_return_pos).any(axis=1).sum()
     if nan_pings > 0:
@@ -346,10 +356,10 @@ def main(
     shotdata: pd.DataFrame,
     kin_positions: pd.DataFrame,
     positions_data: pd.DataFrame,
-    gnss_pos_psd=constants.GNSS_POS_PSD,
-    vel_psd=constants.VEL_PSD,
-    cov_err=constants.COV_ERR,
-    start_dt=constants.START_DT,
+    gnss_pos_psd=constants.gnss_pos_psd,
+    vel_psd=constants.vel_psd,
+    cov_err=constants.cov_err,
+    start_dt=constants.start_dt,
     filter_radius=5000,
  ) -> pd.DataFrame:
     """
@@ -422,37 +432,8 @@ def main(
     logger.loginfo("----Results vs Original Positions----")
     analyze_offsets(merged_positions)
 
-    merged_positions_kinematic = pd.merge_asof(
-        kin_positions.sort_values("time"),
-        smoothed_results.sort_values("time"),
-        on="time",
-        tolerance=pd.Timedelta("10ms").total_seconds(),
-        direction="nearest",
-        suffixes=("", "_smoothed"),
-    )
-    logger.loginfo("----Results vs Kinematic Positions----")
-    analyze_offsets(merged_positions_kinematic)
-
     shotdata_updated = update_shotdata_with_smoothed_positions(shotdata, smoothed_results)
 
-    ant_east0_offset = (
-        shotdata_updated["ant_e0"] - shotdata_updated["east0"]
-    ).describe()
-    ant_north0_offset = (
-        shotdata_updated["ant_n0"] - shotdata_updated["north0"]
-    ).describe()
-    ant_up0_offset = (
-        shotdata_updated["ant_u0"] - shotdata_updated["up0"]
-    ).describe()
-
-    logger.loginfo("\n--- Shotdata Antenna Position Offsets ---")
-    logger.loginfo("----Ping Time Antenna Position Offsets----")
-    logger.loginfo("----East0------")
-    logger.loginfo(ant_east0_offset.round(6).to_string(name="East Offset (m)"))
-    logger.loginfo("----North0------")
-    logger.loginfo(ant_north0_offset.round(6).to_string(name="North Offset (m)"))
-    logger.loginfo("----Up0------")
-    logger.loginfo(ant_up0_offset.round(6).to_string(name="Up Offset (m)"))
 
     return shotdata_updated
 
@@ -477,27 +458,27 @@ def merge_shotdata_kinposition(
     """
 
     logger.loginfo("Merging shotdata and kin_position data")
-    for start, end in zip(dates, dates[1:]):
-        logger.loginfo(f"Interpolating shotdata for date {str(start)}")
+    for date in dates:
 
-        shotdata_df = shotdata_pre.read_df(start=start, end=end)
-        kin_position_df = kin_position.read_df(start=start, end=end)
-        position_df = position_data.read_df(start=start, end=end)
-
+        shotdata_df = shotdata_pre.read_df(start=date)
+        kin_position_df = kin_position.read_df(start=date)
+        position_df = position_data.read_df(start=date)
+        if position_data is None or position_df is None or kin_position_df is None:
+            continue
         if shotdata_df.empty or kin_position_df.empty or position_df.empty:
             continue
 
-        
+        logger.loginfo(f"Interpolating shotdata for date {str(date)}")
 
         # interpolate the enu values
         shotdata_df_updated = main(
             shotdata=shotdata_df,
             kin_positions=kin_position_df,
             positions_data=position_df,
-            gnss_pos_psd=constants.GNSS_POS_PSD,
-            vel_psd=constants.VEL_PSD,
-            cov_err=constants.COV_ERR,
-            start_dt=constants.START_DT,
+            gnss_pos_psd=constants.gnss_pos_psd,
+            vel_psd=constants.vel_psd,
+            cov_err=constants.cov_err,
+            start_dt=constants.start_dt,
             filter_radius=5000,
         )
 

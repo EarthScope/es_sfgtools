@@ -28,6 +28,7 @@ from ..tiledb_tools.tiledb_schemas import (
     TDBKinPositionArray,
     TDBShotDataArray,
     TDBGNSSObsArray,
+    TDBIMUPositionArray
 )
 from ..data_mgmt.utils import (
     get_merge_signature_shotdata,
@@ -85,7 +86,8 @@ def rinex_to_kin_wrapper(
         timestamp_data_start=rinex_entry.timestamp_data_start,
         timestamp_data_end=rinex_entry.timestamp_data_end,
         type=AssetType.KIN,
-        timestamp_created=datetime.datetime.now()
+        timestamp_created=datetime.datetime.now(),
+        parent_id=rinex_entry.id
     )
     resfile_entry = AssetEntry(
         local_path=resfile,
@@ -95,7 +97,8 @@ def rinex_to_kin_wrapper(
         timestamp_data_start=rinex_entry.timestamp_data_start,
         timestamp_data_end=rinex_entry.timestamp_data_end,
         type=AssetType.KINRESIDUALS,
-        timestamp_created=datetime.datetime.now()
+        timestamp_created=datetime.datetime.now(),
+        parent_id=rinex_entry.id
     )
     return kin_entry, resfile_entry
 
@@ -153,7 +156,7 @@ class SV3Pipeline:
         self.shot_data_pre = TDBShotDataArray(
             self.data_catalog.catalog.networks[network].stations[station].shotdata_pre
         )
-        self.imu_position_data_dest = TDBKinPositionArray(
+        self.imu_position_data_dest = TDBIMUPositionArray(
             self.data_catalog.catalog.networks[network].stations[station].imupositiondata
         )
 
@@ -604,7 +607,7 @@ class SV3Pipeline:
             not self.asset_catalog.is_merge_complete(**merge_job)
             or self.config.position_update_config.override
         ):
-            dates.append(dates[-1] + datetime.timedelta(days=1))
+            
             merge_shotdata_kinposition(
                 shotdata_pre=self.shot_data_pre,
                 shotdata=self.shot_data_dest,
