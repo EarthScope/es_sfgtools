@@ -102,16 +102,16 @@ def prepare_kinematic_data(kin_positions,max_speed=2):
     gps_df["v_sdeu"] = 0
     gps_df["v_sdnu"] = 0
 
-    time_diff = gps_df.time.diff().fillna(method='bfill')
+    time_diff = gps_df.time.diff().bfill()
 
     ant_x_diff = gps_df.ant_x.diff()
     ant_y_diff = gps_df.ant_y.diff()
     ant_z_diff = gps_df.ant_z.diff()
 
 
-    east_velocity = (ant_x_diff / time_diff).fillna(method='bfill')
-    north_velocity = (ant_y_diff / time_diff).fillna(method='bfill')
-    up_velocity = (ant_z_diff / time_diff).fillna(method='bfill')
+    east_velocity = (ant_x_diff / time_diff).bfill()
+    north_velocity = (ant_y_diff / time_diff).bfill()
+    up_velocity = (ant_z_diff / time_diff).bfill()
 
     gps_df.east = east_velocity
     gps_df.north = north_velocity
