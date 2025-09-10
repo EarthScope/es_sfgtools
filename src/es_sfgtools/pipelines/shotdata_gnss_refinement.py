@@ -65,15 +65,15 @@ def prepare_positions_data(positions_data:pd.DataFrame) -> pd.DataFrame:
     positions_data_copy["up"] = positions_data_copy.upVelocity
 
 
-    positions_data_copy["ant_sigx"] = positions_data_copy["latitude_std"].fillna(method='bfill').fillna(method='ffill')
-    positions_data_copy["ant_sigy"] = positions_data_copy["longitude_std"].fillna(method='bfill').fillna(method='ffill')
-    positions_data_copy["ant_sigz"] = positions_data_copy["height_std"].fillna(method='bfill').fillna(method='ffill')
+    positions_data_copy["ant_sigx"] = positions_data_copy["latitude_std"].bfill().ffill()
+    positions_data_copy["ant_sigy"] = positions_data_copy["longitude_std"].bfill().ffill()
+    positions_data_copy["ant_sigz"] = positions_data_copy["height_std"].bfill().ffill()
     positions_data_copy["rho_xy"] = 0
     positions_data_copy["rho_xz"] = 0
     positions_data_copy["rho_yz"] = 0
-    positions_data_copy["east_sig"] = positions_data_copy["eastVelocity_std"].fillna(method='bfill').fillna(method='ffill')
-    positions_data_copy["north_sig"] = positions_data_copy["northVelocity_std"].fillna(method='bfill').fillna(method='ffill')
-    positions_data_copy["up_sig"] = positions_data_copy["upVelocity_std"].fillna(method='bfill').fillna(method='ffill')
+    positions_data_copy["east_sig"] = positions_data_copy["eastVelocity_std"].bfill().ffill()
+    positions_data_copy["north_sig"] = positions_data_copy["northVelocity_std"].bfill().ffill()
+    positions_data_copy["up_sig"] = positions_data_copy["upVelocity_std"].bfill().ffill()
 
     positions_data_copy["v_sden"] = 0
     positions_data_copy["v_sdeu"] = 0
