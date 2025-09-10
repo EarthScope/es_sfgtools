@@ -306,11 +306,11 @@ class TBDArray:
         Returns:
             pd.DataFrame: dataframe
         """
-        if isinstance(start,np.datetime64):
+        if isinstance(start, np.datetime64):
             start = start.astype(datetime.datetime)
         if isinstance(end, np.datetime64):
             end = end.astype(datetime.datetime)
-        if isinstance(start,datetime.date):
+        if isinstance(start, datetime.date):
             start = datetime.datetime.combine(start, datetime.datetime.min.time())
         if isinstance(end, datetime.date):
             end = datetime.datetime.combine(end, datetime.datetime.min.time())
