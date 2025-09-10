@@ -130,7 +130,7 @@ def prepare_kinematic_data(kin_positions: pd.DataFrame) -> pd.DataFrame:
     gps_df["v_sdeu"] = 0
     gps_df["v_sdnu"] = 0
 
-    time_diff = gps_df.time.diff().fillna(method='bfill')
+    time_diff = gps_df.time.diff().bfill()
 
     ant_x_diff = gps_df.ant_x.diff()
     ant_y_diff = gps_df.ant_y.diff()
