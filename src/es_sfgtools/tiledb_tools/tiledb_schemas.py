@@ -290,8 +290,8 @@ class TBDArray:
 
     def read_df(
         self,
-        start: datetime.datetime| np.datetime64,
-        end: datetime.datetime|np.datetime64 = None,
+        start: datetime.datetime | np.datetime64,
+        end: datetime.datetime | np.datetime64 = None,
         validate: bool = True,
         **kwargs,
     ) -> pd.DataFrame:
