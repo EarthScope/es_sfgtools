@@ -23,18 +23,21 @@ RINEX_BIN_PATH_BINARY = {
 }
 
 NOVA2TILE_BIN_PATH = {
+    "darwin_amd64": GOLANG_BINARY_BUILD_DIR / "nova2tile_darwin_amd64",
     "darwin_arm64": GOLANG_BINARY_BUILD_DIR / "nova2tile_darwin_arm64",
     "linux_amd64": GOLANG_BINARY_BUILD_DIR / "nova2tile_linux_amd64",
     "linux_arm64": GOLANG_BINARY_BUILD_DIR / "nova2tile_linux_arm64",
 }
 
 NOVB2TILE_BIN_PATH = {
+    "darwin_amd64": GOLANG_BINARY_BUILD_DIR / "novab2tile_darwin_amd64",
     "darwin_arm64": GOLANG_BINARY_BUILD_DIR / "novab2tile_darwin_arm64",
     "linux_amd64": GOLANG_BINARY_BUILD_DIR / "novab2tile_linux_amd64",
     "linux_arm64": GOLANG_BINARY_BUILD_DIR / "novab2tile_linux_arm64",
 }
 
 NOV0002TILE_BIN_PATH = {
+    "darwin_amd64": GOLANG_BINARY_BUILD_DIR / "nov0002tile_darwin_amd64",
     "darwin_arm64": GOLANG_BINARY_BUILD_DIR / "nov0002tile_darwin_arm64",
     "linux_amd64": GOLANG_BINARY_BUILD_DIR / "nov0002tile_linux_amd64",
     "linux_arm64": GOLANG_BINARY_BUILD_DIR / "nov0002tile_linux_arm64",

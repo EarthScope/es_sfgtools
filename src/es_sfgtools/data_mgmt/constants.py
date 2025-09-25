@@ -32,7 +32,7 @@ ALIAS_MAP = ALIAS_MAP | {x: x for x in FILE_TYPES}
 
 class DOWNLOAD_TYPES(Enum):
     SONARDYNE = "sonardyne"
-    NOVATEL = "novatel"
+    NOVATEL000 = "novatel000"
     NOVATEL770 = "novatel770"
     DFPO00 =  "dfop00"
     CTD = "ctd"
