@@ -165,15 +165,15 @@ def prepare_kinematic_data(kin_positions: pd.DataFrame) -> pd.DataFrame:
     return gps_df
 
 
-def combine_data(positions_data: pd.DataFrame, gps_data: pd.DataFrame) -> pd.DataFrame:
+def combine_data(imu_position_data: pd.DataFrame, ppp_position_data: pd.DataFrame) -> pd.DataFrame:
     """
-    Combines position and GPS data into a single DataFrame with a specified column order.
+    Combines IMU position and PPP position data into a single DataFrame with a specified column order.
     Parameters
     ----------
-    positions_data : pd.DataFrame
-        DataFrame containing position data with columns matching the expected column order.
-    gps_data : pd.DataFrame
-        DataFrame containing GPS data with columns matching the expected column order.
+    imu_position_data : pd.DataFrame
+        DataFrame containing IMU position data with columns matching the expected column order.
+    ppp_position_data : pd.DataFrame
+        DataFrame containing PPP position data with columns matching the expected column order.
     Returns
     -------
     pd.DataFrame
@@ -186,7 +186,7 @@ def combine_data(positions_data: pd.DataFrame, gps_data: pd.DataFrame) -> pd.Dat
         'ant_sigx', 'ant_sigy', 'ant_sigz', 'rho_xy', 'rho_xz', 'rho_yz',
         'east_sig', 'north_sig', 'up_sig', 'v_sden', 'v_sdeu', 'v_sdnu'
     ]
-    df_all = pd.concat([positions_data, gps_data])
+    df_all = pd.concat([imu_position_data, ppp_position_data])
     df_all = df_all[column_order]
     df_all = df_all.sort_values(by="time")
     # Don't dropna here, as kinematic velocities are NaN
@@ -443,7 +443,8 @@ def merge_shotdata_kinposition(
     shotdata: TDBShotDataArray,
     kin_position: TDBKinPositionArray,
     position_data:TDBIMUPositionArray,
-    dates: List[datetime64]
+    dates: List[datetime64],
+    filter_radius: float = 5000,
 ) -> TDBShotDataArray:
     """
     Merge the shotdata and kin_position data
@@ -453,8 +454,7 @@ def merge_shotdata_kinposition(
         shotdata (TDBShotDataArray): The shotdata array to write to
         kin_position (TDBKinPositionArray): The TileDB KinPosition array
         dates (List[datetime64]): The dates to merge
-        plot (bool, optional): Plot the interpolated values. Defaults to False.
-
+        filter_radius (float, optional): Radius for spatial outlier filtering in meters (default: 5000).
     """
 
     logger.loginfo("Merging shotdata and kin_position data")
@@ -479,7 +479,7 @@ def merge_shotdata_kinposition(
             vel_psd=constants.vel_psd,
             cov_err=constants.cov_err,
             start_dt=constants.start_dt,
-            filter_radius=5000,
+            filter_radius=filter_radius,
         )
 
         shotdata.write_df(shotdata_df_updated, validate=False)
