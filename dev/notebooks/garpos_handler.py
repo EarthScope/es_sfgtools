@@ -903,7 +903,7 @@ class GarposHandler:
             json.dump(proc_results.model_dump(), f, indent=4)
 
     def _run_garpos_survey(
-        self, survey_id: str, run_id: int | str = 0, iterations: int = 1, override: bool = False
+        self, survey_id: str, run_id: int | str = 0, override: bool = False
     ) -> None:
         """
         Run the GARPOS model for a specific survey.

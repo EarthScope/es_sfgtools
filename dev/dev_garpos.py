@@ -1,12 +1,12 @@
 import os
 from pathlib import Path
-
+os.environ["DYLD_LIBRARY_PATH"] = os.environ.get("CONDA_PREFIX", "") + "/lib:" + os.environ.get("DYLD_LIBRARY_PATH", "")
 os.environ["GARPOS_PATH"] = str(Path("/Users/franklyndunbar/Project/garpos").resolve())
 
 from es_sfgtools.data_mgmt.data_handler import DataHandler
 from es_sfgtools.modeling.garpos_tools.load_utils import load_drive_garpos
 from es_sfgtools.utils.archive_pull import load_site_metadata
-from es_sfgtools.utils.loggers import BaseLogger
+from es_sfgtools.logging.loggers import BaseLogger
 
 pride_path = Path.home() / ".PRIDE_PPPAR_BIN"
 os.environ["PATH"] += os.pathsep + str(pride_path)
