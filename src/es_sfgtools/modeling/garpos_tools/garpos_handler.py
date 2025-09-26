@@ -200,7 +200,7 @@ class GarposHandler:
         self.working_dir = working_dir
         if not self.working_dir.exists():
             raise ValueError(f"Working directory {self.working_dir} does not exist. Please provide a valid directory.")
-        
+
         self.shotdata_dir = working_dir / SHOTDATA_DIR_NAME
         self.shotdata_dir.mkdir(exist_ok=True, parents=True)
 
@@ -230,7 +230,6 @@ class GarposHandler:
 
         # Set up filtering configuration
         self.shotdata_filter_config = shotdata_filter_config
-
 
     def _setup_campaign(self):
         """
@@ -271,7 +270,7 @@ class GarposHandler:
             local_ctd (Path): The path to the local CTD file. Default is None.
         """
         if local_svp:
-            self.sound_speed_path = local_svp
+            self.sound_speed_path = Path(local_svp)
             logger.loginfo(f"Using local sound speed profile found at {local_svp}..")
         elif local_ctd:
             logger.loginfo(
@@ -490,7 +489,7 @@ class GarposHandler:
         gp_transponder.position_enu = gp_transponder_enu
 
         return gp_transponder
-    
+
     def _GP_Transponders_from_benchmarks(self, survey: Survey) -> List[GPTransponder]:
         """
         Get GP transponders from the benchmarks in the survey.
@@ -537,20 +536,20 @@ class GarposHandler:
                       overwrite: bool = False,
                       custom_filters: Optional[dict] = None,
                       ):
-        
+
         """
         Prepares and saves shot data for each survey in the campaign.
         Args:
             overwrite (bool): If True, overwrite existing files. Defaults to False.
             custom_filters (Optional[dict]): Custom filter settings to apply to the shot data. If None, use default filters.
         """
-    
+
         # Check if the shot data directory exists, if not, create it
         if not self.shotdata_dir.exists():
             self.shotdata_dir.mkdir(parents=True, exist_ok=True)
 
         for survey in self.campaign.surveys:
-            
+
             # Generate the path to the observation file
             obsfile_path = self.get_obsfile_path(survey_id=survey.id)
             # Check if the observation file already exists and skip if not overwriting
@@ -576,9 +575,13 @@ class GarposHandler:
                                                       start_time=survey.start,
                                                       end_time=survey.end,
                                                       custom_filters=custom_filters)
-            # Save filtered shot data to CSV for reference or to use later
-            shot_data_filtered.to_csv(self.shotdata_dir / f"{survey.id}_shotdata_filtered.csv")
+            if shot_data_filtered.empty:
+                logger.logwarn(f"No shot data remaining after filtering for survey {survey.id}, skipping survey.")
 
+            # Save filtered shot data to CSV for reference or to use later
+            survey_type = survey.type.replace(" ", "")
+            shotdata_path = self.shotdata_dir / f"{survey.id}_{survey_type}.csv"
+            shot_data_filtered.to_csv(shotdata_path)
 
             # -- Get GP transponders for the survey --
             try:
@@ -591,10 +594,9 @@ class GarposHandler:
             # -- Prepare shot data for GARPOS --
             try:
                 # Create shot data path with survey Id and type
-                survey_type = survey.type.replace(" ", "")
-                shot_data_path = survey_dir / f"{survey.id}_{survey_type}.csv"
+
                 shot_data_rectified = self._prepare_shotdata_for_garpos(
-                    shot_data_path=shot_data_path,
+                    shot_data_path=shotdata_path,
                     survey=survey, 
                     shot_data=shot_data_filtered, 
                     GPtransponders=GPtransponders)
@@ -603,9 +605,12 @@ class GarposHandler:
 
             # -- Create the garpos input file --
             # Get soundspeed relative path
-            rel_depth = (len(shot_data_path.relative_to(self.sound_speed_path.parent).parts) - 1)
-            ss_path = "../" * rel_depth + self.sound_speed_path.name
-            garpos_input = self._prepare_garpos_input_from_survey(shot_data_path=shot_data_path,
+            try:
+                rel_depth = (len(shotdata_path.relative_to(self.sound_speed_path.parent).parts) - 1)
+                ss_path = "../" * rel_depth + self.sound_speed_path.name
+            except ValueError:
+                ss_path = str(self.sound_speed_path)
+            garpos_input = self._prepare_garpos_input_from_survey(shot_data_path=shotdata_path,
                                                                   survey=survey,
                                                                   ss_path=ss_path,
                                                                   array_dpos_center=array_dpos_center,
@@ -617,7 +622,6 @@ class GarposHandler:
             with open(survey_dir / SURVEY_METADATA_FILE_NAME, "w") as file:
                 file.write(survey.model_dump_json(indent=2))
 
-            
     def _prepare_garpos_input_from_survey(self, 
                                           shot_data_path: Path, 
                                           survey: Survey, 
@@ -625,7 +629,7 @@ class GarposHandler:
                                           array_dpos_center: Tuple[float, float, float],
                                           num_of_shots: int,
                                           GPtransponders: List[GPTransponder]) -> GarposInput:
-        
+
         """
         Prepare the GarposInput object from the survey and shot data.
         Args:
@@ -661,14 +665,13 @@ class GarposHandler:
             ),
             start_date=survey.start,
             end_date=survey.end,
-            shot_data="./" + shot_data_path.name,
+            shot_data=shot_data_path,
             delta_center_position=self.garpos_fixed.inversion_params.delta_center_position,
             sound_speed_data=ss_path,
             n_shot=num_of_shots,
         )
 
         return garpos_input
-        
 
     def _prepare_shotdata_for_garpos(self, shot_data_path: Path, survey: Survey, shot_data: pd.DataFrame, GPtransponders: List[GPTransponder]):
         """
@@ -691,6 +694,8 @@ class GarposHandler:
         shot_data_rectified = rectify_shotdata(
             coord_transformer=self.coord_transformer, shot_data=shot_data
         )
+        # Remove the non numeric characters from the MT column
+        shot_data_rectified.MT = shot_data_rectified.MT.replace(r'\D', '', regex=True)
 
         try:
             # shot_data_rectified = ShotDataFrame.validate(
@@ -717,9 +722,9 @@ class GarposHandler:
             )
             raise ValueError(f"Shot data for {survey.id}| {start_doy} {end_doy} | {start_date} failed validation. "
                              f"Original error: {e}") from e
-        
+
         return shot_data_rectified
-    
+
     def save_shotdata_from_tiledb(self, survey_ID: str, start: datetime, end: datetime) -> pd.DataFrame: 
         """
         Grab shot data from the TileDB array for a given date range and save it to a CSV file in the shotdata directory.
@@ -797,10 +802,10 @@ class GarposHandler:
                                                                     array_center_lat=self.site.arrayCenter.latitude,
                                                                     array_center_lon=self.site.arrayCenter.longitude,
                                                                     max_distance_m=max_distance_from_center)
-        
-        # TODO Pride residuals 
+
+        # TODO Pride residuals
         if self.shotdata_filter_config.get("pride_residuals", {}).get("enabled", True):
-            max_wrms = self.shotdata_filter_config["pride_residuals"].get("max_residual_mm", None)
+            max_wrms = self.shotdata_filter_config.get("pride_residuals", {}).get("max_residual_mm", None)
             if max_wrms is not None:
                 new_shot_data_df = filter_pride_residuals(df=new_shot_data_df,
                                                         station_data=self.station_data,
@@ -811,6 +816,7 @@ class GarposHandler:
 
         filtered_count = len(new_shot_data_df)
         logger.loginfo(f"Filtered {initial_count - filtered_count} records from shot data based on filtering criteria: {self.shotdata_filter_config}")
+        logger.loginfo(f"Remaining shot data records: {filtered_count}")
         return new_shot_data_df
 
     def set_inversion_params(self, parameters: dict | InversionParams):
@@ -837,7 +843,7 @@ class GarposHandler:
         results_dir: Path,
         run_id: int | str = 0,
         override: bool = False,
-    ) -> None:
+    ) -> Path:
         """
         Run the GARPOS model for a given date and run ID.
 
@@ -846,7 +852,7 @@ class GarposHandler:
             run_id (int | str, optional): The run identifier. Defaults to 0.
 
         Returns:
-            GarposResults: The results of the GARPOS model run.
+            Path: The results of the GARPOS model run.
 
         Raises:
             AssertionError: If the shot data file does not exist for the given date.
@@ -876,9 +882,8 @@ class GarposHandler:
         )
 
         results_dir.mkdir(exist_ok=True, parents=True)
-        garpos_input.shot_data = results_dir.parent / garpos_input.shot_data.name
         garpos_input.sound_speed_data = (
-            self.sound_speed_path
+            Path(self.sound_speed_path)
         )  # obs_file_path.parent.parent.parent / garpos_input.sound_speed_data.name
         input_path = results_dir / f"_{run_id}_observation.ini"
         fixed_path = results_dir / f"_{run_id}_settings.ini"
@@ -901,6 +906,8 @@ class GarposHandler:
         proc_results.shot_data = results_df_path
         with open(results_path, "w") as f:
             json.dump(proc_results.model_dump(), f, indent=4)
+
+        return results_path
 
     def _run_garpos_survey(
         self, survey_id: str, run_id: int | str = 0, iterations: int = 1, override: bool = False
@@ -926,17 +933,21 @@ class GarposHandler:
         if not obsfile_path.exists():
             raise ValueError(f"Observation file not found at {obsfile_path}")
 
-        self._run_garpos(
-            obs_file_path=obsfile_path,
-            results_dir=results_dir,
-            run_id=run_id,
-            override=override,
-        )
+        for i in range(iterations):
+            logger.loginfo(f"Iteration {i+1} of {iterations} for survey {survey_id}")
+
+            obsfile_path = self._run_garpos(
+                obs_file_path=obsfile_path,
+                results_dir=results_dir,
+                run_id=run_id,
+                override=override,
+            )
 
     def run_garpos(
         self,
         survey_id: Optional[str] = None,
         run_id: int | str = 0,
+        iterations: int = 1,
         override: bool = False,
     ) -> None:
         """
@@ -957,7 +968,7 @@ class GarposHandler:
                     f"Running GARPOS model for survey {survey.id}. Run ID: {run_id}"
                 )
                 self._run_garpos_survey(
-                    survey_id=survey.id, run_id=run_id, override=override
+                    survey_id=survey.id, run_id=run_id, override=override, iterations=iterations
                 )
                 run_id += 1
         else:
@@ -966,7 +977,7 @@ class GarposHandler:
             )
             try:
                 self._run_garpos_survey(
-                    survey_id=survey_id, run_id=run_id, override=override
+                    survey_id=survey_id, run_id=run_id, override=override, iterations=iterations
                 )
             except IndexError as e:
                 logger.logerr(
@@ -1137,4 +1148,3 @@ class GarposHandler:
                 bbox_inches="tight",
                 pad_inches=0.1,
             )
-
