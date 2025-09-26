@@ -50,9 +50,9 @@ if __name__ == "__main__":
         "/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain/cascadia-gorda/NCC1/GARPOS/2024_A_1126/svp.csv"
     )
     gp_handler_ncc1.set_survey("2024_A_1126_1")
-    gp_handler_ncc1.prep_shotdata(True,custom_filters={"ping_replies":{"min_replies":1}})
+    gp_handler_ncc1.prep_shotdata(custom_filters={"ping_replies":{"min_replies":1}})
 
-    update_dict = {"rejectcriteria": 2.5,"log_lambda":[0]}
+    update_dict = {"rejectcriteria": 2,"log_lambda":[0]}
 
     gp_handler_ncc1.set_inversion_params(update_dict)
     os.environ["GARPOS_PATH"] = str(Path("/Users/franklyndunbar/Project/garpos").resolve())
@@ -78,6 +78,6 @@ if __name__ == "__main__":
     # proc_results, results_df = process_garpos_results(results)
 
     # print(proc_results)
-    gp_handler_ncc1.run_garpos(survey_id="2024_A_1126_1",run_id=0,override=True,iterations=3)
+    gp_handler_ncc1.run_garpos(survey_id="2024_A_1126_1",run_id=0,override=True,iterations=5)
 
     # gp_handler_ncc1.plot_ts_results(campaign_name='2024_A_1126',survey_id="2024_A_1126_1",res_filter=20)

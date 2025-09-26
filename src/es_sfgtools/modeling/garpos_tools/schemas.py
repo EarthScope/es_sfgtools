@@ -308,7 +308,7 @@ class InversionParams(BaseModel):
         default=1.0e-6, description="Infinitesimal values to make Jacobian matrix"
     )
     delta_center_position : GPPositionENU = Field(
-        default=GPPositionENU(east_sigma=1,north_sigma=1), description="Delta center position"
+        default=GPPositionENU(east_sigma=1,north_sigma=1,up_sigma=1), description="Delta center position"
     )
 
     def show_params(self) -> None:

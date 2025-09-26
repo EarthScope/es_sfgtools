@@ -907,7 +907,7 @@ class GarposHandler:
         with open(results_path, "w") as f:
             json.dump(proc_results.model_dump(), f, indent=4)
 
-        return results_path
+        return rf
 
     def _run_garpos_survey(
         self, survey_id: str, run_id: int | str = 0, iterations: int = 1, override: bool = False
