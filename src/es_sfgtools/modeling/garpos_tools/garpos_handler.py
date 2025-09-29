@@ -148,8 +148,8 @@ class GarposHandler:
         LIB_RAYTRACE (str): Path to the RayTrace library.
         shotdata (TDBShotDataArray): Array containing shot data.
         site_config (SiteConfig): Configuration for the site.
-        working_dir (Path): Working directory path.
-        shotdata_dir (Path): Directory path for shot data.
+        working_dir (Path): Working directory path. Typically set to the campaign directory.
+        shotdata_dir (Path): Directory path for shot data. 
         results_dir (Path): Directory path for results.
         inversion_params (InversionParams): Parameters for the inversion process.
         dates (list): List of unique dates from the shot data.
@@ -201,11 +201,9 @@ class GarposHandler:
         if not self.working_dir.exists():
             raise ValueError(f"Working directory {self.working_dir} does not exist. Please provide a valid directory.")
 
+        # The shotdata directory is where the filtered and unfiltered shotdata CSVs will be saved
         self.shotdata_dir = working_dir / SHOTDATA_DIR_NAME
         self.shotdata_dir.mkdir(exist_ok=True, parents=True)
-
-        self.results_dir = working_dir / RESULTS_DIR_NAME
-        self.results_dir.mkdir(exist_ok=True, parents=True)
 
         # Set the path to the sound speed profile file
         self.sound_speed_path = self.working_dir / SVP_FILE_NAME
@@ -337,7 +335,7 @@ class GarposHandler:
                 f"Found {file.type} files related to campaign {self.campaign_name}"
             )
 
-        # Prioritize SVP then CTD then Seabird  # TODO: ask which is preferred (ctd vs seabird)
+        # Prioritize SVP then CTD then Seabird
         preferred_types = [AssetType.SVP, AssetType.CTD, AssetType.SEABIRD]
         for preferred in preferred_types:
             for file in ctd_assets:
@@ -359,6 +357,12 @@ class GarposHandler:
 
                     elif file.local_path is not None:
                         local_path = file.local_path
+                        # Check that it actually exists
+                        if not Path(local_path).exists():
+                            logger.logwarn(
+                                f"Local path {local_path} from catalog for file {file.id} does not exist, skipping this file."
+                            )
+                            continue
 
                     else:
                         continue
@@ -580,8 +584,8 @@ class GarposHandler:
 
             # Save filtered shot data to CSV for reference or to use later
             survey_type = survey.type.replace(" ", "")
-            shotdata_path = self.shotdata_dir / f"{survey.id}_{survey_type}.csv"
-            shot_data_filtered.to_csv(shotdata_path)
+            filtered_shotdata_path = self.shotdata_dir / f"{survey.id}_{survey_type}_shotdata_filtered.csv"
+            shot_data_filtered.to_csv(filtered_shotdata_path)
 
             # -- Get GP transponders for the survey --
             try:
@@ -596,21 +600,28 @@ class GarposHandler:
                 # Create shot data path with survey Id and type
 
                 shot_data_rectified = self._prepare_shotdata_for_garpos(
-                    shot_data_path=shotdata_path,
+                    shot_data_path=filtered_shotdata_path,
                     survey=survey, 
                     shot_data=shot_data_filtered, 
                     GPtransponders=GPtransponders)
+                
+                # Now we want to store the rectified shotdata in the garpos/campaign directory for garpos to use
+                garpos_shotdata_filename = f"{survey.id}_{survey_type}_shotdata.csv"
+                garpos_shotdata_path = survey_dir / garpos_shotdata_filename
+                shot_data_rectified.to_csv(garpos_shotdata_path)
+
             except ValueError as e:
                 continue
 
             # -- Create the garpos input file --
             # Get soundspeed relative path
             try:
-                rel_depth = (len(shotdata_path.relative_to(self.sound_speed_path.parent).parts) - 1)
+                rel_depth = (len(garpos_shotdata_path.relative_to(self.sound_speed_path.parent).parts) - 1)
                 ss_path = "../" * rel_depth + self.sound_speed_path.name
             except ValueError:
                 ss_path = str(self.sound_speed_path)
-            garpos_input = self._prepare_garpos_input_from_survey(shot_data_path=shotdata_path,
+
+            garpos_input = self._prepare_garpos_input_from_survey(shot_data_path=garpos_shotdata_path,
                                                                   survey=survey,
                                                                   ss_path=ss_path,
                                                                   array_dpos_center=array_dpos_center,
