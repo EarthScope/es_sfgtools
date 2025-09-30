@@ -1,7 +1,9 @@
 import os
 from pathlib import Path
 os.environ["DYLD_LIBRARY_PATH"] = os.environ.get("CONDA_PREFIX", "") + "/lib:" + os.environ.get("DYLD_LIBRARY_PATH", "")
-os.environ["GARPOS_PATH"] = str(Path("/Users/franklyndunbar/Project/garpos").resolve())
+os.environ["GARPOS_PATH"] = str(
+    Path("/Users/franklyndunbar/Project/SeaFloorGeodesy/garpos").resolve()
+)
 
 from es_sfgtools.data_mgmt.data_handler import DataHandler
 from es_sfgtools.modeling.garpos_tools.load_utils import load_drive_garpos
@@ -34,6 +36,7 @@ from es_sfgtools.modeling.garpos_tools.functions import (
 
 if __name__ == "__main__":
     from es_sfgtools.logging import BaseLogger
+    from es_sfgtools.modeling.garpos_tools.schemas import GPPositionENU
     BaseLogger.route_to_console()
 
     main_dir = Path("/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain")
@@ -52,10 +55,10 @@ if __name__ == "__main__":
     gp_handler_ncc1.set_survey("2024_A_1126_1")
     gp_handler_ncc1.prep_shotdata(custom_filters={"ping_replies":{"min_replies":1}})
 
-    update_dict = {"rejectcriteria": 2,"log_lambda":[0]}
+    update_dict = {"rejectcriteria": 2,"log_lambda":[-1,0],"delta_center_position":GPPositionENU(east_sigma=10,north_sigma=10,up_sigma=10),"convcriteria":0.1,"maxloop":10}
 
     gp_handler_ncc1.set_inversion_params(update_dict)
-    os.environ["GARPOS_PATH"] = str(Path("/Users/franklyndunbar/Project/garpos").resolve())
+
 
     # input_path = Path(
     #     "/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain/cascadia-gorda/NCC1/GARPOS/2024_A_1126/2024_A_1126_1/results/_3_observation.ini"
@@ -78,6 +81,6 @@ if __name__ == "__main__":
     # proc_results, results_df = process_garpos_results(results)
 
     # print(proc_results)
-    gp_handler_ncc1.run_garpos(survey_id="2024_A_1126_1",run_id=0,override=True,iterations=5)
+    gp_handler_ncc1.run_garpos(survey_id="2024_A_1126_1",run_id=0,override=True,iterations=30)
 
     # gp_handler_ncc1.plot_ts_results(campaign_name='2024_A_1126',survey_id="2024_A_1126_1",res_filter=20)

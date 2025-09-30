@@ -521,40 +521,41 @@ class GarposInput(BaseModel):
         # populate transponders
         transponder_list = []
         for key in model_section.keys():
-            (
-                east_value,
-                north_value,
-                up_value,
-                east_sigma,
-                north_sigma,
-                up_sigma,
-                cov_en,
-                cov_ue,
-                cov_nu,
-            ) = [float(x) for x in model_section[key].split()]
-            position = GPPositionENU(
-                east=east_value,
-                east_sigma=east_sigma,
-                north=north_value,
-                north_sigma=north_sigma,
-                up=up_value,
-                up_sigma=up_sigma,
-                cov_en=cov_en,
-                cov_ue=cov_ue,
-                cov_nu=cov_nu,
-            )
-            if "dpos" in key:
-                transponder_id = key.split("_")[0].upper()
-                transponder = GPTransponder(id=transponder_id, position_enu=position)
-                transponder_list.append(transponder)
-            if "dcentpos" in key:
-                delta_center_position = position
-            if "atdoffset" in key:
-                atd_offset = GPATDOffset(
-                    forward=position.east,
-                    rightward=position.north,
-                    downward=position.up,
+            if "dpos" in key or "dcentpos" in key or "atdoffset" in key:
+                (
+                    east_value,
+                    north_value,
+                    up_value,
+                    east_sigma,
+                    north_sigma,
+                    up_sigma,
+                    cov_en,
+                    cov_ue,
+                    cov_nu,
+                ) = [float(x) for x in model_section[key].split()]
+                position = GPPositionENU(
+                    east=east_value,
+                    east_sigma=east_sigma,
+                    north=north_value,
+                    north_sigma=north_sigma,
+                    up=up_value,
+                    up_sigma=up_sigma,
+                    cov_en=cov_en,
+                    cov_ue=cov_ue,
+                    cov_nu=cov_nu,
                 )
+                if "dpos" in key:
+                    transponder_id = key.split("_")[0].upper()
+                    transponder = GPTransponder(id=transponder_id, position_enu=position)
+                    transponder_list.append(transponder)
+                if "dcentpos" in key:
+                    delta_center_position = position
+                if "atdoffset" in key:
+                    atd_offset = GPATDOffset(
+                        forward=position.east,
+                        rightward=position.north,
+                        downward=position.up,
+                    )
 
         start_date = datetime.strptime(observation_section["Date(UTC)"], "%Y-%m-%d")
         date_mjd = float(observation_section["Date(jday)"])

@@ -8,6 +8,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
 import numpy as np
+from scipy.stats import hmean as harmonic_mean
 import json
 from matplotlib.colors import Normalize
 from matplotlib.collections import LineCollection
@@ -299,7 +300,7 @@ class GarposHandler:
         if not catalog_db_path:
             # Check if we can find it first based on the classic working directory structure, if not, raise error
             catalog_db_path = (
-                self.working_dir.parents[3] / "catalog.sqlite"
+                self.working_dir.parents[3] / "catalog.sqlite" 
             )  # 3 levels up from working dir, assuming the classic structure
             logger.logdebug(
                 f"Catalog database path not provided, checking for local catalog database at: {str(catalog_db_path)}"
@@ -536,10 +537,11 @@ class GarposHandler:
             )
         return GPtransponders
 
-    def prep_shotdata(self,
-                      overwrite: bool = False,
-                      custom_filters: Optional[dict] = None,
-                      ):
+    def prep_shotdata(
+        self,
+        overwrite: bool = False,
+        custom_filters: Optional[dict] = None,
+        ):
 
         """
         Prepares and saves shot data for each survey in the campaign.
@@ -898,7 +900,6 @@ class GarposHandler:
         )  # obs_file_path.parent.parent.parent / garpos_input.sound_speed_data.name
         input_path = results_dir / f"_{run_id}_observation.ini"
         fixed_path = results_dir / f"_{run_id}_settings.ini"
-        garpos_input.to_datafile(input_path)
         self.garpos_fixed._to_datafile(fixed_path)
 
         # print(f"Running GARPOS for {garpos_input.site_name}, {self.current_survey.id}")
@@ -911,7 +912,14 @@ class GarposHandler:
         )
 
         results = GarposInput.from_datafile(rf)
-        proc_results, results_df = process_garpos_results(results)
+        
+        svp_df = pd.read_csv(results.sound_speed_data)
+        results_df = pd.read_csv(results.shot_data,skiprows=1)
+        speed_mean = harmonic_mean(svp_df.speed.values)
+        range_residuals = results_df.ResiTT.values * speed_mean / 2
+        results_df["ResiRange"] = range_residuals
+
+        proc_results = results
 
         results_df.to_csv(results_df_path, index=False)
         proc_results.shot_data = results_df_path
@@ -950,7 +958,7 @@ class GarposHandler:
             obsfile_path = self._run_garpos(
                 obs_file_path=obsfile_path,
                 results_dir=results_dir,
-                run_id=run_id,
+                run_id=f"{run_id}_{i}",
                 override=override,
             )
 
