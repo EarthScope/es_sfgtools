@@ -583,6 +583,7 @@ class GarposHandler:
                                                       custom_filters=custom_filters)
             if shot_data_filtered.empty:
                 logger.logwarn(f"No shot data remaining after filtering for survey {survey.id}, skipping survey.")
+                continue
 
             # Save filtered shot data to CSV for reference or to use later
             survey_type = survey.type.replace(" ", "")
