@@ -290,8 +290,8 @@ class TBDArray:
 
     def read_df(
         self,
-        start: datetime.datetime| np.datetime64,
-        end: datetime.datetime|np.datetime64 = None,
+        start: datetime.datetime | np.datetime64,
+        end: datetime.datetime | np.datetime64 = None,
         validate: bool = True,
         **kwargs,
     ) -> pd.DataFrame:
@@ -306,11 +306,11 @@ class TBDArray:
         Returns:
             pd.DataFrame: dataframe
         """
-        if isinstance(start,np.datetime64):
+        if isinstance(start, np.datetime64):
             start = start.astype(datetime.datetime)
         if isinstance(end, np.datetime64):
             end = end.astype(datetime.datetime)
-        if isinstance(start,datetime.date):
+        if isinstance(start, datetime.date):
             start = datetime.datetime.combine(start, datetime.datetime.min.time())
         if isinstance(end, datetime.date):
             end = datetime.datetime.combine(end, datetime.datetime.min.time())
@@ -326,6 +326,9 @@ class TBDArray:
             except IndexError as e:
                 logger.logerr(e)
                 return None
+        if df.empty:
+            logger.logwarn("Dataframe is empty")
+            return None
         if validate:
             df = self.dataframe_schema.validate(df, lazy=True)
         return df
@@ -385,6 +388,8 @@ class TDBAcousticArray(TBDArray):
         tiledb.from_pandas(str(self.uri), df, mode="append")
 
     def read_df(self, start: datetime, end: datetime = None, **kwargs) -> pd.DataFrame:
+        if isinstance(start, datetime.date):
+            start = datetime.datetime.combine(start, datetime.datetime.min.time())
         if end is None:
             end = start
         with tiledb.open(str(self.uri), mode="r") as array:
@@ -438,11 +443,13 @@ class TDBShotDataArray(TBDArray):
         Returns:
             pd.DataFrame: dataframe
         """
+        if isinstance(start, datetime.date):
+            start = datetime.datetime.combine(start, datetime.datetime.min.time())
 
         logger.logdebug(f" Reading dataframe from {self.uri} for {start} to {end}")
         # TODO slice array by start and end and return the dataframe
         if end is None:
-            end = start + datetime.timedelta(days=1)
+            end = start + datetime.timedelta(hours=23, minutes=59, seconds=59, milliseconds=999)
         with tiledb.open(str(self.uri), mode="r") as array:
             try:
                 df = array.df[slice(np.datetime64(start), np.datetime64(end)), :]

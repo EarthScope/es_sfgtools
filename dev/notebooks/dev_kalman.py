@@ -1,4 +1,3 @@
-
 import os
 from pathlib import Path
 import pandas as pd
@@ -19,6 +18,7 @@ import gnatss
 from gnatss.ops.kalman import run_filter_simulation
 import gnatss.constants as constants
 import datetime
+import pymap3d
 
 
 GPS_EPOCH = datetime.datetime(1980, 1, 6, 0, 0, 0)
@@ -154,7 +154,6 @@ def runFilter(df_all:pd.DataFrame) -> pd.DataFrame:
         [*constants.ANT_GPS_COV_DIAG]
     ].apply(np.sqrt)
 
-    ant_cov_df[constants.GPS_TIME] = df_all[constants.GPS_TIME]
 
     # Smoothed positions
     smoothed_results = pd.DataFrame(
@@ -171,6 +170,120 @@ def runFilter(df_all:pd.DataFrame) -> pd.DataFrame:
     smoothed_results = smoothed_results.merge(ant_cov_df, on="merge_idx", how="left", suffixes=('', '_cov'))
     return smoothed_results
 
+
+def kalman_update(
+    positions_data: pd.DataFrame, kin_positions: pd.DataFrame
+) -> pd.DataFrame:
+    positions_data_copy = positions_data.copy()
+    e, n, u = pymap3d.geodetic2ecef(
+        lat=positions_data_copy.latitude,
+        lon=positions_data_copy.longitude,
+        alt=positions_data_copy.height,
+    )
+    (
+        positions_data_copy["ant_x"],
+        positions_data_copy["ant_y"],
+        positions_data_copy["ant_z"],
+    ) = (e, n, u)
+    positions_data_copy["east"] = positions_data_copy.eastVelocity
+    positions_data_copy["north"] = positions_data_copy.northVelocity
+    positions_data_copy["up"] = positions_data_copy.upVelocity
+
+    positions_data_copy["ant_sigx"] = positions_data_copy["latitude_std"]
+    positions_data_copy["ant_sigy"] = positions_data_copy["longitude_std"]
+    positions_data_copy["ant_sigz"] = positions_data_copy["height_std"]
+    positions_data_copy["rho_xy"] = 0
+    positions_data_copy["rho_xz"] = 0
+    positions_data_copy["rho_yz"] = 0
+
+    positions_data_copy["east_sig"] = positions_data_copy["eastVelocity_std"]
+    positions_data_copy["north_sig"] = positions_data_copy["northVelocity_std"]
+    positions_data_copy["up_sig"] = positions_data_copy["upVelocity_std"]
+
+    positions_data_copy["v_sden"] = 1
+    positions_data_copy["v_sdeu"] = 1
+    positions_data_copy["v_sdnu"] = 1
+
+    gps_df = kin_positions.copy()
+    east_velocity = gps_df.east.diff() / gps_df.time.diff()
+    north_velocity = gps_df.north.diff() / gps_df.time.diff()
+    up_velocity = gps_df.up.diff() / gps_df.time.diff()
+
+    gps_df["ant_x"] = gps_df["east"]
+    gps_df["ant_y"] = gps_df["north"]
+    gps_df["ant_z"] = gps_df["up"]
+
+    gps_df["east"] = east_velocity
+    gps_df["north"] = north_velocity
+    gps_df["up"] = up_velocity
+
+    gps_df["ant_sigx"] = 0.1
+    gps_df["ant_sigy"] = 0.1
+    gps_df["ant_sigz"] = 0.1
+
+    gps_df["rho_xy"] = 0
+    gps_df["rho_xz"] = 0
+    gps_df["rho_yz"] = 0
+
+    gps_df["east_sig"] = 2
+    gps_df["north_sig"] = 2
+    gps_df["up_sig"] = 2
+
+    gps_df["v_sden"] = 2
+    gps_df["v_sdeu"] = 2
+    gps_df["v_sdnu"] = 2
+
+    df_all = pd.concat([positions_data_copy, gps_df])
+    column_order = [
+        "time",
+        "east",
+        "north",
+        "up",
+        "ant_x",
+        "ant_y",
+        "ant_z",
+        "ant_sigx",
+        "ant_sigy",
+        "ant_sigz",
+        "rho_xy",
+        "rho_xz",
+        "rho_yz",
+        "east_sig",
+        "north_sig",
+        "up_sig",
+        "v_sden",
+        "v_sdeu",
+        "v_sdnu",
+    ]
+    df_all = df_all[column_order]
+    df_all = df_all.sort_values(by="time")
+    df_all = df_all.dropna()
+
+    smoothed_results = runFilter(df_all)
+
+    merged_positions = pd.merge_asof(
+        positions_data_copy.sort_values("time"),
+        smoothed_results.sort_values("time"),
+        on="time",
+        direction="nearest",
+        suffixes=("", "_smoothed"),
+    )
+    merged_positions["east_offset"] = (
+        merged_positions["ant_x_smoothed"] - merged_positions["ant_x"]
+    ).abs()
+    merged_positions["north_offset"] = (
+        merged_positions["ant_y_smoothed"] - merged_positions["ant_y"]
+    ).abs()
+    merged_positions["up_offset"] = (
+        merged_positions["ant_z_smoothed"] - merged_positions["ant_z"]
+    ).abs()
+    merged_positions = merged_positions[
+        ["time", "east_offset", "north_offset", "up_offset"]
+    ]
+
+    return smoothed_results, merged_positions
+
+
 main_dir = Path("/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain")
 dh = DataHandler(main_dir)
 
@@ -180,43 +293,14 @@ survey = "2024_A_1126"
 
 dh.change_working_station(network=network, station=station, campaign=survey)
 print(dates:=dh.kin_position_tdb.get_unique_dates())
-kin_positions = dh.kin_position_tdb.read_df(dates[4], dates[5])
-shotdata = dh.shotdata_tdb_pre.read_df(dates[4], dates[5])
+kin_positions = dh.kin_position_tdb.read_df(dates[8], dates[9])
+shotdata = dh.shotdata_tdb_pre.read_df(dates[8], dates[9])
+positions_data = dh.imu_position_tdb.read_df(dates[8], dates[9])
+positions_data.time = positions_data.time.apply(lambda x: x.timestamp())
+kin_positions.time = kin_positions.time.apply(lambda x: x.timestamp())
 
+smoothed_results, merged_positions = kalman_update(positions_data, kin_positions)
 
-shotdata = shotdata[shotdata.transponderID=="IR5209"]
-
-gps_df = gpsData_to_positiondf(kin_positions)
-
-position_df = shotData_to_positiondf(shotdata)
-
-
-df_all = pd.concat([position_df, gps_df])
-df_all = df_all[COLUMN_ORDER].dropna()
-df_all = df_all.sort_values(by="time").reset_index(drop=True)
-
-fig,axes = plt.subplots(3, 1, figsize=(10, 8), sharex=True)
-axes[0].plot(df_all['time'], df_all["ant_sigx"], label='Antenna X', color='red')
-axes[0].scatter(gps_df['time'], gps_df["ant_sigx"], label='Kinematic Antenna X', color='blue')
-axes[1].plot(df_all['time'], df_all["ant_sigy"], label='Antenna Y', color='red')
-axes[1].scatter(gps_df['time'], gps_df["ant_sigy"], label='Kinematic Antenna Y', color='blue')
-axes[2].plot(df_all['time'], df_all["ant_sigz"], label='Antenna Z', color='red')
-axes[2].scatter(gps_df['time'], gps_df["ant_sigz"], label='Kinematic Antenna Z', color='blue')
-plt.legend()
-plt.show()
-
-df_updated = runFilter(df_all)
-
-mean_antx = df_updated["ant_x"].mean()
-mean_anty = df_updated["ant_y"].mean()
-mean_antz = df_updated["ant_z"].mean()
-
-fig,axes = plt.subplots(3, 1, figsize=(10, 8), sharex=True)
-axes[0].plot(df_updated['time'], df_updated["ant_x"]-mean_antx, label='Antenna X', color='red')
-axes[0].plot(gps_df['time'], gps_df["ant_x"]-mean_antx, label='Kinematic Antenna X', color='blue')
-axes[1].plot(df_updated['time'], df_updated["ant_y"]-mean_anty, label='Antenna Y', color='red')
-axes[1].plot(gps_df['time'], gps_df["ant_y"]-mean_anty, label='Kinematic Antenna Y', color='blue')
-axes[2].plot(df_updated['time'], df_updated["ant_z"]-mean_antz, label='Antenna Z', color='red')
-axes[2].plot(gps_df['time'], gps_df["ant_z"]-mean_antz, label='Kinematic Antenna Z', color='blue')
-plt.legend()
-plt.show()
+print(f"East Offset (m): {merged_positions['east_offset'].describe()}")
+print(f"North Offset (m): {merged_positions['north_offset'].describe()}")
+print(f"Up Offset (m): {merged_positions['up_offset'].describe()}")

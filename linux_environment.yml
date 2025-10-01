@@ -52,5 +52,6 @@ dependencies:
    # - multipledispatch
    # - multiprocessing_logging
     - sphinx_pyproject
+    - gnatss
 variables:
   CGO_ENABLED: 1
