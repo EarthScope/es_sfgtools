@@ -31,7 +31,7 @@ def ctd_to_soundvelocity(
         df.at[row.Index, "speed"] += row.Index / 1000
         df.at[row.Index, "speed"] += np.random.randint(0, 1000) / 100000
 
-    return SoundVelocityDataFrame(df)
+    return SoundVelocityDataFrame(df, lazy=True)
 
 
 @pa.check_types(lazy=True)
@@ -88,7 +88,7 @@ def seabird_to_soundvelocity(
             f"SS ranges from {df['speed'].min()} to {df['speed'].max()} m/s"
         )
 
-    return SoundVelocityDataFrame(df)
+    return SoundVelocityDataFrame(df, lazy=True)
 
 
 @pa.check_types(lazy=True)
@@ -99,4 +99,4 @@ def CTDfile_to_svp(
     df = pd.read_csv(source, usecols=[0, 1], names=["depth", "speed"], sep="\s+")
     df.depth = df.depth * -1
 
-    return SoundVelocityDataFrame(df)
+    return SoundVelocityDataFrame(df, lazy=True)
