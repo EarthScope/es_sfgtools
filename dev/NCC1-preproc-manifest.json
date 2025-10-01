@@ -5,13 +5,7 @@
       "network": "cascadia-gorda",
       "station": "NCC1",
       "campaign": "2023_A_1063",
-      "jobs": [{ "type": "preprocessing" }]
-    },
-    {
-      "network": "cascadia-gorda",
-      "station": "NCC1",
-      "campaign": "2022_A_1065",
-      "jobs": [{ "type": "preprocessing" }]
+      "jobs": [{"type":"download"}, {"type": "preprocessing" }]
     }
   ],
 
@@ -56,7 +50,7 @@
     },
     "novatel_config": {
       "n_processes": 14,
-      "override": true
+      "override": false
     },
     "position_update_config": {
       "override": true,

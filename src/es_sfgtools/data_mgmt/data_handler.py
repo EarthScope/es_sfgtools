@@ -843,8 +843,8 @@ class DataHandler:
         )
     
     def test_logger(self):
-        print(f"Print: testing logger {logger} with handlers {logger.logger.handlers}")
-        logger.loginfo(f"Log: testing logger {logger} with handlers {logger.logger.handlers}")
+        print(f"PRINT: testing logger {logger} with handlers {logger.logger.handlers}")
+        logger.loginfo(f"LOGGER: testing logger {logger} with handlers {logger.logger.handlers}")
         logger.logdebug("logdebug test")
         logger.loginfo("loginfo test")
         logger.logwarn("logwarn test")
