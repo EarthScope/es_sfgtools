@@ -36,7 +36,15 @@ class StationData(BaseModel):
     acousticdata: str = Field(
         default=None, description="The station's acoustic data TileDB URI"
     )
-
+    qcdata: str = Field(
+        default=None, description="The station's QC processed shotdata TileDB URI"
+    )
+    qcdata_pre: str = Field(
+        default=None, description="Pre-update QC shotdata TileDB URI"
+    )
+    qckinpositiondata: str = Field(
+        default=None, description="The station's RINEX derived position TileDB URI"
+    )
 
 class NetworkData(BaseModel):
     name: str = Field(..., description="The network name")

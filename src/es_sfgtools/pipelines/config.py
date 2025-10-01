@@ -47,6 +47,8 @@ class RinexConfig(BaseModel):
 class DFOP00Config(BaseModel):
     override: bool = Field(False, title="Flag to Override Existing Data")
 
+class QCpinConfig(BaseModel):
+    override: bool = Field(False, title="Flag to Override Existing Data")
 
 class PositionUpdateConfig(BaseModel):
     override: bool = Field(False, title="Flag to Override Existing Data")
@@ -61,6 +63,35 @@ class SV3PipelineConfig(BaseModel):
     novatel_config: NovatelConfig = NovatelConfig()
     rinex_config: RinexConfig = RinexConfig()
     dfop00_config: DFOP00Config = DFOP00Config()
+    position_update_config: PositionUpdateConfig = PositionUpdateConfig()
+
+    class Config:
+        title = "SV3 Pipeline Configuration"
+        arbitrary_types_allowed = True
+
+    def update(self, update_dict: dict) -> "SV3PipelineConfig":
+        # update the object with values from a dict and returns a new copy
+        copy = self.model_copy().model_dump()
+        for key, value in update_dict.items():
+            if key in copy:
+                copy[key] = value | copy[key]
+        return SV3PipelineConfig(**copy)
+
+    def to_yaml(self, filepath: Path):
+        with open(filepath, "w") as f:
+            yaml.dump(self.model_dump(), f)
+
+    @classmethod
+    def load_yaml(cls, filepath: Path):
+        with open(filepath) as f:
+            data = yaml.load(f)
+        return cls(**data)
+    
+class SV3QCPipelineConfig(BaseModel):
+    pride_config: PrideCLIConfig = PrideCLIConfig()
+    novatel_config: NovatelConfig = NovatelConfig()
+    rinex_config: RinexConfig = RinexConfig()
+    qcpin_config: QCpinConfig = QCpinConfig()
     position_update_config: PositionUpdateConfig = PositionUpdateConfig()
 
     class Config:

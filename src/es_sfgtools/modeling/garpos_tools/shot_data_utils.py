@@ -10,11 +10,11 @@ from es_sfgtools.tiledb_tools.tiledb_schemas import TDBKinPositionArray
 
 DEFAULT_FILTER_CONFIG = {
     "acoustic_filters": {
-        "enabled": True, 
+        "enabled": False, 
         "level": "OK"  # Options: "GOOD", "OK", "DIFFICULT"
         },
     "ping_replies": {
-        "enabled": True, 
+        "enabled": False, 
         "min_replies": 3
         },
     "max_distance_from_center": {
@@ -22,8 +22,8 @@ DEFAULT_FILTER_CONFIG = {
         "max_distance_m": 150  # in meters, applied to center surveys only
     },
     "pride_residuals": {
-        "enabled": True, 
-        "max_residual_mm": 5  # in millimeters
+        "enabled": False, 
+        "max_residual_mm": 50  # in millimeters
     }
 }
 

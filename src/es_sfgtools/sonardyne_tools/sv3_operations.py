@@ -274,3 +274,81 @@ def dfop00_to_SFGDSTFSeafloorAcousticData(source: str | Path,siteData:SFGDTSFSit
     )
 
     return SFGDSTFSeafloorAcousticData(df)
+
+
+def qc_pin_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
+    """
+    Parses a qc pin-format file containing Sonardyne qc event data and converts it into a ShotDataFrame.
+
+    The function reads the specified file line by line, expecting each line to be a JSON object
+    representing either an "interrogation" or "range" event. It processes and merges interrogation
+    and range events, transforming them into a unified format suitable for geodetic analysis.
+
+    Args:
+        source (str | Path): Path to the qc pin-format file containing event data.
+
+    Returns:
+        ShotDataFrame | None: A ShotDataFrame containing processed and merged event data,
+        or None if no valid data was found or an error occurred during file reading.
+
+    Raises:
+        None explicitly, but logs errors for file access issues and data processing problems.
+    """
+
+    try:
+        processed = []
+        interrogation = None
+        try:
+            with open(source, encoding="utf-8") as f:
+                lines = f.readlines()
+        except (FileNotFoundError, PermissionError, UnicodeDecodeError) as e:
+            logger.logerr(f"Error reading {source}: {e}")
+            return None
+        
+        interrogation_parsed = None
+        reply_data_parsed = None
+        
+        for line in lines:
+            data = json.loads(line)
+            for key in data.keys():
+                if data[key].get("event") == "interrogation":
+                    try:
+                        interrogation = NovatelInterrogationEvent(**data[key])
+                        interrogation_parsed = novatelInterrogation_to_garpos_interrogation(interrogation)
+                        #logger.loginfo(f"Interrogation: pingTime: {interrogation_parsed.pingTime}")
+                    except Exception as e:
+                        logger.logerr(f"Error parsing interrogation data: {e}")
+                        interrogation_parsed = None
+
+                if data[key].get("event") == "range":
+                    try:
+                        reply_data = NovatelRangeEvent(**data[key])
+                        reply_data_parsed = novatelReply_to_garpos_reply(reply_data)
+                        #logger.loginfo(f"Reply: \n  returnTime: {reply_data_parsed.returnTime}\n  tt: {reply_data_parsed.tt}")
+
+                    except Exception as e:
+                        reply_data_parsed = None
+                        logger.logerr(f"Error parsing reply data: {e}")
+
+                    if reply_data_parsed is not None and interrogation_parsed is not None:
+                        try:
+                            merged_data = merge_interrogation_reply(interrogation_parsed, reply_data_parsed)
+                            # interrogation_parsed = None  # Reset interrogation after merging
+                            reply_data_parsed = None  # Reset reply after merging
+                        except AssertionError as e:
+                            logger.logerr(f"Assertion error in merging ping/reply data: {e}")
+                            merged_data = None  
+                        # interrogation_parsed = None  # Reset interrogation after merging attempt  
+                        reply_data_parsed = None  # Reset reply after merging attempt
+                        if merged_data is not None:
+                            processed.append(merged_data)
+        if not processed:
+            logger.logerr(f"No valid data found in {source}")
+            return None
+        df = pd.DataFrame(processed)
+        df["isUpdated"] = False
+        return ShotDataFrame(df)
+    
+    except Exception as e:
+        logger.logerr(f"Error converting DataFrame to ShotDataFrame: {e}")
+        return None

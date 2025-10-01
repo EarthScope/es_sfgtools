@@ -37,6 +37,7 @@ dependencies:
   - myst-parser
   - sphinxcontrib-apidoc
   - python-dotenv
+  - astropy
   - pip:
     - -e .
     - garpos @ git+https://github.com/EarthScope/garpos.git

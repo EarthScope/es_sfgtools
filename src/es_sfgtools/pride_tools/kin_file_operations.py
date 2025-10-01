@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, model_validator, ValidationError
 import julian
 import matplotlib.pyplot as plt
 from pathlib import Path
+from astropy.time import Time
 
 # Local imports
 from ..logging import PRIDELogger as logger
@@ -66,12 +67,13 @@ class PridePPP(BaseModel):
     def populate_time(cls, values):
         """Convert from modified julian date and seconds of day to standard datetime format"""
         values = values
-        julian_date = (
-            values.modified_julian_date + (values.second_of_day / 86400) + 2400000.5
-        )
-        t = julian.from_jd(julian_date, fmt="jd")
-        values.time = t
-
+        
+        t = Time(values.modified_julian_date, values.second_of_day / 86400, format='mjd', scale='utc')
+        # julian_date = (
+        #     values.modified_julian_date + float(values.second_of_day / 86400) + 2400000.5
+        # )
+        # t = julian.from_jd(julian_date, fmt="jd")
+        values.time = datetime.fromisoformat(t.isot)
         return values
 
     @classmethod
@@ -92,6 +94,7 @@ class PridePPP(BaseModel):
                 data_dict[field] = item
             return cls(**data_dict)
         except ValidationError as e:
+            print(e)
             raise Exception(f"Error parsing PridePPP kin file {e}")
 
 
@@ -218,7 +221,7 @@ def kin_to_kin_position_df(source: str|Path) -> Union[pd.DataFrame, None]:
                 selected_columns
             )
             data.append(ppp)
-        except:
+        except Exception as e:
             pass
 
     # Check if data is empty
@@ -294,62 +297,62 @@ def kin_to_kin_position_df(source: str|Path) -> Union[pd.DataFrame, None]:
     return dataframe
 
 
-def read_kin_data(kin_path):
-    with open(kin_path, "r") as kin_file:
-        for i, line in enumerate(kin_file):
-            if "END OF HEADER" in line:
-                end_of_header = i + 1
-                break
-    cols = [
-        "Mjd",
-        "Sod",
-        "*",
-        "X",
-        "Y",
-        "Z",
-        "Latitude",
-        "Longitude",
-        "Height",
-        "Nsat",
-        "G",
-        "R",
-        "E",
-        "C2",
-        "C3",
-        "J",
-        "PDOP",
-    ]
-    colspecs = [
-        (0, 6),
-        (6, 16),
-        (16, 18),
-        (18, 32),
-        (32, 46),
-        (46, 60),
-        (60, 77),
-        (77, 94),
-        (94, 108),
-        (108, 114),
-        (114, 117),
-        (117, 120),
-        (120, 123),
-        (123, 126),
-        (126, 129),
-        (129, 132),
-        (132, 140),
-    ]
-    kin_df = pd.read_fwf(
-        kin_path,
-        header=end_of_header,
-        colspecs=colspecs,
-        names=cols,
-        on_bad_lines="skip",
-    )
-    # kin_df = pd.read_csv(kin_path, sep="\s+", names=cols, header=end_of_header, on_bad_lines='skip')
+# def read_kin_data(kin_path):
+#     with open(kin_path, "r") as kin_file:
+#         for i, line in enumerate(kin_file):
+#             if "END OF HEADER" in line:
+#                 end_of_header = i + 1
+#                 break
+#     cols = [
+#         "Mjd",
+#         "Sod",
+#         "*",
+#         "X",
+#         "Y",
+#         "Z",
+#         "Latitude",
+#         "Longitude",
+#         "Height",
+#         "Nsat",
+#         "G",
+#         "R",
+#         "E",
+#         "C2",
+#         "C3",
+#         "J",
+#         "PDOP",
+#     ]
+#     colspecs = [
+#         (0, 6),
+#         (6, 16),
+#         (16, 18),
+#         (18, 32),
+#         (32, 46),
+#         (46, 60),
+#         (60, 77),
+#         (77, 94),
+#         (94, 108),
+#         (108, 114),
+#         (114, 117),
+#         (117, 120),
+#         (120, 123),
+#         (123, 126),
+#         (126, 129),
+#         (129, 132),
+#         (132, 140),
+#     ]
+#     kin_df = pd.read_fwf(
+#         kin_path,
+#         header=end_of_header,
+#         colspecs=colspecs,
+#         names=cols,
+#         on_bad_lines="skip",
+#     )
+#     # kin_df = pd.read_csv(kin_path, sep="\s+", names=cols, header=end_of_header, on_bad_lines='skip')
 
-    kin_df.set_index(
-        pd.to_datetime(kin_df["Mjd"] + 2400000.5, unit="D", origin="julian")
-        + pd.to_timedelta(kin_df["Sod"], unit="sec"),
-        inplace=True,
-    )
-    return kin_df
+#     kin_df.set_index(
+#         pd.to_datetime(kin_df["Mjd"] + 2400000.5, unit="D", origin="julian")
+#         + pd.to_timedelta(kin_df["Sod"], unit="sec"),
+#         inplace=True,
+#     )
+#     return kin_df

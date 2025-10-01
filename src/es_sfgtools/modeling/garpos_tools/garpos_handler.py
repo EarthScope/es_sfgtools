@@ -587,6 +587,7 @@ class GarposHandler:
                 # Get average transponder position
                 array_dpos_center = self._get_array_dpos_center(GPtransponders)
             except NoGPTranspondersError as e:
+                logger.logerr(f"NoGPTransponders found")
                 continue
 
             # -- Prepare shot data for GARPOS --
@@ -698,13 +699,22 @@ class GarposHandler:
             #     shot_data_rectified.reset_index(drop=True), lazy=True
             # )
             # Only use shotdata for transponders in the survey
+            ids_to_match = [x.id for x in GPtransponders]
+            pattern = '|'.join(ids_to_match)
+
             shot_data_rectified = shot_data_rectified[
-                shot_data_rectified.MT.isin([x.id for x in GPtransponders])
+                shot_data_rectified.MT.str.contains(pattern, na=False)
             ]
 
+            #Add M to transponder name if it is numeric only
             shot_data_rectified.MT = shot_data_rectified.MT.apply(
                 lambda x: "M" + str(x) if str(x)[0].isdigit() else str(x)
             )
+            #change IR to M in transponder name if it starts with IR
+            shot_data_rectified.MT = shot_data_rectified.MT.apply(
+                lambda x: f"M" + str(x)[2:] if str(x).startswith("IR") else str(x)
+            )
+
             shot_data_rectified = shot_data_rectified.sort_values(
                 by=["ST", "MT"]
             ).reset_index(drop=True)

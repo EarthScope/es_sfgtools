@@ -26,6 +26,7 @@ from es_sfgtools.data_mgmt.file_schemas import AssetEntry, AssetType
 from es_sfgtools.tiledb_tools.tiledb_schemas import TDBAcousticArray,TDBKinPositionArray,TDBIMUPositionArray,TDBShotDataArray,TDBGNSSObsArray
 from es_sfgtools.data_mgmt.catalog import PreProcessCatalog
 from es_sfgtools.pipelines.sv3_pipeline import SV3Pipeline, SV3PipelineConfig
+from es_sfgtools.pipelines.sv3_qc_pipeline import SV3QCPipeline, SV3QCPipelineConfig
 from es_sfgtools.novatel_tools.utils import get_metadata,get_metadatav2
 from es_sfgtools.data_mgmt.constants import REMOTE_TYPE, FILE_TYPES
 from es_sfgtools.data_mgmt.datadiscovery import scrape_directory_local, get_file_type_local, get_file_type_remote
@@ -203,11 +204,11 @@ class DataHandler:
         self.station_dir.mkdir(parents=True, exist_ok=True)
 
         # Create the Data directory structure (network/station/Data)
-        campaign_data_dir = self.station_dir / campaign
-        campaign_data_dir.mkdir(exist_ok=True)
+        self.campaign_data_dir = self.station_dir / campaign
+        self.campaign_data_dir.mkdir(exist_ok=True)
 
         # Set up loggers under the campaign directory
-        self.campaign_log_dir = campaign_data_dir / "logs"
+        self.campaign_log_dir = self.campaign_data_dir / "logs"
         self.campaign_log_dir.mkdir(parents=True, exist_ok=True)
 
         # Create the TileDB directory structure (network/station/TileDB)
@@ -215,16 +216,16 @@ class DataHandler:
         self.tileb_dir.mkdir(exist_ok=True)
 
         # Create the raw, intermediate, and processed directories (network/station/Data/raw) and store as class attributes
-        self.raw_dir = campaign_data_dir / "raw"
+        self.raw_dir = self.campaign_data_dir / "raw"
         self.raw_dir.mkdir(exist_ok=True)
 
-        self.inter_dir = campaign_data_dir / "intermediate"
+        self.inter_dir = self.campaign_data_dir / "intermediate"
         self.inter_dir.mkdir(exist_ok=True)
 
-        self.garpos_dir = campaign_data_dir / "GARPOS"
+        self.garpos_dir = self.campaign_data_dir / "GARPOS"
         self.garpos_dir.mkdir(exist_ok=True)
 
-        self.qc_dir = campaign_data_dir / "qc"
+        self.qc_dir = self.campaign_data_dir / "qc"
         self.qc_dir.mkdir(exist_ok=True)
 
         # Change the logger directory to the campaign log directory
@@ -279,6 +280,26 @@ class DataHandler:
         )
         self.shotdata_tdb_pre = TDBShotDataArray(shotdata_tdb_uri_pre)
         
+        qc_kin_position_tdb_uri = (
+            station_data.kinpositiondata
+            if station_data.qckinpositiondata is not None
+            else self.tileb_dir / "qc_kin_position.tdb"
+        )
+        self.qc_kin_position_tdb = TDBKinPositionArray(qc_kin_position_tdb_uri)
+        qcdata_tdb_uri = (
+            station_data.qcdata
+            if station_data.qcdata is not None
+            else self.tileb_dir / "qcdata.tdb"
+        )
+        self.qcdata_tdb = TDBShotDataArray(qcdata_tdb_uri)
+        # Use a pre-array for qc processing, self.shotdata_tdb is where we store the updated version
+        qcdata_tdb_uri_pre = (
+            station_data.qcdata_pre
+            if station_data.qcdata_pre is not None
+            else self.tileb_dir / "qcdata_pre.tdb"
+        )
+        self.qcdata_tdb_pre = TDBShotDataArray(qcdata_tdb_uri_pre)
+
         #this is the primary GNSS observables (10hz NOV770 collected on USB3 for SV3, 5hz bcnovatel for SV2)
         gnss_obs_tdb_uri = (
             station_data.gnssobsdata
@@ -312,7 +333,10 @@ class DataHandler:
                 gnssobsdata_secondary=str(gnss_obs_secondary_tdb_uri),
                 imupositiondata=str(imu_position_tdb_uri),
                 acousticdata=str(acoustic_tdb_uri),
-                shotdata_pre=str(self.shotdata_tdb_pre.uri),
+                shotdata_pre=str(shotdata_tdb_uri_pre),
+                qcdata=str(qcdata_tdb_uri),
+                qcdata_pre=str(qcdata_tdb_uri_pre),
+                qckinpositiondata=str(qc_kin_position_tdb_uri)
             ),
         )
         logger.loginfo(f"Consolidating existing TileDB arrays for {self.station}")
@@ -805,6 +829,32 @@ class DataHandler:
         config = SV3PipelineConfig()
         config.rinex_config.settings_path = self.rinex_metav2
         pipeline = SV3Pipeline(
+            asset_catalog=self.catalog, data_catalog=self.data_catalog, config=config
+        )
+        pipeline.set_site_data(
+            network=self.network,
+            station=self.station,
+            campaign=self.campaign,
+            inter_dir=self.inter_dir,
+            pride_dir=self.pride_dir,
+        )
+        return pipeline, config
+    
+    def get_pipeline_sv3qc(self) -> Tuple[SV3QCPipeline, SV3QCPipelineConfig]:
+        """
+        Creates and returns an SV3Pipeline object along with its configuration.
+        This method initializes an SV3PipelineConfig object using the instance
+        attributes such as network, station, campaign, writedir, pride_dir,
+        shot_data_dest, kin_position_data_dest, and catalog_path. It then creates an
+        SV3Pipeline object using the catalog and the created configuration.
+        Returns:
+            Tuple[SV3Pipeline, SV3PipelineConfig]: A tuple containing the
+            SV3Pipeline object and its configuration.
+        """
+
+        config = SV3QCPipelineConfig()
+        config.rinex_config.settings_path = self.rinex_metav2
+        pipeline = SV3QCPipeline(
             asset_catalog=self.catalog, data_catalog=self.data_catalog, config=config
         )
         pipeline.set_site_data(

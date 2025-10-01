@@ -84,28 +84,34 @@ def qcpin_to_novatelpin(source: str|Path, writedir: Path) -> Path:
     Returns:
         Path: Path to the generated Novatel PIN text file.
     """
-    with open(source) as file:
-        pin_data = json.load(file)
+    try:
+        with open(source) as file:
+            pin_data = json.load(file)
 
-    range_headers = []
-    time_stamps = []
+        range_headers = []
+        time_stamps = []
 
-    for data in pin_data.values():
-        range_header = data.get("observations").get("NOV_RANGE")
-        time_header = data.get("observations").get("NOV_INS").get("time").get("common")
-        range_headers.append(range_header)
-        time_stamps.append(time_header)
+        for data in pin_data.values():
+            range_header = data.get("observations").get("NOV_RANGE")
+            time_header = data.get("observations").get("NOV_INS").get("time").get("common")
+            range_headers.append(range_header)
+            time_stamps.append(time_header)
 
-    time_sorted = np.argsort(time_stamps)
-    range_headers = [range_headers[i] for i in time_sorted]
+        time_sorted = np.argsort(time_stamps)
+        range_headers = [range_headers[i]['raw'] for i in time_sorted]
+        range_headers = list(set(range_headers))
+        file_path = writedir / (str(source.name) + "_novpin.txt")
+        with tempfile.NamedTemporaryFile(mode="w+", delete=True) as temp_file:
+            for header in range_headers:
+                temp_file.write(header)
+                temp_file.write("\n")
+            temp_file.seek(0)
+            shutil.copy(temp_file.name, file_path)
+            novatel_pin = Path(file_path)
 
-    file_path = writedir / (str(source.id) + "_novpin.txt")
-    with tempfile.NamedTemporaryFile(mode="w+", delete=True) as temp_file:
-        for header in range_headers:
-            temp_file.write(header)
-            temp_file.write("\n")
-        temp_file.seek(0)
-        shutil.copy(temp_file.name, file_path)
-        novatel_pin = Path(file_path)
+        return novatel_pin
+    
+    except Exception as e:
+        logger.logerr(f"Could not process {source} ")
+        return None
 
-    return novatel_pin

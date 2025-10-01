@@ -132,3 +132,32 @@ def scrape_directory_local(directory: Path) -> List[Path]:
         return None
     
     return output_files
+
+def expand_tar_gz(directory: Path) -> List[str]:
+    """
+    Expand all tar.gz files.
+
+    Args:
+        directory (Path): The path to the tar.gz file.
+
+    Returns:
+        List[str]: The list of files in the tar.gz file.
+
+    """
+    import tarfile
+    if isinstance(directory, str):
+        directory = Path(directory)
+    
+    if not directory.exists():
+        raise FileNotFoundError(f"Directory {directory} does not exist")
+    
+    for file in directory.rglob("*.tar.gz"):
+        
+        try:
+            with tarfile.open(file, "r:gz") as tar:
+                tar.extractall(path=file.parent)
+        except Exception as e:
+            warnings.warn(f"Could not extract {file}: {e}")
+            continue    
+    
+    return [str(f) for f in directory.rglob("*") if f.is_file()]
