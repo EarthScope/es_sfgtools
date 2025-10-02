@@ -6,7 +6,13 @@
       "station": "NCC1",
       "campaign": "2023_A_1063",
       "jobs": [{"type":"download"}, {"type": "preprocessing" }]
-    }
+    },
+      {
+        "network": "cascadia-gorda",
+        "station": "NCC1",
+        "campaign": "2024_A_1126",
+        "jobs": [{ "type": "download" }, { "type": "preprocessing" }]
+      }
   ],
 
   "garposConfig": {
