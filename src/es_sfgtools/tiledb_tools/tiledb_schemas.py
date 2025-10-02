@@ -460,7 +460,7 @@ class TDBShotDataArray(TBDArray):
                 return None
         df.pingTime = df.pingTime.apply(lambda x: x.timestamp())
         df.returnTime = df.returnTime.apply(lambda x: x.timestamp())
-        df = self.dataframe_schema.validate(df)
+        df = self.dataframe_schema.validate(df,lazy=True)
         return df
 
     def write_df(self, df: pd.DataFrame, validate: bool = True):
@@ -473,7 +473,7 @@ class TDBShotDataArray(TBDArray):
         """
         logger.logdebug(f" Writing dataframe to {self.uri}")
         if validate:
-            df_val = self.dataframe_schema.validate(df)
+            df_val = self.dataframe_schema.validate(df,lazy=True)
         else:
             df_val = df
         if df_val.empty:

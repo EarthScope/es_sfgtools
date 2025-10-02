@@ -123,18 +123,21 @@ def uncompress_file(file_path: Path, dest_dir: Optional[Path]) -> Path:
     if not file_path.exists():
         raise FileNotFoundError(f"File {file_path} does not exist.")
 
-    # Define the output file path by removing the .gz extension
     out_file_path = file_path.with_suffix("")
     if dest_dir is not None:
-        # If a destination directory is provided, move the output file there
         out_file_path = dest_dir / out_file_path.name
         if not dest_dir.exists():
             dest_dir.mkdir(parents=True, exist_ok=True)
-    # Open the .gz file and read the decompressed data
-    with gzip.open(file_path, "rb") as f_in:
-        with open(out_file_path, "wb") as f_out:
-            f_out.write(f_in.read())
-    file_path.unlink()
+    try:
+        with gzip.open(file_path, "rb") as f_in:
+            with open(out_file_path, "wb") as f_out:
+                f_out.write(f_in.read())
+    except EOFError as e:
+        logger.logerr(f"Failed to decompress {file_path}: {e}")
+        # Optionally, remove the corrupted file
+        file_path.unlink(missing_ok=True)
+        return None
+    file_path.unlink(missing_ok=True)
     return out_file_path
 
 
@@ -700,6 +703,11 @@ def get_gnss_products(
                     decompressed_file = uncompress_file(
                         to_decompress, common_product_dir
                     )
+                    if decompressed_file is None:
+                        logger.logerr(
+                            f"Failed to decompress {to_decompress} for product {product_type}"
+                        )
+                        continue
                 else:
                     decompressed_file = to_decompress
                 logger.logdebug(

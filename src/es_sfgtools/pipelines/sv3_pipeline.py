@@ -78,28 +78,35 @@ def rinex_to_kin_wrapper(
     if kinfile is None:
         return None, None
 
-    kin_entry = AssetEntry(
-        local_path=kinfile,
-        network=rinex_entry.network,
-        station=rinex_entry.station,
-        campaign=rinex_entry.campaign,
+    try:
+        kin_entry = AssetEntry(
+            local_path=kinfile,
+            network=rinex_entry.network,
+            station=rinex_entry.station,
+            campaign=rinex_entry.campaign,
         timestamp_data_start=rinex_entry.timestamp_data_start,
         timestamp_data_end=rinex_entry.timestamp_data_end,
         type=AssetType.KIN,
         timestamp_created=datetime.datetime.now(),
         parent_id=rinex_entry.id
-    )
-    resfile_entry = AssetEntry(
-        local_path=resfile,
-        network=rinex_entry.network,
-        station=rinex_entry.station,
-        campaign=rinex_entry.campaign,
-        timestamp_data_start=rinex_entry.timestamp_data_start,
-        timestamp_data_end=rinex_entry.timestamp_data_end,
-        type=AssetType.KINRESIDUALS,
-        timestamp_created=datetime.datetime.now(),
-        parent_id=rinex_entry.id
-    )
+    )   
+        if resfile is None:
+            return kin_entry, None
+        
+        resfile_entry = AssetEntry(
+            local_path=resfile,
+            network=rinex_entry.network,
+            station=rinex_entry.station,
+            campaign=rinex_entry.campaign,
+            timestamp_data_start=rinex_entry.timestamp_data_start,
+            timestamp_data_end=rinex_entry.timestamp_data_end,
+            type=AssetType.KINRESIDUALS,
+            timestamp_created=datetime.datetime.now(),
+            parent_id=rinex_entry.id
+        )
+    except Exception as e:
+        logger.logerr(f"Error creating AssetEntry for KIN or RES file: {e}")
+        return None, None
     return kin_entry, resfile_entry
 
 class SV3Pipeline:

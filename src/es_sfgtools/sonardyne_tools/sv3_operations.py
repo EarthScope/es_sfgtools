@@ -200,7 +200,7 @@ def dfop00_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
         return None
     df = pd.DataFrame(processed)
     df["isUpdated"] = False
-    return ShotDataFrame(df)
+    return ShotDataFrame.validate(df,lazy=True)
 
 
 def dfop00_to_SFGDSTFSeafloorAcousticData(source: str | Path,siteData:SFGDTSFSite) -> SFGDSTFSeafloorAcousticData | None:

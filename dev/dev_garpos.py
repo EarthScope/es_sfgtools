@@ -43,7 +43,7 @@ if __name__ == "__main__":
 
     network = "cascadia-gorda"
     station = "NCC1"
-    campaign = "2024_A_1126"
+    campaign = "2025_A_1126"
     dh = DataHandler(main_dir)
     dh.change_working_station(network=network, station=station, campaign=campaign)
 
@@ -52,10 +52,10 @@ if __name__ == "__main__":
     gp_handler_ncc1.load_sound_speed_data(
         "/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain/cascadia-gorda/NCC1/GARPOS/2024_A_1126/svp.csv"
     )
-    gp_handler_ncc1.set_survey("2024_A_1126_1")
+    #gp_handler_ncc1.set_survey("2025_A_1126_1")
     gp_handler_ncc1.prep_shotdata(custom_filters={"ping_replies":{"min_replies":1}})
 
-    update_dict = {"rejectcriteria": 2,"log_lambda":[-1,0],"delta_center_position":GPPositionENU(east_sigma=10,north_sigma=10,up_sigma=10),"convcriteria":0.1,"maxloop":10}
+    update_dict = {"rejectcriteria": 2,"log_lambda":[-1,0],"delta_center_position":GPPositionENU(east_sigma=10,north_sigma=10,up_sigma=10),"convcriteria":0.1,"maxloop":15}
 
     gp_handler_ncc1.set_inversion_params(update_dict)
 
@@ -81,6 +81,6 @@ if __name__ == "__main__":
     # proc_results, results_df = process_garpos_results(results)
 
     # print(proc_results)
-    gp_handler_ncc1.run_garpos(survey_id="2024_A_1126_1",run_id=0,override=True,iterations=30)
+    gp_handler_ncc1.run_garpos(run_id=0,override=True,iterations=10)
 
     # gp_handler_ncc1.plot_ts_results(campaign_name='2024_A_1126',survey_id="2024_A_1126_1",res_filter=20)

@@ -294,6 +294,7 @@ class ShotDataFrame(AcousticDataFrame):
     class Config:
         add_missing_columns = True
         coerce = True
+        drop_invalid_rows = True
         
 
 class SoundVelocityDataFrame(pa.DataFrameModel):

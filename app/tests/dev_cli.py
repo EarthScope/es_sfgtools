@@ -13,7 +13,7 @@ if __name__ == "__main__":
     os.environ["PATH"] += os.pathsep + str(pride_path)
 
     manifest_path = Path(
-        "/Users/franklyndunbar/Project/SeaFloorGeodesy/es_sfgtools/dev/NCC1-preproc-manifest.json"
+        "/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/Eureka25/eureka_preproc.json"
     )
 
     run_manifest(
