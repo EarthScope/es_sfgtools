@@ -5,6 +5,7 @@ os.environ["GARPOS_PATH"] = str(
     Path("/Users/franklyndunbar/Project/SeaFloorGeodesy/garpos").resolve()
 )
 
+from es_sfgtools.modeling.garpos_tools.garpos_handler import GarposHandler
 from es_sfgtools.data_mgmt.data_handler import DataHandler
 from es_sfgtools.modeling.garpos_tools.load_utils import load_drive_garpos
 from es_sfgtools.utils.archive_pull import load_site_metadata
@@ -44,11 +45,14 @@ if __name__ == "__main__":
     network = "cascadia-gorda"
     station = "NCC1"
     campaign = "2025_A_1126"
-    dh = DataHandler(main_dir)
-    dh.change_working_station(network=network, station=station, campaign=campaign)
+    # dh = DataHandler(main_dir)
+    # dh.change_working_station(network=network, station=station, campaign=campaign)
 
     site = load_site_metadata(network=network, station=station)
-    gp_handler_ncc1 = dh.get_garpos_handler(site_data=site)
+    gp_handler_ncc1 = GarposHandler(
+        main_directory=main_dir,
+        site=site
+    )
     gp_handler_ncc1.load_sound_speed_data(
         "/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain/cascadia-gorda/NCC1/GARPOS/2024_A_1126/svp.csv"
     )

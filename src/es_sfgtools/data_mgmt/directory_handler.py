@@ -1,9 +1,25 @@
+"""
+This module defines a set of Pydantic models for managing a directory structure for geodesy data processing.
+
+The models define a hierarchical structure of directories and files, starting from a main directory,
+and branching into networks, stations, campaigns, and various data and results directories.
+
+The main classes are:
+- DirectoryHandler: The main class that manages the entire directory structure.
+- NetworkDir: Represents a network of stations.
+- StationDir: Represents a single station with multiple campaigns.
+- CampaignDir: Represents a data collection campaign.
+- TileDBDir: Manages TileDB arrays for a station.
+- GARPOSCampaignDir: Manages GARPOS-specific data and results.
+- GARPOSSurveyDir: Represents a single GARPOS survey.
+"""
 from pathlib import Path
 import os
-from pydantic import BaseModel,Field,PrivateAttr,class_validators
+from pydantic import BaseModel,Field
 from typing import Optional
 
 
+# GARPOS-specific directory and file names
 GARPOS_DATA_DIR = "GARPOS"
 GARPOS_RESULTS_DIR = "results"
 GARPOS_DEFAULT_SETTINGS_FILE = "default_settings.ini"
@@ -11,6 +27,7 @@ GARPOS_DEFAULT_OBS_FILE = "observation.ini"
 SVP_FILE_NAME = "svp.csv"
 GARPOS_SHOTDATA_DIRECTORY = "shotdata"
 
+# General data directories
 RAW_DATA_DIR = "raw"
 PROCESSED_DATA_DIR = "processed"
 INTERMEDIATE_DATA_DIR = "intermediate"
@@ -19,6 +36,7 @@ QC_DIR = "qc"
 PRIDE_DIR = "Pride"
 TILEDB_DIR = "TileDB"
 
+# TileDB array names
 ACOUSTIC_TDB = "acoustic.tdb"
 KIN_TDB = "kin_position.tdb"
 IMU_POSITION_TDB = "imu_position.tdb"
@@ -27,9 +45,19 @@ SHOTDATA_PRE_TDB = "shotdata_pre.tdb"
 GNSS_OBS_TDB = "gnss_obs.tdb"
 GNSS_OBS_SECONDARY_TDB = "gnss_obs_secondary.tdb"
 
+# Asset catalog database file name
 ASSET_CATALOG = "catalog.sqlite"
 
+CAMPAIGN_METADATA_FILE = "campaign_meta.json"
+SURVEY_METADATA_FILE = "survey_meta.json"
+
 class _Base(BaseModel):
+    """
+    Base Pydantic model with custom configuration.
+
+    This class is used as a base for all other models in this module.
+    It sets up a custom JSON encoder for Path objects and allows arbitrary types.
+    """
     model_config = {
         "json_encoders": {
             Path: lambda v: str(v)
@@ -38,7 +66,10 @@ class _Base(BaseModel):
     }
 
 class GARPOSSurveyDir(_Base):
-    survey_metadata: Optional[Path] = Field(default=None, description="The survey metadata file path")
+    """
+    Represents a GARPOS survey directory structure.
+    """
+    survey_metadata: Optional[Path] = Field(default=None, description="The survey metadata file path",regex=r".*\.json$")
     default_obsfile: Optional[Path] = Field(default=None, description="The default observation file path")
     location: Optional[Path] = Field(default=None, description="The survey directory path")
     results_dir: Optional[Path] = Field(default=None, description="The results directory path")
@@ -49,6 +80,9 @@ class GARPOSSurveyDir(_Base):
     )
 
     def build(self):
+        """
+        Creates the directory structure for the GARPOS survey.
+        """
         if not self.location:
             self.location = self.garpos_campaign_dir / self.name
         
@@ -64,14 +98,26 @@ class GARPOSSurveyDir(_Base):
             path.mkdir(parents=True, exist_ok=True)
 
 class GARPOSCampaignDir(_Base):
+    """
+    Represents a GARPOS campaign directory structure.
+    """
     shotdata: Optional[Path] = Field(default=None, description="The shotdata file path")
     location: Optional[Path] = Field(default=None, description="The GARPOS directory path")
     surveys: Optional[dict[str, GARPOSSurveyDir]] = Field(default={}, description="Surveys in the campaign")
     default_settings: Optional[Path] = Field(default=None, description="The default GARPOS settings file path")
     campaign: Path = Field(..., description="The campaign directory path")
-    svp_file: Optional[Path] = Field(default=None, description="The sound velocity profile file path")
+    svp_file: Optional[Path] = Field(default=None, description="The sound velocity profile file path",regex=r".*\.csv$")
 
     def add_survey(self, name: str) -> bool:
+        """
+        Adds a new survey to the campaign.
+
+        Args:
+            name: The name of the survey to add.
+
+        Returns:
+            True if the survey was added successfully, False otherwise.
+        """
         if name in self.surveys:
             print(f"Survey {name} already exists in campaign {self.campaign.name}")
             return False
@@ -81,6 +127,9 @@ class GARPOSCampaignDir(_Base):
         return True
     
     def build(self):
+        """
+        Creates the directory structure for the GARPOS campaign.
+        """
 
         if not self.location:
             self.location = self.campaign / GARPOS_DATA_DIR
@@ -101,6 +150,15 @@ class GARPOSCampaignDir(_Base):
             survey.build()
 
     def __getitem__(self, key: str) -> Optional[GARPOSSurveyDir]:
+        """
+        Gets a survey by name.
+
+        Args:
+            key: The name of the survey.
+
+        Returns:
+            The GARPOSSurveyDir object if found, None otherwise.
+        """
         try:
             return self.surveys[key]
         except KeyError:
@@ -108,6 +166,9 @@ class GARPOSCampaignDir(_Base):
             return None
 
 class TileDBDir(_Base):
+    """
+    Represents a directory structure for TileDB arrays.
+    """
     # Optional directory paths, if not provided, will be auto-generated
     location: Optional[Path] = Field(default=None, description="The TileDB directory path")
     shot_data: Optional[Path] = Field(default=None, description="The shotdata TileDB path")
@@ -121,6 +182,9 @@ class TileDBDir(_Base):
     station: Path = Field(..., description="The station directory path")
 
     def build(self):
+        """
+        Creates the directory structure for the TileDB arrays.
+        """
         if not self.location:
             self.location = self.station / TILEDB_DIR
             self.location.mkdir(parents=True, exist_ok=True)
@@ -140,6 +204,9 @@ class TileDBDir(_Base):
             self.acoustic_data = self.location / ACOUSTIC_TDB
 
 class CampaignDir(_Base):
+    """
+    Represents a campaign directory structure.
+    """
     # Optional directory paths, if not provided, will be auto-generated
     location: Optional[Path] = Field(default=None, description="The campaign directory path")
     raw: Optional[Path] = Field(default=None, description="Raw data directory path")
@@ -148,15 +215,21 @@ class CampaignDir(_Base):
     garpos: Optional[GARPOSCampaignDir] = Field(default=None, description="GARPOS data directory path")
     log_directory: Optional[Path] = Field(default=None, description="Logs directory path")
     qc: Optional[Path] = Field(default=None, description="Quality control directory path")
+    campaign_metadata: Optional[Path] = Field(default=None, description="The campaign metadata file path",regex=r".*\.json$")
 
     # Fields needed to auto-generate paths
     station: Path
     name: str
 
     def build(self):
+        """
+        Creates the directory structure for the campaign.
+        """
         if not self.location:
             self.location = self.station / self.name
-    
+
+        if not self.campaign_metadata:
+            self.campaign_metadata = self.location / CAMPAIGN_METADATA_FILE
         # Auto-generate subdirectory paths if not provided
         if not self.raw:
             self.raw = self.location / RAW_DATA_DIR
@@ -181,6 +254,9 @@ class CampaignDir(_Base):
             tobuild.build()
 
 class StationDir(_Base):
+    """
+    Represents a station directory structure.
+    """
     # Optional location and stations
     campaigns: Optional[dict[str, CampaignDir]] = Field(default={}, description="Campaigns in the station")
     location: Optional[Path] = Field(default=None, description="The station directory path")
@@ -191,6 +267,9 @@ class StationDir(_Base):
     network: Path = Field(..., description="The network directory path")
 
     def build(self):
+        """
+        Creates the directory structure for the station.
+        """
         if not self.location:
             self.location = self.network / self.name
             self.location.mkdir(parents=True, exist_ok=True)
@@ -205,22 +284,44 @@ class StationDir(_Base):
             campaign.build()
 
     def __getitem__(self, key: str) -> Optional[CampaignDir]:
+        """
+        Gets a campaign by name.
+
+        Args:
+            key: The name of the campaign.
+
+        Returns:
+            The CampaignDir object if found, None otherwise.
+        """
         try:
             return self.campaigns[key]
         except KeyError:
             print(f"Campaign {key} not found in station {self.name}")
             return None
 
-    def add_campaign(self,name:str):
+    def add_campaign(self,name:str) -> bool:
+        """
+        Adds a new campaign to the station.
+
+        Args:
+            name: The name of the campaign to add.
+
+        Returns:
+            True if the campaign was added successfully, False otherwise.
+        """
         if name in self.campaigns:
             print(f"Campaign {name} already exists in station {self.name}")
-            return
+            return False
         new_campaign = CampaignDir(name=name,station=self.location)
         new_campaign.build()
         self.campaigns[name] = new_campaign
+        return True
 
 
 class NetworkDir(_Base):
+    """
+    Represents a network directory structure.
+    """
     # Optional location and stations
     stations: Optional[dict[str, StationDir]] = Field(default={}, description="Stations in the network")
     location: Optional[Path] = Field(default=None, description="The network directory path")
@@ -229,6 +330,9 @@ class NetworkDir(_Base):
     main_directory:Path = Field(..., description="The main directory path")
 
     def build(self):
+        """
+        Creates the directory structure for the network.
+        """
         if not self.location:
             self.location = self.main_directory / self.name
         # Create network directory if it doesn't exist
@@ -239,6 +343,15 @@ class NetworkDir(_Base):
             station.build()
     
     def __getitem__(self, key: str) -> Optional[StationDir]:
+        """
+        Gets a station by name.
+
+        Args:
+            key: The name of the station.
+
+        Returns:
+            The StationDir object if found, None otherwise.
+        """
         try:
             return self.stations[key]
         except KeyError:
@@ -246,6 +359,15 @@ class NetworkDir(_Base):
             return None
     
     def add_station(self,name:str) -> bool:
+        """
+        Adds a new station to the network.
+
+        Args:
+            name: The name of the station to add.
+
+        Returns:
+            True if the station was added successfully, False otherwise.
+        """
         if name in self.stations:
             print(f"Station {name} already exists in network {self.name}")
             return False
@@ -256,6 +378,9 @@ class NetworkDir(_Base):
 
 
 class DirectoryHandler(BaseModel):
+    """
+    The main class for managing the directory structure.
+    """
     filepath:str = "directoryCatalog.json"
     asset_catalog_db_path: Optional[Path] = Field(default=None, description="Path to the asset catalog database")
     location: Path = Field(..., description="The main directory path")
@@ -264,16 +389,37 @@ class DirectoryHandler(BaseModel):
     pride_directory: Optional[Path] = Field(default=None, description="The PRIDE PPPAR binary directory path")
 
     def save(self):
+        """
+        Saves the directory structure to a JSON file.
+        """
         with open(self.filepath, "w") as file:
             file.write(self.model_dump_json())
     
     @classmethod
     def load(cls, path: str | Path) -> "DirectoryHandler":
+        """
+        Loads the directory structure from a JSON file.
+
+        Args:
+            path: The path to the JSON file.
+
+        Returns:
+            A DirectoryHandler object.
+        """
         with open(path, "r") as file:
             raw_data = file.read()
         return cls.model_validate_json(raw_data)
 
     def add_network(self, name: str) -> bool:
+        """
+        Adds a new network to the directory structure.
+
+        Args:
+            name: The name of the network to add.
+
+        Returns:
+            True if the network was added successfully, False otherwise.
+        """
         if name in self.networks:
             print(f"Network {name} already exists.")
             return False
@@ -283,6 +429,15 @@ class DirectoryHandler(BaseModel):
         return True
     
     def __getitem__(self, key: str) -> Optional[NetworkDir]:
+        """
+        Gets a network by name.
+
+        Args:
+            key: The name of the network.
+
+        Returns:
+            The NetworkDir object if found, None otherwise.
+        """
         try:
             return self.networks[key]
         except KeyError:
@@ -290,6 +445,9 @@ class DirectoryHandler(BaseModel):
             return None
         
     def build(self):
+        """
+        Creates the main directory structure.
+        """
         if not self.pride_directory:
             self.pride_directory = self.location / PRIDE_DIR
             self.pride_directory.mkdir(parents=True, exist_ok=True)
@@ -300,6 +458,17 @@ class DirectoryHandler(BaseModel):
                 self.asset_catalog_db_path.touch()
 
     def build_station_directory(self,network_name:str,station_name:str=None,campaign_name:str=None) -> bool:
+        """
+        Builds a station directory, and optionally a campaign directory.
+
+        Args:
+            network_name: The name of the network.
+            station_name: The name of the station.
+            campaign_name: The name of the campaign.
+
+        Returns:
+            True if the directory was built successfully, False otherwise.
+        """
 
         if campaign_name and not station_name:
             print("Campaign name provided without station name.")

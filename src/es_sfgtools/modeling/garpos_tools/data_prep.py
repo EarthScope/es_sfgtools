@@ -56,7 +56,6 @@ class NoGPTranspondersError(Exception):
 def prepareShotData(
         network_name: str,
         station_name: str,
-        campaign_name: str,
         site: Site,
         campaign: Campaign,
         directory_handler: DirectoryHandler,
@@ -64,10 +63,8 @@ def prepareShotData(
         shotdata_filter_config: dict = DEFAULT_FILTER_CONFIG,
         overwrite: bool = False,
 ) -> None:
-    garposCampaignDir = directory_handler[network_name][station_name][campaign_name].garpos
-    garposCampaignDir.build()
-    garposCampaignDir.add_survey(campaign.name)
- 
+    garposCampaignDir = directory_handler[network_name][station_name][campaign.name].garpos
+
     obsfile = garposCampaignDir[campaign.name].default_obsfile
     if obsfile.exists() and not overwrite:
         logger.loginfo(f"Observation file {obsfile} already exists, skipping shot data preparation.")
