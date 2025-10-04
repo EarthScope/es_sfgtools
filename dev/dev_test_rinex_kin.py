@@ -34,6 +34,6 @@ if __name__ == "__main__":
     kin, res = rinex_to_kin(failed_rinex_path,
                            writedir=dh.inter_dir,
                            pridedir=dh.pride_dir,
-                           site=dh.station,
+                           site=dh.current_station,
                            pride_config=pride_config
                            )

@@ -234,13 +234,13 @@ def filter_ping_replies(df, min_replies=3):
     
     return filtered_df
 
-def filter_pride_residuals(df, station_data: StationData, start_time: datetime, end_time: datetime, max_wrms=15): 
+def filter_pride_residuals(df, kinPostionTDBUri:str, start_time: datetime, end_time: datetime, max_wrms=15): 
     """
     Filter Pride PPP data based on wrms residuals in position tileDB array.
     
     Args:
         df: DataFrame with shotdata
-        station_data: StationData object 
+        kinPostionTDBUri: URI for the KinPosition tileDB array
         start_time: Start time for filtering
         end_time: End time for filtering
         max_wrms: Maximum WRMS threshold in millimeters (default 15mm)
@@ -250,7 +250,7 @@ def filter_pride_residuals(df, station_data: StationData, start_time: datetime, 
     """
 
     # Convert tileDB array to dataframe
-    pride_data = TDBKinPositionArray(station_data.kinpositiondata) 
+    pride_data = TDBKinPositionArray(kinPostionTDBUri) 
     ppp_df = pride_data.read_df(start=start_time, end=end_time)
     if ppp_df.empty:
         logger.logerr("No Pride PPP data found, skipping residual filter")

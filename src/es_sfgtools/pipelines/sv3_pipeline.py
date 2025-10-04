@@ -9,12 +9,16 @@ from pathlib import Path
 import concurrent.futures
 from es_sfgtools.data_models.metadata import MetaDataCatalog as MetaDataCatalog
 import sys 
+import json
 
 # Local imports
 from ..data_mgmt.catalog import PreProcessCatalog
+from ..data_mgmt.directory_handler import DirectoryHandler
+
 from ..data_mgmt.file_schemas import AssetEntry, AssetType
 from ..sonardyne_tools import sv3_operations as sv3_ops
 from ..novatel_tools import novatel_binary_operations as novb_ops,novatel_ascii_operations as nova_ops
+from ..novatel_tools.utils import get_metadata,get_metadatav2
 from ..tiledb_tools.tiledb_operations import tile2rinex
 from ..pride_tools import (
     PrideCLIConfig,
@@ -34,7 +38,7 @@ from ..data_mgmt.utils import (
     get_merge_signature_shotdata,
 )
 from .shotdata_gnss_refinement import merge_shotdata_kinposition
-from ..logging import ProcessLogger as logger
+from ..logging import ProcessLogger as logger,change_all_logger_dirs
 
 from .config import SV3PipelineConfig
 
@@ -113,8 +117,7 @@ class SV3Pipeline:
 
     def __init__(
         self,
-        asset_catalog: PreProcessCatalog = None,
-        data_catalog: MetaDataCatalog = None,
+        directory_handler: DirectoryHandler = None,
         config: SV3PipelineConfig = None,
     ):
         """
@@ -125,17 +128,17 @@ class SV3Pipeline:
             data_catalog (Catalog, optional): Catalog containing data for processing. Defaults to None.
             config (SV3PipelineConfig, optional): Configuration settings for the pipeline. Defaults to None.
         """
-        self.asset_catalog = asset_catalog
-        self.data_catalog = data_catalog
-        self.config = config
+        
+        self.directory_handler = directory_handler
+        self.config = config if config is not None else SV3PipelineConfig()
+        self.asset_catalog = PreProcessCatalog(self.directory_handler.asset_catalog_db_path)
 
     def set_site_data(
         self,
         network: str,
         station: str,
         campaign: str,
-        inter_dir: Path,
-        pride_dir: Path,
+    
     ) -> None:
         """
         Set the site data for the pipeline.
@@ -143,29 +146,73 @@ class SV3Pipeline:
         Args:
             kwargs: Keyword arguments containing site data.
         """
+
+        dtype_counts = self.asset_catalog.get_dtype_counts(network, station, campaign)
+        if dtype_counts == {}:
+            logger.logwarn(f"No local files found for {network}/{station}/{campaign}")
+            return
+        for dtype, count in dtype_counts.items():
+            logger.loginfo(f"Found {count} local files of type {dtype} for {network}/{station}/{campaign}")
+
         self.network = network
         self.station = station
         self.campaign = campaign
-        self.inter_dir = inter_dir
-        self.pride_dir = pride_dir
+        try:
+            self.campaign_directory = self.directory_handler[network][station][campaign]
+        except KeyError:
+            logger.logerr(f"Campaign directory not found for {network}/{station}/{campaign}")
+            return
+        except Exception as e:
+            print(f"Unexpected error accessing campaign directory: {e}")
+            return
+        self.inter_dir = self.campaign_directory.intermediate
+        self.pride_dir = self.directory_handler.pride_directory
         self.gnss_obs_data_dest = TDBGNSSObsArray(
-            self.data_catalog.catalog.networks[network].stations[station].gnssobsdata
+            self.directory_handler[network][station].tiledb_directory.gnss_obs_data
         )
         self.gnss_obs_data_dest_secondary = TDBGNSSObsArray(
-            self.data_catalog.catalog.networks[network].stations[station].gnssobsdata_secondary
+            self.directory_handler[network][station].tiledb_directory.gnss_obs_data_secondary
         )
         self.kin_position_data_dest = TDBKinPositionArray(
-            self.data_catalog.catalog.networks[network].stations[station].kinpositiondata
+            self.directory_handler[network][station].tiledb_directory.kin_position_data
         )
         self.shot_data_dest = TDBShotDataArray(
-            self.data_catalog.catalog.networks[network].stations[station].shotdata
+            self.directory_handler[network][station].tiledb_directory.shot_data
         )
         self.shot_data_pre = TDBShotDataArray(
-            self.data_catalog.catalog.networks[network].stations[station].shotdata_pre
+            self.directory_handler[network][station].tiledb_directory.shot_data_pre
         )
         self.imu_position_data_dest = TDBIMUPositionArray(
-            self.data_catalog.catalog.networks[network].stations[station].imupositiondata
+            self.directory_handler[network][station].tiledb_directory.imu_position_data
         )
+        logger.set_dir(self.campaign_directory.log_directory)
+        change_all_logger_dirs(self.campaign_directory.log_directory)
+        self._build_rinex_meta()
+
+    def _build_rinex_meta(self) -> None:
+        """
+        Build the RINEX metadata for a station.
+        Args:
+            station_dir (Path): The station directory to build the RINEX metadata for.
+        """
+        # Get the RINEX metadata
+        rinex_metav2 = (
+            self.directory_handler[self.network][self.station].location
+            / "rinex_metav2.json"
+        )
+        rinex_metav1 = (
+            self.directory_handler[self.network][self.station].location
+            / "rinex_metav1.json"
+        )
+        if not rinex_metav2.exists():
+            with open(rinex_metav2, "w") as f:
+                json.dump(get_metadatav2(site=self.station), f)
+
+        if not rinex_metav1.exists():
+            with open(rinex_metav1, "w") as f:
+                json.dump(get_metadata(site=self.station), f)
+
+        self.config.rinex_config.settings_path = rinex_metav2
 
     def pre_process_novatel(self) -> None:
         """
@@ -208,7 +255,6 @@ class SV3Pipeline:
                         gnss_obs_tdb=self.gnss_obs_data_dest.uri,
                         n_procs=self.config.novatel_config.n_processes,
                     )
-
 
                     self.asset_catalog.add_merge_job(**merge_signature)
                     response = f"Added merge job for {len(novatel_770_entries)} Novatel 770 Entries to the catalog"
@@ -545,7 +591,6 @@ class SV3Pipeline:
             None
         """
 
-
         # TODO need a way to mark the dfopoo files as processed
         dfop00_entries: List[AssetEntry] = (
             self.asset_catalog.get_single_entries_to_process(
@@ -614,7 +659,7 @@ class SV3Pipeline:
             not self.asset_catalog.is_merge_complete(**merge_job)
             or self.config.position_update_config.override
         ):
-            
+
             merge_shotdata_kinposition(
                 shotdata_pre=self.shot_data_pre,
                 shotdata=self.shot_data_dest,

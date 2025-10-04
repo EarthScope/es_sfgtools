@@ -9,6 +9,7 @@ import numpy as np
 import json
 import os
 
+from es_sfgtools.data_mgmt.directory_handler import DirectoryHandler
 from es_sfgtools.data_models.metadata.catalogs import StationData
 from es_sfgtools.data_models.metadata.site import Site
 from es_sfgtools.data_models.metadata.campaign import Survey
@@ -28,7 +29,7 @@ from es_sfgtools.data_mgmt.catalog import PreProcessCatalog
 from es_sfgtools.data_mgmt.file_schemas import AssetEntry, AssetType
 
 from .garpos_runner import GarposRunner
-from .garpos_data_preparer import GarposDataPreparer, NoShotDataError, NoGPTranspondersError
+from .garpos_data_preparer import NoShotDataError, NoGPTranspondersError,prepareShotData
 from .garpos_results_processor import GarposResultsProcessor
 from .garpos_config import DEFAULT_FILTER_CONFIG, DEFAULT_INVERSION_PARAMS
 
@@ -69,13 +70,7 @@ class GarposHandler:
     """
 
     def __init__(self,
-                 network: str,
-                 station: str,
-                 campaign: str,
-                 station_data: StationData,
-                 site_data: Site,
-                 working_dir: Path,
-                 shotdata_filter_config: dict = DEFAULT_FILTER_CONFIG):
+                 main_directory: Path):
         """
         Initializes the class with shot data, site configuration, and working directory.
         Args:
@@ -88,21 +83,32 @@ class GarposHandler:
         """
 
         self.garpos_fixed = GarposFixed()
-        self.site: Site = site_data
-        self.station_data = station_data
+        self.directory_handler = DirectoryHandler(main_directory=main_directory)
 
-        self.working_dir = working_dir
-        if not self.working_dir.exists():
-            raise ValueError(f"Working directory {self.working_dir} does not exist. Please provide a valid directory.")
+        self.site: Site = None
+        self.station_data = None
 
+        self.working_dir = None
+    
         self.sound_speed_path = self.working_dir / SVP_FILE_NAME
 
-        self.network = network
-        self.station = station
-        self.campaign_name = campaign
+        self.network =  None
+        self.station = None
+        self.campaign = None
         self.current_survey = None
         self.coord_transformer = None
 
+    def set_site_data(
+        self,
+        network: str,
+        station: str,
+        campaign: str,
+        site: Site,
+    ):
+        self.network = network
+        self.station = station
+        self.campaign = campaign
+        self.site = site
         self._setup_campaign()
 
         self.garpos_fixed._to_datafile(
@@ -112,13 +118,6 @@ class GarposHandler:
             f"Garpos Handler initialized with working directory: {self.working_dir}"
         )
 
-        self.garpos_data_preparer = GarposDataPreparer(
-            site=self.site,
-            campaign=self.campaign,
-            station_data=self.station_data,
-            working_dir=self.working_dir,
-            shotdata_filter_config=shotdata_filter_config
-        )
         self.garpos_runner = GarposRunner(
             garpos_fixed=self.garpos_fixed,
             sound_speed_path=self.sound_speed_path
@@ -136,7 +135,7 @@ class GarposHandler:
             ValueError: If the campaign with the given name is not found in the site metadata.
         """
         for campaign in self.site.campaigns:
-            if campaign.name == self.campaign_name:
+            if campaign.name == self.campaign:
                 self.campaign = campaign
                 self.coord_transformer = CoordTransformer(
                     latitude=self.site.arrayCenter.latitude,
@@ -148,12 +147,15 @@ class GarposHandler:
                 self.current_survey = None
 
                 logger.loginfo(
-                    f"Campaign {self.campaign_name} set. Current campaign directory: {self.working_dir}"
+                    f"Campaign {self.campaign.name} set. Current campaign directory: {self.working_dir}"
                 )
+                self.working_dir = self.directory_handler[self.network][self.station][self.campaign.name].garpos
+
+
                 return
 
         raise ValueError(
-            f"campaign {self.campaign_name} not found among: {[x.name for x in self.site.campaigns]}"
+            f"campaign {self.campaign} not found among: {[x.name for x in self.site.campaigns]}"
         )
 
     def load_sound_speed_data(
@@ -326,7 +328,37 @@ class GarposHandler:
             overwrite (bool): If True, overwrite existing files. Defaults to False.
             custom_filters (Optional[dict]): Custom filter settings to apply to the shot data. If None, use default filters.
         """
-        self.garpos_data_preparer.prep_shotdata(overwrite=overwrite, custom_filters=custom_filters)
+        prepareShotData(
+            network_name=self.network,
+            station_name=self.station,
+            campaign_name=self.campaign.name,
+            site=self.site,
+            campaign=self.campaign,
+            directory_handler=self.directory_handler,
+            shotdata_filter_config=DEFAULT_FILTER_CONFIG,
+            overwrite=overwrite,
+            custom_filters=custom_filters
+        )
+       
+    def get_obsfile_path(self, survey_id: str) -> Path:
+        """
+        Get the path to the observation file for a given survey.
+        Args:
+            survey_id (str): The ID of the survey.
+        Returns:
+            Path: The path to the observation file for the survey.
+        """
+        return self.directory_handler[self.network][self.station][self.campaign.name].garpos[survey_id].default_obsfile
+
+    def get_results_dir(self, survey_id: str) -> Path:
+        """
+        Get the path to the results directory for a given survey.
+        Args:
+            survey_id (str): The ID of the survey.
+        Returns:
+            Path: The path to the results directory for the survey.
+        """
+        return self.directory_handler[self.network][self.station][self.campaign.name].garpos[survey_id].results_dir
 
     def set_inversion_params(self, parameters: dict | InversionParams):
         """
@@ -366,10 +398,9 @@ class GarposHandler:
 
         self.set_survey(name=survey_id)
 
-        results_dir = self.working_dir / survey_id / "results"
-        results_dir.mkdir(exist_ok=True, parents=True)
+        results_dir = self.get_results_dir(survey_id=survey_id)
+        obsfile_path = self.get_obsfile_path(survey_id=survey_id)
 
-        obsfile_path = self.garpos_data_preparer.get_obsfile_path(survey_id=survey_id)
         if not obsfile_path.exists():
             raise ValueError(f"Observation file not found at {obsfile_path}")
 
@@ -410,7 +441,7 @@ class GarposHandler:
                 self._run_garpos_survey(
                     survey_id=survey.id, run_id=run_id, override=override, iterations=iterations
                 )
-                run_id += 1
+           
         else:
             logger.loginfo(
                 f"Running GARPOS model for survey {survey_id}. Run ID: {run_id}"

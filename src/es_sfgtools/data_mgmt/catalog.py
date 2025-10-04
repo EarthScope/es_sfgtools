@@ -35,7 +35,7 @@ class PreProcessCatalog:
                 ).fetchall()
             ]
             if len(data_type_counts) == 0:
-                return {"Local files found": 0}
+                return {}
         return {x["type"]: x["count_1"] for x in data_type_counts}
 
     def delete_entries(self, network: str, station: str, campaign: str, type: AssetType|str, where:str=None) -> None:
