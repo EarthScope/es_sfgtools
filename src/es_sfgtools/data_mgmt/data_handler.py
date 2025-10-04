@@ -806,16 +806,26 @@ class DataHandler:
         """
         station_data = self.data_catalog.catalog.networks[self.current_network].stations[
             self.current_station
-        ]
+        ]   
 
-        return GarposHandler(
+        # return GarposHandler(
+        #     network=self.current_network,
+        #     station=self.current_station,
+        #     campaign=self.current_campaign,
+        #     site_data=site_data,
+        #     station_data=station_data,
+        #     working_dir=self.garpos_dir,
+        # )
+
+        gp_handler = GarposHandler(
+            main_directory=self.main_directory)
+        gp_handler.set_site_data(
             network=self.current_network,
             station=self.current_station,
             campaign=self.current_campaign,
-            site_data=site_data,
-            station_data=station_data,
-            working_dir=self.garpos_dir,
+            site=site_data,
         )
+        return gp_handler
     
     def test_logger(self):
         print(f"PRINT: testing logger {logger} with handlers {logger.logger.handlers}")

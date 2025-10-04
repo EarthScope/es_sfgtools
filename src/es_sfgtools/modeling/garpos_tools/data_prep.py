@@ -65,7 +65,9 @@ def prepareShotData(
         overwrite: bool = False,
 ) -> None:
     garposCampaignDir = directory_handler[network_name][station_name][campaign_name].garpos
-
+    garposCampaignDir.build()
+    garposCampaignDir.add_survey(campaign.name)
+ 
     obsfile = garposCampaignDir[campaign.name].default_obsfile
     if obsfile.exists() and not overwrite:
         logger.loginfo(f"Observation file {obsfile} already exists, skipping shot data preparation.")
@@ -169,7 +171,7 @@ def filter_shotdata(
     initial_count = len(shot_data)
     new_shot_data_df = shot_data.copy()
     if custom_filters:
-        filter_config = filter_config.update(custom_filters)
+        filter_config.update(custom_filters)
         logger.loginfo(f"Using custom filter configuration: {filter_config}")
 
     acoustic_config = filter_config.get("acoustic_filters", {})
@@ -218,7 +220,7 @@ def filter_shotdata(
 
     filtered_count = len(new_shot_data_df)
     logger.loginfo(
-        f"Filtered {initial_count - filtered_count} records from shot data based on filtering criteria: {self.shotdata_filter_config}"
+        f"Filtered {initial_count - filtered_count} records from shot data based on filtering criteria: {filter_config}"
     )
     logger.loginfo(f"Remaining shot data records: {filtered_count}")
     return new_shot_data_df

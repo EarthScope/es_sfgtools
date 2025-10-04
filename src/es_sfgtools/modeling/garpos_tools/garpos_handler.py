@@ -17,11 +17,15 @@ from es_sfgtools.data_models.metadata.campaign import Survey
 from es_sfgtools.modeling.garpos_tools.schemas import (
     GarposFixed,
     InversionParams,
-    GPPositionENU,
-    GPPositionLLH,
+    GarposInput,
 )
+try:
+    from garpos import drive_garpos
+except ImportError:
+    # Handle the case where garpos is not available
+    pass
 
-from es_sfgtools.modeling.garpos_tools.functions import CoordTransformer
+from es_sfgtools.modeling.garpos_tools.functions import CoordTransformer,process_garpos_results
 from es_sfgtools.utils.archive_pull import download_file_from_archive
 from ...logging import GarposLogger as logger
 from ...seafloor_site_tools.soundspeed_operations import CTDfile_to_svp, seabird_to_soundvelocity
@@ -29,7 +33,7 @@ from es_sfgtools.data_mgmt.catalog import PreProcessCatalog
 from es_sfgtools.data_mgmt.file_schemas import AssetEntry, AssetType
 
 from .garpos_runner import GarposRunner
-from .garpos_data_preparer import NoShotDataError, NoGPTranspondersError,prepareShotData
+from .data_prep import prepareShotData
 from .garpos_results_processor import GarposResultsProcessor
 from .garpos_config import DEFAULT_FILTER_CONFIG, DEFAULT_INVERSION_PARAMS
 
@@ -83,14 +87,12 @@ class GarposHandler:
         """
 
         self.garpos_fixed = GarposFixed()
-        self.directory_handler = DirectoryHandler(main_directory=main_directory)
+        self.directory_handler = DirectoryHandler(location=main_directory)
 
         self.site: Site = None
         self.station_data = None
 
         self.working_dir = None
-    
-        self.sound_speed_path = self.working_dir / SVP_FILE_NAME
 
         self.network =  None
         self.station = None
@@ -118,14 +120,6 @@ class GarposHandler:
             f"Garpos Handler initialized with working directory: {self.working_dir}"
         )
 
-        self.garpos_runner = GarposRunner(
-            garpos_fixed=self.garpos_fixed,
-            sound_speed_path=self.sound_speed_path
-        )
-        self.garpos_results_processor = GarposResultsProcessor(
-            working_dir=self.working_dir
-        )
-
     def _setup_campaign(self):
         """
         This function sets up the campaign by finding the campaign with the given name in the site metadata. Grab the array center coordinates and
@@ -149,8 +143,16 @@ class GarposHandler:
                 logger.loginfo(
                     f"Campaign {self.campaign.name} set. Current campaign directory: {self.working_dir}"
                 )
-                self.working_dir = self.directory_handler[self.network][self.station][self.campaign.name].garpos
-
+                self.directory_handler.build_station_directory(
+                    network_name=self.network,
+                    station_name=self.station,
+                    campaign_name=self.campaign.name,
+                )
+                self.directory_handler[self.network][self.station][
+                    self.campaign.name
+                ].garpos.build()
+                
+                self.working_dir = self.directory_handler[self.network][self.station][self.campaign.name].garpos.location
 
                 return
 
@@ -339,7 +341,7 @@ class GarposHandler:
             overwrite=overwrite,
             custom_filters=custom_filters
         )
-       
+
     def get_obsfile_path(self, survey_id: str) -> Path:
         """
         Get the path to the observation file for a given survey.
@@ -378,6 +380,35 @@ class GarposHandler:
             for key, value in parameters.items():
                 setattr(self.garpos_fixed.inversion_params, key, value)
 
+    def _run_garpos(self,
+                    obsfile_path: Path,
+                    results_dir: Path,
+                    run_id: int | str = 0,
+                    override: bool = False) -> Path:
+
+        garpos_input = GarposInput.from_datafile(obsfile_path)
+        results_path = results_dir / f"_{run_id}_results.json"
+
+        if results_path.exists() and not override:
+            print(f"Results already exist for {str(results_path)}")
+            return None
+        logger.loginfo(
+            f"Running GARPOS model for {garpos_input.site_name}, {garpos_input.survey_id}. Run ID: {run_id}"
+        )
+        input_path = results_dir / f"_{run_id}_observation.ini"
+        fixed_path = results_dir / f"_{run_id}_settings.ini"
+        self.garpos_fixed._to_datafile(fixed_path)
+        garpos_input.to_datafile(input_path)
+
+        rf = drive_garpos(
+            str(input_path),
+            str(fixed_path),
+            str(results_dir) + "/",
+            f"{garpos_input.survey_id}_{run_id}",
+            13,
+        )
+        return rf 
+
     def _run_garpos_survey(
         self,
         survey_id: str,
@@ -407,12 +438,14 @@ class GarposHandler:
         for i in range(iterations):
             logger.loginfo(f"Iteration {i+1} of {iterations} for survey {survey_id}")
 
-            self.garpos_runner.run(
-                obs_file_path=obsfile_path,
+            obsfile_path = self._run_garpos(
+                obsfile_path=obsfile_path,
                 results_dir=results_dir,
                 run_id=f"{run_id}_{i}",
                 override=override,
             )
+        results = GarposInput.from_datafile(obsfile_path)
+        process_garpos_results(results)
 
     def run_garpos(
         self,
@@ -433,27 +466,15 @@ class GarposHandler:
         run_id = int(run_id) if isinstance(run_id, str) else run_id
 
         logger.loginfo(f"Running GARPOS model. Run ID: {run_id}")
-        if survey_id is None:
-            for survey in self.campaign.surveys:
-                logger.loginfo(
-                    f"Running GARPOS model for survey {survey.id}. Run ID: {run_id}"
-                )
-                self._run_garpos_survey(
-                    survey_id=survey.id, run_id=run_id, override=override, iterations=iterations
-                )
-           
-        else:
+        surveys = [s.id for s in self.campaign.surveys] if survey_id is None else [survey_id]
+
+        for survey_id in surveys:
             logger.loginfo(
                 f"Running GARPOS model for survey {survey_id}. Run ID: {run_id}"
             )
-            try:
-                self._run_garpos_survey(
-                    survey_id=survey_id, run_id=run_id, override=override, iterations=iterations
-                )
-            except IndexError as e:
-                logger.logerr(
-                    f"GARPOS model run failed for survey {survey_id}. Error: {e}"
-                )
+            self._run_garpos_survey(
+                survey_id=survey_id, run_id=run_id, override=override, iterations=iterations
+            )
 
     def plot_ts_results(
         self,

@@ -81,12 +81,13 @@ class GARPOSCampaignDir(_Base):
         return True
     
     def build(self):
-        if not self.svp_file:
-            self.svp_file = self.campaign / SVP_FILE_NAME
 
         if not self.location:
             self.location = self.campaign / GARPOS_DATA_DIR
            
+        if not self.svp_file:
+            self.svp_file = self.location / SVP_FILE_NAME
+
         if not self.default_settings:
             self.default_settings = self.location / GARPOS_DEFAULT_SETTINGS_FILE
 
@@ -165,7 +166,7 @@ class CampaignDir(_Base):
         if not self.intermediate:
             self.intermediate = self.location / INTERMEDIATE_DATA_DIR
         if not self.garpos:
-            self.garpos = GARPOSCampaignDir(garpos_campaign_dir=self.location)
+            self.garpos = GARPOSCampaignDir(campaign=self.location)
 
         if not self.log_directory:
             self.log_directory = self.location / LOGS_DIR
@@ -264,7 +265,7 @@ class DirectoryHandler(BaseModel):
 
     def save(self):
         with open(self.filepath, "w") as file:
-            file.write(self.model_dump(json_indent=4))
+            file.write(self.model_dump_json())
     
     @classmethod
     def load(cls, path: str | Path) -> "DirectoryHandler":
