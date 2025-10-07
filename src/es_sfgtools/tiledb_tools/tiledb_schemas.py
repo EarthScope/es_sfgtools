@@ -328,7 +328,7 @@ class TBDArray:
                 return None
         if df.empty:
             logger.logwarn("Dataframe is empty")
-            return None
+            return pd.DataFrame()
         if validate:
             df = self.dataframe_schema.validate(df, lazy=True)
         return df

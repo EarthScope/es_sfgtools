@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import List, Optional, Tuple
 import pandas as pd
 from datetime import datetime
-
+import json
 
 from es_sfgtools.data_models.metadata.site import Site
 from es_sfgtools.data_models.metadata.benchmark import Benchmark, Transponder
@@ -19,10 +19,10 @@ from es_sfgtools.modeling.garpos_tools.schemas import (
     GPPositionENU,
     GPPositionLLH,
 )
-from es_sfgtools.data_mgmt.directory_handler import DirectoryHandler
+from es_sfgtools.data_mgmt.directory_handler import DirectoryHandler,SurveyDir,GARPOSSurveyDir,TileDBDir,CampaignDir,NetworkDir
 from es_sfgtools.modeling.garpos_tools.functions import CoordTransformer, rectify_shotdata
 from es_sfgtools.logging import GarposLogger as logger
-from es_sfgtools.tiledb_tools.tiledb_schemas import TDBShotDataArray
+from es_sfgtools.tiledb_tools.tiledb_schemas import TDBShotDataArray,TDBKinPositionArray,TDBIMUPositionArray
 from es_sfgtools.modeling.garpos_tools.shot_data_utils import (
     filter_ping_replies,
     filter_wg_distance_from_center,
@@ -53,98 +53,6 @@ class NoGPTranspondersError(Exception):
         self.message = message
 
 
-def prepareShotData(
-        network_name: str,
-        station_name: str,
-        site: Site,
-        campaign: Campaign,
-        directory_handler: DirectoryHandler,
-        custom_filters: dict = None,
-        shotdata_filter_config: dict = DEFAULT_FILTER_CONFIG,
-        overwrite: bool = False,
-) -> None:
-    garposCampaignDir = directory_handler[network_name][station_name][campaign.name].garpos
-
-    obsfile = garposCampaignDir[campaign.name].default_obsfile
-    if obsfile.exists() and not overwrite:
-        logger.loginfo(f"Observation file {obsfile} already exists, skipping shot data preparation.")
-        return
-
-    coordTransformer = CoordTransformer(
-        latitude=site.arrayCenter.latitude,
-        longitude=site.arrayCenter.longitude,
-        elevation=-float(site.localGeoidHeight),
-    )
-    shotDataSource = TDBShotDataArray(directory_handler[network_name][station_name].tiledb_directory.shot_data)
-    
-
-    for survey in campaign.surveys:
-        garposCampaignDir.add_survey(survey.id)
-        surveyDir = garposCampaignDir[survey.id]
-        with open(surveyDir.survey_metadata, 'w') as f:
-            f.write(survey.model_dump_json(indent=4, exclude_none=True))
-
-        shot_data_queried: pd.DataFrame = shotDataSource.read_df(
-            start=survey.start, end=survey.end
-        )
-        if shot_data_queried.empty:
-            logger.logwarn(f"No shot data found for survey {survey.id} from {survey.start} to {survey.end}, skipping survey.")
-            continue
-        file_name_unfiltered = f"{survey.id}__{survey.type}_shotdata.csv"
-        shot_data_queried.to_csv(garposCampaignDir.shotdata / file_name_unfiltered)
-
-        shot_data_filtered = filter_shotdata(
-            survey_type=survey.type,
-            site=site,
-            shot_data=shot_data_queried,
-            kinPostionTDBUri=directory_handler[network_name][station_name].tiledb_directory.kin_position_data,
-            start_time=survey.start,
-            end_time=survey.end,
-            custom_filters=custom_filters,
-            filter_config=shotdata_filter_config
-        )
-
-        if shot_data_filtered.empty:
-            logger.logwarn(
-                f"No shot data remaining after filtering for survey {survey.id}, skipping survey."
-            )
-            continue
-        file_name_filtered = garposCampaignDir.shotdata / f"{survey.id}__{survey.type}_shotdata_filtered.csv"
-        shot_data_filtered.to_csv(file_name_filtered)
-
-        try:
-            GPtransponders = GP_Transponders_from_benchmarks(coord_transformer=coordTransformer, survey=survey, site=site)
-            array_dpos_center = get_array_dpos_center(coordTransformer, GPtransponders)
-        except NoGPTranspondersError as e:
-            continue
-        try:
-            shotdata_out_path = surveyDir.location / f"{survey.id}__{survey.type}_shotdata_filtered_rectified.csv"
-            shot_data_rectified = prepare_shotdata_for_garpos(
-                coord_transformer=coordTransformer,
-                shodata_out_path=shotdata_out_path,
-                shot_data=shot_data_filtered,
-                GPtransponders=GPtransponders,
-            )
-            surveyDir.shotdata = shotdata_out_path
-
-        except ValueError as e:
-            continue
-            # Get the sound speed profile path
-
-        garpos_input = prepare_garpos_input_from_survey(
-            shot_data_path=surveyDir.shotdata,
-            survey=survey,
-            site=site,
-            campaign=campaign,
-            ss_path=garposCampaignDir.svp_file,
-            array_dpos_center=array_dpos_center,
-            num_of_shots=len(shot_data_rectified),
-            GPtransponders=GPtransponders,
-        )
-        garpos_input.to_datafile(surveyDir.default_obsfile)
-
-        # save the survey directory metadata
-        directory_handler.save()
 
 def filter_shotdata(
     survey_type: str,

@@ -17,7 +17,7 @@ import json
 from datetime import date
 import seaborn 
 seaborn.set_theme(style="whitegrid")
-
+from es_sfgtools.data_models.metadata.site import Site, Survey
 from es_sfgtools.data_models.metadata import MetaDataCatalog as Catalog
 from es_sfgtools.data_models.metadata import NetworkData,StationData
 from es_sfgtools.utils.archive_pull import download_file_from_archive, list_campaign_files, list_campaign_files_by_type
@@ -31,8 +31,8 @@ from es_sfgtools.data_mgmt.constants import REMOTE_TYPE, FILE_TYPES
 from es_sfgtools.data_mgmt.datadiscovery import scrape_directory_local, get_file_type_local, get_file_type_remote
 from es_sfgtools.modeling.garpos_tools.garpos_handler import GarposHandler
 from es_sfgtools.data_mgmt.constants import DEFAULT_FILE_TYPES_TO_DOWNLOAD
-
-from es_sfgtools.data_mgmt.directory_handler import DirectoryHandler
+from es_sfgtools.data_mgmt.post_processing import DataPostProcessor
+from es_sfgtools.data_mgmt.directory_handler import DirectoryHandler, NetworkDir, StationDir, CampaignDir, SurveyDir
 
 def check_network_station_campaign(func: Callable):
     """ Wrapper to check if network, station, and campaign are set before running a function. """
@@ -159,6 +159,11 @@ class DataHandler:
         self.current_station: Optional[str] = None
         self.current_campaign: Optional[str] = None
 
+        self.currentNetworkDir: Optional[NetworkDir] = None
+        self.currentStationDir: Optional[StationDir] = None
+        self.currentCampaignDir: Optional[CampaignDir] = None
+        self.currentSurveyDir: Optional[SurveyDir] = None
+
         # Create the directory structures
         self.main_directory = Path(directory)
         self.directory_handler = DirectoryHandler(location=self.main_directory)
@@ -166,18 +171,7 @@ class DataHandler:
 
         logger.set_dir(self.main_directory)
 
-        # Create the main and pride directory
-        # self.pride_dir = self.main_directory / "Pride"
-        # self.pride_dir.mkdir(exist_ok=True, parents=True)
-
-        # Create the catalog
-
         self.catalog = PreProcessCatalog(self.directory_handler.asset_catalog_db_path)
-
-        self.data_catalog_path = self.main_directory / "data_catalog.json"
-        self.data_catalog = CatalogHandler(
-            self.data_catalog_path, name="Data Catalog", catalog=data_catalog
-        )
 
     def _build_station_dir_structure(self, network: str, station: str, campaign: str):
         """
@@ -199,41 +193,15 @@ class DataHandler:
                 - Pride/
         """
 
-        # # Create the network/station directory structure
-        # self.station_dir = self.main_directory / network / station
-        # self.station_dir.mkdir(parents=True, exist_ok=True)
-
-        # # Create the Data directory structure (network/station/Data)
-        # campaign_data_dir = self.station_dir / campaign
-        # campaign_data_dir.mkdir(exist_ok=True)
-
-        # # Set up loggers under the campaign directory
-        # self.campaign_log_dir = campaign_data_dir / "logs"
-        # self.campaign_log_dir.mkdir(parents=True, exist_ok=True)
-
-        # # Create the TileDB directory structure (network/station/TileDB)
-        # self.tileb_dir = self.station_dir / "TileDB"
-        # self.tileb_dir.mkdir(exist_ok=True)
-
-        # # Create the raw, intermediate, and processed directories (network/station/Data/raw) and store as class attributes
-        # self.raw_dir = campaign_data_dir / "raw"
-        # self.raw_dir.mkdir(exist_ok=True)
-
-        # self.inter_dir = campaign_data_dir / "intermediate"
-        # self.inter_dir.mkdir(exist_ok=True)
-
-        # self.garpos_dir = campaign_data_dir / "GARPOS"
-        # self.garpos_dir.mkdir(exist_ok=True)
-
-        # self.qc_dir = campaign_data_dir / "qc"
-        # self.qc_dir.mkdir(exist_ok=True)
-
-        self.directory_handler.build_station_directory(
+        networkDir, stationDir, campaignDir, _ = self.directory_handler.build_station_directory(
             network_name=network, station_name=station, campaign_name=campaign
         )
+        self.currentNetworkDir = networkDir
+        self.currentStationDir = stationDir
+        self.currentCampaignDir = campaignDir
 
         # Change the logger directory to the campaign log directory
-        log_dir = self.directory_handler[network][station][campaign].log_directory
+        log_dir = self.currentCampaignDir.log_directory
         change_all_logger_dirs(log_dir)
         os.environ["LOG_FILE_PATH"] = str(log_dir)
         # Log to the new log
@@ -246,53 +214,35 @@ class DataHandler:
         """
         logger.loginfo(f"Creating TileDB arrays for {self.current_station}")
 
-        self.directory_handler[self.current_network][self.current_station].tiledb_directory.build()
-
-        acoustic_tdb_uri = self.directory_handler[self.current_network][self.current_station].tiledb_directory.acoustic_data
+        acoustic_tdb_uri = self.currentStationDir.tiledb_directory.acoustic_data
         self.acoustic_tdb = TDBAcousticArray(acoustic_tdb_uri)
-
 
         kin_position_tdb_uri = self.directory_handler[self.current_network][self.current_station].tiledb_directory.kin_position_data
         self.kin_position_tdb = TDBKinPositionArray(kin_position_tdb_uri)
 
-        imu_position_tdb_uri = self.directory_handler[self.current_network][self.current_station].tiledb_directory.imu_position_data
+        imu_position_tdb_uri = self.currentStationDir.tiledb_directory.imu_position_data
         self.imu_position_tdb = TDBIMUPositionArray(imu_position_tdb_uri)
-        
-        shotdata_tdb_uri = self.directory_handler[self.current_network][self.current_station].tiledb_directory.shot_data
-           
+
+        shotdata_tdb_uri = self.currentStationDir.tiledb_directory.shot_data
+
         self.shotdata_tdb = TDBShotDataArray(shotdata_tdb_uri)
         # Use a pre-array for dfo processing, self.shotdata_tdb is where we store the updated version
-        shotdata_tdb_uri_pre = self.directory_handler[self.current_network][self.current_station].tiledb_directory.shot_data_pre
+        shotdata_tdb_uri_pre = self.currentStationDir.tiledb_directory.shot_data_pre
         self.shotdata_tdb_pre = TDBShotDataArray(shotdata_tdb_uri_pre)
-        
-        #this is the primary GNSS observables (10hz NOV770 collected on USB3 for SV3, 5hz bcnovatel for SV2)
-        gnss_obs_tdb_uri = self.directory_handler[self.current_network][self.current_station].tiledb_directory.gnss_obs_data
+
+        # this is the primary GNSS observables (10hz NOV770 collected on USB3 for SV3, 5hz bcnovatel for SV2)
+        gnss_obs_tdb_uri = self.currentStationDir.tiledb_directory.gnss_obs_data
         self.gnss_obs_tdb = TDBGNSSObsArray(
             gnss_obs_tdb_uri
         )  # golang binaries will be used to interact with this array
-        
+
         # this is the secondary GNSS observables (5hz NOV000 collected on USB2 for SV3)
         # can choose to use this instead of the primary GNSS observables if desired
-        gnss_obs_secondary_tdb_uri = self.directory_handler[self.current_network][self.current_station].tiledb_directory.gnss_obs_data_secondary
+        gnss_obs_secondary_tdb_uri = self.currentStationDir.tiledb_directory.gnss_obs_data_secondary
         self.gnss_obs_secondary_tdb = TDBGNSSObsArray(
             gnss_obs_secondary_tdb_uri
         )
-        
 
-        self.data_catalog.add_station(
-            network_name=self.current_network,
-            station_name=self.current_station,
-            station_data=StationData(
-                name=self.current_station,
-                shotdata=str(shotdata_tdb_uri),
-                kinpositiondata=str(kin_position_tdb_uri),
-                gnssobsdata=str(gnss_obs_tdb_uri),
-                gnssobsdata_secondary=str(gnss_obs_secondary_tdb_uri),
-                imupositiondata=str(imu_position_tdb_uri),
-                acousticdata=str(acoustic_tdb_uri),
-                shotdata_pre=str(self.shotdata_tdb_pre.uri),
-            ),
-        )
         logger.loginfo(f"Consolidating existing TileDB arrays for {self.current_station}")
         self.acoustic_tdb.consolidate()
         self.kin_position_tdb.consolidate()
@@ -309,8 +259,8 @@ class DataHandler:
             station_dir (Path): The station directory to build the RINEX metadata for.
         """
         # Get the RINEX metadata
-        self.rinex_metav2 = self.directory_handler[self.current_network][self.current_station].location / "rinex_metav2.json"
-        self.rinex_metav1 = self.directory_handler[self.current_network][self.current_station].location / "rinex_metav1.json"
+        self.rinex_metav2 = self.currentStationDir.location / "rinex_metav2.json"
+        self.rinex_metav1 = self.currentStationDir.location / "rinex_metav1.json"
         if not self.rinex_metav2.exists():
             with open(self.rinex_metav2, "w") as f:
                 json.dump(get_metadatav2(site=self.current_station), f)
@@ -324,8 +274,7 @@ class DataHandler:
         network: str,
         station: str,
         campaign: str,
-        start_date: date = None,
-        end_date: date = None,
+
     ):
         """
         Change the working station.
@@ -334,8 +283,6 @@ class DataHandler:
             network (str): The network name.
             station (str): The station name.
             campaign (str): The campaign name.
-            start_date (date): The start date for the data. Default is None.
-            end_date (date): The end date for the data. Default is None.
         """
         # Set class attributes & create the directory structure
         self.current_station = station
@@ -344,11 +291,6 @@ class DataHandler:
 
         # Build the campaign directory structure and TileDB arrays, this changes the logger directory as well
         self._build_station_dir_structure(network, station, campaign)
-
-        if start_date == None or end_date == None:
-            logger.logwarn(f"No date range set for {network}, {station}, {campaign}")
-
-        self.date_range = [start_date, end_date]
         self._build_tileDB_arrays()
         self._build_rinex_meta()
 
@@ -404,7 +346,7 @@ class DataHandler:
                 continue
             file_type, _size = get_file_type_local(file_path)
             if file_type is not None:
-                symlinked_path = self.directory_handler[self.current_network][self.current_station][self.current_campaign].raw / file_path.name
+                symlinked_path = self.currentCampaignDir.raw / file_path.name
                 # symlink to the raw directory
                 try:
                     file_path.symlink_to(symlinked_path, target_is_directory=False)
@@ -629,7 +571,7 @@ class DataHandler:
             local_path (Path): The local path where the file was downloaded, or None if the download failed.
         """
 
-        local_path = self.raw_dir / Path(prefix).name
+        local_path = self.currentCampaignDir.raw / Path(prefix).name
 
         try:
             logger.logdebug(f"Downloading {prefix} to {local_path}")
@@ -682,8 +624,8 @@ class DataHandler:
             local_path (Path): The local path where the file was downloaded, or None if the download failed.
         """
         try:
-            local_path = self.raw_dir / Path(remote_url).name
-            download_file_from_archive(url=remote_url, dest_dir=self.raw_dir)
+            local_path = self.currentCampaignDir.raw / Path(remote_url).name
+            download_file_from_archive(url=remote_url, dest_dir=local_path.parent)
 
             if not local_path.exists():
                 raise Exception
@@ -740,34 +682,6 @@ class DataHandler:
             self.add_data_remote(remote_filepaths=ctds, remote_type=REMOTE_TYPE.HTTP)
 
     @check_network_station_campaign
-    def view_data(self):
-        shotdata_dates = self.shotdata_tdb.get_unique_dates().tolist()
-        kin_position_dates = self.kin_position_tdb.get_unique_dates().tolist()
-        date_set = shotdata_dates + kin_position_dates
-        date_set = sorted(list(set(date_set)))
-
-        date_tick_map = {date: i for i, date in enumerate(date_set)}
-        fig, ax = plt.subplots()
-        # plot the kin_position dates with red vertical line
-        kin_position_x = [date_tick_map[date] for date in kin_position_dates]
-        kin_position_y = [1 for _ in kin_position_dates]
-
-        ax.scatter(x=kin_position_x, y=kin_position_y, c="r", marker="o", label="Pride GNSS Positions")
-        # plot the shotdata dates with blue vertical line
-        shotdata_x = [date_tick_map[date] for date in shotdata_dates]
-        shotdata_y = [2 for _ in shotdata_dates]
-        ax.scatter(x=shotdata_x, y=shotdata_y, c="b", marker="o", label="ShotData")
-        ax.xaxis.set_ticks(
-            [i for i in date_tick_map.values()],
-            [str(date) for date in date_tick_map.keys()],
-        )
-        ax.yaxis.set_ticks([])
-        ax.set_xlabel("Date")
-        fig.legend()
-        fig.suptitle(f"Found Dates For {self.current_network} {self.current_station}")
-        plt.show()
-
-    @check_network_station_campaign
     def get_pipeline_sv3(self) -> Tuple[SV3Pipeline, SV3PipelineConfig]:
         """
         Creates and returns an SV3Pipeline object along with its configuration.
@@ -804,9 +718,9 @@ class DataHandler:
         Returns:
             GarposHandler: A GarposHandler object.
         """
-        station_data = self.data_catalog.catalog.networks[self.current_network].stations[
-            self.current_station
-        ]   
+        # station_data = self.data_catalog.catalog.networks[self.current_network].stations[
+        #     self.current_station
+        # ]
 
         # return GarposHandler(
         #     network=self.current_network,
@@ -826,7 +740,7 @@ class DataHandler:
             site=site_data,
         )
         return gp_handler
-    
+
     def test_logger(self):
         print(f"PRINT: testing logger {logger} with handlers {logger.logger.handlers}")
         logger.loginfo(f"LOGGER: testing logger {logger} with handlers {logger.logger.handlers}")
@@ -852,3 +766,49 @@ class DataHandler:
             raise ValueError(
                 f"Log type {log} not recognized. Must be one of ['base','gnss','process']"
             )
+
+    def parse_surveys(self,network:str,station:str,site:Site,override:bool=False,write_intermediate:bool=False):
+        """
+        Parses the surveys from the current campaign and adds them to the directory structure.
+
+        Args:
+            site (Site): The site object containing the campaign and survey information.
+        """
+        dataPostProcessor = DataPostProcessor(
+            site=site,
+            directory_handler=self.directory_handler,
+        )
+        dataPostProcessor.parse_surveys(
+            network=network,
+            station=station,
+            override=override,
+            write_intermediate=write_intermediate,
+        )
+
+    # @check_network_station_campaign
+    # def view_data(self):
+    #     shotdata_dates = self.shotdata_tdb.get_unique_dates().tolist()
+    #     kin_position_dates = self.kin_position_tdb.get_unique_dates().tolist()
+    #     date_set = shotdata_dates + kin_position_dates
+    #     date_set = sorted(list(set(date_set)))
+
+    #     date_tick_map = {date: i for i, date in enumerate(date_set)}
+    #     fig, ax = plt.subplots()
+    #     # plot the kin_position dates with red vertical line
+    #     kin_position_x = [date_tick_map[date] for date in kin_position_dates]
+    #     kin_position_y = [1 for _ in kin_position_dates]
+
+    #     ax.scatter(x=kin_position_x, y=kin_position_y, c="r", marker="o", label="Pride GNSS Positions")
+    #     # plot the shotdata dates with blue vertical line
+    #     shotdata_x = [date_tick_map[date] for date in shotdata_dates]
+    #     shotdata_y = [2 for _ in shotdata_dates]
+    #     ax.scatter(x=shotdata_x, y=shotdata_y, c="b", marker="o", label="ShotData")
+    #     ax.xaxis.set_ticks(
+    #         [i for i in date_tick_map.values()],
+    #         [str(date) for date in date_tick_map.keys()],
+    #     )
+    #     ax.yaxis.set_ticks([])
+    #     ax.set_xlabel("Date")
+    #     fig.legend()
+    #     fig.suptitle(f"Found Dates For {self.current_network} {self.current_station}")
+    #     plt.show()

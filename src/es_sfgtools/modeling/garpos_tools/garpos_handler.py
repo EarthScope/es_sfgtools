@@ -9,7 +9,7 @@ import numpy as np
 import json
 import os
 
-from es_sfgtools.data_mgmt.directory_handler import DirectoryHandler
+from es_sfgtools.data_mgmt.directory_handler import DirectoryHandler,SurveyDir,GARPOSSurveyDir
 from es_sfgtools.data_models.metadata.catalogs import StationData
 from es_sfgtools.data_models.metadata.site import Site
 from es_sfgtools.data_models.metadata.campaign import Survey,Campaign
@@ -26,14 +26,15 @@ except ImportError:
     pass
 
 from es_sfgtools.modeling.garpos_tools.functions import CoordTransformer,process_garpos_results
+
 from es_sfgtools.utils.archive_pull import download_file_from_archive
 from ...logging import GarposLogger as logger
 from ...seafloor_site_tools.soundspeed_operations import CTDfile_to_svp, seabird_to_soundvelocity
 from es_sfgtools.data_mgmt.catalog import PreProcessCatalog
 from es_sfgtools.data_mgmt.file_schemas import AssetEntry, AssetType
 
-from .garpos_runner import GarposRunner
-from .data_prep import prepareShotData
+
+
 from .garpos_results_processor import GarposResultsProcessor
 from .garpos_config import DEFAULT_FILTER_CONFIG, DEFAULT_INVERSION_PARAMS
 
@@ -86,7 +87,7 @@ class GarposHandler:
         self.currentStation:str = None
         self.currentNetwork: str = None
 
-    def setNetworkStationCampaign(self,network: str, station: str, campaign_name: str):
+    def setNetworkStationCampaign(self,network: str, station: str, campaign: str):
         self.currentCampaign = None
         self.currentStation = None
         self.currentNetwork = None
@@ -107,33 +108,25 @@ class GarposHandler:
         if self.currentNetwork is None:
             raise ValueError(f"Network {network} not found in site metadata.")
 
-        for network_name in self.site.networks:
-            if network_name == network:
-                self.currentNetwork = self.site.networks[network_name]
-                break
-        if self.currentNetwork is None:
-            raise ValueError(f"Network {network} not found in site metadata.")
 
-        for campaign in self.site.campaigns:
-            if campaign.name == campaign_name:
-                self.currentCampaign = campaign
+        for campaignObj in self.site.campaigns:
+            if campaignObj.name == campaign:
+                self.currentCampaign = campaignObj
                 break
         if self.currentCampaign is None:
-            raise ValueError(f"Campaign {campaign_name} not found in site metadata.")
+            raise ValueError(f"Campaign {campaign} not found in site metadata.")
 
         self.directory_handler.build_station_directory(
             network_name=self.currentNetwork,
             station_name=self.currentStation,
             campaign_name=self.currentCampaign.name,
         )
-        self.directory_handler[self.currentNetwork][self.currentStation][
-            self.currentCampaign
-        ].garpos.build()
-        self.working_dir = self.directory_handler[self.currentNetwork][self.currentStation][self.currentCampaign].garpos.location
-        self.garpos_fixed._to_datafile(path=self.directory_handler[self.currentNetwork][self.currentStation][self.currentCampaign].garpos.default_settings)
-        log_dir = self.directory_handler[self.currentNetwork][self.currentStation][self.currentCampaign].log_directory
-        logger.set_dir(log_dir)
-        self.directory_handler.save()
+
+        # self.working_dir = self.directory_handler[self.currentNetwork][self.currentStation][self.currentCampaign].garpos.location
+        # self.garpos_fixed._to_datafile(path=self.directory_handler[self.currentNetwork][self.currentStation][self.currentCampaign].garpos.default_settings)
+        # log_dir = self.directory_handler[self.currentNetwork][self.currentStation][self.currentCampaign].log_directory
+        # logger.set_dir(log_dir)
+        # self.directory_handler.save()
 
     def setSurvey(self, name: str):
         """
@@ -157,13 +150,7 @@ class GarposHandler:
         if self.currentSurvey is None:
             raise ValueError(f"Survey {name} not found in campaign {self.currentCampaign.name}.")
 
-        self.directory_handler[self.currentNetwork][self.currentStation][
-                    self.currentCampaign
-                ].garpos.add_survey(name=name)
-        self.directory_handler.save()
-
-     
-
+        # self.directory_handler[self.currentNetwork][self.currentStation][self.currentCampaign]
     def prep_shotdata(
         self,
         overwrite: bool = False,
@@ -186,6 +173,15 @@ class GarposHandler:
             custom_filters=custom_filters
         )
 
+    def _prep_shotdata_survey(self, survey_id: str, override: bool = False):
+        surveyDir : SurveyDir = self.directory_handler[self.currentNetwork][self.currentStation][self.currentCampaign.name].surveys[survey_id]
+        garposSurveyDir : GARPOSSurveyDir = surveyDir.garpos
+
+        obs_file = garposSurveyDir.default_obsfile
+        if obs_file.exists() and not override:
+            return
+        
+        
     def get_obsfile_path(self, survey_id: str) -> Path:
         """
         Get the path to the observation file for a given survey.

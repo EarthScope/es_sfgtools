@@ -15,6 +15,7 @@ import json
 from ..data_mgmt.catalog import PreProcessCatalog
 from ..data_mgmt.directory_handler import DirectoryHandler
 
+from es_sfgtools.data_models.metadata.site import Site
 from ..data_mgmt.file_schemas import AssetEntry, AssetType
 from ..sonardyne_tools import sv3_operations as sv3_ops
 from ..novatel_tools import novatel_binary_operations as novb_ops,novatel_ascii_operations as nova_ops
@@ -689,3 +690,4 @@ class SV3Pipeline:
         self.process_kin()
         self.process_dfop00()
         self.update_shotdata()
+

@@ -15,9 +15,9 @@ The main classes are:
 """
 from pathlib import Path
 import os
-from pydantic import BaseModel,Field
+from pydantic import BaseModel,Field,PrivateAttr
 from typing import Optional
-
+import datetime
 
 # GARPOS-specific directory and file names
 GARPOS_DATA_DIR = "GARPOS"
@@ -60,7 +60,8 @@ class _Base(BaseModel):
     """
     model_config = {
         "json_encoders": {
-            Path: lambda v: str(v)
+            Path: lambda v: str(v),
+            datetime.datetime: lambda v: v.isoformat(),
         },
         'arbitrary_types_allowed': True
     }
@@ -69,101 +70,44 @@ class GARPOSSurveyDir(_Base):
     """
     Represents a GARPOS survey directory structure.
     """
-    survey_metadata: Optional[Path] = Field(default=None, description="The survey metadata file path",regex=r".*\.json$")
-    default_obsfile: Optional[Path] = Field(default=None, description="The default observation file path")
+    _name = PrivateAttr("GARPOS")
+
     location: Optional[Path] = Field(default=None, description="The survey directory path")
-    results_dir: Optional[Path] = Field(default=None, description="The results directory path")
-    shotdata: Optional[Path] = Field(default=None, description="The survey shotdata file path")
-    name: str = Field(..., description="The survey name")
-    garpos_campaign_dir: Path = Field(
-     description="The GARPOS campaign directory path"
+    log_directory: Optional[Path] = Field(default=None, description="The log directory path")
+    default_obsfile: Optional[Path] = Field(default=None, description="The default observation file path")
+    default_settings: Optional[Path] = Field(
+        default=None, description="The default GARPOS settings file path"
     )
+
+    results_dir: Optional[Path] = Field(default=None, description="The results directory path")
+    shotdata_rectified: Optional[Path] = Field(default=None, description="The survey shotdata file path")
+    shotdata_filtered: Optional[Path] = Field(default=None, description="The filtered shotdata file path")
+
+    survey_dir: Path = Field(..., description="The parent survey directory path")
 
     def build(self):
         """
         Creates the directory structure for the GARPOS survey.
         """
         if not self.location:
-            self.location = self.garpos_campaign_dir / self.name
-        
+            self.location = self.survey_dir / self._name
+
         if not self.default_obsfile:
             self.default_obsfile = self.location / GARPOS_DEFAULT_OBS_FILE
-
-        self.results_dir = self.location / GARPOS_RESULTS_DIR
-        if not self.survey_metadata:
-            self.survey_metadata = self.location / "survey_meta.json"
-
-        # Create directories if they don't exist
-        for path in [self.location, self.results_dir]:
-            path.mkdir(parents=True, exist_ok=True)
-
-class GARPOSCampaignDir(_Base):
-    """
-    Represents a GARPOS campaign directory structure.
-    """
-    shotdata: Optional[Path] = Field(default=None, description="The shotdata file path")
-    location: Optional[Path] = Field(default=None, description="The GARPOS directory path")
-    surveys: Optional[dict[str, GARPOSSurveyDir]] = Field(default={}, description="Surveys in the campaign")
-    default_settings: Optional[Path] = Field(default=None, description="The default GARPOS settings file path")
-    campaign: Path = Field(..., description="The campaign directory path")
-    svp_file: Optional[Path] = Field(default=None, description="The sound velocity profile file path",regex=r".*\.csv$")
-
-    def add_survey(self, name: str) -> bool:
-        """
-        Adds a new survey to the campaign.
-
-        Args:
-            name: The name of the survey to add.
-
-        Returns:
-            True if the survey was added successfully, False otherwise.
-        """
-        if name in self.surveys:
-            print(f"Survey {name} already exists in campaign {self.campaign.name}")
-            return False
-        new_survey = GARPOSSurveyDir(name=name, garpos_campaign_dir=self.location)
-        new_survey.build()
-        self.surveys[name] = new_survey
-        return True
-    
-    def build(self):
-        """
-        Creates the directory structure for the GARPOS campaign.
-        """
-
-        if not self.location:
-            self.location = self.campaign / GARPOS_DATA_DIR
-           
-        if not self.svp_file:
-            self.svp_file = self.location / SVP_FILE_NAME
 
         if not self.default_settings:
             self.default_settings = self.location / GARPOS_DEFAULT_SETTINGS_FILE
 
-        if not self.shotdata:
-            self.shotdata = self.location / GARPOS_SHOTDATA_DIRECTORY
+        if not self.log_directory:
+            self.log_directory = self.location / "logs"
 
-        for subdir in [self.location, self.shotdata]:
-            subdir.mkdir(parents=True, exist_ok=True)
+        if not self.results_dir:
+            self.results_dir = self.location / GARPOS_RESULTS_DIR
 
-        for survey in self.surveys.values():
-            survey.build()
+        # Create directories if they don't exist
+        for path in [self.location, self.results_dir,self.log_directory,]:
+            path.mkdir(parents=True, exist_ok=True)
 
-    def __getitem__(self, key: str) -> Optional[GARPOSSurveyDir]:
-        """
-        Gets a survey by name.
-
-        Args:
-            key: The name of the survey.
-
-        Returns:
-            The GARPOSSurveyDir object if found, None otherwise.
-        """
-        try:
-            return self.surveys[key]
-        except KeyError:
-            print(f"Survey {key} not found in campaign {self.campaign.name}")
-            return None
 
 class TileDBDir(_Base):
     """
@@ -203,6 +147,35 @@ class TileDBDir(_Base):
         if not self.acoustic_data:
             self.acoustic_data = self.location / ACOUSTIC_TDB
 
+class SurveyDir(_Base):
+    """
+    Represents a survey directory structure.
+    """
+    location: Optional[Path] = Field(default=None, description="The survey directory path")
+    shotdata: Optional[Path] = Field(default=None, description="The shotdata file path")
+    kinpositiondata: Optional[Path] = Field(default=None, description="The kinematic position file path")
+    imupositiondata: Optional[Path] = Field(default=None, description="The IMU position file path")
+    metadata: Optional[Path] = Field(default=None, description="The survey metadata file path")
+    garpos: Optional[GARPOSSurveyDir] = Field(default=None, description="GARPOS data directory path")
+
+    name: str = Field(..., description="The survey name")
+    campaign: Path = Field(..., description="The campaign directory path")
+
+    def build(self):
+        """
+        Creates the directory structure for the survey.
+        """
+        if not self.location:
+            self.location = self.campaign / self.name
+            self.location.mkdir(parents=True, exist_ok=True)
+
+        if not self.metadata:
+            self.metadata = self.location / SURVEY_METADATA_FILE
+
+        if not self.garpos:
+            self.garpos = GARPOSSurveyDir(survey_dir=self.location)
+            self.garpos.build()
+
 class CampaignDir(_Base):
     """
     Represents a campaign directory structure.
@@ -212,11 +185,11 @@ class CampaignDir(_Base):
     raw: Optional[Path] = Field(default=None, description="Raw data directory path")
     processed: Optional[Path] = Field(default=None, description="Processed data directory path")
     intermediate: Optional[Path] = Field(default=None, description="Intermediate data directory path")
-    garpos: Optional[GARPOSCampaignDir] = Field(default=None, description="GARPOS data directory path")
+    surveys: Optional[dict[str, SurveyDir]] = Field(default={}, description="Surveys in the campaign")
     log_directory: Optional[Path] = Field(default=None, description="Logs directory path")
     qc: Optional[Path] = Field(default=None, description="Quality control directory path")
-    campaign_metadata: Optional[Path] = Field(default=None, description="The campaign metadata file path",regex=r".*\.json$")
-
+    campaign_metadata: Optional[Path] = Field(default=None, description="The campaign metadata file path")
+    svp_file: Optional[Path] = Field(default=None, description="The sound velocity profile file path")
     # Fields needed to auto-generate paths
     station: Path
     name: str
@@ -238,20 +211,35 @@ class CampaignDir(_Base):
             self.processed = self.location / PROCESSED_DATA_DIR
         if not self.intermediate:
             self.intermediate = self.location / INTERMEDIATE_DATA_DIR
-        if not self.garpos:
-            self.garpos = GARPOSCampaignDir(campaign=self.location)
-
+     
         if not self.log_directory:
             self.log_directory = self.location / LOGS_DIR
         if not self.qc:
             self.qc = self.location / QC_DIR
+        if not self.svp_file:
+            self.svp_file = self.location / SVP_FILE_NAME
 
         # Create subdirectories
         for subdir in [self.location,self.raw, self.processed, self.intermediate, self.log_directory, self.qc]:
             subdir.mkdir(parents=True, exist_ok=True)
 
-        for tobuild in [self.garpos]:
-            tobuild.build()
+    def add_survey(self, name: str) -> SurveyDir:
+        """
+        Adds a new survey to the campaign.
+
+        Args:
+            name: The name of the survey to add.
+
+        Returns:
+            True if the survey was added successfully, False otherwise.
+        """
+        if name in self.surveys:
+            print(f"Survey {name} already exists in campaign {self.name}")
+            return self.surveys[name]
+        new_survey = SurveyDir(name=name, campaign=self.location)
+        new_survey.build()
+        self.surveys[name] = new_survey
+        return self.surveys[name]
 
 class StationDir(_Base):
     """
@@ -299,7 +287,7 @@ class StationDir(_Base):
             print(f"Campaign {key} not found in station {self.name}")
             return None
 
-    def add_campaign(self,name:str) -> bool:
+    def add_campaign(self,name:str) -> CampaignDir:
         """
         Adds a new campaign to the station.
 
@@ -307,15 +295,18 @@ class StationDir(_Base):
             name: The name of the campaign to add.
 
         Returns:
+            The CampaignDir object if added successfully, None otherwise.
+
+        Returns:
             True if the campaign was added successfully, False otherwise.
         """
         if name in self.campaigns:
             print(f"Campaign {name} already exists in station {self.name}")
-            return False
+            return self.campaigns[name]
         new_campaign = CampaignDir(name=name,station=self.location)
         new_campaign.build()
         self.campaigns[name] = new_campaign
-        return True
+        return self.campaigns[name]
 
 
 class NetworkDir(_Base):
@@ -358,7 +349,7 @@ class NetworkDir(_Base):
             print(f"Station {key} not found in network {self.name}")
             return None
     
-    def add_station(self,name:str) -> bool:
+    def add_station(self,name:str) -> StationDir:
         """
         Adds a new station to the network.
 
@@ -370,23 +361,29 @@ class NetworkDir(_Base):
         """
         if name in self.stations:
             print(f"Station {name} already exists in network {self.name}")
-            return False
+            return self.stations[name]
         new_station = StationDir(name=name,network=self.location)
         new_station.build()
         self.stations[name] = new_station
-        return True
+        return self.stations[name]
 
 
-class DirectoryHandler(BaseModel):
+class DirectoryHandler(_Base):
     """
     The main class for managing the directory structure.
     """
-    filepath:str = "directoryCatalog.json"
+    _filepath:str = PrivateAttr("directoryCatalog.json")
+
+    filepath: Optional[Path] = Field(default=None, description="Path to the directory structure JSON file")
+
     asset_catalog_db_path: Optional[Path] = Field(default=None, description="Path to the asset catalog database")
-    location: Path = Field(..., description="The main directory path")
 
     networks: Optional[dict[str, NetworkDir]] = {}
     pride_directory: Optional[Path] = Field(default=None, description="The PRIDE PPPAR binary directory path")
+
+    location: Path = Field(
+     description="The main directory path"
+    )
 
     def save(self):
         """
@@ -394,7 +391,7 @@ class DirectoryHandler(BaseModel):
         """
         with open(self.filepath, "w") as file:
             file.write(self.model_dump_json())
-    
+
     @classmethod
     def load(cls, path: str | Path) -> "DirectoryHandler":
         """
@@ -408,7 +405,9 @@ class DirectoryHandler(BaseModel):
         """
         with open(path, "r") as file:
             raw_data = file.read()
-        return cls.model_validate_json(raw_data)
+        directoryHandler = cls.model_validate_json(raw_data)
+        directoryHandler.filepath = path
+        return directoryHandler
 
     def add_network(self, name: str) -> bool:
         """
@@ -422,12 +421,12 @@ class DirectoryHandler(BaseModel):
         """
         if name in self.networks:
             print(f"Network {name} already exists.")
-            return False
+            return self.networks[name]
         new_network = NetworkDir(name=name,main_directory=self.location)
         new_network.build()
         self.networks[name] = new_network
-        return True
-    
+        return self.networks[name]
+
     def __getitem__(self, key: str) -> Optional[NetworkDir]:
         """
         Gets a network by name.
@@ -443,11 +442,18 @@ class DirectoryHandler(BaseModel):
         except KeyError:
             print(f"Network {key} not found.")
             return None
-        
+
     def build(self):
         """
         Creates the main directory structure.
         """
+        if not self.filepath:
+            self.filepath = self.location / self._filepath
+            if self.filepath.exists():
+                loaded = DirectoryHandler.load(self.filepath)
+                for key, value in loaded.__dict__.items():
+                    setattr(self, key, value)
+
         if not self.pride_directory:
             self.pride_directory = self.location / PRIDE_DIR
             self.pride_directory.mkdir(parents=True, exist_ok=True)
@@ -457,7 +463,7 @@ class DirectoryHandler(BaseModel):
             if not self.asset_catalog_db_path.exists():
                 self.asset_catalog_db_path.touch()
 
-    def build_station_directory(self,network_name:str,station_name:str=None,campaign_name:str=None) -> bool:
+    def build_station_directory(self,network_name:str,station_name:str=None,campaign_name:str=None,survey_name:str=None) -> Optional[tuple[NetworkDir,StationDir,CampaignDir,SurveyDir]]:
         """
         Builds a station directory, and optionally a campaign directory.
 
@@ -465,28 +471,103 @@ class DirectoryHandler(BaseModel):
             network_name: The name of the network.
             station_name: The name of the station.
             campaign_name: The name of the campaign.
+            survey_name: The name of the survey.
 
         Returns:
-            True if the directory was built successfully, False otherwise.
+            A tuple containing the created directory objects, or None if the directory was not built successfully.
         """
-
+        if station_name and not network_name:
+            print("Station name provided without network name.")
+            return None, None, None, None
         if campaign_name and not station_name:
             print("Campaign name provided without station name.")
-            return False
-        
-        network = self.networks.get(network_name)
-        if not network:
-            self.add_network(network_name)
+            return None, None, None, None
+        if survey_name and not campaign_name:
+            print("Survey name provided without campaign name.")
+            return None, None, None, None
+
+        if not (network := self.networks.get(network_name)):
+            networkDir: NetworkDir = self.add_network(name=network_name)
         
         if station_name:
-            network = self.networks[network_name]
-            station = network.stations.get(station_name)
-            if not station:
-                network.add_station(station_name)
-            station = network.stations[station_name]
-
+            if not (stationDir := networkDir.stations.get(station_name)):
+                stationDir: StationDir = networkDir.add_station(name=station_name)
+            
             if campaign_name:
-                if campaign_name not in station.campaigns:
-                    station.add_campaign(campaign_name)
+                if not (campaignDir := stationDir.campaigns.get(campaign_name)):
+                    campaignDir:CampaignDir = stationDir.add_campaign(name=campaign_name)
+                
+                if survey_name:
+                    if not (surveyDir := campaignDir.surveys.get(survey_name)):
+                        surveyDir:SurveyDir = campaignDir.add_survey(name=survey_name)
 
-        return True
+        return networkDir, stationDir, campaignDir, surveyDir
+
+
+# class GARPOSCampaignDir(_Base):
+#     """
+#     Represents a GARPOS campaign directory structure.
+#     """
+#     shotdata: Optional[Path] = Field(default=None, description="The shotdata file path")
+#     location: Optional[Path] = Field(default=None, description="The GARPOS directory path")
+#     surveys: Optional[dict[str, GARPOSSurveyDir]] = Field(default={}, description="Surveys in the campaign")
+#     default_settings: Optional[Path] = Field(default=None, description="The default GARPOS settings file path")
+#     campaign: Path = Field(..., description="The campaign directory path")
+#     svp_file: Optional[Path] = Field(default=None, description="The sound velocity profile file path",pattern=r".*\.csv$")
+
+#     def add_survey(self, name: str) -> bool:
+#         """
+#         Adds a new survey to the campaign.
+
+#         Args:
+#             name: The name of the survey to add.
+
+#         Returns:
+#             True if the survey was added successfully, False otherwise.
+#         """
+#         if name in self.surveys:
+#             print(f"Survey {name} already exists in campaign {self.campaign.name}")
+#             return False
+#         new_survey = GARPOSSurveyDir(name=name, garpos_campaign_dir=self.location)
+#         new_survey.build()
+#         self.surveys[name] = new_survey
+#         return True
+
+#     def build(self):
+#         """
+#         Creates the directory structure for the GARPOS campaign.
+#         """
+
+#         if not self.location:
+#             self.location = self.campaign / GARPOS_DATA_DIR
+
+#         if not self.svp_file:
+#             self.svp_file = self.location / SVP_FILE_NAME
+
+#         if not self.default_settings:
+#             self.default_settings = self.location / GARPOS_DEFAULT_SETTINGS_FILE
+
+#         if not self.shotdata:
+#             self.shotdata = self.location / GARPOS_SHOTDATA_DIRECTORY
+
+#         for subdir in [self.location, self.shotdata]:
+#             subdir.mkdir(parents=True, exist_ok=True)
+
+#         for survey in self.surveys.values():
+#             survey.build()
+
+# def __getitem__(self, key: str) -> Optional[GARPOSSurveyDir]:
+#     """
+#     Gets a survey by name.
+
+#     Args:
+#         key: The name of the survey.
+
+#     Returns:
+#         The GARPOSSurveyDir object if found, None otherwise.
+#     """
+#     try:
+#         return self.surveys[key]
+#     except KeyError:
+#         print(f"Survey {key} not found in campaign {self.campaign.name}")
+#         return None
