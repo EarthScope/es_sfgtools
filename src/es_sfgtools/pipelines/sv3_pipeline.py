@@ -781,3 +781,4 @@ class SV3Pipeline:
         self.process_kin()
         self.process_dfop00()
         self.update_shotdata()
+        self.process_svp()
