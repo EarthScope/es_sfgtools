@@ -129,10 +129,10 @@ class Campaign(AttributeUpdater, BaseModel):
 
         print("No overlapping survey times found.")
 
-    @model_serializer
-    def _serialize(self):
-        to_omit = ["vessel"]
-        return {k:v for k,v in self if k not in to_omit}
+    # @model_serializer
+    # def _serialize(self):
+    #     to_omit = ["vessel"]
+    #     return {k:v for k,v in self if k not in to_omit}
 
     def get_survey_by_datetime(self, dt: datetime) -> Survey:
         """Return the survey that contains the given datetime"""

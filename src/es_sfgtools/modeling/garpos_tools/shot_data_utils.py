@@ -15,7 +15,7 @@ DEFAULT_FILTER_CONFIG = {
         },
     "ping_replies": {
         "enabled": True, 
-        "min_replies": 3
+        "min_replies": 1
         },
     "max_distance_from_center": {
         "enabled": True, 

@@ -57,6 +57,7 @@ if __name__ == "__main__":
         site = Site.from_json(site_metadata)
 
     dh.parse_surveys(network=network, station=station, site=site,override=False)
+    dh.prep_garpos(network=network,station=station,site=site,campaign=campaign,override=False)
     # gp_handler_ncc1 = GarposHandler(
     #     main_directory=main_dir,
     #     site=site

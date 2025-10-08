@@ -356,11 +356,12 @@ class DataPostProcessor:
             )
             return
 
-        file_name_filtered = surveyDir.shotdata.with_suffix("_filtered.csv")
+        file_name_filtered = surveyDir.shotdata.parent / f"{surveyDir.shotdata.stem}_filtered.csv"
 
         if file_name_filtered.exists():
             shot_data_filtered = pd.read_csv(file_name_filtered)
-
+        else:
+            shot_data_filtered = pd.DataFrame()
         if shot_data_filtered.empty or overwrite:
             shot_data_filtered = filter_shotdata(
                 survey_type=survey.type,
@@ -386,10 +387,12 @@ class DataPostProcessor:
         array_dpos_center = get_array_dpos_center(coordTransformer, GPtransponders)
 
         shotdata_out_path = (
-            surveyDir.garpos / file_name_filtered.with_suffix("_rectified.csv").name
+            surveyDir.garpos.location / f"{file_name_filtered.stem}_rectified.csv"
         )
         if shotdata_out_path.exists():
             shot_data_rectified = pd.read_csv(shotdata_out_path)
+        else:
+            shot_data_rectified = pd.DataFrame()
         if shot_data_rectified.empty or overwrite:
             shot_data_rectified = prepare_shotdata_for_garpos(
                 coord_transformer=coordTransformer,

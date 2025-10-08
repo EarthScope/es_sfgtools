@@ -785,6 +785,26 @@ class DataHandler:
             write_intermediate=write_intermediate,
         )
 
+    def prep_garpos(self,network:str,station:str,campaign:str,site:Site,override:bool=False,write_intermediate:bool=False):
+        """
+        Prepares the GARPOS data for processing.
+
+        Args:
+            site (Site): The site object containing the campaign and survey information.
+        """
+        dataPostProcessor = DataPostProcessor(
+            site=site,
+            directory_handler=self.directory_handler,
+        )
+        dataPostProcessor.parse_surveys(
+            network=network,
+            station=station,
+            override=override,
+            write_intermediate=write_intermediate,
+        )
+        dataPostProcessor.prepare_shotdata_garpos(
+            campaign_id=campaign
+        )
     # @check_network_station_campaign
     # def view_data(self):
     #     shotdata_dates = self.shotdata_tdb.get_unique_dates().tolist()
