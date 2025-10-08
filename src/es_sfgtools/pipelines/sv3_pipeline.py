@@ -158,10 +158,13 @@ class SV3Pipeline:
     and uses TileDB for efficient storage and retrieval of time-series data.
     
     Attributes:
+
         directory_handler (DirectoryHandler): Manages the project directory structure,
             including network, station, and campaign directories.
+
         config (SV3PipelineConfig): Configuration settings for all pipeline steps,
             including Novatel, RINEX, PRIDE, DFOP00, and position update configs.
+
         asset_catalog (PreProcessCatalog): SQLite-based catalog for tracking processed
             assets and their relationships (parent-child, merge jobs).
         
@@ -185,36 +188,38 @@ class SV3Pipeline:
         gnssObsTDBURI (Path): Primary GNSS observation array (from Novatel 770)
         gnssObsTDB_secondaryURI (Path): Secondary GNSS observation array (from Novatel 000)
     
-    Example:
-        ```python
-        from es_sfgtools.data_mgmt.directory_handler import DirectoryHandler
-        from es_sfgtools.pipelines.sv3_pipeline import SV3Pipeline, SV3PipelineConfig
-        
-        # Initialize directory handler
-        handler = DirectoryHandler(location=Path("/data/SFGMain"))
-        handler.build()
-        
-        # Create pipeline with custom config
-        config = SV3PipelineConfig()
-        config.pride_config.sample_frequency = 30  # 30-second epochs
-        
-        pipeline = SV3Pipeline(directory_handler=handler, config=config)
-        
-        # Set processing context
-        pipeline.setNetworkStationCampaign(
-            network="cascadia-gorda",
-            station="NCC1",
-            campaign="2023_A_1126"
-        )
-        
-        # Run full pipeline
-        pipeline.run_pipeline()
-        ```
+    Methods:
     
-    See Also:
-        - DirectoryHandler: For managing directory structures
-        - SV3PipelineConfig: For configuring pipeline behavior
-        - PreProcessCatalog: For tracking processed assets
+        setNetworkStationCampaign(network, station, campaign):
+            Set the current processing context and initialize directories and TileDB arrays.
+        
+        _build_rinex_metadata():
+            Prepare metadata for RINEX file generation from GNSS observations.
+
+        pre_process_novatel():
+            Preprocess Novatel 770 and 000 binary files into TileDB arrays.
+
+        get_rinex_files():
+            Generate daily RINEX files from TileDB GNSS observations.
+
+        process_rinex():
+            Process RINEX files using PRIDE-PPPAR to generate Kinematic files.
+
+        process_kin():
+            Convert Kinematic files to structured dataframes and store in TileDB.
+        
+        process_dfop00():
+            Process Sonardyne DFOP00 files to generate preliminary shotdata.
+        
+        update_shotdata():
+            Refine shotdata by interpolating high-precision GNSS positions.
+        
+        process_svp():
+            Process CTD and Seabird files to generate sound velocity profiles.
+        
+        run_pipeline():
+            Execute the full processing pipeline in sequence.
+
     """
 
     def __init__(
