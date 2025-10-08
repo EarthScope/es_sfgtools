@@ -145,7 +145,6 @@ class DataHandler:
     def __init__(
         self,
         directory: Path | str,
-        data_catalog: Catalog = None,
     ) -> None:
         """
         Initialize the DataHandler object.
@@ -251,23 +250,7 @@ class DataHandler:
         self.gnss_obs_tdb.consolidate()
         self.gnss_obs_secondary_tdb.consolidate()
 
-    @check_network_station_campaign
-    def _build_rinex_meta(self) -> None:
-        """
-        Build the RINEX metadata for a station.
-        Args:
-            station_dir (Path): The station directory to build the RINEX metadata for.
-        """
-        # Get the RINEX metadata
-        self.rinex_metav2 = self.currentStationDir.location / "rinex_metav2.json"
-        self.rinex_metav1 = self.currentStationDir.location / "rinex_metav1.json"
-        if not self.rinex_metav2.exists():
-            with open(self.rinex_metav2, "w") as f:
-                json.dump(get_metadatav2(site=self.current_station), f)
 
-        if not self.rinex_metav1.exists():
-            with open(self.rinex_metav1, "w") as f:
-                json.dump(get_metadata(site=self.current_station), f)
 
     def change_working_station(
         self,
@@ -292,7 +275,6 @@ class DataHandler:
         # Build the campaign directory structure and TileDB arrays, this changes the logger directory as well
         self._build_station_dir_structure(network, station, campaign)
         self._build_tileDB_arrays()
-        self._build_rinex_meta()
 
         logger.loginfo(f"Changed working station to {network} {station} {campaign}")
 
@@ -698,7 +680,7 @@ class DataHandler:
         pipeline = SV3Pipeline(
            directory_handler=self.directory_handler, config=config
         )
-        pipeline.set_site_data(
+        pipeline.setNetworkStationCampaign(
             network=self.current_network,
             station=self.current_station,
             campaign=self.current_campaign

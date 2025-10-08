@@ -188,7 +188,9 @@ class CampaignDir(_Base):
     surveys: Optional[dict[str, SurveyDir]] = Field(default={}, description="Surveys in the campaign")
     log_directory: Optional[Path] = Field(default=None, description="Logs directory path")
     qc: Optional[Path] = Field(default=None, description="Quality control directory path")
+    metadata_directory: Optional[Path] = Field(default=None, description="Metadata directory path")
     campaign_metadata: Optional[Path] = Field(default=None, description="The campaign metadata file path")
+    rinex_metadata: Optional[Path] = Field(default=None, description="The RINEX metadata file path")
     svp_file: Optional[Path] = Field(default=None, description="The sound velocity profile file path")
     # Fields needed to auto-generate paths
     station: Path
@@ -201,9 +203,12 @@ class CampaignDir(_Base):
         if not self.location:
             self.location = self.station / self.name
 
+        if not self.metadata_directory:
+            self.metadata_directory = self.location / "metadata"
+
         if not self.campaign_metadata:
-            self.campaign_metadata = self.location / CAMPAIGN_METADATA_FILE
-        # Auto-generate subdirectory paths if not provided
+            self.campaign_metadata = self.metadata_directory / CAMPAIGN_METADATA_FILE
+      
         if not self.raw:
             self.raw = self.location / RAW_DATA_DIR
 
@@ -220,7 +225,7 @@ class CampaignDir(_Base):
             self.svp_file = self.processed / SVP_FILE_NAME
 
         # Create subdirectories
-        for subdir in [self.location,self.raw, self.processed, self.intermediate, self.log_directory, self.qc]:
+        for subdir in [self.location,self.raw, self.processed, self.intermediate, self.log_directory, self.qc, self.metadata_directory]:
             subdir.mkdir(parents=True, exist_ok=True)
 
     def add_survey(self, name: str) -> SurveyDir:
@@ -485,8 +490,13 @@ class DirectoryHandler(_Base):
         if survey_name and not campaign_name:
             print("Survey name provided without campaign name.")
             return None, None, None, None
+        
+        networkDir: NetworkDir = None
+        stationDir: StationDir = None
+        campaignDir: CampaignDir = None
+        surveyDir: SurveyDir = None
 
-        if not (network := self.networks.get(network_name)):
+        if not (networkDir:= self.networks.get(network_name)):
             networkDir: NetworkDir = self.add_network(name=network_name)
         
         if station_name:
