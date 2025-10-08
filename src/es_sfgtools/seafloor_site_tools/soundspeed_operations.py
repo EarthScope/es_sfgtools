@@ -12,29 +12,6 @@ from ..logging import ProcessLogger as logger
 
 
 @pa.check_types(lazy=True)
-def ctd_to_soundvelocity(
-    source: str | Path,
-) -> DataFrame[SoundVelocityDataFrame]:
-
-
-    df = pd.read_csv(
-        source,
-        sep=" ",
-        header=None,
-        float_precision="round_trip",
-        dtype=np.float64,
-        skiprows=1,
-    )
-    df = df.rename(columns={0: "depth", 1: "speed"})
-    df["depth"] *= -1
-    for row in df.itertuples():
-        df.at[row.Index, "speed"] += row.Index / 1000
-        df.at[row.Index, "speed"] += np.random.randint(0, 1000) / 100000
-
-    return SoundVelocityDataFrame(df, lazy=True)
-
-
-@pa.check_types(lazy=True)
 def seabird_to_soundvelocity(
     source: str | Path,
 ) -> DataFrame[SoundVelocityDataFrame]:
@@ -92,11 +69,33 @@ def seabird_to_soundvelocity(
 
 
 @pa.check_types(lazy=True)
-def CTDfile_to_svp(
+def CTD_to_svp_v1(
     source: str | Path,
 ) -> DataFrame[SoundVelocityDataFrame]:
 
     df = pd.read_csv(source, usecols=[0, 1], names=["depth", "speed"], sep="\s+")
     df.depth = df.depth * -1
+
+    return SoundVelocityDataFrame(df, lazy=True)
+
+
+@pa.check_types(lazy=True)
+def CTD_to_svp_v2(
+    source: str | Path,
+) -> DataFrame[SoundVelocityDataFrame]:
+
+    df = pd.read_csv(
+        source,
+        sep=" ",
+        header=None,
+        float_precision="round_trip",
+        dtype=np.float64,
+        skiprows=1,
+    )
+    df = df.rename(columns={0: "depth", 1: "speed"})
+    df["depth"] *= -1
+    for row in df.itertuples():
+        df.at[row.Index, "speed"] += row.Index / 1000
+        df.at[row.Index, "speed"] += np.random.randint(0, 1000) / 100000
 
     return SoundVelocityDataFrame(df, lazy=True)

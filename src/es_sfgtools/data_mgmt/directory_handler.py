@@ -217,7 +217,7 @@ class CampaignDir(_Base):
         if not self.qc:
             self.qc = self.location / QC_DIR
         if not self.svp_file:
-            self.svp_file = self.location / SVP_FILE_NAME
+            self.svp_file = self.processed / SVP_FILE_NAME
 
         # Create subdirectories
         for subdir in [self.location,self.raw, self.processed, self.intermediate, self.log_directory, self.qc]:

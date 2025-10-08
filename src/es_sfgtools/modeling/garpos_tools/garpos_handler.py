@@ -29,7 +29,7 @@ from es_sfgtools.modeling.garpos_tools.functions import CoordTransformer,process
 
 from es_sfgtools.utils.archive_pull import download_file_from_archive
 from ...logging import GarposLogger as logger
-from ...seafloor_site_tools.soundspeed_operations import CTDfile_to_svp, seabird_to_soundvelocity
+from ...seafloor_site_tools.soundspeed_operations import CTD_to_svp_v1, seabird_to_soundvelocity
 from es_sfgtools.data_mgmt.catalog import PreProcessCatalog
 from es_sfgtools.data_mgmt.file_schemas import AssetEntry, AssetType
 

@@ -7,7 +7,6 @@ import pandas as pd
 from typing import List, Optional
 from pathlib import Path
 import concurrent.futures
-from es_sfgtools.data_models.metadata import MetaDataCatalog as MetaDataCatalog
 import sys 
 import json
 
@@ -19,6 +18,15 @@ from ..data_mgmt.file_schemas import AssetEntry, AssetType
 from ..sonardyne_tools import sv3_operations as sv3_ops
 from ..novatel_tools import novatel_binary_operations as novb_ops,novatel_ascii_operations as nova_ops
 from ..novatel_tools.utils import get_metadata,get_metadatav2
+from ..seafloor_site_tools.soundspeed_operations import (
+    CTD_to_svp_v1 ,
+    seabird_to_soundvelocity,
+    CTD_to_svp_v2
+)
+from .pipeline import SV3PipelineConfig, SV3Pipeline
+from ..logging import ProcessLogger
+from ..configuration import SV3PipelineConfig
+
 from ..tiledb_tools.tiledb_operations import tile2rinex
 from ..pride_tools import (
     PrideCLIConfig,
@@ -695,6 +703,64 @@ class SV3Pipeline:
              
             )
             self.asset_catalog.add_merge_job(**merge_job)
+
+    def process_svp(self):
+  
+
+        ctd_entries: List[AssetEntry] = self.asset_catalog.get_local_assets(
+            network=self.currentNetwork,
+            station=self.currentStation,
+            campaign=self.currentCampaign,
+            type=AssetType.CTD,
+        )
+        seabird_entries: List[AssetEntry] = self.asset_catalog.get_local_assets(
+            network=self.currentNetwork,
+            station=self.currentStation,
+            campaign=self.currentCampaign,
+            type=AssetType.SEABIRD,
+        )
+        if not ctd_entries and not seabird_entries:
+            response = f"No CTD or SEABIRD Files Found to Process for {self.currentNetwork} {self.currentStation} {self.currentCampaign}"
+            ProcessLogger.logerr(response)
+            return
+        for ctd_entry in ctd_entries:
+            isProcessed = False
+            svp_df = pd.DataFrame()
+            try:
+                svp_df = CTD_to_svp_v1(ctd_entry.local_path)
+                if not svp_df.empty:
+                    ProcessLogger.loginfo(f"Processed SVP data from CTD file {ctd_entry.local_path} to dataframe with CTD_to_svp_v1")
+                    isProcessed = True
+
+            except Exception as e:
+                ProcessLogger.logerr(f"Error processing CTD file {ctd_entry.local_path} with CTD_to_svp_v1: {e}")
+            if not isProcessed:
+                try:
+                    svp_df = CTD_to_svp_v2(ctd_entry.local_path)
+                    if not svp_df.empty:
+                        ProcessLogger.loginfo(f"Processed SVP data from CTD file {ctd_entry.local_path} to dataframe with CTD_to_svp_v2")
+                except Exception as e:
+                    ProcessLogger.logerr(f"Error processing CTD file {ctd_entry.local_path} with CTD_to_svp_v2: {e}")
+                    continue
+            if not svp_df.empty:
+                svp_df.to_csv(self.currentCampaignDir.svp_file, index=False)
+                ctd_entry.is_processed = True
+                self.asset_catalog.add_or_update(ctd_entry)
+                ProcessLogger.loginfo(f"Saved SVP dataframe to {str(self.currentCampaignDir.svp_file)}")
+                return
+            
+        for seabird_entry in seabird_entries:
+            try:
+                svp_df = seabird_to_soundvelocity(seabird_entry.local_path)
+                if not svp_df.empty:
+                    svp_df.to_csv(self.currentCampaignDir.svp_file, index=False)
+                    seabird_entry.is_processed = True
+                    self.asset_catalog.add_or_update(seabird_entry)
+                    ProcessLogger.loginfo(f"Processed SVP data from Seabird file {seabird_entry.local_path} and saved to {str(self.currentCampaignDir.svp_file)}")
+                    return
+            except Exception as e:
+                ProcessLogger.logerr(f"Error processing Seabird file {seabird_entry.local_path}: {e}")
+                continue
 
     def run_pipeline(self):
         """
