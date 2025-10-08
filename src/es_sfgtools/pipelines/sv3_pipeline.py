@@ -23,9 +23,7 @@ from ..seafloor_site_tools.soundspeed_operations import (
     seabird_to_soundvelocity,
     CTD_to_svp_v2
 )
-from .pipeline import SV3PipelineConfig, SV3Pipeline
 from ..logging import ProcessLogger
-from ..configuration import SV3PipelineConfig
 
 from ..tiledb_tools.tiledb_operations import tile2rinex
 from ..pride_tools import (
