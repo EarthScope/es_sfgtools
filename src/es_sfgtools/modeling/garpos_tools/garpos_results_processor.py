@@ -2,19 +2,20 @@
 This module contains the GarposResultsProcessor class, which is responsible for processing and analyzing GARPOS results.
 """
 
-from pathlib import Path
 import json
-import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
-from matplotlib.colors import Normalize
-from matplotlib.collections import LineCollection
-import matplotlib.dates as mdates
-import seaborn as sns
 from datetime import datetime
+from pathlib import Path
 
-from es_sfgtools.modeling.garpos_tools.schemas import GarposInput, ObservationData
+import matplotlib.dates as mdates
+import matplotlib.gridspec as gridspec
+import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
+from matplotlib.collections import LineCollection
+from matplotlib.colors import Normalize
+
 from es_sfgtools.logging import GarposLogger as logger
+from es_sfgtools.modeling.garpos_tools.schemas import GarposInput, ObservationData
 
 sns.set_theme()
 

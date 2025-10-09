@@ -2,35 +2,35 @@
 This module contains the GarposDataPreparer class, which is responsible for preparing GARPOS input data.
 """
 
+from datetime import datetime
 from pathlib import Path
 from typing import List, Optional, Tuple
-import pandas as pd
-from datetime import datetime
-import json
 
-from es_sfgtools.data_models.metadata.site import Site
+import pandas as pd
+
 from es_sfgtools.data_models.metadata.benchmark import Benchmark, Transponder
-from es_sfgtools.data_models.metadata.campaign import Survey, Campaign
-from es_sfgtools.data_models.observables import ShotDataFrame
+from es_sfgtools.data_models.metadata.campaign import Campaign, Survey
+from es_sfgtools.data_models.metadata.site import Site
+from es_sfgtools.logging import GarposLogger as logger
+from es_sfgtools.modeling.garpos_tools.functions import (
+    CoordTransformer,
+    rectify_shotdata,
+)
 from es_sfgtools.modeling.garpos_tools.schemas import (
     GarposInput,
-    GPTransponder,
     GPATDOffset,
     GPPositionENU,
     GPPositionLLH,
+    GPTransponder,
 )
-from es_sfgtools.data_mgmt.directory_handler import DirectoryHandler,SurveyDir,GARPOSSurveyDir,TileDBDir,CampaignDir,NetworkDir
-from es_sfgtools.modeling.garpos_tools.functions import CoordTransformer, rectify_shotdata
-from es_sfgtools.logging import GarposLogger as logger
-from es_sfgtools.tiledb_tools.tiledb_schemas import TDBShotDataArray,TDBKinPositionArray,TDBIMUPositionArray
 from es_sfgtools.modeling.garpos_tools.shot_data_utils import (
+    DEFAULT_FILTER_CONFIG,
+    difficult_acoustic_diagnostics,
     filter_ping_replies,
+    filter_pride_residuals,
     filter_wg_distance_from_center,
     good_acoustic_diagnostics,
     ok_acoustic_diagnostics,
-    difficult_acoustic_diagnostics,
-    filter_pride_residuals,
-    DEFAULT_FILTER_CONFIG
 )
 
 
@@ -101,7 +101,7 @@ def filter_shotdata(
         elif level == "DIFFICULT":
             new_shot_data_df = difficult_acoustic_diagnostics(new_shot_data_df)
         else:
-            logger.loginfo(f"No acoustic filtering applied, using original shot data")
+            logger.loginfo("No acoustic filtering applied, using original shot data")
 
     ping_replies_config = filter_config.get("ping_replies", {})
     if ping_replies_config.get("enabled", True):

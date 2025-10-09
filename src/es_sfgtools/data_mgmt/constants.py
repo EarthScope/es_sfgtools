@@ -1,10 +1,12 @@
 """
 This module contains constants for the data management module.
 """
+import datetime
 from enum import Enum
-from pydantic import BaseModel, Field
-import datetime 
 from typing import Optional
+
+from pydantic import BaseModel, Field
+
 
 class REMOTE_TYPE(Enum):
     S3 = "s3"

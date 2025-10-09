@@ -1,5 +1,8 @@
 from datetime import datetime
 from typing import List, Optional
+
+from pydantic import BaseModel, Field, field_validator
+
 from .utils import (
     AttributeUpdater,
     check_dates,
@@ -7,7 +10,6 @@ from .utils import (
     parse_datetime,
 )
 from .vessel import Vessel
-from pydantic import BaseModel, Field, field_validator,model_serializer
 
 
 def campaign_checks(campaign_year, campaign_interval, vessel_code):

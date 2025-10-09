@@ -1,16 +1,13 @@
 import shutil
 import subprocess
-from datetime import datetime
-from pathlib import Path
-from typing import Union, Tuple
-import re
 from collections import namedtuple
+from pathlib import Path
+from typing import Tuple
 
-from .gnss_product_operations import get_gnss_products
-from .pride_cli_config import PrideCLIConfig
-from .rinex_utils import rinex_get_time_range
 from ..logging import PRIDELogger as logger
 from ..utils.command_line_utils import parse_cli_logs
+from .pride_cli_config import PrideCLIConfig
+from .rinex_utils import rinex_get_time_range
 
 # make output of subprocess.Popen identical to  subprocess.run
 result = namedtuple("result", ["stdout", "stderr"])

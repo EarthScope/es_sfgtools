@@ -1,22 +1,24 @@
 # External imports
-from pathlib import Path
-import subprocess
-from typing import List
-import re
-import uuid
-import tempfile
 import json
 import shutil
+import subprocess
+import tempfile
+import uuid
+from pathlib import Path
+from typing import List
+
 import numpy as np
+
+from ..logging import ProcessLogger as logger
 
 # Local imports
 from .utils import (
-    get_nova2tile_binary_path,
-    get_nova2rnxo_binary_path,
     get_metadata,
+    get_nova2rnxo_binary_path,
+    get_nova2tile_binary_path,
     parse_cli_logs,
 )
-from ..logging import ProcessLogger as logger
+
 
 def novatel_ascii_2tile(files: List[str], gnss_obs_tdb: Path, n_procs: int = 10) -> None:
     """

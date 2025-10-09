@@ -1,55 +1,35 @@
-import pandera as pa
-from pandera.typing import DataFrame
-from pathlib import Path
-from typing import List, Tuple, Union
-import pandas as pd
-from configparser import ConfigParser
-import matplotlib.pyplot as plt
-from datetime import datetime, timedelta
-import numpy as np
-import sys
-import os
-import pymap3d as pm
 import math
-import julian
-import logging
-from scipy.stats import hmean as harmonic_mean
-import json
-from matplotlib.colors import Normalize
-from matplotlib.collections import LineCollection
-import matplotlib.dates as mdates
+import sys
+from typing import List, Tuple
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import pymap3d as pm
 import seaborn as sns
+from scipy.stats import hmean as harmonic_mean
+
 sns.set_theme()
-import matplotlib.gridspec as gridspec
-
-from es_sfgtools.data_models.metadata.site import Site
 
 
-from es_sfgtools.data_models.observables import (
-    ShotDataFrame,
-    SoundVelocityDataFrame,
-)
+
 
 from es_sfgtools.modeling.garpos_tools.schemas import (
     GarposInput,
-    GarposFixed,
-    InversionParams,
-    InversionType,
-    ObservationData,
     GarposObservationOutput,
     GPPositionENU,
-    GPATDOffset,
-    GPTransponder,
     GPPositionLLH,
+    GPTransponder,
+    ObservationData,
 )
-from ...logging import GarposLogger as logger
 
+from ...logging import GarposLogger as logger
 from .load_utils import load_drive_garpos
 
 try:
     drive_garpos = load_drive_garpos()
-except Exception as e:
-    from garpos import drive_garpos
+except Exception:
+    pass
 
 colors = [
     "blue",

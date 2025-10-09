@@ -1,15 +1,16 @@
+import json
 from datetime import datetime
 from enum import Enum
-import json
 from typing import Any, ClassVar, Dict, List, Optional
+
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from .utils import (
     AttributeUpdater,
+    check_dates,
     check_fields_for_empty_strings,
     only_one_is_true,
     parse_datetime,
-    check_dates,
 )
 
 

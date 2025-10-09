@@ -1,23 +1,19 @@
 # External imports
-from ftplib import FTP
-import gzip
 import datetime
-from pathlib import Path
-from typing import Dict, IO
-import tempfile
+import gzip
 import re
-from typing import Optional,Literal
-# Local imports
-from .gnss_product_schemas import (
-    RemoteQuery,
-    RemoteResource,
-    WuhanIGS,
-    CLSIGS,
-    GSSC
-)
-from .pride_file_config import PRIDEPPPFileConfig,SatelliteProducts
-from .rinex_utils import rinex_get_time_range
+import tempfile
+from ftplib import FTP
+from pathlib import Path
+from typing import IO, Dict, Literal, Optional
+
 from ..logging import PRIDELogger as logger
+
+# Local imports
+from .gnss_product_schemas import CLSIGS, GSSC, RemoteQuery, RemoteResource, WuhanIGS
+from .pride_file_config import PRIDEPPPFileConfig, SatelliteProducts
+from .rinex_utils import rinex_get_time_range
+
 
 def update_source(source: RemoteResource) -> RemoteResource:
     """

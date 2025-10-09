@@ -1,7 +1,6 @@
-from pydantic import BaseModel
-from es_sfgtools.processing.assets.siteconfig import Campaign,Site
-import datetime
 from pathlib import Path
+
+from es_sfgtools.processing.assets.siteconfig import Site
 
 # Need to take in a .json defining individual surveys and use that to
 # Interface with GARPOS

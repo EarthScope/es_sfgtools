@@ -1,12 +1,12 @@
-import matplotlib.pyplot as plt
-from collections import defaultdict
-import numpy as np
 import datetime
+from collections import defaultdict
 from typing import List
 
-from ..processing.assets.tiledb import TDBKinPositionArray   
+import matplotlib.pyplot as plt
+import numpy as np
+
 from ..data_mgmt.file_schemas import AssetEntry
-from ..data_mgmt.catalog import PreProcessCatalog
+from ..processing.assets.tiledb import TDBKinPositionArray
 
 UNIX_EPOCH = np.datetime64("1970-01-01T00:00:00Z")
 def to_timestamp(time:np.datetime64 | datetime.datetime) -> float:
@@ -36,7 +36,7 @@ def get_rinex_timelast(rinex_asset:AssetEntry) -> datetime.datetime:
                     )
                     if current_date > ref_date:
                         ref_date = current_date
-                except Exception as e:
+                except Exception:
                     pass
     return ref_date
 

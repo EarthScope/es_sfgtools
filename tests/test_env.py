@@ -1,7 +1,9 @@
 import os
+
 import pytest
-import sys
-import env 
+
+import env
+
 
 @pytest.fixture
 def set_env_var():
@@ -37,11 +39,8 @@ class TestGetEnvRequired:
 
 class TestGarposInstall:
     def is_garpos_installed(self):
-        try:
-            import garpos
-            from garpos import drive_garpos
-            return True
-        except ImportError:
-            return False
+        import importlib.util
+        garpos_spec = importlib.util.find_spec("garpos")
+        return garpos_spec is not None
     def test_garpos_install(self):
         assert self.is_garpos_installed(), "Garpos not installed"

@@ -1,16 +1,19 @@
 # External imports
-from pathlib import Path
 import json
-from pandera.typing import DataFrame
+from datetime import datetime
+from pathlib import Path
+
 import pandas as pd
 import pymap3d as pm
-from datetime import datetime
+from pandera.typing import DataFrame
+
+from ..data_models.community_standards import SFGDSTFSeafloorAcousticData, SFGDTSFSite
+from ..data_models.constants import LEAP_SECONDS, TRIGGER_DELAY_SV3
+
 # Local imports
 from ..data_models.log_models import SV3InterrogationData, SV3ReplyData
-from ..data_models.sv3_models import NovatelRangeEvent,NovatelInterrogationEvent
 from ..data_models.observables import ShotDataFrame
-from ..data_models.constants import LEAP_SECONDS,TRIGGER_DELAY_SV3
-from ..data_models.community_standards import SFGDTSFSite,SFGDSTFSeafloorAcousticData
+from ..data_models.sv3_models import NovatelInterrogationEvent, NovatelRangeEvent
 from ..logging import ProcessLogger as logger
 
 
@@ -168,7 +171,7 @@ def dfop00_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
                 interrogation = NovatelInterrogationEvent(**data)
                 interrogation_parsed = novatelInterrogation_to_garpos_interrogation(interrogation)
                 #logger.loginfo(f"Interrogation: pingTime: {interrogation_parsed.pingTime}")
-            except Exception as e:
+            except Exception:
                 interrogation_parsed = None
 
         if data.get("event") == "range":
@@ -177,7 +180,7 @@ def dfop00_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
                 reply_data_parsed = novatelReply_to_garpos_reply(reply_data)
                 #logger.loginfo(f"Reply: \n  returnTime: {reply_data_parsed.returnTime}\n  tt: {reply_data_parsed.tt}")
 
-            except Exception as e:
+            except Exception:
                 reply_data_parsed = None
 
             if reply_data_parsed is not None and interrogation_parsed is not None:

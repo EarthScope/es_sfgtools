@@ -1,15 +1,16 @@
-from pathlib import Path
+import datetime
 import re
 import warnings
+from pathlib import Path
 from typing import List, Union
-import datetime
-from .file_schemas import AssetType,AssetEntry
+
+from .file_schemas import AssetType
 
 pattern_map = {
     re.compile(r"\.\d{2}O$"): AssetType.RINEX,
     re.compile("sonardyne"): AssetType.SONARDYNE,
     re.compile(r"^(?=.*novatel)(?!.*pin).*$", re.IGNORECASE): AssetType.NOVATELPIN,
-    re.compile(f"novatel"): AssetType.NOVATEL,
+    re.compile("novatel"): AssetType.NOVATEL,
     re.compile("kin"): AssetType.KIN,
     re.compile("NOV000"): AssetType.NOVATEL000,
     # re.compile("rinex"): AssetType.RINEX,

@@ -1,17 +1,18 @@
 """
 This module is for development and testing of the CLI.
 """
+import os
 import sys
 from pathlib import Path
-import os
+
 sys.path.append((test:=str(Path(__file__).parent.parent)))
 os.environ["DYLD_LIBRARY_PATH"] = os.environ.get("CONDA_PREFIX", "") + "/lib"
 from pathlib import Path
+
 sys.path.append("/Users/franklyndunbar/Project/SeaFloorGeodesy/gnatss/src")
-import gnatss
 
 if __name__ == "__main__":
-    from src import run_manifest, PipelineManifest
+    from src import PipelineManifest, run_manifest
     pride_path = Path.home() / ".PRIDE_PPPAR_BIN"
     os.environ["PATH"] += os.pathsep + str(pride_path)
 

@@ -1,16 +1,15 @@
-from pathlib import Path
-from typing import List, Optional
-import yaml
-from enum import Enum
 import json
 import os
-from pydantic import BaseModel, Field, field_serializer, field_validator
-from es_sfgtools.pipelines.sv3_pipeline import SV3PipelineConfig
-from es_sfgtools.modeling.garpos_tools.schemas import (
-    InversionParams
-)
+from enum import Enum
+from pathlib import Path
+from typing import List, Optional
 
-from rich import table
+import yaml
+from pydantic import BaseModel, Field, field_serializer, field_validator
+
+from es_sfgtools.modeling.garpos_tools.schemas import InversionParams
+from es_sfgtools.pipelines.sv3_pipeline import SV3PipelineConfig
+
 
 class PipelineJobType(str, Enum):
     PREPROCESSING = "preprocessing"

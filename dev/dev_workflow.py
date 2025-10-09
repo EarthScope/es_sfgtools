@@ -1,12 +1,15 @@
 # download, preprocess, and postprocess SV3 data
-from pathlib import Path
 import os
+from pathlib import Path
+
 os.environ["DYLD_LIBRARY_PATH"] = os.environ.get("CONDA_PREFIX", "") + "/lib:" + os.environ.get("DYLD_LIBRARY_PATH", "")
 PRIDE_DIR = Path.home()/".PRIDE_PPPAR_BIN"
 os.environ["PATH"] += os.pathsep + str(PRIDE_DIR)
 from es_sfgtools.data_mgmt.data_handler import DataHandler
 from es_sfgtools.data_mgmt.post_processing import IntermediateDataProcessor
 from es_sfgtools.modeling.garpos_tools.garpos_handler import GarposHandler
+
+
 def main():
     main_dir = Path("/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain2")
     network = "cascadia-gorda"

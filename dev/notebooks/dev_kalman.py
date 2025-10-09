@@ -1,25 +1,23 @@
 import os
 from pathlib import Path
+
 import pandas as pd
 
 from es_sfgtools.data_mgmt.data_handler import DataHandler
+
 pride_path = Path.home() / ".PRIDE_PPPAR_BIN"
 os.environ["PATH"] += os.pathsep + str(pride_path)
-import matplotlib.pyplot as plt
-
-from nptyping import NDArray
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk
 
 import sys
-sys.path.append("/Users/franklyndunbar/Project/SeaFloorGeodesy/gnatss/src")
-import gnatss
-from gnatss.ops.kalman import run_filter_simulation
-import gnatss.constants as constants
-import datetime
-import pymap3d
 
+import numpy as np
+
+sys.path.append("/Users/franklyndunbar/Project/SeaFloorGeodesy/gnatss/src")
+import datetime
+
+import gnatss.constants as constants
+import pymap3d
+from gnatss.ops.kalman import run_filter_simulation
 
 GPS_EPOCH = datetime.datetime(1980, 1, 6, 0, 0, 0)
 J200_EPOCH = datetime.datetime(2000, 1, 1, 12, 0, 0)

@@ -1,58 +1,40 @@
 """
 This module defines the DataPostProcessor class, which is responsible for post-processing of data.
 """
-from pathlib import Path
-from typing import List, Optional, Tuple
-import pandas as pd
-from datetime import datetime
 import json
 import shutil
+from typing import List, Optional
 
-from es_sfgtools.data_models.metadata.site import Site
-from es_sfgtools.data_models.metadata.benchmark import Benchmark, Transponder
-from es_sfgtools.data_models.metadata.campaign import Survey, Campaign
-from es_sfgtools.data_models.observables import ShotDataFrame
-from es_sfgtools.modeling.garpos_tools.schemas import (
-    GarposInput,
-    GPTransponder,
-    GPATDOffset,
-    GPPositionENU,
-    GPPositionLLH,
-    GarposFixed
-)
+import pandas as pd
+
 from es_sfgtools.data_mgmt.directory_handler import (
-    DirectoryHandler,
-    SurveyDir,
-    GARPOSSurveyDir,
-    TileDBDir,
     CampaignDir,
+    DirectoryHandler,
+    GARPOSSurveyDir,
     NetworkDir,
+    SurveyDir,
+)
+from es_sfgtools.data_models.metadata.campaign import Campaign, Survey
+from es_sfgtools.data_models.metadata.site import Site
+from es_sfgtools.logging import GarposLogger as logger
+from es_sfgtools.modeling.garpos_tools.data_prep import (
+    GP_Transponders_from_benchmarks,
+    filter_shotdata,
+    get_array_dpos_center,
+    prepare_garpos_input_from_survey,
+    prepare_shotdata_for_garpos,
 )
 from es_sfgtools.modeling.garpos_tools.functions import (
     CoordTransformer,
-    rectify_shotdata,
 )
-from es_sfgtools.modeling.garpos_tools.data_prep import (
-    prepare_garpos_input_from_survey,
-    filter_shotdata,
-    prepare_shotdata_for_garpos,
-    GP_Transponders_from_benchmarks,
-    get_array_dpos_center,  
-)
-from es_sfgtools.logging import GarposLogger as logger
-from es_sfgtools.tiledb_tools.tiledb_schemas import (
-    TDBShotDataArray,
-    TDBKinPositionArray,
-    TDBIMUPositionArray,
-)
+from es_sfgtools.modeling.garpos_tools.schemas import GarposFixed
 from es_sfgtools.modeling.garpos_tools.shot_data_utils import (
-    filter_ping_replies,
-    filter_wg_distance_from_center,
-    good_acoustic_diagnostics,
-    ok_acoustic_diagnostics,
-    difficult_acoustic_diagnostics,
-    filter_pride_residuals,
     DEFAULT_FILTER_CONFIG,
+)
+from es_sfgtools.tiledb_tools.tiledb_schemas import (
+    TDBIMUPositionArray,
+    TDBKinPositionArray,
+    TDBShotDataArray,
 )
 
 

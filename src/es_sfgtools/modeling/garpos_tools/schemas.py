@@ -1,23 +1,28 @@
-import pandera as pa
-from pandera.typing import Series, DataFrame
-from pandera.errors import SchemaErrors
-from enum import Enum
-from typing import List, Optional,Union
-from pydantic import BaseModel, Field, model_validator,field_serializer,field_validator,ValidationError,AliasChoices
-from pathlib import Path
-import numpy as np
-import pandas as pd
-from datetime import datetime
 from configparser import ConfigParser
-from ...data_models.observables import SoundVelocityDataFrame
-from ...logging import GarposLogger as logger
+from datetime import datetime
+from enum import Enum
+from pathlib import Path
+from typing import List, Optional
+
 import julian
+import numpy as np
+import pandera as pa
+from pandera.typing import Series
+from pydantic import (
+    AliasChoices,
+    BaseModel,
+    Field,
+    field_serializer,
+    model_validator,
+)
+
+from ...logging import GarposLogger as logger
 from .load_utils import load_lib
 
 try:
     LIB_DIRECTORY,LIB_RAYTRACE = load_lib()
-except Exception as e:
-    from garpos import LIB_DIRECTORY,LIB_RAYTRACE
+except Exception:
+    from garpos import LIB_DIRECTORY, LIB_RAYTRACE
 
 
 class GPPositionLLH(BaseModel):

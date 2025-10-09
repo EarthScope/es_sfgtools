@@ -1,9 +1,9 @@
-from pydantic import BaseModel, Field
-from typing import List, Optional
-from datetime import datetime
-from pathlib import Path
-from enum import Enum
 import os
+from enum import Enum
+from pathlib import Path
+from typing import List, Optional
+
+from pydantic import BaseModel, Field
 
 
 # define system enum to use

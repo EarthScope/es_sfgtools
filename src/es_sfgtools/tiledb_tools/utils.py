@@ -2,7 +2,10 @@
 from pathlib import Path
 
 # Local imports
-from ..utils.command_line_utils import GOLANG_BINARY_BUILD_DIR, get_system_architecture, parse_cli_logs
+from ..utils.command_line_utils import (
+    GOLANG_BINARY_BUILD_DIR,
+    get_system_architecture,
+)
 
 TILE2RINEX_BIN_PATH = {
     "darwin_amd64": GOLANG_BINARY_BUILD_DIR / "tdb2rnx_darwin_amd64",

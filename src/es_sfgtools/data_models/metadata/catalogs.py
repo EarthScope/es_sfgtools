@@ -1,14 +1,13 @@
-from pydantic import BaseModel, Field, field_serializer
-from typing import Dict,Optional
+import json
 from enum import Enum
 from pathlib import Path
-import json
-from collections import UserDict
-from pathlib import Path
-import pandas as pd
+from typing import Dict, Optional
+
+from pydantic import BaseModel, Field, field_serializer
 
 from .site import Site
 from .vessel import Vessel
+
 
 class CatalogType(Enum):
     Data = "Data"

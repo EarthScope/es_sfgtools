@@ -1,17 +1,24 @@
 import os
-import pandas as pd
-import pandera as pa
-from pandera.errors import SchemaError
 from datetime import datetime, timezone
 from pathlib import Path
-import sys
-import pdb
-# Local Imports
 
+import pandas as pd
+from es_sfgtools.processing.functions import (
+    dfpo00_to_imudf,
+    kin_to_gnssdf,
+    leverarmfile_to_atdoffset,
+    masterfile_to_siteconfig,
+    novatel_to_imudf,
+    novatel_to_rinex,
+    seabird_to_soundvelocity,
+    sonardyne_to_acousticdf,
+)
+
+# Local Imports
 from es_sfgtools.processing.schemas import files as file_schemas
 from es_sfgtools.processing.schemas import observables as obs_schemas
 from es_sfgtools.processing.schemas import site_config as site_schemas
-from es_sfgtools.processing.functions import *
+from pandera.errors import SchemaError
 
 # Set test resource paths
 RESOURCES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "resources")
@@ -91,7 +98,7 @@ class TestIMUDataFrame:
         try:
             imu_dataframe = obs_schemas.IMUDataFrame(fake_dataframe)
             assert False, "IMUDataFrame validation failed"
-        except SchemaError as e:
+        except SchemaError:
             assert True, "IMUDataFrame validation failed"
 
         real_dataframe = pd.read_csv(file_path, sep=",")
@@ -99,7 +106,7 @@ class TestIMUDataFrame:
         try:
             imu_dataframe = obs_schemas.IMUDataFrame(real_dataframe)
             assert True, "IMUDataFrame validation passed"
-        except SchemaError as e:
+        except SchemaError:
             assert False, "IMUDataFrame validation failed"
 
 class TestAcousticParsing:
@@ -153,7 +160,7 @@ class TestGNSSParsing:
         try:
             gnss_dataframe = obs_schemas.PositionDataFrame(fake_dataframe)
             assert False, "PositionDataFrame validation failed"
-        except SchemaError as e:
+        except SchemaError:
             assert True, "PositionDataFrame validation failed"
 
 class TestSiteConfigParsing:

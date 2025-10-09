@@ -1,6 +1,6 @@
 # Description: Utility functions for metadata classes.
 from datetime import datetime
-from typing import Optional, Union, Dict, Any
+from typing import Any, Dict, Optional, Union
 
 from pydantic import BaseModel, Field, field_validator
 

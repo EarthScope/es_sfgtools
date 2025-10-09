@@ -3,6 +3,7 @@ This module contains functions for getting environment variables.
 """
 import os
 
+
 def get_env(key: str, default: str = None) -> str:
     """
     Gets an environment variable.

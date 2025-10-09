@@ -2,23 +2,20 @@
 This module contains the database models for the data management module.
 """
 import datetime
+
 from sqlalchemy import (
-    create_engine,
+    JSON,
+    Boolean,
     Column,
+    DateTime,
+    Float,
+    ForeignKey,
     Integer,
     String,
-    Float,
-    DateTime,
-    ForeignKey,
-    Boolean,
-    Text,
-    JSON,
-    Enum
-
 )
 from sqlalchemy.ext.declarative import declarative_base
+
 # from sqlalchemy.orm import Mapped, declarative_base, relationship,mapped_column
-from sqlalchemy.orm import sessionmaker, relationship
 
 Base = declarative_base()
 

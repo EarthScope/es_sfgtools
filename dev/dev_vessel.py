@@ -1,6 +1,10 @@
-from es_sfgtools.data_models.metadata.vessel import Vessel
-from sfg_metadata.metadata_io.meta_io import masterfile_to_siteconfig, leverarmfile_to_atdoffset
 from pathlib import Path
+
+from sfg_metadata.metadata_io.meta_io import (
+    leverarmfile_to_atdoffset,
+    masterfile_to_siteconfig,
+)
+
 test_meta = {
     "type": "waveglider",
     "name": "1126",

@@ -12,11 +12,11 @@ and branching into networks, stations, campaigns, and various data and results d
 :class GARPOSCampaignDir: Manages GARPOS-specific data and results.
 :class GARPOSSurveyDir: Represents a single GARPOS survey.
 """
-from pathlib import Path
-import os
-from pydantic import BaseModel,Field,PrivateAttr
-from typing import Optional
 import datetime
+from pathlib import Path
+from typing import Optional
+
+from pydantic import BaseModel, Field, PrivateAttr
 
 # GARPOS-specific directory and file names
 GARPOS_DATA_DIR = "GARPOS"

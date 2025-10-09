@@ -1,9 +1,8 @@
 from datetime import datetime
-import pandas as pd
-import numpy as np
-import pymap3d as pm
 
-from es_sfgtools.data_models.metadata.catalogs import StationData
+import numpy as np
+import pandas as pd
+import pymap3d as pm
 
 from es_sfgtools.logging.loggers import GarposLogger as logger
 from es_sfgtools.tiledb_tools.tiledb_schemas import TDBKinPositionArray

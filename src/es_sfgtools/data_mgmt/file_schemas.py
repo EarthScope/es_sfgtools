@@ -1,9 +1,10 @@
-from pydantic import BaseModel,Field,field_validator,field_serializer,conlist,model_serializer,root_validator, ValidationInfo
-from typing import Optional,Union,List,Dict,Any
-from datetime import datetime
-from pathlib import Path
 import mmap
+from datetime import datetime
 from enum import Enum
+from pathlib import Path
+from typing import Any, Dict, Optional, Union
+
+from pydantic import BaseModel, Field, field_serializer, field_validator, root_validator
 
 
 class BaseObservable(BaseModel):
@@ -607,8 +608,4 @@ class SonardyneFile(BaseObservable):
 # rinex_header = RinexHeader.from_file('example_rinex.obs')
 # rinex_header.to_file('output_rinex_header.obs')
 
-class RinexFileV3:
-    def __init__(self,path:Path|str):
-        self.path = Path(path)
-        self.data = gr.load(self.path)
-        self.header = RinexHeader(data=gr.rinexheader(self.path))
+

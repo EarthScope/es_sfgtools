@@ -1,12 +1,13 @@
 # External imports
-from pathlib import Path
-from pydantic import BaseModel, Field, field_validator, field_serializer
 from multiprocessing import cpu_count
-import yaml
+from pathlib import Path
 from typing import Optional
 
+import yaml
+from pydantic import BaseModel, Field, field_serializer, field_validator
+
 # Local imports
-from ..pride_tools import PrideCLIConfig,PRIDEPPPFileConfig
+from ..pride_tools import PrideCLIConfig
 
 
 class NovatelConfig(BaseModel):

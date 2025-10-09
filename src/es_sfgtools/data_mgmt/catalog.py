@@ -1,14 +1,14 @@
-import logging
 import os
-import sqlalchemy as sa
-from typing import List,Dict,Union
-from datetime import datetime
 from pathlib import Path
+from typing import Dict, List
+
 import pandas as pd
+import sqlalchemy as sa
+
 from es_sfgtools.data_mgmt.file_schemas import AssetEntry, AssetType
-from .database import Base, Assets, ModelResults, MergeJobs
 
 from ..logging import ProcessLogger as logger
+from .database import Assets, Base, MergeJobs
 
 
 class PreProcessCatalog:
@@ -357,7 +357,7 @@ class PreProcessCatalog:
                 conn.execute(
                     sa.insert(Assets).values(entry.model_dump()))
                 return True
-            except Exception as e:
+            except Exception:
                 try:
 
                     conn.execute(

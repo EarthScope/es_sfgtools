@@ -4,6 +4,7 @@ This module contains the configuration for the Sphinx documentation builder.
 # Configuration file for the Sphinx documentation builder.
 import os
 import sys
+
 from sphinx_pyproject import SphinxConfig
 
 # sys.path.insert(0, os.path.abspath('.'))

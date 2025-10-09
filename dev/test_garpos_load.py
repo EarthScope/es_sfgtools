@@ -1,12 +1,13 @@
 import os
-from es_sfgtools.modeling.garpos_tools.load_utils import load_drive_garpos,load_lib
 from pathlib import Path
+
+from es_sfgtools.modeling.garpos_tools.load_utils import load_drive_garpos, load_lib
 
 os.environ["GARPOS_PATH"] = str(Path("/Users/franklyndunbar/Project/garpos").resolve())
 try:
     drive_garpos = load_drive_garpos()
     print(drive_garpos)
-except Exception as e:
+except Exception:
 
     from garpos import drive_garpos
 

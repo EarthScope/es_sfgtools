@@ -5,13 +5,14 @@ this file contains data models for parsing sonardyne sv3 data
 """
 
 # External imports
-from pydantic import BaseModel, Field,field_validator
-from typing import Optional
 from enum import Enum
-from typing import Union,List
+from typing import List, Optional, Union
+
+from pydantic import BaseModel, Field, field_validator
 
 # Local imports
-from .constants import Decimal,GNSS_START_TIME
+from .constants import GNSS_START_TIME, Decimal
+
 
 class SV3GPSQuality(Enum):
     FIX_NOT_AVAILABLE = 0  # Fix not available

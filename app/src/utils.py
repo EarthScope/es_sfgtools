@@ -1,7 +1,8 @@
-from rich.table import Table
-from .manifest import PipelineManifest
 from rich.console import Console
 from rich.panel import Panel
+from rich.table import Table
+
+from .manifest import PipelineManifest
 
 
 def display_pipelinemanifest(pipeline_manifest: PipelineManifest):

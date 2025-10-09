@@ -3,11 +3,12 @@ Functions for processing sound velocity profile (SVP) data from various sources.
 """
 # External imports
 import re
+from pathlib import Path
+
+import numpy as np
 import pandas as pd
 import pandera as pa
-import numpy as np
 from pandera.typing import DataFrame
-from pathlib import Path
 
 # Local imports
 from ..data_models.observables import SoundVelocityDataFrame

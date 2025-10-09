@@ -2,42 +2,33 @@
 GarposHandler class for processing and preparing shot data for the GARPOS model.
 """
 
-from enum import Enum
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
-import pandas as pd
-from datetime import datetime, timedelta
-import numpy as np
-import json
-import os
+from typing import Optional
 
-from es_sfgtools.data_mgmt.directory_handler import DirectoryHandler,SurveyDir,GARPOSSurveyDir,CampaignDir,NetworkDir
-from es_sfgtools.data_models.metadata.catalogs import StationData
+from es_sfgtools.data_mgmt.directory_handler import (
+    CampaignDir,
+    DirectoryHandler,
+    GARPOSSurveyDir,
+    NetworkDir,
+    SurveyDir,
+)
+from es_sfgtools.data_models.metadata.campaign import Campaign, Survey
 from es_sfgtools.data_models.metadata.site import Site
-from es_sfgtools.data_models.metadata.campaign import Survey,Campaign
-
 from es_sfgtools.modeling.garpos_tools.schemas import (
     GarposFixed,
-    InversionParams,
     GarposInput,
+    InversionParams,
 )
+
 try:
     from garpos import drive_garpos
 except ImportError:
     # Handle the case where garpos is not available
     pass
 
-from es_sfgtools.modeling.garpos_tools.functions import CoordTransformer,process_garpos_results
+from es_sfgtools.modeling.garpos_tools.functions import process_garpos_results
 
-from es_sfgtools.utils.archive_pull import download_file_from_archive
-from ...logging import GarposLogger as logger
-from ...seafloor_site_tools.soundspeed_operations import CTD_to_svp_v1, seabird_to_soundvelocity
-from es_sfgtools.data_mgmt.catalog import PreProcessCatalog
-from es_sfgtools.data_mgmt.file_schemas import AssetEntry, AssetType
-from es_sfgtools.data_mgmt.post_processing import IntermediateDataProcessor
-
-
-from .garpos_config import DEFAULT_FILTER_CONFIG, DEFAULT_INVERSION_PARAMS
+from es_sfgtools.logging import GarposLogger as logger
 
 
 class GarposHandler:

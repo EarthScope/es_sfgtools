@@ -1,12 +1,11 @@
 # External imports
 from pathlib import Path
-import platform
-import subprocess
-from typing import Tuple
-# Local imports
-from ..logging import ProcessLogger as logger
-from ..utils.command_line_utils import GOLANG_BINARY_BUILD_DIR,get_system_architecture, parse_cli_logs
 
+# Local imports
+from ..utils.command_line_utils import (
+    GOLANG_BINARY_BUILD_DIR,
+    get_system_architecture,
+)
 
 RINEX_BIN_PATH = {
     "darwin_amd64": GOLANG_BINARY_BUILD_DIR / "nova2rnxo_darwin_amd64",

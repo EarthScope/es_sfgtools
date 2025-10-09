@@ -1,11 +1,17 @@
 # External imports
+import subprocess
 from pathlib import Path
 from typing import List
-import subprocess
+
+from ..logging import ProcessLogger as logger
 
 # Local imports
-from .utils import get_nov_770_tile_binary_path,parse_cli_logs,get_nov_000_tile_binary_path
-from ..logging import ProcessLogger as logger
+from .utils import (
+    get_nov_000_tile_binary_path,
+    get_nov_770_tile_binary_path,
+    parse_cli_logs,
+)
+
 
 def novatel_770_2tile(files: List[str], gnss_obs_tdb: Path, n_procs: int = 10) -> None:
     """Given a list of novatel 770 binary files, get all the range logs and add them to a single tdb array

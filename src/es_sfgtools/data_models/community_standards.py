@@ -3,13 +3,16 @@ GNSS-A Community data/meta-data standard schemas. A full description can be foun
 https://hal.science/hal-04319233
 """
 
-import pandera as pa
-from pandera.typing import Series
-from typing import Optional
-from pydantic import BaseModel as Basemodel
 import datetime
+from typing import Optional
+
+import pandera as pa
 import pymap3d as pm
+from pandera.typing import Series
+from pydantic import BaseModel as Basemodel
+
 from .metadata import Site, Vessel
+
 
 class SFGDSTFSeafloorAcousticData(pa.DataFrameModel):
     """

@@ -1,6 +1,7 @@
-from datetime import datetime, timezone,timedelta
+from datetime import datetime, timedelta, timezone
+from decimal import getcontext
+
 import julian
-from decimal import Decimal, getcontext
 
 # Set precision for Decimal operations
 getcontext().prec = 10

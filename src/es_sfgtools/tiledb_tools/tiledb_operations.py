@@ -1,15 +1,16 @@
 # External imports
-from pathlib import Path
 import os
-import tempfile
 import shutil
 import subprocess
-from datetime import datetime
+import tempfile
+from pathlib import Path
 from typing import List
+
+from ..logging import ProcessLogger as logger
 
 # Local imports
 from .utils import get_tile2rinex_binary_path, parse_cli_logs
-from ..logging import ProcessLogger as logger
+
 
 def tile2rinex(
     gnss_obs_tdb: Path,

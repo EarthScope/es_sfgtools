@@ -10,7 +10,6 @@ The notebook logger is used for the notebook module and prints to the console wi
 
 import logging
 import os
-import sys
 from pathlib import Path
 from typing import Literal
 

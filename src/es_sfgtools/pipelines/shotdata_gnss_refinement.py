@@ -1,23 +1,22 @@
-import os
-from pathlib import Path
-import pandas as pd
-import numpy as np
-import pymap3d
-import datetime
-import sys
-from scipy.stats import zscore
-from sklearn.neighbors import RadiusNeighborsRegressor
-import matplotlib.pyplot as plt
-import gnatss
-from gnatss.ops.kalman import run_filter_simulation
-import gnatss.constants as constants
-from numpy import datetime64
 from typing import List
 
-# Local imports
-from ..tiledb_tools.tiledb_schemas import TDBKinPositionArray, TDBShotDataArray,TDBIMUPositionArray
+import gnatss.constants as constants
+import numpy as np
+import pandas as pd
+import pymap3d
+from gnatss.ops.kalman import run_filter_simulation
+from numpy import datetime64
+from scipy.stats import zscore
+from sklearn.neighbors import RadiusNeighborsRegressor
+
 from ..logging import ProcessLogger as logger
 
+# Local imports
+from ..tiledb_tools.tiledb_schemas import (
+    TDBIMUPositionArray,
+    TDBKinPositionArray,
+    TDBShotDataArray,
+)
 
 MEDIAN_EAST_POSITION = 0
 MEDIAN_NORTH_POSITION = 0

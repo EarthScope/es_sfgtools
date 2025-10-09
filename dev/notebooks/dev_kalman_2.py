@@ -1,22 +1,18 @@
 
-import os
-from pathlib import Path
-import pandas as pd
-import numpy as np
-import pymap3d
-import datetime
 import sys
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import pymap3d
 from scipy.stats import zscore
 from sklearn.neighbors import RadiusNeighborsRegressor
-import matplotlib.pyplot as plt
 
 from es_sfgtools.data_mgmt.data_handler import DataHandler
 
 sys.path.append("/Users/franklyndunbar/Project/SeaFloorGeodesy/gnatss/src")
-import gnatss
-from gnatss.ops.kalman import run_filter_simulation
 import gnatss.constants as constants
-
+from gnatss.ops.kalman import run_filter_simulation
 
 MEDIAN_EAST_POSITION = 0
 MEDIAN_NORTH_POSITION = 0

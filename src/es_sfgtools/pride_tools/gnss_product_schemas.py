@@ -1,9 +1,7 @@
-from pydantic import BaseModel
-from dataclasses import dataclass
 import datetime
-from typing import Literal,Tuple,List,Optional
-from enum import Enum
 import re
+from dataclasses import dataclass
+from typing import List, Literal, Optional, Tuple
 
 GNSS_START_TIME = datetime.datetime(1980, 1, 6, tzinfo=datetime.timezone.utc)  # GNSS start time
 

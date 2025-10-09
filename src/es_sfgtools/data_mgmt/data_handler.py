@@ -1,44 +1,63 @@
 """ Contains the DataHandler class for handling data operations. """
-import os
-import warnings
 import concurrent.futures
-import json
+import os
 import threading
+import warnings
 from functools import wraps
 from pathlib import Path
-from typing import Callable, List, Literal, Optional, Tuple, Union, Callable, ParamSpec, TypeVar, Concatenate
-
+from typing import (
+    Callable,
+    Concatenate,
+    List,
+    Literal,
+    Optional,
+    ParamSpec,
+    Protocol,
+    Tuple,
+    TypeVar,
+    Union,
+)
 
 import boto3
-import matplotlib.pyplot as plt
 import seaborn
 from tqdm.auto import tqdm
 
 from es_sfgtools.data_mgmt.catalog import PreProcessCatalog
-from es_sfgtools.data_mgmt.constants import (DEFAULT_FILE_TYPES_TO_DOWNLOAD,
-                                           REMOTE_TYPE)
-from es_sfgtools.data_mgmt.datadiscovery import (get_file_type_local,
-                                               get_file_type_remote,
-                                               scrape_directory_local)
-from es_sfgtools.data_mgmt.directory_handler import (CampaignDir,
-                                                   DirectoryHandler, NetworkDir,
-                                                   StationDir, SurveyDir)
+from es_sfgtools.data_mgmt.constants import DEFAULT_FILE_TYPES_TO_DOWNLOAD, REMOTE_TYPE
+from es_sfgtools.data_mgmt.datadiscovery import (
+    get_file_type_local,
+    get_file_type_remote,
+    scrape_directory_local,
+)
+from es_sfgtools.data_mgmt.directory_handler import (
+    CampaignDir,
+    DirectoryHandler,
+    NetworkDir,
+    StationDir,
+    SurveyDir,
+)
 from es_sfgtools.data_mgmt.file_schemas import AssetEntry, AssetType
-from es_sfgtools.data_mgmt.post_processing import IntermediateDataProcessor,DEFAULT_FILTER_CONFIG
+from es_sfgtools.data_mgmt.post_processing import (
+    DEFAULT_FILTER_CONFIG,
+    IntermediateDataProcessor,
+)
 from es_sfgtools.data_models.metadata.site import Site
 from es_sfgtools.logging import ProcessLogger as logger
 from es_sfgtools.logging import change_all_logger_dirs
 from es_sfgtools.modeling.garpos_tools.garpos_handler import GarposHandler
 from es_sfgtools.pipelines.sv3_pipeline import SV3Pipeline, SV3PipelineConfig
-from es_sfgtools.tiledb_tools.tiledb_schemas import (TDBAcousticArray,
-                                                   TDBGNSSObsArray,
-                                                   TDBIMUPositionArray,
-                                                   TDBKinPositionArray,
-                                                   TDBShotDataArray)
-from es_sfgtools.utils.archive_pull import (download_file_from_archive,
-                                          list_campaign_files,
-                                          list_campaign_files_by_type,load_site_metadata)
-
+from es_sfgtools.tiledb_tools.tiledb_schemas import (
+    TDBAcousticArray,
+    TDBGNSSObsArray,
+    TDBIMUPositionArray,
+    TDBKinPositionArray,
+    TDBShotDataArray,
+)
+from es_sfgtools.utils.archive_pull import (
+    download_file_from_archive,
+    list_campaign_files,
+    load_site_metadata,
+)
 
 seaborn.set_theme(style="whitegrid")
 

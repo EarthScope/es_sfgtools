@@ -1,20 +1,18 @@
-import requests
-from pathlib import Path
 import os
-import urllib.request
 import ssl
+import urllib.request
+from pathlib import Path
 from typing import List, Optional
-import boto3
-from enum import Enum
 
-from es_sfgtools.data_models.metadata import Site,import_site
-from es_sfgtools.data_models.metadata import Vessel, import_vessel
+import boto3
+import requests
+from earthscope_cli.login import login as es_login
 from earthscope_sdk import EarthScopeClient
 from earthscope_sdk.config.settings import SdkSettings
-from earthscope_cli.login import login as es_login
+
+from es_sfgtools.data_models.metadata import Site, Vessel, import_site, import_vessel
 
 from ..logging import ProcessLogger as logger
-
 
 ssl._create_default_https_context = ssl._create_stdlib_context
 

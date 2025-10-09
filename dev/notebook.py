@@ -2,17 +2,15 @@
 import os
 from pathlib import Path
 
-from es_sfgtools.data_mgmt.data_handler import DataHandler
-from es_sfgtools.processing.assets.siteconfig import GPSiteConfig, Site
+import matplotlib.pyplot as plt
+from es_sfgtools.processing.assets.siteconfig import GPSiteConfig
 from es_sfgtools.processing.operations.site_ops import (
     CTDfile_to_svp,
-    masterfile_to_siteconfig,
-    leverarmfile_to_atdoffset,
 )
-import matplotlib.pyplot as plt
+
+from es_sfgtools.data_mgmt.data_handler import DataHandler
 
 plt.rcParams["figure.figsize"] = [32,18]
-from es_sfgtools.utils.loggers import BaseLogger
 pride_path = Path.home() / ".PRIDE_PPPAR_BIN"
 os.environ["PATH"] += os.pathsep + str(pride_path)
 

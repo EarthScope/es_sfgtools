@@ -1,11 +1,16 @@
 import platform
-from pathlib import Path
-from typing import Tuple
 import re
 import warnings
+from pathlib import Path
+from typing import Tuple
+
 # Local imports
 from ..logging import ProcessLogger as logger
-from .custom_warnings_exceptions import WARNINGS_DICT,EXCEPTIONS_DICT_LINUX, EXCEPTIONS_DICT_MACOS
+from .custom_warnings_exceptions import (
+    EXCEPTIONS_DICT_LINUX,
+    EXCEPTIONS_DICT_MACOS,
+    WARNINGS_DICT,
+)
 
 GOLANG_BINARY_BUILD_DIR = "src/golangtools/build"
 SELF_PATH = Path(__file__).resolve()
