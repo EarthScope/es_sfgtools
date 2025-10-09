@@ -38,7 +38,6 @@ from es_sfgtools.data_mgmt.directory_handler import (
 )
 from es_sfgtools.data_mgmt.file_schemas import AssetEntry, AssetType
 from es_sfgtools.data_mgmt.post_processing import (
-    DEFAULT_FILTER_CONFIG,
     IntermediateDataProcessor,
 )
 from es_sfgtools.data_models.metadata.site import Site
@@ -748,8 +747,7 @@ class DataHandler:
 
     @check_network_station_campaign
     def prep_garpos(self,
-                    custom_filter:dict = None,
-                    shotdata_filter_config:dict = DEFAULT_FILTER_CONFIG,
+                    custom_filters:dict = None,
                     override:bool=False,
                     write_intermediate:bool=False):
         """
@@ -771,8 +769,7 @@ class DataHandler:
             write_intermediate=write_intermediate,
         )
         dataPostProcessor.prepare_shotdata_garpos(
-            custom_filters=custom_filter,
-            shotdata_filter_config=shotdata_filter_config,
+            custom_filters=custom_filters,
             overwrite=override,
         )
 

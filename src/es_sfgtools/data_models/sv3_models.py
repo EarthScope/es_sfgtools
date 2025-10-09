@@ -7,11 +7,11 @@ this file contains data models for parsing sonardyne sv3 data
 # External imports
 from enum import Enum
 from typing import List, Optional, Union
-
+from decimal import Decimal
 from pydantic import BaseModel, Field, field_validator
 
 # Local imports
-from .constants import GNSS_START_TIME, Decimal
+from .constants import GNSS_START_TIME
 
 
 class SV3GPSQuality(Enum):

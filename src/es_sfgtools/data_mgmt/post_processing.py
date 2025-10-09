@@ -25,7 +25,6 @@ from es_sfgtools.modeling.garpos_tools.data_prep import (
     apply_survey_config
 )
 from es_sfgtools.modeling.garpos_tools.garpos_config import (
-    CENTER_DRIVE_SITE_CONFIG,
     DEFAULT_SITE_CONFIG,
 )
 from es_sfgtools.modeling.prefiltering import filter_shotdata
@@ -74,14 +73,13 @@ class IntermediateDataProcessor:
             raise ValueError("Network must be provided if station is provided.")
         if campaign is not None and (station is None or network is None):
             raise ValueError("Network and station must be provided if campaign is provided.")
-        
+
         if network is not None:
             self.setNetwork(network)
         if station is not None:
             self.setStation(station)
         if campaign is not None:
             self.setCampaign(campaign)
-
 
     def setNetwork(self, network_id: str):
         """
@@ -245,7 +243,7 @@ class IntermediateDataProcessor:
         tileDBDir = self.currentStationDir.tiledb_directory
 
         shotDataTDB = TDBShotDataArray(tileDBDir.shot_data)
-            
+
         with open(
             self.currentCampaignDir.campaign_metadata,
             "w",
@@ -264,7 +262,7 @@ class IntermediateDataProcessor:
 
             # Prepare shotdata
             shotdata_file_name_unfiltered = (
-                f"{survey.id}_{survey.type}_shotdata.csv".replace(" ","")
+                f"{survey.id}_{survey.type.value}_shotdata.csv".replace(" ","")
             )
             shotdata_file_dest = (
                 self.currentSurveyDir.location / shotdata_file_name_unfiltered
@@ -286,13 +284,12 @@ class IntermediateDataProcessor:
                     continue
                 else:
                     shot_data_queried.to_csv(shotdata_file_dest)
-                    
 
             if write_intermediate:
 
                 # Prepare PPP kinematic Position Data
                 kinpositiondata_file_name = (
-                    f"{survey.id}_{survey.type}_kinpositiondata.csv".replace(" ","")
+                    f"{survey.id}_{survey.type.value}_kinpositiondata.csv".replace(" ","")
                 )
                 kinpositiondata_file_dest = (
                     self.currentSurveyDir.location / kinpositiondata_file_name
@@ -323,7 +320,7 @@ class IntermediateDataProcessor:
 
                 # Prepare IMU Position Data
                 imupositiondata_file_name = (
-                    f"{survey.id}_{survey.type}_imupositiondata.csv".replace(" ","")
+                    f"{survey.id}_{survey.type.value}_imupositiondata.csv".replace(" ","")
                 )
                 imupositiondata_file_dest = (
                     self.currentSurveyDir.location / imupositiondata_file_name
@@ -430,7 +427,7 @@ class IntermediateDataProcessor:
                     f"No shot data found for survey {str(self.currentSurveyDir.shotdata)}, skipping shot data preparation."
                 )
             return
-        
+
         garposDir : GARPOSSurveyDir = self.currentSurveyDir.garpos
         garposDir.build()
 
@@ -440,10 +437,13 @@ class IntermediateDataProcessor:
         file_name_filtered = self.currentSurveyDir.shotdata.parent / f"{self.currentSurveyDir.shotdata.stem}_filtered.csv"
         garposDir.shotdata_filtered = file_name_filtered
 
+     
         if file_name_filtered.exists():
             shot_data_filtered = pd.read_csv(file_name_filtered)
+      
         else:
             shot_data_filtered = pd.DataFrame()
+    
         if shot_data_filtered.empty or overwrite:
             shot_data_filtered = filter_shotdata(
                 survey_type=survey.type,
@@ -459,9 +459,9 @@ class IntermediateDataProcessor:
                         f"No shot data remaining after filtering for survey {survey.id}, skipping survey."
                     )
                 return
-
+            
             shot_data_filtered.to_csv(file_name_filtered)
-
+   
         GPtransponders = GP_Transponders_from_benchmarks(
             coord_transformer=self.coordTransformer, survey=survey, site=self.site
         )
@@ -513,8 +513,7 @@ class IntermediateDataProcessor:
             # Apply survey-type-specific configuration to garpos_input
 
             match survey.type:
-                case SurveyType.CENTER_DRIVE:
-                    garpos_input_configured = apply_survey_config(CENTER_DRIVE_SITE_CONFIG, garpos_input)
+                # TODO Get the right configs for survey patterns
                 case _:
                     garpos_input_configured = apply_survey_config(DEFAULT_SITE_CONFIG, garpos_input)
 

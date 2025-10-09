@@ -25,7 +25,7 @@ def main():
     
     ncc1MidProcess:IntermediateDataProcessor = dh.getIntermediateDataProcessor()
     ncc1MidProcess.parse_surveys()
-    ncc1MidProcess.prepare_shotdata_garpos()
+    ncc1MidProcess.prepare_shotdata_garpos(overwrite=True)
 
     gp_handler_ncc1: GarposHandler = dh.getGARPOSHandler()
     gp_handler_ncc1.run_garpos(run_id="Test",iterations=2,override=True)

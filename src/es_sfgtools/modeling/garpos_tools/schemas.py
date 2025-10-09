@@ -65,7 +65,7 @@ class GPTransponder(BaseModel):
     delta_center_position: Optional[GPPositionENU] = None
 
     class Config:
-        allow_population_by_field_name = True
+        populate_by_name = True
 
 
 class GPATDOffset(BaseModel):
@@ -598,8 +598,6 @@ class GarposInput(BaseModel):
         )
 
         return garpos_input
-    
-    def apply_config()
 
 
 class InversionLoop(BaseModel):
