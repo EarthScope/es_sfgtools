@@ -26,7 +26,7 @@ class AcousticFilterConfig(BaseModel):
 class PingRepliesFilterConfig(BaseModel):
     enabled: bool = Field(True, description="Whether to enable ping replies filtering")
     min_replies: int = Field(
-        3, description="Minimum number of replies required to keep a shot"
+        2, description="Minimum number of replies required to keep a shot"
     )
 
 class MaxDistFromCenterConfig(BaseModel):
