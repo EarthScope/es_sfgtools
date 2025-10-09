@@ -26,9 +26,8 @@ except ImportError:
     # Handle the case where garpos is not available
     pass
 
-from es_sfgtools.modeling.garpos_tools.functions import process_garpos_results
-
 from es_sfgtools.logging import GarposLogger as logger
+from es_sfgtools.modeling.garpos_tools.functions import process_garpos_results
 
 
 class GarposHandler:

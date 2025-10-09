@@ -3,14 +3,14 @@ import subprocess
 from pathlib import Path
 from typing import List
 
-from  es_sfgtools.logging import ProcessLogger as logger
+from es_sfgtools.logging import ProcessLogger as logger
+from es_sfgtools.utils.command_line_utils import parse_cli_logs
 
 # Local imports
 from .utils import (
     get_nov_000_tile_binary_path,
     get_nov_770_tile_binary_path,
 )
-from es_sfgtools.utils.command_line_utils import parse_cli_logs
 
 
 def novatel_770_2tile(files: List[str], gnss_obs_tdb: Path, n_procs: int = 10) -> None:

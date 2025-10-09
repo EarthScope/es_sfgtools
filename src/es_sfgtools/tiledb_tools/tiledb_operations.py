@@ -6,11 +6,12 @@ import tempfile
 from pathlib import Path
 from typing import List
 
-from ..logging import ProcessLogger as logger
-
 # Local imports
 from es_sfgtools.utils.command_line_utils import parse_cli_logs
+
+from ..logging import ProcessLogger as logger
 from .utils import get_tile2rinex_binary_path
+
 
 def tile2rinex(
     gnss_obs_tdb: Path,
