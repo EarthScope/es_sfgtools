@@ -6,7 +6,8 @@ import json
 import threading
 from functools import wraps
 from pathlib import Path
-from typing import Callable, List, Literal, Optional, Tuple, Union
+from typing import Callable, List, Literal, Optional, Tuple, Union, Callable, ParamSpec, TypeVar, Concatenate
+
 
 import boto3
 import matplotlib.pyplot as plt
@@ -41,26 +42,31 @@ from es_sfgtools.utils.archive_pull import (download_file_from_archive,
 
 seaborn.set_theme(style="whitegrid")
 
-def check_network_station_campaign(func: Callable):
-    """
-    Decorator to check if network, station, and campaign are set before executing a function.
 
-    :param func: The function to wrap.
-    :type func: Callable
-    :raises ValueError: If network, station, or campaign are not set.
-    """
+P = ParamSpec("P")
+R = TypeVar("R")
+
+class HasNetworkStationCampaign(Protocol):
+    current_network: Optional[str]
+    current_station: Optional[str]
+    current_campaign: Optional[str]
+
+
+def check_network_station_campaign(
+    func: Callable[Concatenate[HasNetworkStationCampaign, P], R],
+) -> Callable[Concatenate[HasNetworkStationCampaign, P], R]:
     @wraps(func)
-    def wrapper(self, *args, **kwargs):
+    def wrapper(
+        self: HasNetworkStationCampaign, *args: P.args, **kwargs: P.kwargs
+    ) -> R:
         if self.current_network is None:
             raise ValueError("Network name not set, use change_working_station")
-
         if self.current_station is None:
             raise ValueError("Station name not set, use change_working_station")
-
         if self.current_campaign is None:
             raise ValueError("campaign name not set, use change_working_station")
-
         return func(self, *args, **kwargs)
+
     return wrapper
 
 
