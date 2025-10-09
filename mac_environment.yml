@@ -46,6 +46,7 @@ dependencies:
     # - multiprocessing_logging
     - sphinx_pyproject
     - gnatss
+    - regex
     
 variables:
   CGO_ENABLED: 1

@@ -14,23 +14,27 @@ from es_sfgtools.data_mgmt.directory_handler import (
     NetworkDir,
     SurveyDir,
 )
-from es_sfgtools.data_models.metadata.campaign import Campaign, Survey
+from es_sfgtools.data_models.metadata.campaign import Campaign, Survey,SurveyType
 from es_sfgtools.data_models.metadata.site import Site
 from es_sfgtools.logging import GarposLogger as logger
 from es_sfgtools.modeling.garpos_tools.data_prep import (
     GP_Transponders_from_benchmarks,
-    filter_shotdata,
     get_array_dpos_center,
     prepare_garpos_input_from_survey,
     prepare_shotdata_for_garpos,
+    apply_survey_config
 )
+from es_sfgtools.modeling.garpos_tools.garpos_config import (
+    CENTER_DRIVE_SITE_CONFIG,
+    DEFAULT_SITE_CONFIG,
+)
+from es_sfgtools.modeling.prefiltering import filter_shotdata
+
 from es_sfgtools.modeling.garpos_tools.functions import (
     CoordTransformer,
 )
 from es_sfgtools.modeling.garpos_tools.schemas import GarposFixed
-from es_sfgtools.modeling.garpos_tools.shot_data_utils import (
-    DEFAULT_FILTER_CONFIG,
-)
+
 from es_sfgtools.tiledb_tools.tiledb_schemas import (
     TDBIMUPositionArray,
     TDBKinPositionArray,
@@ -359,7 +363,6 @@ class IntermediateDataProcessor:
         campaign_id: Optional[str] = None,
         survey_id: Optional[str] = None,
         custom_filters: Optional[dict] = None,
-        shotdata_filter_config: dict = DEFAULT_FILTER_CONFIG,
         overwrite: bool = False,
     ) -> None:
         """
@@ -398,7 +401,6 @@ class IntermediateDataProcessor:
             self.prepare_single_garpos_survey(
                 survey=survey,
                 custom_filters=custom_filters,
-                filter_config=shotdata_filter_config,
                 overwrite=overwrite,
             )
 
@@ -406,7 +408,6 @@ class IntermediateDataProcessor:
         self,
         survey: Survey,
         custom_filters: dict = None,
-        filter_config: dict = DEFAULT_FILTER_CONFIG,
         overwrite: bool = False,
     ):
         """
@@ -416,8 +417,6 @@ class IntermediateDataProcessor:
             :type survey: Survey
             :param custom_filters: Custom filters to apply.
             :type custom_filters: dict, optional
-            :param filter_config: The filter configuration.
-            :type filter_config: dict, optional
             :param overwrite: Whether to overwrite existing files.
             :type overwrite: bool, optional
             """
@@ -440,7 +439,7 @@ class IntermediateDataProcessor:
 
         file_name_filtered = self.currentSurveyDir.shotdata.parent / f"{self.currentSurveyDir.shotdata.stem}_filtered.csv"
         garposDir.shotdata_filtered = file_name_filtered
-        
+
         if file_name_filtered.exists():
             shot_data_filtered = pd.read_csv(file_name_filtered)
         else:
@@ -454,7 +453,6 @@ class IntermediateDataProcessor:
                 start_time=survey.start,
                 end_time=survey.end,
                 custom_filters=custom_filters,
-                filter_config=filter_config,
             )
             if shot_data_filtered.empty:
                 logger.logwarn(
@@ -512,6 +510,14 @@ class IntermediateDataProcessor:
                     num_of_shots=len(shot_data_rectified),
                     GPtransponders=GPtransponders,
                 )
-            garpos_input.to_datafile(garposDir.default_obsfile)
+            # Apply survey-type-specific configuration to garpos_input
+
+            match survey.type:
+                case SurveyType.CENTER_DRIVE:
+                    garpos_input_configured = apply_survey_config(CENTER_DRIVE_SITE_CONFIG, garpos_input)
+                case _:
+                    garpos_input_configured = apply_survey_config(DEFAULT_SITE_CONFIG, garpos_input)
+
+            garpos_input_configured.to_datafile(garposDir.default_obsfile)
 
         self.directory_handler.save()

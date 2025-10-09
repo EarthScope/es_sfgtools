@@ -9,7 +9,7 @@ from typing import List, Optional, Tuple
 import pandas as pd
 
 from es_sfgtools.data_models.metadata.benchmark import Benchmark, Transponder
-from es_sfgtools.data_models.metadata.campaign import Campaign, Survey
+from es_sfgtools.data_models.metadata.campaign import Campaign, Survey, SurveyType, classify_survey_type
 from es_sfgtools.data_models.metadata.site import Site
 from es_sfgtools.logging import GarposLogger as logger
 from es_sfgtools.modeling.garpos_tools.functions import (
@@ -23,16 +23,8 @@ from es_sfgtools.modeling.garpos_tools.schemas import (
     GPPositionLLH,
     GPTransponder,
 )
-from es_sfgtools.modeling.garpos_tools.shot_data_utils import (
-    DEFAULT_FILTER_CONFIG,
-    difficult_acoustic_diagnostics,
-    filter_ping_replies,
-    filter_pride_residuals,
-    filter_wg_distance_from_center,
-    good_acoustic_diagnostics,
-    ok_acoustic_diagnostics,
-)
 
+from es_sfgtools.modeling.garpos_tools.garpos_config import GarposSiteConfig, CENTER_DRIVE_SITE_CONFIG, DEFAULT_SITE_CONFIG
 
 class NoShotDataError(Exception):
     """
@@ -52,95 +44,6 @@ class NoGPTranspondersError(Exception):
         super().__init__(message)
         self.message = message
 
-
-def filter_shotdata(
-    survey_type: str,
-    site: Site,
-    shot_data: pd.DataFrame,
-    kinPostionTDBUri:str,
-    start_time: datetime,
-    end_time: datetime,
-    custom_filters: Optional[dict] = None,
-    filter_config: Optional[dict] = DEFAULT_FILTER_CONFIG.copy(),
-) -> pd.DataFrame:
-    """
-    Filter the shot data based on the specified acoustic level and minimum ping replies.
-
-    :param survey_type: The type of survey.
-    :type survey_type: str
-    :param site: The site metadata.
-    :type site: Site
-    :param shot_data: The shot data to filter.
-    :type shot_data: pd.DataFrame
-    :param kinPostionTDBUri: The URI of the kinematic position TileDB array.
-    :type kinPostionTDBUri: str
-    :param start_time: The start time of the survey.
-    :type start_time: datetime
-    :param end_time: The end time of the survey.
-    :type end_time: datetime
-    :param custom_filters: Custom filters to apply. Defaults to None.
-    :type custom_filters: Optional[dict], optional
-    :param filter_config: The filter configuration. Defaults to DEFAULT_FILTER_CONFIG.copy().
-    :type filter_config: Optional[dict], optional
-    :return: The filtered shot data.
-    :rtype: pd.DataFrame
-    """
-    initial_count = len(shot_data)
-    new_shot_data_df = shot_data.copy()
-    if custom_filters:
-        filter_config.update(custom_filters)
-        logger.loginfo(f"Using custom filter configuration: {filter_config}")
-
-    acoustic_config = filter_config.get("acoustic_filters", {})
-    if acoustic_config.get("enabled", True):
-        level = acoustic_config.get("level", "OK")
-        if level == "GOOD":
-            new_shot_data_df = good_acoustic_diagnostics(new_shot_data_df)
-        elif level == "OK":
-            new_shot_data_df = ok_acoustic_diagnostics(new_shot_data_df)
-        elif level == "DIFFICULT":
-            new_shot_data_df = difficult_acoustic_diagnostics(new_shot_data_df)
-        else:
-            logger.loginfo("No acoustic filtering applied, using original shot data")
-
-    ping_replies_config = filter_config.get("ping_replies", {})
-    if ping_replies_config.get("enabled", True):
-        min_replies = ping_replies_config.get("min_replies", 3)
-        new_shot_data_df = filter_ping_replies(
-            new_shot_data_df, min_replies=min_replies
-        )
-
-    if survey_type.lower() == "center":
-        max_distance = filter_config.get("max_distance_from_center", {})
-        if max_distance.get("enabled", True):
-            max_distance_from_center = max_distance.get("max_distance_m", None)
-            if max_distance_from_center is not None:
-                new_shot_data_df = filter_wg_distance_from_center(
-                    df=new_shot_data_df,
-                    array_center_lat=site.arrayCenter.latitude,
-                    array_center_lon=site.arrayCenter.longitude,
-                    max_distance_m=max_distance_from_center,
-                )
-
-    if filter_config.get("pride_residuals", {}).get("enabled", True):
-        max_wrms = filter_config.get("pride_residuals", {}).get(
-            "max_residual_mm", None
-        )
-        if max_wrms is not None:
-            new_shot_data_df = filter_pride_residuals(
-                df=new_shot_data_df,
-                kinPostionTDBUri=kinPostionTDBUri,
-                start_time=start_time,
-                end_time=end_time,
-                max_wrms=max_wrms,
-            )
-
-    filtered_count = len(new_shot_data_df)
-    logger.loginfo(
-        f"Filtered {initial_count - filtered_count} records from shot data based on filtering criteria: {filter_config}"
-    )
-    logger.loginfo(f"Remaining shot data records: {filtered_count}")
-    return new_shot_data_df
 
 def GP_Transponders_from_benchmarks(coord_transformer: CoordTransformer, survey: Survey, site: Site) -> List[GPTransponder]:
     """
@@ -376,3 +279,28 @@ def prepare_garpos_input_from_survey(
     )
 
     return garpos_input
+
+
+def apply_survey_config(config: GarposSiteConfig, garpos_input: GarposInput) -> GarposInput:
+    """
+    Apply the site configuration to the GarposInput object.
+
+    :param config: The site configuration.
+    :type config: GarposSiteConfig
+    :param garpos_input: The GarposInput object to be modified.
+    :type garpos_input: GarposInput
+    :return: The modified GarposInput object with the site configuration applied.
+    :rtype: GarposInput
+    """
+    garpos_input.delta_center_position.east_sigma = config.inversion_params.delta_center_position.east_sigma
+    garpos_input.delta_center_position.north_sigma = config.inversion_params.delta_center_position.north_sigma
+    garpos_input.delta_center_position.up_sigma = config.inversion_params.delta_center_position.up_sigma
+
+
+    for transponder in garpos_input.transponders:
+        transponder.position_enu.east_sigma = config.transponder_position_variance.east_sigma
+        transponder.position_enu.north_sigma = config.transponder_position_variance.north_sigma
+        transponder.position_enu.up_sigma = config.transponder_position_variance.up_sigma
+    
+    return garpos_input
+    

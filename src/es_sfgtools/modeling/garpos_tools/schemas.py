@@ -16,7 +16,7 @@ from pydantic import (
     model_validator,
 )
 
-from ...logging import GarposLogger as logger
+from es_sfgtools.logging import GarposLogger as logger
 from .load_utils import load_lib
 
 try:
@@ -598,6 +598,8 @@ class GarposInput(BaseModel):
         )
 
         return garpos_input
+    
+    def apply_config()
 
 
 class InversionLoop(BaseModel):
