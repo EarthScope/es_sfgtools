@@ -386,7 +386,26 @@ class PreProcessCatalog:
             except sa.exc.ResourceClosedError:
                 # handle queries that don't return results
                 conn.execute(sa.text(query))
+    def _does_entry_exist(self, entry:AssetEntry) -> bool:
+        """
+        Checks if an entry exists in the database.
 
+        :param entry: The entry to check.
+        :type entry: AssetEntry
+        :return: True if the entry exists, False otherwise.
+        :rtype: bool
+        """
+        with self.engine.begin() as conn:
+            results = conn.execute(sa.select(Assets).where(
+                Assets.local_path == str(entry.local_path),
+                Assets.network == entry.network,
+                Assets.station == entry.station,
+                Assets.campaign == entry.campaign,
+                Assets.type == entry.type.value)).fetchone()
+            if results:
+                return True
+        return False
+    
     def add_entry(self, entry:AssetEntry) -> bool:
         """
         Adds an entry to the database.
@@ -396,14 +415,16 @@ class PreProcessCatalog:
         :return: True if the entry was added, False otherwise.
         :rtype: bool
         """
-        try:
-            with self.engine.begin() as conn:
-                conn.execute(sa.insert(Assets).values(entry.model_dump()))
-            return True
-        except sa.exc.IntegrityError as e:
-            logger.logdebug(f" Integrity error adding entry {entry} to catalog: {e}")
-            return False
-
+        if not self._does_entry_exist(entry):
+            try:
+                with self.engine.begin() as conn:
+                    conn.execute(sa.insert(Assets).values(entry.model_dump()))
+                return True
+            except sa.exc.IntegrityError as e:
+                logger.logdebug(f" Integrity error adding entry {entry} to catalog: {e}")
+                return False
+        return False
+    
     def delete_entry(self, entry:AssetEntry) -> bool:
         """
         Deletes an entry from the database.

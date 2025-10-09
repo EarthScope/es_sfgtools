@@ -79,6 +79,7 @@ DEFAULT_FILTER_CONFIG = FilterConfig()
 
 CENTER_DRIVE_FILTER_CONFIG = FilterConfig(ping_replies=PingRepliesFilterConfig(min_replies=1)) 
 
+CIRCLE_DRIVE_FILTER_CONFIG = FilterConfig(ping_replies=PingRepliesFilterConfig(min_replies=1))
 
 def get_survey_filter_config(survey_type: Union[SurveyType,str]) -> FilterConfig:
     """Get the filter configuration based on the survey type.
@@ -95,6 +96,8 @@ def get_survey_filter_config(survey_type: Union[SurveyType,str]) -> FilterConfig
     match survey_type:
         case SurveyType.CENTER:
             return CENTER_DRIVE_FILTER_CONFIG.model_copy()
+        case SurveyType.CIRCLE:
+            return CIRCLE_DRIVE_FILTER_CONFIG.model_copy()
         case _:
             return DEFAULT_FILTER_CONFIG.model_copy()
         

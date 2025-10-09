@@ -10,12 +10,12 @@ from typing import IO, Dict, Literal, Optional
 from ..logging import PRIDELogger as logger
 
 # Local imports
-from .gnss_product_schemas import CLSIGS, GSSC, RemoteQuery, RemoteResource, WuhanIGS
+from .gnss_product_schemas import CLSIGS, GSSC, RemoteQuery, RemoteResourceFTP, WuhanIGS
 from .pride_file_config import PRIDEPPPFileConfig, SatelliteProducts
 from .rinex_utils import rinex_get_time_range
 
 
-def update_source(source: RemoteResource) -> RemoteResource:
+def update_source(source: RemoteResourceFTP) -> RemoteResourceFTP:
     """
     Get the contents of the directory on a remote FTP server and return the first file that matches the sorted remote query.
     Args:
@@ -69,7 +69,7 @@ def update_source(source: RemoteResource) -> RemoteResource:
     return source
 
 
-def download(source: RemoteResource, dest: Path) -> Path:
+def download(source: RemoteResourceFTP, dest: Path) -> Path:
     """
     Downloads a file from a remote FTP server to a local destination.
     Args:
@@ -137,7 +137,7 @@ def uncompress_file(file_path: Path, dest_dir: Optional[Path]) -> Path:
     return out_file_path
 
 
-def get_daily_rinex_url(date: datetime.date) -> Dict[str, Dict[str, RemoteResource]]:
+def get_daily_rinex_url(date: datetime.date) -> Dict[str, Dict[str, RemoteResourceFTP]]:
     """
     This function returns the 'RemoteResource' for the IGS rinex observation file for a given date.
     url config docs at https://igs.org/products-access/#gnss-broadcast-ephemeris
@@ -495,7 +495,7 @@ def get_nav_file(rinex_path: Path, override: bool = False) -> Path:
             logger.logdebug(response)
             return nav_file
 
-    remote_resource_dict: Dict[str, RemoteResource] = get_daily_rinex_url(start_date)
+    remote_resource_dict: Dict[str, RemoteResourceFTP] = get_daily_rinex_url(start_date)
     for source, remote_resource in remote_resource_dict["rinex_3"].items():
 
         remote_resource_updated = update_source(remote_resource)
@@ -524,8 +524,8 @@ def get_nav_file(rinex_path: Path, override: bool = False) -> Path:
     with tempfile.TemporaryDirectory() as tempdir:
         # If rinex 3 nav file pathway is not found, try rinex 2
         for source, constellations in remote_resource_dict["rinex_2"].items():
-            gps_url: RemoteResource = constellations["gps"]
-            glonass_url: RemoteResource = constellations["glonass"]
+            gps_url: RemoteResourceFTP = constellations["gps"]
+            glonass_url: RemoteResourceFTP = constellations["glonass"]
 
             gps_url_updated = update_source(gps_url)
             glonass_url_updated = update_source(glonass_url)
@@ -666,7 +666,7 @@ def get_gnss_products(
     # or download them if they are not found
 
     cp_dir_list = list(common_product_dir.glob("*"))
-    remote_resource_dict: Dict[str, Dict[str, RemoteResource]] = (
+    remote_resource_dict: Dict[str, Dict[str, RemoteResourceFTP]] = (
         get_gnss_common_products_urls(start_date)
     )
 
@@ -757,3 +757,4 @@ def get_gnss_products(
     config_template_file_path = pride_dir / year / doy / "config_file"
     config_template.write_config_file(config_template_file_path)
     return config_template_file_path
+

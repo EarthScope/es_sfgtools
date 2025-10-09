@@ -296,10 +296,11 @@ class DataHandler:
             if file_type is not None:
                 symlinked_path = self.currentCampaignDir.raw / file_path.name
                 # symlink to the raw directory
-                try:
-                    file_path.symlink_to(symlinked_path, target_is_directory=False)
-                except FileExistsError:
-                    pass
+                if symlinked_path != file_path:
+                    try:
+                        file_path.symlink_to(symlinked_path, target_is_directory=False)
+                    except FileExistsError:
+                        pass
                 file_data = AssetEntry(
                     local_path=file_path,
                     type=file_type,

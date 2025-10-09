@@ -28,7 +28,7 @@ except ImportError:
 
 from es_sfgtools.logging import GarposLogger as logger
 from es_sfgtools.modeling.garpos_tools.functions import process_garpos_results
-
+from es_sfgtools.modeling.garpos_tools.garpos_results_processor import GarposResultsProcessor
 
 class GarposHandler:
     """
@@ -78,6 +78,8 @@ class GarposHandler:
 
         self.directory_handler = directory_handler
 
+        self.garpos_results_processor: GarposResultsProcessor = None
+
         self.currentCampaign: Campaign = None
         self.currentSurvey: Survey = None
 
@@ -105,6 +107,7 @@ class GarposHandler:
 
         self.currentCampaign = None
         self.currentCampaignDir = None
+        self.garpos_results_processor = None
 
         self.currentSurvey = None
         self.currentSurveyDir = None
@@ -144,6 +147,7 @@ class GarposHandler:
 
         self.currentCampaign = None
         self.currentCampaignDir = None
+        self.garpos_results_processor = None
 
         self.currentSurvey = None
         self.currentSurveyDir = None
@@ -196,6 +200,7 @@ class GarposHandler:
             raise ValueError(f"Campaign {campaign_id} not found in directory handler. Please run intermediate data processing to create campaign directory.")
 
         self.currentCampaignDir = currentCampaignDir
+        self.garpos_results_processor = GarposResultsProcessor(self.currentCampaignDir)
 
     def setSurvey(self, survey_id: str):
         """
@@ -342,7 +347,12 @@ class GarposHandler:
         """
         logger.loginfo(f"Running GARPOS model for survey {survey_id}. Run ID: {run_id}")
 
-        self.setSurvey(survey_id=survey_id)
+        try:
+            self.setSurvey(survey_id=survey_id)
+        except ValueError as e:
+            logger.logwarn(f"Skipping survey {survey_id}: {e}")
+            return
+   
 
         results_dir_main = self.currentGarposSurveyDir.results_dir
         results_dir = results_dir_main / f"run_{run_id}"
@@ -397,31 +407,47 @@ class GarposHandler:
                 survey_id=survey_id, run_id=run_id, override=override, iterations=iterations
             )
 
-    # def plot_ts_results(
-    #     self,
-    #     survey_id: str,
-    #     run_id: int | str = 0,
-    #     res_filter: float = 10,
-    #     savefig: bool = False,
-    # ) -> None:
-    #     """
-    #     Plots the time series results for a given survey.
-    #     :param survey_id: ID of the survey to plot results for.
-    #     :type survey_id: str
-    #     :param run_id: The run ID of the survey results to plot. Default is 0.
-    #     :type run_id: int or str, optional
-    #     :param res_filter: The residual filter value to filter outrageous values (m). Default is 10.
-    #     :type res_filter: float, optional
-    #     :param savefig: If True, save the figure. Default is False.
-    #     :type savefig: bool, optional
-    #     """
-    #     self.setSurvey(survey_id)
-    #     self.garpos_results_processor.plot_ts_results(
-    #         survey_id=survey_id,
-    #         run_id=run_id,
-    #         res_filter=res_filter,
-    #         savefig=savefig
-    #     )
+    def plot_ts_results(
+        self,
+        survey_id: str = None,
+        run_id: int | str = 0,
+        res_filter: float = 10,
+        savefig: bool = False,
+        showfig: bool = True,
+    ) -> None:
+        """
+        Plots the time series results for a given survey.
+        
+        :param survey_id: ID of the survey to plot results for.
+        :type survey_id: str
+        :param run_id: The run ID of the survey results to plot. Default is 0.
+        :type run_id: int or str, optional
+        :param res_filter: The residual filter value to filter outrageous values (m). Default is 10.
+        :type res_filter: float, optional
+        :param savefig: If True, save the figure. Default is False.
+        :type savefig: bool, optional
+        :param showfig: If True, display the figure. Default is True.
+        :type showfig: bool, optional
+        """
+        surveys_to_process = []
+        for survey in self.currentCampaign.surveys:
+            if survey.id == survey_id or survey_id is None:
+                surveys_to_process.append((survey.id,survey.type.value))
+
+        for survey_id, survey_type in surveys_to_process:
+            try:
+                self.setSurvey(survey_id)
+                self.garpos_results_processor.plot_ts_results(
+                    survey_id=survey_id,
+                    survey_type=survey_type,
+                    run_id=run_id,
+                    res_filter=res_filter,
+                    savefig=savefig,
+                    showfig=showfig,
+                )
+            except Exception as e:
+                logger.logwarn(f"Skipping plotting for survey {survey_id}: {e}")
+                continue
 
 # def load_sound_speed_data(
 #     self,

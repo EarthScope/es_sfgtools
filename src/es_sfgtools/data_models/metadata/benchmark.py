@@ -34,8 +34,8 @@ class BatteryVoltage(AttributeUpdater, BaseModel):
 class TAT(AttributeUpdater, BaseModel):
     # Required
     value: float = Field(..., description="Turn around time (TAT) in ms", ge=0, le=1000)
-    start: datetime = Field(
-        ..., description="The start date of the TAT", gt=datetime(1901, 1, 1)
+    start: Optional[datetime] = Field(
+        None, description="The start date of the TAT", gt=datetime(1901, 1, 1)
     )
 
     # Optional
@@ -55,8 +55,8 @@ class Transponder(AttributeUpdater, BaseModel):
     tat: List[TAT] = Field(
         ..., description="The turn around time (TAT) of the transponder"
     )
-    start: datetime = Field(
-        ..., description="The start date of the transponder", gt=datetime(1901, 1, 1)
+    start: Optional[datetime] = Field(
+        default=None, description="The start date of the transponder", gt=datetime(1901, 1, 1)
     )
 
     # Optional

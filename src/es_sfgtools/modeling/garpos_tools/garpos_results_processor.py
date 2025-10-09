@@ -5,7 +5,7 @@ This module contains the GarposResultsProcessor class, which is responsible for 
 import json
 from datetime import datetime
 from pathlib import Path
-
+import numpy as np
 import matplotlib.dates as mdates
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
@@ -16,6 +16,7 @@ from matplotlib.colors import Normalize
 
 from es_sfgtools.logging import GarposLogger as logger
 from es_sfgtools.modeling.garpos_tools.schemas import GarposInput, ObservationData
+from es_sfgtools.data_mgmt.directory_handler import SurveyDir,GARPOSSurveyDir,CampaignDir
 
 sns.set_theme()
 
@@ -39,39 +40,93 @@ class GarposResultsProcessor:
     A class to process and analyze GARPOS results.
     """
 
-    def __init__(self, working_dir: Path):
+    def __init__(self, campaign_dir: CampaignDir):
         """
         Initializes the GarposResultsProcessor.
 
         Args:
-            working_dir (Path): The working directory.
+            survey_dir (SurveyDir): The survey directory.
         """
-        self.working_dir = working_dir
+        self.campaign_dir = campaign_dir
 
     def plot_ts_results(
         self,
         survey_id: str,
+        survey_type: str = None,
         run_id: int | str = 0,
         res_filter: float = 10,
         savefig: bool = False,
+        showfig: bool = True,
     ) -> None:
         """
         Plots the time series results for a given survey.
-        Args:
-            survey_id (str): ID of the survey to plot results for.
-            run_id (int or str, optional): The run ID of the survey results to plot. Default is 0.
-            res_filter (float, optional): The residual filter value to filter outrageous values (m). Default is 10.
-            savefig (bool, optional): If True, save the figure. Default is False.
+        
+        :param survey_id: The ID of the survey to plot results for.
+        :type survey_id: str
+        :param survey_type: Optional survey type to include in the title.
+        :type survey_type: str, optional
+        :param run_id: The GARPOS run ID to plot results for. Defaults to 0.
+        :type run_id: int | str, optional
+        :param res_filter: The residual filter value to apply. Defaults to 10.
+        :type res_filter: float, optional
+        :param savefig: Whether to save the figure as a PNG file. Defaults to False.
+        :type savefig: bool, optional
+        :param showfig: Whether to display the figure. Defaults to True.
+        :type showfig: bool, optional
 
-        Returns:
-            None
         """
-        results_dir = self.working_dir / survey_id / RESULTS_DIR_NAME
-        results_path = results_dir / f"_{run_id}_results.json"
-        with open(results_path, "r") as f:
-            results = json.load(f)
-            garpos_results = GarposInput(**results)
-            arrayinfo = garpos_results.delta_center_position
+        if (survey_dir := self.campaign_dir.surveys.get(survey_id)) is None:
+            raise ValueError(f"Survey ID {survey_id} not found in campaign directory.")
+
+        if (garpos_dir := survey_dir.garpos) is None:
+            raise ValueError(f"GARPOS directory not found for survey ID {survey_id}.")
+
+        results_dir: Path = garpos_dir.results_dir
+        if not results_dir.exists():
+            raise FileNotFoundError(f"Results directory {results_dir} does not exist.")
+
+        run_dir = results_dir / f"run_{run_id}"
+        if not run_dir.exists():
+            raise FileNotFoundError(f"Run directory {run_dir} does not exist.")
+
+        # Get *observation.ini file
+        data_files = list(run_dir.glob("*.dat"))
+        if not data_files:
+            raise FileNotFoundError(f"No .dat files found in run directory {run_dir}.")
+
+        """
+        sort by iteration number if multiple files found
+
+        >>> data_files = [NTH1.2025_A_1126_0-m.p.dat,NTH1.2025_A_1126_1-m.p.dat,NTH1.2025_A_1126_2-m.p.dat]
+        >>> sorted_data_files = sorted(data_files, key=lambda x: int(x.stem.split("_")[-1].split("-")[0]))
+        >>> sorted_data_files
+        [NTH1.2025_A_1126_0-m.p.dat,NTH1.2025_A_1126_1-m.p.dat,NTH1.2025_A_1126_2-m.p.dat]
+        
+        """
+        data_files = sorted(
+            data_files, key=lambda x: int(x.stem.split("_")[-1].split("-")[0])
+        )
+        data_file = data_files[-1]
+        logger.loginfo(f"Using data file {data_file} for plotting.")
+
+        garpos_results = GarposInput.from_datafile(data_file)
+
+        """
+        Get the array center position and delta position.
+        Add the delta position to the array center position to get the final position.
+        
+        """
+        array_enu = garpos_results.array_center_enu
+        array_dpos = garpos_results.delta_center_position
+        if array_enu is None or array_dpos is None:
+            raise ValueError("Array center or delta position not found in GARPOS results.")
+
+        array_final_position = array_dpos.model_copy()
+        array_final_position.east += array_enu.east
+        array_final_position.north += array_enu.north
+        array_final_position.up += array_enu.up
+
+        
 
         results_df_raw = pd.read_csv(garpos_results.shot_data)
         results_df_raw = ObservationData.validate(results_df_raw, lazy=True)
@@ -81,19 +136,30 @@ class GarposResultsProcessor:
         unique_ids = results_df["MT"].unique()
 
         plt.figure(figsize=(16, 9))
-        plt.suptitle(f"Survey {survey_id} Results")
+        title = f"{self.campaign_dir.location.parent.stem}"
+        if survey_type is not None:
+            title += f" {survey_type}"
+        title += f" Survey {survey_id} Results"
+        plt.suptitle(title,x=.6,y=.95,fontsize=14)  # Move to left with left alignment
         gs = gridspec.GridSpec(13, 16)
-        figure_text = "Delta Center Position\n"
-        dpos = arrayinfo.get_position()
-        figure_text += f"Array :  East {dpos[0]:.3f} m, North {dpos[1]:.3f} m, Up {dpos[2]:.3f} m \n"
+        
+        dpos_std = array_dpos.get_std_dev()
+        dpos = array_dpos.get_position()
+        figure_text = f"Array Final Position: East {array_final_position.east:.4f} m, North {array_final_position.north:.4f} m, Up {array_final_position.up:.4f} m\n"
+        figure_text += f" Sig East {dpos_std[0]:.2f} m  Sig North {dpos_std[1]:.2f} m  Sig Up {dpos_std[2]:.2f} m \n"
+        figure_text += f"Array Delta Position :  East {dpos[0]:.3f} m, North {dpos[1]:.3f} m, Up {dpos[2]:.3f} m \n"
         for id, transponder in enumerate(garpos_results.transponders):
             try:
-                dpos = transponder.delta_center_position.get_position()
+                dpos = transponder.position_enu.get_position()
                 figure_text += f"TSP {transponder.id} : East {dpos[0]:.3f} m, North {dpos[1]:.3f} m, Up {dpos[2]:.3f} m \n"
             except ValueError:
                 figure_text += f"TSP {transponder.id} : No results found\n"
 
         print(figure_text)
+
+        """
+        Plot the waveglider track and transponder positions
+        """
         ax3 = plt.subplot(gs[6:, 8:])
         ax3.set_aspect("equal", "box")
         ax3.set_xlabel("East (m)")
@@ -114,6 +180,10 @@ class GarposResultsProcessor:
             alpha=0.25,
         )
         ax3.scatter(0, 0, label="Origin", color="magenta", s=100)
+
+        """
+        Plot the time series of residuals
+        """
         ax1 = plt.subplot(gs[1:5, :])
         points = (
             pd.DataFrame({"x": mdates.date2num(results_df["time"])
@@ -124,7 +194,7 @@ class GarposResultsProcessor:
         segments = np.concatenate([points[:-1, np.newaxis, :], points[1:, np.newaxis, :]], axis=1)
         lc = LineCollection(segments, cmap="viridis", norm=norm, linewidth=5, zorder=10)
         lc.set_array(colormap_times_scaled)
-        ax1.add_collection(lc)
+   
         for i, unique_id in enumerate(unique_ids):
             df = results_df[results_df["MT"] == unique_id].sort_values("time")
             ax1.plot(
@@ -136,11 +206,13 @@ class GarposResultsProcessor:
                 zorder=i,
                 alpha=0.75,
             )
+        #ax1.add_collection(lc)
         ax1.set_xlabel("Time - Month / Day / Hour")
         ax1.set_ylabel("Residuals - Range (M)", labelpad=-1)
         ax1.xaxis.set_label_position("top")
         ax1.xaxis.set_ticks_position("top")
         ax1.legend()
+
         for transponder in garpos_results.transponders:
             try:
                 idx = unique_ids.tolist().index(transponder.id)
@@ -157,6 +229,10 @@ class GarposResultsProcessor:
                 )
         cbar = plt.colorbar(sc, label="Time (hr)", norm=norm)
         ax3.legend()
+
+        """
+        Plot the residual range boxplot and histogram
+        """
         ax2 = plt.subplot(gs[6:9, :7])
         resiRange = results_df_raw["ResiRange"]
         resiRange_np = resiRange.to_numpy()
@@ -188,10 +264,13 @@ class GarposResultsProcessor:
         ax4.set_ylabel("Frequency")
         ax4.set_title(f"Histogram of Residual Range Values, within {res_filter:.1f} meters")
         ax4.legend()
-        plt.show()
+        # add figure text
+        plt.gcf().text(0.2, 0.85, figure_text, fontsize=11, ha="center")
+        if showfig:
+            plt.show()
         if savefig:
             plt.savefig(
-                results_dir / f"_{run_id}_results.png",
+                run_dir / f"_{run_id}_results.png",
                 dpi=300,
                 bbox_inches="tight",
                 pad_inches=0.1,
