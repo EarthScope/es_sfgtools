@@ -11,16 +11,18 @@ from pydantic import BaseModel, Field, field_validator,model_serializer
 
 
 def campaign_checks(campaign_year, campaign_interval, vessel_code):
-    """Check the campaign year, interval and vessel code
+    """
+    Checks the campaign year, interval, and vessel code for validity.
 
-    Args:
-        campaign_year (str): The campaign year.
-        campaign_interval (str): The campaign interval.
-        vessel_code (str): The vessel code.
-
-    Returns:
-        str: The campaign name.
-        str: The vessel code.
+    :param campaign_year: The campaign year (e.g., "2023").
+    :type campaign_year: str
+    :param campaign_interval: The campaign interval (e.g., "A").
+    :type campaign_interval: str
+    :param vessel_code: The 4-character vessel code.
+    :type vessel_code: str
+    :return: A tuple containing the formatted campaign name and the uppercase vessel code.
+    :rtype: Tuple[str, str]
+    :raises ValueError: If the campaign year, interval, or vessel code are invalid.
     """
     if not campaign_year.isnumeric() or not len(campaign_year) == 4:
         raise ValueError("Campaign year must be a 4 digit year")
@@ -38,6 +40,9 @@ def campaign_checks(campaign_year, campaign_interval, vessel_code):
 
 
 class Survey(AttributeUpdater, BaseModel):
+    """
+    Represents a single survey within a campaign.
+    """
     # Required
     id: str = Field(
         ..., description="The unique ID of the survey"
@@ -69,6 +74,9 @@ class Survey(AttributeUpdater, BaseModel):
 
 
 class Campaign(AttributeUpdater, BaseModel):
+    """
+    Represents a campaign, which is a collection of surveys.
+    """
     # Required
     name: str = Field(
         ..., description="The name of the campaign in the format YYYY_A_VVVV"
@@ -111,7 +119,11 @@ class Campaign(AttributeUpdater, BaseModel):
     )(check_fields_for_empty_strings)
 
     def check_survey_times(self):
-        """Check that survey times do not overlap with each other"""
+        """
+        Checks that survey times within the campaign do not overlap with each other.
+
+        :raises ValueError: If any survey times overlap.
+        """
         # TODO test this
 
         # Sort surveys by start time
@@ -135,7 +147,15 @@ class Campaign(AttributeUpdater, BaseModel):
     #     return {k:v for k,v in self if k not in to_omit}
 
     def get_survey_by_datetime(self, dt: datetime) -> Survey:
-        """Return the survey that contains the given datetime"""
+        """
+        Returns the survey that encompasses the given datetime.
+
+        :param dt: The datetime to check against surveys.
+        :type dt: datetime
+        :return: The Survey object that contains the given datetime.
+        :rtype: Survey
+        :raises ValueError: If no survey is found for the given datetime.
+        """
         for survey in self.surveys:
             if survey.start <= dt <= survey.end:
                 return survey

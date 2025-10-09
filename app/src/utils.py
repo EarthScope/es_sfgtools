@@ -8,8 +8,8 @@ def display_pipelinemanifest(pipeline_manifest: PipelineManifest):
     """
     Displays a table of jobs organized by network, station, and campaign using rich.table.
 
-    Args:
-        pipeline_manifest (PipelineManifest): The PipelineManifest object containing the jobs.
+    :param pipeline_manifest: The PipelineManifest object containing the jobs.
+    :type pipeline_manifest: PipelineManifest
     """
     CONSOLE_WIDTH = 80
     console = Console()

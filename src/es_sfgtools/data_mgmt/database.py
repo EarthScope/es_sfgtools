@@ -1,3 +1,6 @@
+"""
+This module contains the database models for the data management module.
+"""
 import datetime
 from sqlalchemy import (
     create_engine,
@@ -20,6 +23,9 @@ from sqlalchemy.orm import sessionmaker, relationship
 Base = declarative_base()
 
 class Assets(Base):
+    """
+    A class to represent the assets table.
+    """
     __tablename__ = "assets"
     id = Column(Integer,primary_key=True,autoincrement=True)
     network = Column(String)
@@ -37,6 +43,9 @@ class Assets(Base):
 
 
 class ModelResults(Base):
+    """
+    A class to represent the modelresults table.
+    """
     __tablename__ = "modelresults"
     id = Column(Integer, primary_key=True, autoincrement=True)
     asset_id = Column(Integer, ForeignKey("assets.id"))
@@ -47,6 +56,9 @@ class ModelResults(Base):
     delta_center_position = Column(JSON)
     
 class MergeJobs(Base):
+    """
+    A class to represent the mergejobs table.
+    """
     __tablename__ = "mergejobs"
     id = Column(Integer, primary_key=True, autoincrement=True)
     child_type = Column(String)

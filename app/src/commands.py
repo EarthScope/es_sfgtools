@@ -12,30 +12,11 @@ def run_manifest(manifest_object: PipelineManifest):
     Executes a series of data ingestion, download, and processing jobs based on the 
     provided PipelineManifest object.
 
-    Args:
-        manifest_object (PipelineManifest): An object containing details about 
+    :param manifest_object: An object containing details about 
             ingestion jobs, download jobs, and process jobs, as well as the main 
             directory for data handling.
-
-    Workflow:
-        1. Displays the details of the provided PipelineManifest object.
-        2. Handles ingestion jobs:
-            - Changes the working station based on the job's network, station, 
-              and campaign.
-            - Verifies the existence of the specified directory.
-            - Discovers and adds files from the directory.
-        3. Handles download jobs:
-            - Retrieves remote file URLs for the specified campaign.
-            - Changes the working station and adds remote file paths.
-            - Downloads the data from the remote sources.
-        4. Handles process jobs:
-            - Changes the working station based on the job's network, station, 
-              and campaign.
-            - Retrieves the pipeline and configuration for processing.
-            - Updates the pipeline configuration and runs the processing pipeline.
-
-    Raises:
-        AssertionError: If a directory listed in an ingestion job does not exist.
+    :type manifest_object: PipelineManifest
+    :raises AssertionError: If a directory listed in an ingestion job does not exist.
     """
 
     display_pipelinemanifest(manifest_object)

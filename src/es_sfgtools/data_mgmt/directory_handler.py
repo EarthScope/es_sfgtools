@@ -4,14 +4,13 @@ This module defines a set of Pydantic models for managing a directory structure 
 The models define a hierarchical structure of directories and files, starting from a main directory,
 and branching into networks, stations, campaigns, and various data and results directories.
 
-The main classes are:
-- DirectoryHandler: The main class that manages the entire directory structure.
-- NetworkDir: Represents a network of stations.
-- StationDir: Represents a single station with multiple campaigns.
-- CampaignDir: Represents a data collection campaign.
-- TileDBDir: Manages TileDB arrays for a station.
-- GARPOSCampaignDir: Manages GARPOS-specific data and results.
-- GARPOSSurveyDir: Represents a single GARPOS survey.
+:class DirectoryHandler: The main class that manages the entire directory structure.
+:class NetworkDir: Represents a network of stations.
+:class StationDir: Represents a single station with multiple campaigns.
+:class CampaignDir: Represents a data collection campaign.
+:class TileDBDir: Manages TileDB arrays for a station.
+:class GARPOSCampaignDir: Manages GARPOS-specific data and results.
+:class GARPOSSurveyDir: Represents a single GARPOS survey.
 """
 from pathlib import Path
 import os
@@ -78,7 +77,7 @@ class GARPOSSurveyDir(_Base):
     default_settings: Optional[Path] = Field(
         default=None, description="The default GARPOS settings file path"
     )
-
+    svp_file: Optional[Path] = Field(default=None, description="The sound velocity profile file path")
     results_dir: Optional[Path] = Field(default=None, description="The results directory path")
     shotdata_rectified: Optional[Path] = Field(default=None, description="The survey shotdata file path")
     shotdata_filtered: Optional[Path] = Field(default=None, description="The filtered shotdata file path")
@@ -103,6 +102,9 @@ class GARPOSSurveyDir(_Base):
 
         if not self.results_dir:
             self.results_dir = self.location / GARPOS_RESULTS_DIR
+
+        if not self.svp_file:
+            self.svp_file = self.location / SVP_FILE_NAME
 
         # Create directories if they don't exist
         for path in [self.location, self.results_dir,self.log_directory,]:
@@ -232,11 +234,10 @@ class CampaignDir(_Base):
         """
         Adds a new survey to the campaign.
 
-        Args:
-            name: The name of the survey to add.
-
-        Returns:
-            True if the survey was added successfully, False otherwise.
+        :param name: The name of the survey to add.
+        :type name: str
+        :return: The newly created or existing SurveyDir object.
+        :rtype: SurveyDir
         """
         if name in self.surveys:
             print(f"Survey {name} already exists in campaign {self.name}")
@@ -254,7 +255,8 @@ class StationDir(_Base):
     campaigns: Optional[dict[str, CampaignDir]] = Field(default={}, description="Campaigns in the station")
     location: Optional[Path] = Field(default=None, description="The station directory path")
     tiledb_directory: Optional[TileDBDir] = Field(default=None, description="The TileDB directory path")
-
+    metadata_directory: Optional[Path] = Field(default=None, description="The metadata directory path")
+    site_metadata: Optional[Path] = Field(default=None, description="The site metadata file path")
     # Fields needed to auto-generate paths
     name: str = Field(..., description="The station name")
     network: Path = Field(..., description="The network directory path")
@@ -271,6 +273,12 @@ class StationDir(_Base):
             self.tiledb_directory = TileDBDir(station=self.location)
             self.tiledb_directory.build()
 
+        if not self.metadata_directory:
+            self.metadata_directory = self.location / "metadata"
+            self.metadata_directory.mkdir(parents=True, exist_ok=True)
+
+        if not self.site_metadata:
+            self.site_metadata = self.metadata_directory / "site_metadata.json"
         # Build each campaign directory
         for campaign in self.campaigns.values():
             campaign.station = self.location
@@ -280,11 +288,10 @@ class StationDir(_Base):
         """
         Gets a campaign by name.
 
-        Args:
-            key: The name of the campaign.
-
-        Returns:
-            The CampaignDir object if found, None otherwise.
+        :param key: The name of the campaign.
+        :type key: str
+        :return: The CampaignDir object if found, None otherwise.
+        :rtype: Optional[CampaignDir]
         """
         try:
             return self.campaigns[key]
@@ -296,14 +303,10 @@ class StationDir(_Base):
         """
         Adds a new campaign to the station.
 
-        Args:
-            name: The name of the campaign to add.
-
-        Returns:
-            The CampaignDir object if added successfully, None otherwise.
-
-        Returns:
-            True if the campaign was added successfully, False otherwise.
+        :param name: The name of the campaign to add.
+        :type name: str
+        :return: The newly created or existing CampaignDir object.
+        :rtype: CampaignDir
         """
         if name in self.campaigns:
             print(f"Campaign {name} already exists in station {self.name}")
@@ -342,11 +345,10 @@ class NetworkDir(_Base):
         """
         Gets a station by name.
 
-        Args:
-            key: The name of the station.
-
-        Returns:
-            The StationDir object if found, None otherwise.
+        :param key: The name of the station.
+        :type key: str
+        :return: The StationDir object if found, None otherwise.
+        :rtype: Optional[StationDir]
         """
         try:
             return self.stations[key]
@@ -358,11 +360,10 @@ class NetworkDir(_Base):
         """
         Adds a new station to the network.
 
-        Args:
-            name: The name of the station to add.
-
-        Returns:
-            True if the station was added successfully, False otherwise.
+        :param name: The name of the station to add.
+        :type name: str
+        :return: The newly created or existing StationDir object.
+        :rtype: StationDir
         """
         if name in self.stations:
             print(f"Station {name} already exists in network {self.name}")
@@ -402,11 +403,10 @@ class DirectoryHandler(_Base):
         """
         Loads the directory structure from a JSON file.
 
-        Args:
-            path: The path to the JSON file.
-
-        Returns:
-            A DirectoryHandler object.
+        :param path: The path to the JSON file.
+        :type path: Union[str, Path]
+        :return: A DirectoryHandler object.
+        :rtype: DirectoryHandler
         """
         with open(path, "r") as file:
             raw_data = file.read()
@@ -414,15 +414,14 @@ class DirectoryHandler(_Base):
         directoryHandler.filepath = path
         return directoryHandler
 
-    def add_network(self, name: str) -> bool:
+    def add_network(self, name: str) -> NetworkDir:
         """
         Adds a new network to the directory structure.
 
-        Args:
-            name: The name of the network to add.
-
-        Returns:
-            True if the network was added successfully, False otherwise.
+        :param name: The name of the network to add.
+        :type name: str
+        :return: The newly created or existing NetworkDir object.
+        :rtype: NetworkDir
         """
         if name in self.networks:
             print(f"Network {name} already exists.")
@@ -436,11 +435,10 @@ class DirectoryHandler(_Base):
         """
         Gets a network by name.
 
-        Args:
-            key: The name of the network.
-
-        Returns:
-            The NetworkDir object if found, None otherwise.
+        :param key: The name of the network.
+        :type key: str
+        :return: The NetworkDir object if found, None otherwise.
+        :rtype: Optional[NetworkDir]
         """
         try:
             return self.networks[key]
@@ -472,14 +470,16 @@ class DirectoryHandler(_Base):
         """
         Builds a station directory, and optionally a campaign directory.
 
-        Args:
-            network_name: The name of the network.
-            station_name: The name of the station.
-            campaign_name: The name of the campaign.
-            survey_name: The name of the survey.
-
-        Returns:
-            A tuple containing the created directory objects, or None if the directory was not built successfully.
+        :param network_name: The name of the network.
+        :type network_name: str
+        :param station_name: The name of the station.
+        :type station_name: str, optional
+        :param campaign_name: The name of the campaign.
+        :type campaign_name: str, optional
+        :param survey_name: The name of the survey.
+        :type survey_name: str, optional
+        :return: A tuple containing the created directory objects, or None if the directory was not built successfully.
+        :rtype: Optional[tuple[NetworkDir,StationDir,CampaignDir,SurveyDir]]
         """
         if station_name and not network_name:
             print("Station name provided without network name.")

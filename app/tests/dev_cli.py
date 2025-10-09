@@ -1,3 +1,6 @@
+"""
+This module is for development and testing of the CLI.
+"""
 import sys
 from pathlib import Path
 import os

@@ -1,41 +1,54 @@
 """ Contains the DataHandler class for handling data operations. """
 import os
 import warnings
-warnings.filterwarnings("ignore")
-
-from pathlib import Path
-from typing import List, Callable, Union, Generator, Tuple, LiteralString, Optional, Dict, Literal
-import logging
-import boto3
-import matplotlib.pyplot as plt
-from tqdm.auto import tqdm 
-from functools import partial
 import concurrent.futures
+import json
 import threading
 from functools import wraps
-import json
-from datetime import date
-import seaborn 
-seaborn.set_theme(style="whitegrid")
-from es_sfgtools.data_models.metadata.site import Site, Survey
-from es_sfgtools.data_models.metadata import MetaDataCatalog as Catalog
-from es_sfgtools.data_models.metadata import NetworkData,StationData
-from es_sfgtools.utils.archive_pull import download_file_from_archive, list_campaign_files, list_campaign_files_by_type
-from es_sfgtools.logging import ProcessLogger as logger, change_all_logger_dirs
-from es_sfgtools.data_mgmt.file_schemas import AssetEntry, AssetType
-from es_sfgtools.tiledb_tools.tiledb_schemas import TDBAcousticArray,TDBKinPositionArray,TDBIMUPositionArray,TDBShotDataArray,TDBGNSSObsArray
+from pathlib import Path
+from typing import Callable, List, Literal, Optional, Tuple, Union
+
+import boto3
+import matplotlib.pyplot as plt
+import seaborn
+from tqdm.auto import tqdm
+
 from es_sfgtools.data_mgmt.catalog import PreProcessCatalog
-from es_sfgtools.pipelines.sv3_pipeline import SV3Pipeline, SV3PipelineConfig
-from es_sfgtools.novatel_tools.utils import get_metadata,get_metadatav2
-from es_sfgtools.data_mgmt.constants import REMOTE_TYPE, FILE_TYPES
-from es_sfgtools.data_mgmt.datadiscovery import scrape_directory_local, get_file_type_local, get_file_type_remote
+from es_sfgtools.data_mgmt.constants import (DEFAULT_FILE_TYPES_TO_DOWNLOAD,
+                                           REMOTE_TYPE)
+from es_sfgtools.data_mgmt.datadiscovery import (get_file_type_local,
+                                               get_file_type_remote,
+                                               scrape_directory_local)
+from es_sfgtools.data_mgmt.directory_handler import (CampaignDir,
+                                                   DirectoryHandler, NetworkDir,
+                                                   StationDir, SurveyDir)
+from es_sfgtools.data_mgmt.file_schemas import AssetEntry, AssetType
+from es_sfgtools.data_mgmt.post_processing import IntermediateDataProcessor,DEFAULT_FILTER_CONFIG
+from es_sfgtools.data_models.metadata.site import Site
+from es_sfgtools.logging import ProcessLogger as logger
+from es_sfgtools.logging import change_all_logger_dirs
 from es_sfgtools.modeling.garpos_tools.garpos_handler import GarposHandler
-from es_sfgtools.data_mgmt.constants import DEFAULT_FILE_TYPES_TO_DOWNLOAD
-from es_sfgtools.data_mgmt.post_processing import DataPostProcessor
-from es_sfgtools.data_mgmt.directory_handler import DirectoryHandler, NetworkDir, StationDir, CampaignDir, SurveyDir
+from es_sfgtools.pipelines.sv3_pipeline import SV3Pipeline, SV3PipelineConfig
+from es_sfgtools.tiledb_tools.tiledb_schemas import (TDBAcousticArray,
+                                                   TDBGNSSObsArray,
+                                                   TDBIMUPositionArray,
+                                                   TDBKinPositionArray,
+                                                   TDBShotDataArray)
+from es_sfgtools.utils.archive_pull import (download_file_from_archive,
+                                          list_campaign_files,
+                                          list_campaign_files_by_type,load_site_metadata)
+
+
+seaborn.set_theme(style="whitegrid")
 
 def check_network_station_campaign(func: Callable):
-    """ Wrapper to check if network, station, and campaign are set before running a function. """
+    """
+    Decorator to check if network, station, and campaign are set before executing a function.
+
+    :param func: The function to wrap.
+    :type func: Callable
+    :raises ValueError: If network, station, or campaign are not set.
+    """
     @wraps(func)
     def wrapper(self, *args, **kwargs):
         if self.current_network is None:
@@ -51,95 +64,9 @@ def check_network_station_campaign(func: Callable):
     return wrapper
 
 
-class CatalogHandler:
-    def __init__(self, file_path: Union[str, Path], name: str = None, catalog: Catalog = None):
-        """
-        Initialize the CatalogHandler with a file path to persist the catalog.
-
-        Args:
-            file_path (Union[str, Path]): Path to the .json file for the catalog.
-        """
-        self.file_path = Path(file_path)
-        if catalog is not None:
-            self.catalog = catalog
-        else:
-            self.catalog = self._load_catalog(name=name)
-
-    def _load_catalog(self,name:str=None) -> Catalog:
-        """
-        Load the catalog from the .json file or create a new one if the file doesn't exist.
-
-        Returns:
-            Catalog: The loaded or newly created catalog.
-        """
-        if self.file_path.exists() and self.file_path.__sizeof__() > 0:
-            with open(self.file_path, "r") as file:
-                data = json.load(file)
-            return Catalog.load_data(data, name=name)
-        else:
-            return Catalog(name=name, type="Data", networks={})
-
-    def save(self):
-        """
-        Save the current state of the catalog to the .json file.
-        """
-        with open(self.file_path, "w") as file:
-            json.dump(self.catalog.model_dump(), file, indent=2)
-
-    def add_network(self, network_name: str):
-        """
-        Add a new network to the catalog.
-
-        Args:
-            network_name (str): The name of the network to add.
-        """
-        if network_name in self.catalog.networks:
-            return
-        self.catalog.networks[network_name] = NetworkData(
-            name=network_name, stations={}
-        )
-        self.save()
-
-    def add_station(self, network_name: str, station_name: str, station_data: dict|StationData):
-        """
-        Add a new station to a network.
-
-        Args:
-            network_name (str): The name of the network to add the station to.
-            station_name (str): The name of the station to add.
-            station_data (dict): The station data to add.
-        """
-        if network_name not in self.catalog.networks:
-            self.add_network(network_name)
-        network = self.catalog.networks[network_name]      
-        station_data = station_data if isinstance(station_data, StationData) else StationData(**station_data)
-        network.stations[station_name] = station_data
-        self.save()
-
-    def update_station(self, network_name: str, station_name: str, updated_data: dict):
-        """
-        Update the data for an existing station.
-
-        Args:
-            network_name (str): The name of the network containing the station.
-            station_name (str): The name of the station to update.
-            updated_data (dict): The updated station data.
-        """
-        if network_name not in self.catalog.networks:
-            raise ValueError(f"Network '{network_name}' does not exist.")
-        network = self.catalog.networks[network_name]
-        if station_name not in network.stations:
-            raise ValueError(
-                f"Station '{station_name}' does not exist in network '{network_name}'."
-            )
-        for key, value in updated_data.items():
-            setattr(network.stations[station_name], key, value)
-        self.save()
-
-
 class DataHandler:
     """
-    A class to handle data operations such as searching for, adding, downloading and processing data.
+    Handles data operations including searching, adding, downloading, and processing.
     """
 
     def __init__(
@@ -147,11 +74,10 @@ class DataHandler:
         directory: Path | str,
     ) -> None:
         """
-        Initialize the DataHandler object.
+        Initializes the DataHandler, setting up directories and the processing catalog.
 
-        Args:
-            directory (Path | str): The directory path to store files under.
-
+        :param directory: The root directory for data storage and operations.
+        :type directory: Union[Path, str]
         """
 
         self.current_network: Optional[str] = None
@@ -162,6 +88,8 @@ class DataHandler:
         self.currentStationDir: Optional[StationDir] = None
         self.currentCampaignDir: Optional[CampaignDir] = None
         self.currentSurveyDir: Optional[SurveyDir] = None
+
+        self.currentSiteMetaData: Optional[Site] = None
 
         # Create the directory structures
         self.main_directory = Path(directory)
@@ -174,22 +102,17 @@ class DataHandler:
 
     def _build_station_dir_structure(self, network: str, station: str, campaign: str):
         """
-        Build the directory structure for a station.
-        Format is as follows:
-            - [SFG Data Directory]/
-                - <network>/
-                    - <station>/
-                        - <campaign>/
-                            - raw/
-                            - intermediate/
-                            - GARPOS/
-                                - survey 1
-                                - survey 2
-                            - logs/
-                            - qc/
-                        - TileDB/
+        Constructs the necessary directory structure for a given station and campaign.
 
-                - Pride/
+        This includes directories for raw data, intermediate files, GARPOS processing,
+        logs, and quality control.
+
+        :param network: The name of the network.
+        :type network: str
+        :param station: The name of the station.
+        :type station: str
+        :param campaign: The name of the campaign.
+        :type campaign: str
         """
 
         networkDir, stationDir, campaignDir, _ = self.directory_handler.build_station_directory(
@@ -209,7 +132,10 @@ class DataHandler:
     @check_network_station_campaign
     def _build_tileDB_arrays(self):
         """
-        Build the TileDB arrays for the current station. TileDB directory is /network/station/TileDB.
+        Initializes and consolidates TileDB arrays for the current station.
+
+        This includes arrays for acoustic data, kinematic positions, IMU positions,
+        shot data, and GNSS observables.
         """
         logger.loginfo(f"Creating TileDB arrays for {self.current_station}")
 
@@ -250,23 +176,37 @@ class DataHandler:
         self.gnss_obs_tdb.consolidate()
         self.gnss_obs_secondary_tdb.consolidate()
 
-
-
     def change_working_station(
         self,
         network: str,
         station: str,
         campaign: str,
+        site_metadata: Optional[Union[Site,Path,str]] = None,
 
     ):
         """
-        Change the working station.
+        Changes the operational context to a specific network, station, and campaign.
 
-        Args:
-            network (str): The network name.
-            station (str): The station name.
-            campaign (str): The campaign name.
+        :param network: The network identifier.
+        :type network: str
+        :param station: The station identifier.
+        :type station: str
+        :param campaign: The campaign identifier.
+        :type campaign: str
+        :param site_metadata: Optional site metadata. If not provided, it will be loaded if available.
+        :type site_metadata: Optional[Site], optional
+
         """
+        assert isinstance(network, str) and network is not None, "Network must be a non-empty string"
+        assert isinstance(station, str) and station is not None, "Station must be a non-empty string"
+        assert isinstance(campaign, str) and campaign is not None, "Campaign must be a non-empty string"
+
+        assert site_metadata is None or isinstance(site_metadata, (Site, Path, str)), "Site metadata must be a Site, Path, or str"
+
+        getSiteMeta = False
+        if (self.current_network != network or self.current_station != station or self.currentSiteMetaData is None):
+            getSiteMeta = True
+
         # Set class attributes & create the directory structure
         self.current_station = station
         self.current_network = network
@@ -276,15 +216,19 @@ class DataHandler:
         self._build_station_dir_structure(network, station, campaign)
         self._build_tileDB_arrays()
 
+        if getSiteMeta or site_metadata is not None:
+            # Load site metadata
+            self.currentSiteMetaData = self.get_site_metadata(site_metadata=site_metadata)
+
         logger.loginfo(f"Changed working station to {network} {station} {campaign}")
 
     @check_network_station_campaign
     def get_dtype_counts(self):
         """
-        Get the data type counts (local) for the current station from the catalog.
+        Retrieves the counts of different data types for the current operational context.
 
-        Returns:
-            Dict[str,int]: A dictionary of data types and their counts.
+        :returns: A dictionary mapping data types to their counts.
+        :rtype: Dict[str, int]
         """
         return self.catalog.get_dtype_counts(
             network=self.current_network, station=self.current_station, campaign=self.current_campaign
@@ -293,12 +237,10 @@ class DataHandler:
     @check_network_station_campaign
     def discover_data_and_add_files(self, directory_path: Path) -> None:
         """
-        For a given directory of data, iterate through all files and add them to the catalog.
+        Scans a directory for data files and adds them to the catalog.
 
-        Note: Be sure to correctly set the network, station, and campaign before running this function.
-
-        Args:
-            dir_path (Path): The directory path to look for files and add them to the catalog.
+        :param directory_path: The path to the directory to scan.
+        :type directory_path: Path
         """
 
         files: List[Path] = scrape_directory_local(directory_path)
@@ -315,10 +257,10 @@ class DataHandler:
     @check_network_station_campaign
     def add_data_to_catalog(self, local_filepaths: List[Path]):
         """
-        Using a list of local filepaths, add the data to the catalog.
+        Adds a list of local files to the data catalog.
 
-        Args:
-            local_filepaths (List[str]): A list of local filepaths to add to the catalog.
+        :param local_filepaths: A list of paths to the files to add.
+        :type local_filepaths: List[Path]
         """
 
         file_data_list = []
@@ -359,11 +301,13 @@ class DataHandler:
         remote_type: Union[REMOTE_TYPE, str] = REMOTE_TYPE.HTTP,
     ) -> None:
         """
-        Add campaign data to the catalog.
+        Adds remote data files to the catalog.
 
-        Args:
-            remote_filepaths (List[str]): A list of file locations on gage-data.
-            remote_type (Union[REMOTE_TYPE,str]): The type of remote location.
+        :param remote_filepaths: A list of remote file paths.
+        :type remote_filepaths: List[str]
+        :param remote_type: The type of the remote storage. Defaults to REMOTE_TYPE.HTTP.
+        :type remote_type: Union[REMOTE_TYPE, str]
+        :raises ValueError: If the specified remote type is not recognized.
         """
 
         # Check that the remote type is valid, default is HTTP
@@ -430,11 +374,13 @@ class DataHandler:
         override: bool = False,
     ):
         """
-        Retrieves and catalogs data from the remote locations stored in the catalog.
+        Downloads files of specified types from remote storage.
 
-        Args:
-            file_types (list/str): the type of files to download.
-            override (bool): Whether to download the data even if it already exists. Default is False.
+        :param file_types: The types of files to download.
+        :type file_types: Union[List[AssetType], List[str], str], optional
+        :param override: If True, redownloads files even if they exist locally. Defaults to False.
+        :type override: bool, optional
+        :raises ValueError: If a specified file type is not recognized.
         """
 
         # Grab assests from the catalog that match the network, station, campaign, and file type
@@ -512,10 +458,10 @@ class DataHandler:
 
     def _download_S3_files(self, s3_assets: List[AssetEntry]):
         """
-        Downloads a list of files from S3.
+        Downloads files from S3 and updates the catalog with local paths.
 
-        Args:
-            s3_assets (List[AssetEntry[str, str]]): A list of S3 assets to download.
+        :param s3_assets: A list of S3 assets to download.
+        :type s3_assets: List[AssetEntry]
         """
 
         s3_entries_processed = []
@@ -542,15 +488,16 @@ class DataHandler:
         self, client: boto3.client, bucket: str, prefix: str
     ) -> Path | None:
         """
-        Downloads a file from the specified S3 bucket and prefix.
+        Downloads a single file from an S3 bucket.
 
-        Args:
-            client (boto3.client): The boto3 client object.
-            bucket (str): S3 bucket name
-            prefix (str): S3 object prefix
-
-        Returns:
-            local_path (Path): The local path where the file was downloaded, or None if the download failed.
+        :param client: The Boto3 S3 client.
+        :type client: boto3.client
+        :param bucket: The S3 bucket name.
+        :type bucket: str
+        :param prefix: The S3 object key.
+        :type prefix: str
+        :returns: The local path of the downloaded file, or None if the download fails.
+        :rtype: Optional[Path]
         """
 
         local_path = self.currentCampaignDir.raw / Path(prefix).name
@@ -575,10 +522,12 @@ class DataHandler:
         self, http_assets: List[AssetEntry], file_type: AssetType = None
     ):
         """
-        Download HTTP files with progress bar and updates the catalog with the local path.
+        Downloads files from an HTTP server and updates the catalog.
 
-        Args:
-            http_assets (List[AssetEntry]): A list of HTTP assets to download.
+        :param http_assets: A list of HTTP assets to download.
+        :type http_assets: List[AssetEntry]
+        :param file_type: The type of file being downloaded. Defaults to None.
+        :type file_type: Optional[AssetType], optional
         """
 
         for file_asset in tqdm(
@@ -596,14 +545,12 @@ class DataHandler:
 
     def _HTTP_download_file(self, remote_url: Path) -> Path:
         """
-        Downloads a file from the specified https url on gage-data
+        Downloads a single file from an HTTP URL.
 
-        Args:
-            remote_url (Path): The path of the file in the gage-data storage.
-            destination (Path): The local path where the file will be downloaded.
-
-        Returns:
-            local_path (Path): The local path where the file was downloaded, or None if the download failed.
+        :param remote_url: The URL of the file to download.
+        :type remote_url: Path
+        :returns: The local path of the downloaded file, or None if the download fails.
+        :rtype: Optional[Path]
         """
         try:
             local_path = self.currentCampaignDir.raw / Path(remote_url).name
@@ -627,7 +574,7 @@ class DataHandler:
     @check_network_station_campaign
     def update_catalog_from_archive(self):
         """
-        Updates the catalog with remote paths of files in the archive.
+        Updates the catalog with remote file paths from the data archive.
         """
         logger.loginfo(
             f"Updating catalog with remote paths of available data for {self.current_network} {self.current_station} {self.current_campaign}"
@@ -640,40 +587,83 @@ class DataHandler:
         )
 
     @check_network_station_campaign
-    def add_ctds_to_catalog(self):
-        """
-        Adds CTD data to the catalog.
-        This function does the following:
-        1) Looks for ctd data in the metadata/ctd directory of the archive.
-        2) If found, adds it to the catalog.
+    def get_site_metadata(self, site_metadata: Optional[Union[Site,Path]] = None) -> Optional[Site]:
 
-        """
-        logger.loginfo(
-            f"Cataloging available sound speed data for {self.current_network} {self.current_station} {self.current_campaign}"
-        )
-        remote_filepath_dict = list_campaign_files_by_type(
-            network=self.current_network,
-            station=self.current_station,
-            campaign=self.current_campaign,
-            show_logs=False,
-        )
-        ctds = remote_filepath_dict.get("ctd", [])
-        logger.loginfo(f"Found {len(ctds)} CTD files in the archive")
+        site_meta_write_dest = self.currentStationDir.site_metadata
+        site_meta_read_dest = None
+        site = None
 
-        if len(ctds):
-            self.add_data_remote(remote_filepaths=ctds, remote_type=REMOTE_TYPE.HTTP)
+        sources = [site_metadata, site_meta_write_dest]
+        if site_metadata is None:
+            sources = sources[::-1]  # reverse the list to prioritize the station directory file
+
+        for source in sources:
+
+            if isinstance(source, str):
+                source = Path(source)
+
+            if isinstance(source, Site):
+                site = source
+                # Write the site metadata to the station directory
+                with open(site_meta_write_dest, "w") as f:
+                    f.write(site.model_dump_json(indent=4))
+                site_meta_read_dest = site_meta_write_dest
+                logger.loginfo(
+                    f"Using provided site metadata and wrote to {site_meta_write_dest}"
+                )
+                break
+
+            elif isinstance(source, Path) and source.exists():
+                try:
+                    site = Site.from_json(source)
+                    site_meta_read_dest = source
+                    break
+                except Exception as e:
+                    response = f"Error loading site metadata from {source}: {e}"
+                    warnings.warn(response)
+                    logger.logerr(response)
+
+            elif source is None:
+
+                try:
+                    site = load_site_metadata(
+                        network=self.current_network, station=self.current_station
+                    )
+                    with open(site_meta_write_dest, "w") as f:
+                        f.write(site.model_dump_json(indent=4))
+                    site_meta_read_dest = site_meta_write_dest
+                    logger.loginfo(
+                        f"Downloaded site metadata from the ES archive to {site_meta_write_dest}"
+                    )
+                    break
+                except Exception as e:
+                    site = None
+                    response = f"Error loading site metadata from the ES archive: {e}"
+                    warnings.warn(response)
+                    logger.logerr(response)
+
+        if site is not None:
+
+            if site_meta_read_dest != site_meta_write_dest:
+                # Write the site metadata to the station directory
+                with open(site_meta_write_dest, "w") as f:
+                    f.write(site.model_dump_json(indent=4))
+                logger.loginfo(f"Wrote site metadata to {site_meta_write_dest}")
+
+        else:
+            response = f"Warning: No site metadata found for {self.current_network} {self.current_station}. Some functionality may be limited."
+            warnings.warn(response)
+            logger.logwarn(response)
+
+        return site
 
     @check_network_station_campaign
     def get_pipeline_sv3(self) -> Tuple[SV3Pipeline, SV3PipelineConfig]:
         """
-        Creates and returns an SV3Pipeline object along with its configuration.
-        This method initializes an SV3PipelineConfig object using the instance
-        attributes such as network, station, campaign, writedir, pride_dir,
-        shot_data_dest, kin_position_data_dest, and catalog_path. It then creates an
-        SV3Pipeline object using the catalog and the created configuration.
-        Returns:
-            Tuple[SV3Pipeline, SV3PipelineConfig]: A tuple containing the
-            SV3Pipeline object and its configuration.
+        Initializes and returns an SV3 processing pipeline and its configuration.
+
+        :returns: A tuple containing the pipeline and its config.
+        :rtype: Tuple[SV3Pipeline, SV3PipelineConfig]
         """
 
         config = SV3PipelineConfig()
@@ -687,130 +677,121 @@ class DataHandler:
         )
         return pipeline, config
 
-    @check_network_station_campaign
-    def get_garpos_handler(self, site_data) -> GarposHandler:
-        """
-        Creates and returns a GarposHandler object.
-        This method initializes a GarposHandler object using the instance
-        attributes such as site_config, working_dir, and shotdata_tdb.
 
-        Args:
-            site_config (SiteConfig): A SiteConfig object.
-
-        Returns:
-            GarposHandler: A GarposHandler object.
-        """
-        # station_data = self.data_catalog.catalog.networks[self.current_network].stations[
-        #     self.current_station
-        # ]
-
-        # return GarposHandler(
-        #     network=self.current_network,
-        #     station=self.current_station,
-        #     campaign=self.current_campaign,
-        #     site_data=site_data,
-        #     station_data=station_data,
-        #     working_dir=self.garpos_dir,
-        # )
-
-        gp_handler = GarposHandler(
-            main_directory=self.main_directory)
-        gp_handler.set_site_data(
-            network=self.current_network,
-            station=self.current_station,
-            campaign=self.current_campaign,
-            site=site_data,
-        )
-        return gp_handler
-
-    def test_logger(self):
-        print(f"PRINT: testing logger {logger} with handlers {logger.logger.handlers}")
-        logger.loginfo(f"LOGGER: testing logger {logger} with handlers {logger.logger.handlers}")
-        logger.logdebug("logdebug test")
-        logger.loginfo("loginfo test")
-        logger.logwarn("logwarn test")
-        logger.logerr("logerr test")
-
-    # TODO: this wouldn't work anymore, logger is process logger, not pulling in gnss logger. Maybe put this in the logger class.
     def print_logs(self, log: Literal["base", "gnss", "process"]):
         """
-        Print logs to console.
-        Args:
-            log (Literal['base','gnss','process']): The type of log to print.
+        Prints the specified log to the console.
+
+        :param log: The type of log to print.
+        :type log: Literal["base", "gnss", "process"]
+        :raises ValueError: If the specified log type is not recognized.
         """
         if log == "base":
             logger.route_to_console()
         elif log == "gnss":
-            self.gnss_logger.route_to_console()
+            pass # GNSS logger not implemented yet
         elif log == "process":
-            self.process_logger.route_to_console()
+            pass # Process logger not implemented yet
         else:
             raise ValueError(
                 f"Log type {log} not recognized. Must be one of ['base','gnss','process']"
             )
 
-    def parse_surveys(self,network:str,station:str,site:Site,override:bool=False,write_intermediate:bool=False):
+    def parse_surveys(self,override:bool=False,write_intermediate:bool=False):
         """
-        Parses the surveys from the current campaign and adds them to the directory structure.
+        Parses survey data for a given site.
 
-        Args:
-            site (Site): The site object containing the campaign and survey information.
+        :param override: If True, re-parses existing data. Defaults to False.
+        :type override: bool, optional
+        :param write_intermediate: If True, writes intermediate files. Defaults to False.
+        :type write_intermediate: bool, optional
+        :raises ValueError: If site metadata is not loaded.
         """
-        dataPostProcessor = DataPostProcessor(
-            site=site,
+        if self.currentSiteMetaData is None:
+            raise ValueError("Site metadata not loaded, cannot parse surveys")
+        
+        dataPostProcessor = IntermediateDataProcessor(
+            site=self.currentSiteMetaData,
             directory_handler=self.directory_handler,
         )
         dataPostProcessor.parse_surveys(
-            network=network,
-            station=station,
+            network=self.current_network,
+            station=self.current_station,
             override=override,
             write_intermediate=write_intermediate,
         )
 
-    def prep_garpos(self,network:str,station:str,campaign:str,site:Site,override:bool=False,write_intermediate:bool=False):
+    @check_network_station_campaign
+    def prep_garpos(self,
+                    custom_filter:dict = None,
+                    shotdata_filter_config:dict = DEFAULT_FILTER_CONFIG,
+                    override:bool=False,
+                    write_intermediate:bool=False):
         """
-        Prepares the GARPOS data for processing.
+        Prepares data for GARPOS processing.
 
-        Args:
-            site (Site): The site object containing the campaign and survey information.
+        :param custom_filter: Custom filter settings for shot data preparation. Defaults to None.
+        :type custom_filter: dict, optional
+        :param shotdata_filter_config: Configuration for shot data filtering. Defaults to DEFAULT_FILTER_CONFIG.
+        :type shotdata_filter_config: dict, optional
+        :param override: If True, re-prepares existing data. Defaults to False.
+        :type override: bool, optional
+        :param write_intermediate: If True, writes intermediate files. Defaults to False.
+        :type write_intermediate: bool, optional
         """
-        dataPostProcessor = DataPostProcessor(
-            site=site,
-            directory_handler=self.directory_handler,
-        )
+        dataPostProcessor: IntermediateDataProcessor = self.getIntermediateDataProcessor()
+
         dataPostProcessor.parse_surveys(
-            network=network,
-            station=station,
             override=override,
             write_intermediate=write_intermediate,
         )
         dataPostProcessor.prepare_shotdata_garpos(
-            campaign_id=campaign
+            custom_filters=custom_filter,
+            shotdata_filter_config=shotdata_filter_config,
+            overwrite=override,
         )
-    # @check_network_station_campaign
-    # def view_data(self):
-    #     shotdata_dates = self.shotdata_tdb.get_unique_dates().tolist()
-    #     kin_position_dates = self.kin_position_tdb.get_unique_dates().tolist()
-    #     date_set = shotdata_dates + kin_position_dates
-    #     date_set = sorted(list(set(date_set)))
 
-    #     date_tick_map = {date: i for i, date in enumerate(date_set)}
-    #     fig, ax = plt.subplots()
-    #     # plot the kin_position dates with red vertical line
-    #     kin_position_x = [date_tick_map[date] for date in kin_position_dates]
-    #     kin_position_y = [1 for _ in kin_position_dates]
+    @check_network_station_campaign
+    def getIntermediateDataProcessor(self)->IntermediateDataProcessor:
+        """
+        Returns an instance of the IntermediateDataProcessor for the current station.
 
-    #     ax.scatter(x=kin_position_x, y=kin_position_y, c="r", marker="o", label="Pride GNSS Positions")
-    #     # plot the shotdata dates with blue vertical line
-    #     shotdata_x = [date_tick_map[date] for date in shotdata_dates]
-    #     shotdata_y = [2 for _ in shotdata_dates]
-    #     ax.scatter(x=shotdata_x, y=shotdata_y, c="b", marker="o", label="ShotData")
-    #     ax.xaxis.set_ticks(
-    #         [i for i in date_tick_map.values()],
-    #         [str(date) for date in date_tick_map.keys()],
-    #     )
-    #     ax.yaxis.set_ticks([])
-    #     ax.set_xlabel("Date")
-    #     fig.legend()
-    #     fig.suptitle(f"Found Dates For {self.current_network} {self.current_station}")
-    #     plt.show()
+        :returns: An instance of IntermediateDataProcessor.
+        :rtype: IntermediateDataProcessor
+        :raises ValueError: If site metadata is not loaded.
+        """
+        if self.currentSiteMetaData is None:
+            raise ValueError("Site metadata not loaded, cannot get IntermediateDataProcessor")
+        
+        dataPostProcessor = IntermediateDataProcessor(
+            site=self.currentSiteMetaData,
+            directory_handler=self.directory_handler,
+        )
+        dataPostProcessor.setNetwork(network_id=self.current_network)
+        dataPostProcessor.setStation(station_id=self.current_station)
+        dataPostProcessor.setCampaign(campaign_id=self.current_campaign)
+
+        return dataPostProcessor
+    
+    @check_network_station_campaign
+    def getGARPOSHandler(self)->GarposHandler:
+        """
+        Returns an instance of the GarposHandler for the current station.
+
+        :returns: An instance of GarposHandler.
+        :rtype: GarposHandler
+        :raises ValueError: If site metadata is not loaded.
+        """
+        if self.currentSiteMetaData is None:
+            raise ValueError("Site metadata not loaded, cannot get GarposHandler")
+        
+        gp_handler = GarposHandler(
+            directory_handler=self.directory_handler,
+            site=self.currentSiteMetaData,
+        )
+        gp_handler.setNetworkStationCampaign(
+            network=self.current_network,
+            station=self.current_station,
+            campaign=self.current_campaign,
+        )
+        return gp_handler

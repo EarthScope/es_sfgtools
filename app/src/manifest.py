@@ -208,11 +208,10 @@ class PipelineManifest(BaseModel):
         """
         Instantiates a PipelineManifest object from a JSON schema.
 
-        Args:
-            json_data (dict): The JSON data to parse.
-
-        Returns:
-            PipelineManifest: An instance of the PipelineManifest class.
+        :param json_data: The JSON data to parse.
+        :type json_data: dict
+        :return: An instance of the PipelineManifest class.
+        :rtype: PipelineManifest
         """
         # Load JSON data
         with open(json_data, "r") as f:
@@ -224,11 +223,10 @@ class PipelineManifest(BaseModel):
         """
         Instantiates a PipelineManifest object from a YAML schema.
 
-        Args:
-            yaml_data (dict): The YAML data to parse.
-
-        Returns:
-            PipelineManifest: An instance of the PipelineManifest class.
+        :param yaml_data: The YAML data to parse.
+        :type yaml_data: dict
+        :return: An instance of the PipelineManifest class.
+        :rtype: PipelineManifest
         """
         # Load YAML data
         with open(yaml_data, "r") as f:

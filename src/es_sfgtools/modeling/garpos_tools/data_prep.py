@@ -53,7 +53,6 @@ class NoGPTranspondersError(Exception):
         self.message = message
 
 
-
 def filter_shotdata(
     survey_type: str,
     site: Site,
@@ -66,12 +65,25 @@ def filter_shotdata(
 ) -> pd.DataFrame:
     """
     Filter the shot data based on the specified acoustic level and minimum ping replies.
-    Args:
-        shot_data (pd.DataFrame): The shot data to filter.
-        acoustic_level (acoustic_filter_level): The level of acoustic filtering to apply.
-        ping_replies (int): The minimum number of replies required for each ping.
-    Returns:
-        pd.DataFrame: The filtered shot data.
+
+    :param survey_type: The type of survey.
+    :type survey_type: str
+    :param site: The site metadata.
+    :type site: Site
+    :param shot_data: The shot data to filter.
+    :type shot_data: pd.DataFrame
+    :param kinPostionTDBUri: The URI of the kinematic position TileDB array.
+    :type kinPostionTDBUri: str
+    :param start_time: The start time of the survey.
+    :type start_time: datetime
+    :param end_time: The end time of the survey.
+    :type end_time: datetime
+    :param custom_filters: Custom filters to apply. Defaults to None.
+    :type custom_filters: Optional[dict], optional
+    :param filter_config: The filter configuration. Defaults to DEFAULT_FILTER_CONFIG.copy().
+    :type filter_config: Optional[dict], optional
+    :return: The filtered shot data.
+    :rtype: pd.DataFrame
     """
     initial_count = len(shot_data)
     new_shot_data_df = shot_data.copy()
@@ -133,12 +145,16 @@ def filter_shotdata(
 def GP_Transponders_from_benchmarks(coord_transformer: CoordTransformer, survey: Survey, site: Site) -> List[GPTransponder]:
     """
     Get GP transponders from the benchmarks in the survey.
-    Args:
-        survey (Survey): The survey object.
-    Returns:
-        List[GPTransponder]: List of GPTransponder objects for the survey.
-    Raises:
-        NoGPTranspondersError: If no transponders are found for the survey.
+
+    :param coord_transformer: The coordinate transformer.
+    :type coord_transformer: CoordTransformer
+    :param survey: The survey object.
+    :type survey: Survey
+    :param site: The site metadata.
+    :type site: Site
+    :return: List of GPTransponder objects for the survey.
+    :rtype: List[GPTransponder]
+    :raises NoGPTranspondersError: If no transponders are found for the survey.
     """
     survey_benchmarks = []
     for benchmark in site.benchmarks:
@@ -170,11 +186,15 @@ def create_GPTransponder(
 ) -> GPTransponder:
     """
     Create a GPTransponder object from a benchmark and transponder.
-    Args:
-        benchmark (Benchmark): The benchmark object.
-        transponder (Transponder): The transponder object.
-    Returns:
-        GPTransponder: The created GPTransponder object.
+
+    :param coord_transformer: The coordinate transformer.
+    :type coord_transformer: CoordTransformer
+    :param benchmark: The benchmark object.
+    :type benchmark: Benchmark
+    :param transponder: The transponder object.
+    :type transponder: Transponder
+    :return: The created GPTransponder object.
+    :rtype: GPTransponder
     """
     gp_transponder = GPTransponder(
         position_llh=GPPositionLLH(
@@ -203,10 +223,13 @@ def create_GPTransponder(
 def get_array_dpos_center(coord_transformer: CoordTransformer, transponders: List[GPTransponder]):
     """
     Get the average transponder position in ENU coordinates.
-    Args:
-        GPtransponders (List[GPTransponder]): List of GPTransponder objects.
-    Returns:
-        Tuple[GPPositionENU, GPPositionLLH]: Average transponder position in ENU and LLH coordinates.
+
+    :param coord_transformer: The coordinate transformer.
+    :type coord_transformer: CoordTransformer
+    :param transponders: List of GPTransponder objects.
+    :type transponders: List[GPTransponder]
+    :return: Average transponder position in ENU and LLH coordinates.
+    :rtype: Tuple[GPPositionENU, GPPositionLLH]
     """
     _, array_center_llh = avg_transponder_position(transponders)
     array_dpos_center = coord_transformer.LLH2ENU(
@@ -223,11 +246,10 @@ def avg_transponder_position(
     """
     Calculate the average position of the transponders
 
-    Args:
-        transponders: List of transponders
-
-    Returns:
-        Tuple[PositionENU, PositionLLH]: Average position in ENU and LLH
+    :param transponders: List of transponders.
+    :type transponders: List[GPTransponder]
+    :return: Average position in ENU and LLH.
+    :rtype: Tuple[GPPositionENU, GPPositionLLH]
     """
     pos_array_llh = []
     pos_array_enu = []
@@ -260,15 +282,18 @@ def prepare_shotdata_for_garpos(
 ):
     """
     Prepare the shot data for GARPOS by rectifying it and saving it to a CSV file.
-    Args:
-        shot_data_path (Path): The path to save the shot data CSV file.
-        survey (Survey): The survey object containing start and end dates.
-        shot_data (pd.DataFrame): The shot data DataFrame to be prepared.
-        GPtransponders (List[GPTransponder]): List of GPTransponder objects for the survey.
-    Returns:
-        pd.DataFrame: The rectified shot data DataFrame.
-    Raises:
-        ValueError: If the shot data fails validation.
+
+    :param coord_transformer: The coordinate transformer.
+    :type coord_transformer: CoordTransformer
+    :param shodata_out_path: The path to save the shot data CSV file.
+    :type shodata_out_path: Path
+    :param shot_data: The shot data DataFrame to be prepared.
+    :type shot_data: pd.DataFrame
+    :param GPtransponders: List of GPTransponder objects for the survey.
+    :type GPtransponders: List[GPTransponder]
+    :return: The rectified shot data DataFrame.
+    :rtype: pd.DataFrame
+    :raises ValueError: If the shot data fails validation.
     """
 
     shot_data_rectified = rectify_shotdata(
@@ -303,14 +328,25 @@ def prepare_garpos_input_from_survey(
 ) -> GarposInput:
     """
     Prepare the GarposInput object from the survey and shot data.
-    Args:
-        shot_data_path (Path): The path to the shot data CSV file.
-        survey (Survey): The survey object.
-        ss_path (str): The relative path to the sound speed profile file.
-        array_dpos_center (Tuple[float, float, float]): The average position of the transponders in ENU coordinates.
-        num_of_shots (int): The number of shots in the shot data.
-    Returns:
-        GarposInput: The prepared GarposInput object.
+
+    :param shot_data_path: The path to the shot data CSV file.
+    :type shot_data_path: Path
+    :param survey: The survey object.
+    :type survey: Survey
+    :param site: The site metadata.
+    :type site: Site
+    :param campaign: The campaign metadata.
+    :type campaign: Campaign
+    :param ss_path: The relative path to the sound speed profile file.
+    :type ss_path: str
+    :param array_dpos_center: The average position of the transponders in ENU coordinates.
+    :type array_dpos_center: Tuple[float, float, float]
+    :param num_of_shots: The number of shots in the shot data.
+    :type num_of_shots: int
+    :param GPtransponders: List of GPTransponder objects for the survey.
+    :type GPtransponders: List[GPTransponder]
+    :return: The prepared GarposInput object.
+    :rtype: GarposInput
     """
     garpos_input = GarposInput(
         site_name=site.names[0],

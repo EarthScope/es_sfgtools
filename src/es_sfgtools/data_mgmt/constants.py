@@ -1,3 +1,6 @@
+"""
+This module contains constants for the data management module.
+"""
 from enum import Enum
 from pydantic import BaseModel, Field
 import datetime 

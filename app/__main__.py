@@ -1,3 +1,6 @@
+"""
+This module is the entry point for the application.
+"""
 import os
 from pathlib import Path
 import typer
@@ -18,6 +21,13 @@ app = typer.Typer()
 
 @app.command()
 def run(file: Path):
+    """
+    Runs the pipeline from a manifest file.
+
+    :param file: The path to the manifest file.
+    :type file: Path
+    :raises ValueError: If the file type is not supported.
+    """
     match file.suffix:
         case ".json":
             manifest_object = PipelineManifest.from_json(file)

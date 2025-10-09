@@ -54,23 +54,27 @@ def rinex_to_kin_wrapper(
     site: str,
     pride_config: PrideCLIConfig,
 ) -> tuple[Optional[AssetEntry], Optional[AssetEntry]]:
-        
     """
     Wrapper function to convert a RINEX file to KIN format using PRIDE configuration.
+
     This function takes a tuple containing an AssetEntry for the RINEX file and the path to the PRIDE configuration file,
     along with directories for writing output and PRIDE processing, the site name, and a PRIDE CLI configuration object.
     It updates the PRIDE configuration with the provided config file path, then calls `rinex_to_kin` to perform the conversion.
     If successful, it returns AssetEntry objects for the generated KIN file and its residuals file; otherwise, returns (None, None).
-    Args:
-        rinex_prideconfig_path (tuple[AssetEntry, Path]): Tuple containing the RINEX AssetEntry and PRIDE config file path.
-        writedir (Path): Directory where output files should be written.
-        pridedir (Path): Directory for PRIDE processing.
-        site (str): Name of the site/station.
-        pride_config (PrideCLIConfig): PRIDE CLI configuration object.
-    Returns:
-        tuple[Optional[AssetEntry], Optional[AssetEntry]]:
-            AssetEntry for the generated KIN file and AssetEntry for the residuals file,
-            or (None, None) if conversion fails.
+
+    :param rinex_prideconfig_path: Tuple containing the RINEX AssetEntry and PRIDE config file path.
+    :type rinex_prideconfig_path: tuple[AssetEntry, Path]
+    :param writedir: Directory where output files should be written.
+    :type writedir: Path
+    :param pridedir: Directory for PRIDE processing.
+    :type pridedir: Path
+    :param site: Name of the site/station.
+    :type site: str
+    :param pride_config: PRIDE CLI configuration object.
+    :type pride_config: PrideCLIConfig
+    :return: AssetEntry for the generated KIN file and AssetEntry for the residuals file, or (None, None) if conversion fails.
+    :rtype: tuple[Optional[AssetEntry], Optional[AssetEntry]]
+    :raises Exception: If an error occurs during AssetEntry creation for KIN or RES file.
     """
 
     rinex_entry, pride_config_path = rinex_prideconfig_path
@@ -120,11 +124,11 @@ def rinex_to_kin_wrapper(
 
 class SV3Pipeline:
     """
-    SV3Pipeline orchestrates the end-to-end processing of Sonardyne SV3 and Novatel GNSS data for seafloor geodesy.
+    Orchestrates the end-to-end processing of Sonardyne SV3 and Novatel GNSS data for seafloor geodesy.
     
     This class manages a comprehensive workflow for processing seafloor geodesy data, including:
     
-    1. **GNSS Data Preprocessing**: 
+    1. **GNSS Data Preprocessing**:
        - Processes Novatel 770 binary files (primary GNSS observations)
        - Processes Novatel 000 binary files (secondary GNSS + IMU positions)
        - Stores observations in TileDB arrays for efficient access
@@ -157,69 +161,76 @@ class SV3Pipeline:
     The pipeline operates on a hierarchical directory structure (network/station/campaign)
     and uses TileDB for efficient storage and retrieval of time-series data.
     
-    Attributes:
+    :ivar directory_handler: Manages the project directory structure, including network, station, and campaign directories.
+    :vartype directory_handler: DirectoryHandler
+    :ivar config: Configuration settings for all pipeline steps, including Novatel, RINEX, PRIDE, DFOP00, and position update configs.
+    :vartype config: SV3PipelineConfig
+    :ivar asset_catalog: SQLite-based catalog for tracking processed assets and their relationships (parent-child, merge jobs).
+    :vartype asset_catalog: PreProcessCatalog
+    :ivar currentNetwork: Current network identifier (e.g., "cascadia-gorda")
+    :vartype currentNetwork: str
+    :ivar currentStation: Current station identifier (e.g., "NCC1")
+    :vartype currentStation: str
+    :ivar currentCampaign: Current campaign identifier (e.g., "2023_A_1126")
+    :vartype currentCampaign: str
+    :ivar currentNetworkDir: Directory object for current network.
+    :vartype currentNetworkDir: NetworkDir
+    :ivar currentStationDir: Directory object for current station.
+    :vartype currentStationDir: StationDir
+    :ivar currentCampaignDir: Directory object for current campaign.
+    :vartype currentCampaignDir: CampaignDir
+    :ivar shotDataPreTDB: Preliminary shotdata (before position refinement).
+    :vartype shotDataPreTDB: TDBShotDataArray
+    :ivar kinPositionTDB: High-precision kinematic positions.
+    :vartype kinPositionTDB: TDBKinPositionArray
+    :ivar imuPositionTDB: IMU-derived positions (from Novatel 000).
+    :vartype imuPositionTDB: TDBIMUPositionArray
+    :ivar shotDataFinalTDB: Final shotdata (after position refinement).
+    :vartype shotDataFinalTDB: TDBShotDataArray
+    :ivar gnssObsTDBURI: Primary GNSS observation array (from Novatel 770).
+    :vartype gnssObsTDBURI: Path
+    :ivar gnssObsTDB_secondaryURI: Secondary GNSS observation array (from Novatel 000).
+    :vartype gnssObsTDB_secondaryURI: Path
 
-        directory_handler (DirectoryHandler): Manages the project directory structure,
-            including network, station, and campaign directories.
+    .. py:method:: setNetworkStationCampaign(network, station, campaign)
 
-        config (SV3PipelineConfig): Configuration settings for all pipeline steps,
-            including Novatel, RINEX, PRIDE, DFOP00, and position update configs.
+        Set the current processing context and initialize directories and TileDB arrays.
 
-        asset_catalog (PreProcessCatalog): SQLite-based catalog for tracking processed
-            assets and their relationships (parent-child, merge jobs).
-        
-        # Current processing context
-        currentNetwork (str): Current network identifier (e.g., "cascadia-gorda")
-        currentStation (str): Current station identifier (e.g., "NCC1")
-        currentCampaign (str): Current campaign identifier (e.g., "2023_A_1126")
-        
-        # Directory objects for current context
-        currentNetworkDir (NetworkDir): Directory object for current network
-        currentStationDir (StationDir): Directory object for current station
-        currentCampaignDir (CampaignDir): Directory object for current campaign
-        
-        # TileDB arrays for data storage
-        shotDataPreTDB (TDBShotDataArray): Preliminary shotdata (before position refinement)
-        kinPositionTDB (TDBKinPositionArray): High-precision kinematic positions
-        imuPositionTDB (TDBIMUPositionArray): IMU-derived positions (from Novatel 000)
-        shotDataFinalTDB (TDBShotDataArray): Final shotdata (after position refinement)
-        
-        # GNSS observation TileDB URIs
-        gnssObsTDBURI (Path): Primary GNSS observation array (from Novatel 770)
-        gnssObsTDB_secondaryURI (Path): Secondary GNSS observation array (from Novatel 000)
-    
-    Methods:
-    
-        setNetworkStationCampaign(network, station, campaign):
-            Set the current processing context and initialize directories and TileDB arrays.
-        
-        _build_rinex_metadata():
-            Prepare metadata for RINEX file generation from GNSS observations.
+    .. py:method:: _build_rinex_metadata()
 
-        pre_process_novatel():
-            Preprocess Novatel 770 and 000 binary files into TileDB arrays.
+        Prepare metadata for RINEX file generation from GNSS observations.
 
-        get_rinex_files():
-            Generate daily RINEX files from TileDB GNSS observations.
+    .. py:method:: pre_process_novatel()
 
-        process_rinex():
-            Process RINEX files using PRIDE-PPPAR to generate Kinematic files.
+        Preprocess Novatel 770 and 000 binary files into TileDB arrays.
 
-        process_kin():
-            Convert Kinematic files to structured dataframes and store in TileDB.
-        
-        process_dfop00():
-            Process Sonardyne DFOP00 files to generate preliminary shotdata.
-        
-        update_shotdata():
-            Refine shotdata by interpolating high-precision GNSS positions.
-        
-        process_svp():
-            Process CTD and Seabird files to generate sound velocity profiles.
-        
-        run_pipeline():
-            Execute the full processing pipeline in sequence.
+    .. py:method:: get_rinex_files()
 
+        Generate daily RINEX files from TileDB GNSS observations.
+
+    .. py:method:: process_rinex()
+
+        Process RINEX files using PRIDE-PPPAR to generate Kinematic files.
+
+    .. py:method:: process_kin()
+
+        Convert Kinematic files to structured dataframes and store in TileDB.
+
+    .. py:method:: process_dfop00()
+
+        Process Sonardyne DFOP00 files to generate preliminary shotdata.
+
+    .. py:method:: update_shotdata()
+
+        Refine shotdata by interpolating high-precision GNSS positions.
+
+    .. py:method:: process_svp()
+
+        Process CTD and Seabird files to generate sound velocity profiles.
+
+    .. py:method:: run_pipeline()
+
+        Execute the full processing pipeline in sequence.
     """
 
     def __init__(
@@ -228,7 +239,7 @@ class SV3Pipeline:
         config: SV3PipelineConfig = None,
     ):
         """
-        Initialize the SV3Pipeline with directory handler and configuration.
+        Initializes the SV3Pipeline with directory handler and configuration.
         
         Sets up the pipeline with necessary infrastructure including:
         - Directory structure management
@@ -236,17 +247,14 @@ class SV3Pipeline:
         - Configuration for all processing steps
         - Context attributes (network, station, campaign)
         
-        Args:
-            directory_handler (DirectoryHandler): Handler for managing project directory
-                structure. Must be provided and should already be built.
-            config (SV3PipelineConfig, optional): Configuration settings for the pipeline.
-                If None, uses default configuration. Defaults to None.
+        :param directory_handler: Handler for managing project directory structure. Must be provided and should already be built.
+        :type directory_handler: DirectoryHandler, optional
+        :param config: Configuration settings for the pipeline. If None, uses default configuration. Defaults to None.
+        :type config: Optional[SV3PipelineConfig], optional
+        :raises AttributeError: If directory_handler is None or doesn't have asset_catalog_db_path
         
-        Raises:
-            AttributeError: If directory_handler is None or doesn't have asset_catalog_db_path
-        
-        Note:
-            The pipeline will not be ready for processing until setNetworkStationCampaign()
+        .. note::
+            The pipeline will not be ready for processing until :py:meth:`setNetworkStationCampaign`
             is called to establish the processing context.
         """
         # Store directory handler and configuration
@@ -293,10 +301,12 @@ class SV3Pipeline:
         5. Configures logging
         6. Prepares RINEX metadata
         
-        Args:
-            network: Network identifier (e.g., "cascadia-gorda")
-            station: Station identifier (e.g., "NCC1")  
-            campaign: Campaign identifier (e.g., "2023_A_1126")
+        :param network: Network identifier (e.g., "cascadia-gorda").
+        :type network: str
+        :param station: Station identifier (e.g., "NCC1").
+        :type station: str
+        :param campaign: Campaign identifier (e.g., "2023_A_1126").
+        :type campaign: str
         """
 
         # Reset current attributes
@@ -504,6 +514,9 @@ class SV3Pipeline:
         3. Invokes tile2rinex to generate daily RINEX files
         4. Creates AssetEntry for each RINEX file
         5. Updates asset catalog with merge job
+        
+        :raises ValueError: If a processing year cannot be determined from the campaign name.
+        :raises Exception: If an error occurs during RINEX file generation.
         """
 
         rinexDestination = self.currentCampaignDir.intermediate
@@ -884,17 +897,24 @@ class SV3Pipeline:
             )
             self.asset_catalog.add_merge_job(**merge_job)
 
-    def process_svp(self):
+    def process_svp(self, override: bool = False) -> None:
         """
         Process CTD and Seabird files to generate sound velocity profiles (SVP).
         
+        :param override: If True, forces reprocessing even if SVP file exists. Default is False.
+        :type override: bool, optional
+
         Processing order:
-        1. Tries CTD files with CTD_to_svp_v1
-        2. If that fails, tries CTD_to_svp_v2
+        1. Tries CTD files with CTD_to_svp_v2
+        2. If that fails, tries CTD_to_svp_v1
         3. If still no success, tries Seabird files
         
         The first successful SVP is saved to the campaign directory and processing stops.
         """
+        svp_df_destination = self.currentCampaignDir.svp_file
+        if svp_df_destination.exists() and not override:
+            return
+        
         # Get the CTD and Seabird files to process
         ctd_entries: List[AssetEntry] = self.asset_catalog.get_local_assets(
             network=self.currentNetwork,
@@ -908,51 +928,39 @@ class SV3Pipeline:
             campaign=self.currentCampaign,
             type=AssetType.SEABIRD,
         )
+
         if not ctd_entries and not seabird_entries:
             response = f"No CTD or SEABIRD Files Found to Process for {self.currentNetwork} {self.currentStation} {self.currentCampaign}"
             ProcessLogger.logerr(response)
             return
         
+        ctd_processing_functions = [CTD_to_svp_v2, CTD_to_svp_v1]
+
         # Try processing CTD files first
         for ctd_entry in ctd_entries:
-            isProcessed = False
-            svp_df = pd.DataFrame()
-            try:
-                # Try the first version of the conversion function
-                svp_df = CTD_to_svp_v1(ctd_entry.local_path)
-                if not svp_df.empty:
-                    ProcessLogger.loginfo(f"Processed SVP data from CTD file {ctd_entry.local_path} to dataframe with CTD_to_svp_v1")
-                    isProcessed = True
-
-            except Exception as e:
-                ProcessLogger.logerr(f"Error processing CTD file {ctd_entry.local_path} with CTD_to_svp_v1: {e}")
-            if not isProcessed:
+            for function in ctd_processing_functions:
                 try:
-                    # Try the second version of the conversion function if the first failed
-                    svp_df = CTD_to_svp_v2(ctd_entry.local_path)
+                    svp_df = function(ctd_entry.local_path)
                     if not svp_df.empty:
-                        ProcessLogger.loginfo(f"Processed SVP data from CTD file {ctd_entry.local_path} to dataframe with CTD_to_svp_v2")
+                        svp_df.to_csv(svp_df_destination, index=False)
+                        ctd_entry.is_processed = True
+                        self.asset_catalog.add_or_update(ctd_entry) # mark as processed
+                        ProcessLogger.loginfo(f"Processed SVP data from CTD file {ctd_entry.local_path} to dataframe with {function.__name__}")
+                        ProcessLogger.loginfo(f"Saved SVP dataframe to {str(svp_df_destination)}")
+                        return
                 except Exception as e:
-                    ProcessLogger.logerr(f"Error processing CTD file {ctd_entry.local_path} with CTD_to_svp_v2: {e}")
+                    ProcessLogger.logerr(f"Error processing CTD file {ctd_entry.local_path} with {function.__name__}: {e}")
                     continue
-
-            if not svp_df.empty:
-                # Save the first successful SVP dataframe and mark as processed
-                svp_df.to_csv(self.currentCampaignDir.svp_file, index=False)
-                ctd_entry.is_processed = True
-                self.asset_catalog.add_or_update(ctd_entry) # mark as processed
-                ProcessLogger.loginfo(f"Saved SVP dataframe to {str(self.currentCampaignDir.svp_file)}")
-                return
         
         # If no CTD files produced SVP, try Seabird files
         for seabird_entry in seabird_entries:
             try:
                 svp_df = seabird_to_soundvelocity(seabird_entry.local_path)
                 if not svp_df.empty:
-                    svp_df.to_csv(self.currentCampaignDir.svp_file, index=False)
+                    svp_df.to_csv(svp_df_destination, index=False)
                     seabird_entry.is_processed = True
                     self.asset_catalog.add_or_update(seabird_entry)
-                    ProcessLogger.loginfo(f"Processed SVP data from Seabird file {seabird_entry.local_path} and saved to {str(self.currentCampaignDir.svp_file)}")
+                    ProcessLogger.loginfo(f"Processed SVP data from Seabird file {seabird_entry.local_path} and saved to {str(svp_df_destination)}")
                     return
             except Exception as e:
                 ProcessLogger.logerr(f"Error processing Seabird file {seabird_entry.local_path}: {e}")

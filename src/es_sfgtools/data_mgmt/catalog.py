@@ -12,7 +12,16 @@ from ..logging import ProcessLogger as logger
 
 
 class PreProcessCatalog:
+    """
+    A class to handle the preprocessing catalog.
+    """
     def __init__(self, db_path: Path):
+        """
+        Initializes the PreProcessCatalog.
+
+        :param db_path: The path to the database.
+        :type db_path: Path
+        """
         self.db_path = db_path
         self.engine = self.engine = sa.create_engine(
             f"sqlite+pysqlite:///{self.db_path}", poolclass=sa.pool.NullPool
@@ -20,6 +29,18 @@ class PreProcessCatalog:
         Base.metadata.create_all(self.engine)
 
     def get_dtype_counts(self, network:str, station:str, campaign:str, **kwargs) -> Dict[str,int]:
+        """
+        Gets the counts of each data type for a given network, station, and campaign.
+
+        :param network: The network name.
+        :type network: str
+        :param station: The station name.
+        :type station: str
+        :param campaign: The campaign name.
+        :type campaign: str
+        :return: A dictionary of data types and their counts.
+        :rtype: Dict[str,int]
+        """
         with self.engine.begin() as conn:
             data_type_counts = [
                 dict(row._mapping)
@@ -41,18 +62,19 @@ class PreProcessCatalog:
     def delete_entries(self, network: str, station: str, campaign: str, type: AssetType|str, where:str=None) -> None:
         """
         Deletes entries from the Assets table based on the specified criteria.
-        Args:
-            network (str): The network identifier for the assets to be deleted.
-            station (str): The station identifier for the assets to be deleted.
-            campaign (str): The campaign identifier for the assets to be deleted.
-            type (AssetType | str): The type of asset to be deleted. Can be an AssetType enum or a string representation.
-            where (str, optional): Additional SQL conditions to filter the assets to be deleted. Defaults to None.
-        Returns:
-            None
-        Raises:
-            KeyError: If the provided asset type string is invalid and cannot be mapped to an AssetType enum.
-            Exception: If an error occurs during the deletion process.
-   
+
+        :param network: The network identifier for the assets to be deleted.
+        :type network: str
+        :param station: The station identifier for the assets to be deleted.
+        :type station: str
+        :param campaign: The campaign identifier for the assets to be deleted.
+        :type campaign: str
+        :param type: The type of asset to be deleted. Can be an AssetType enum or a string representation.
+        :type type: AssetType | str
+        :param where: Additional SQL conditions to filter the assets to be deleted. Defaults to None.
+        :type where: str, optional
+        :raises KeyError: If the provided asset type string is invalid and cannot be mapped to an AssetType enum.
+        :raises Exception: If an error occurs during the deletion process.
         """
 
         if isinstance(type, str):
@@ -87,6 +109,20 @@ class PreProcessCatalog:
                    station: str,
                    campaign: str,
                    type: AssetType|str) -> List[AssetEntry]:
+        """
+        Gets assets for a given network, station, campaign, and type.
+
+        :param network: The network name.
+        :type network: str
+        :param station: The station name.
+        :type station: str
+        :param campaign: The campaign name.
+        :type campaign: str
+        :param type: The asset type.
+        :type type: AssetType | str
+        :return: A list of assets.
+        :rtype: List[AssetEntry]
+        """
 
         if isinstance(type,str):
             try:
@@ -119,12 +155,12 @@ class PreProcessCatalog:
         """
         Get all svp, ctd and seabird assets for a given station and campaign.
         
-        Args:
-            station (str): The station.
-            campaign (str): The campaign.
-            
-        Returns:
-            List[AssetEntry]: A list of AssetEntry objects.    
+        :param station: The station.
+        :type station: str
+        :param campaign: The campaign.
+        :type campaign: str
+        :return: A list of AssetEntry objects.
+        :rtype: List[AssetEntry]
         """
 
         logger.logdebug(f" Getting ctds for {station} {campaign}")
@@ -155,14 +191,16 @@ class PreProcessCatalog:
         """
         Get local assets for a given network, station, campaign, and type.
         
-        Args:
-            network (str): The network.
-            station (str): The station.
-            campaign (str): The campaign.
-            type (AssetType): The asset type.
-            
-        Returns:
-            List[AssetEntry]: A list of AssetEntry objects.    
+        :param network: The network.
+        :type network: str
+        :param station: The station.
+        :type station: str
+        :param campaign: The campaign.
+        :type campaign: str
+        :param type: The asset type.
+        :type type: AssetType
+        :return: A list of AssetEntry objects.
+        :rtype: List[AssetEntry]
         """
 
         logger.logdebug(f" Getting local assets for {network} {station} {campaign} {str(type)}")
@@ -193,6 +231,24 @@ class PreProcessCatalog:
                                parent_type:AssetType,
                                child_type:AssetType = None,
                                override:bool=False) -> List[AssetEntry]:
+        """
+        Get single entries to process.
+
+        :param network: The network name.
+        :type network: str
+        :param station: The station name.
+        :type station: str
+        :param campaign: The campaign name.
+        :type campaign: str
+        :param parent_type: The parent asset type.
+        :type parent_type: AssetType
+        :param child_type: The child asset type. Defaults to None.
+        :type child_type: AssetType, optional
+        :param override: Whether to override existing entries. Defaults to False.
+        :type override: bool, optional
+        :return: A list of assets.
+        :rtype: List[AssetEntry]
+        """
 
         parent_entries = self.get_assets(network,station,campaign,parent_type)
         if child_type is None:
@@ -208,6 +264,14 @@ class PreProcessCatalog:
         return list(parent_id_map.values())
 
     def find_entry(self, entry: AssetEntry ) -> AssetEntry | None:
+        """
+        Finds an entry in the database.
+
+        :param entry: The entry to find.
+        :type entry: AssetEntry
+        :return: The entry if found, otherwise None.
+        :rtype: AssetEntry | None
+        """
 
         with self.engine.connect() as conn:
             results = conn.execute(sa.select(Assets).where(
@@ -224,9 +288,10 @@ class PreProcessCatalog:
         """ 
         Update the local path for an entry in the database. 
         
-        Args:
-            id (int): The id of the entry to update.
-            local_path (str): The new local path.
+        :param id: The id of the entry to update.
+        :type id: int
+        :param local_path: The new local path.
+        :type local_path: str
         """
         try:
             logger.loginfo(f"Updating local path in catalog for id {id} to {local_path}")
@@ -243,15 +308,18 @@ class PreProcessCatalog:
         """
         Check if a remote file name exists in the catalog already as a local file name.
         
-        Args:
-            network (str): The network.
-            station (str): The station.
-            campaign (str): The campaign.
-            type (AssetType): The asset type.
-            remote_path (str): The remote path.
-            
-        Returns:
-            bool: True if the file exists, False if not.
+        :param network: The network.
+        :type network: str
+        :param station: The station.
+        :type station: str
+        :param campaign: The campaign.
+        :type campaign: str
+        :param type: The asset type.
+        :type type: AssetType
+        :param remote_path: The remote path.
+        :type remote_path: str
+        :return: True if the file exists, False if not.
+        :rtype: bool
         """
 
         remote_file_name = os.path.basename(remote_path)
@@ -272,6 +340,14 @@ class PreProcessCatalog:
         return False
 
     def add_or_update(self, entry: AssetEntry ) -> bool:
+        """
+        Adds or updates an entry in the database.
+
+        :param entry: The entry to add or update.
+        :type entry: AssetEntry
+        :return: True if the entry was added or updated, False otherwise.
+        :rtype: bool
+        """
         if entry is None:
             logger.logwarn("No entry to add or update")
             return
@@ -296,6 +372,14 @@ class PreProcessCatalog:
         return False
 
     def query_catalog(self, query: str) -> pd.DataFrame:
+        """
+        Queries the catalog.
+
+        :param query: The query to execute.
+        :type query: str
+        :return: A dataframe with the results.
+        :rtype: pd.DataFrame
+        """
         with self.engine.begin() as conn:
             try:
                 return pd.read_sql_query(query, conn)
@@ -304,6 +388,14 @@ class PreProcessCatalog:
                 conn.execute(sa.text(query))
 
     def add_entry(self, entry:AssetEntry) -> bool:
+        """
+        Adds an entry to the database.
+
+        :param entry: The entry to add.
+        :type entry: AssetEntry
+        :return: True if the entry was added, False otherwise.
+        :rtype: bool
+        """
         try:
             with self.engine.begin() as conn:
                 conn.execute(sa.insert(Assets).values(entry.model_dump()))
@@ -313,6 +405,14 @@ class PreProcessCatalog:
             return False
 
     def delete_entry(self, entry:AssetEntry) -> bool:
+        """
+        Deletes an entry from the database.
+
+        :param entry: The entry to delete.
+        :type entry: AssetEntry
+        :return: True if the entry was deleted, False otherwise.
+        :rtype: bool
+        """
 
         logger.loginfo(f"Deleting entry {entry} from catalog")
         with self.engine.begin() as conn:
@@ -326,6 +426,16 @@ class PreProcessCatalog:
         return False
 
     def add_merge_job(self,parent_type:str,child_type:str,parent_ids:List[int],**kwargs):
+        """
+        Adds a merge job to the database.
+
+        :param parent_type: The parent asset type.
+        :type parent_type: str
+        :param child_type: The child asset type.
+        :type child_type: str
+        :param parent_ids: The parent asset IDs.
+        :type parent_ids: List[int]
+        """
         # sort parent_ids to ensure that the order is consistent
         parent_ids.sort()
         parent_id_string = "-".join([str(x) for x in parent_ids])
@@ -337,6 +447,18 @@ class PreProcessCatalog:
             }))
 
     def is_merge_complete(self,parent_type:str,child_type:str,parent_ids:List[int],**kwargs) -> bool:
+        """
+        Checks if a merge job is complete.
+
+        :param parent_type: The parent asset type.
+        :type parent_type: str
+        :param child_type: The child asset type.
+        :type child_type: str
+        :param parent_ids: The parent asset IDs.
+        :type parent_ids: List[int]
+        :return: True if the merge job is complete, False otherwise.
+        :rtype: bool
+        """
         parent_ids.sort()
         parent_id_string = "-".join([str(x) for x in parent_ids])
         with self.engine.begin() as conn:
