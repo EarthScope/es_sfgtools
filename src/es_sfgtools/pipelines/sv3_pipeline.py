@@ -25,6 +25,7 @@ from ..data_mgmt.utils import (
 from ..logging import ProcessLogger, change_all_logger_dirs
 from ..novatel_tools import novatel_binary_operations as novb_ops
 from ..novatel_tools.utils import get_metadata, get_metadatav2
+
 from ..pride_tools import (
     PrideCLIConfig,
     get_gnss_products,

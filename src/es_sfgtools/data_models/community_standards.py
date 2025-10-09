@@ -14,6 +14,7 @@ from pydantic import BaseModel as Basemodel
 from .metadata import Site, Vessel
 
 
+
 class SFGDSTFSeafloorAcousticData(pa.DataFrameModel):
     """
     Data frame model of seafloor acoustic data defined by the Seafloor Geodesy Data Standardization Task Force (SFGDSTF)

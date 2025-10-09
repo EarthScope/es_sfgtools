@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from decimal import getcontext
+from decimal import getcontext,Decimal
 
 import julian
 

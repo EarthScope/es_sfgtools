@@ -9,8 +9,8 @@ from typing import List
 from ..logging import ProcessLogger as logger
 
 # Local imports
-from .utils import get_tile2rinex_binary_path, parse_cli_logs
-
+from es_sfgtools.utils.command_line_utils import parse_cli_logs
+from .utils import get_tile2rinex_binary_path
 
 def tile2rinex(
     gnss_obs_tdb: Path,
