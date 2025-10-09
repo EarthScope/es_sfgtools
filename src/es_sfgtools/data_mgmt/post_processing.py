@@ -248,7 +248,7 @@ class IntermediateDataProcessor:
             self.currentCampaignDir.campaign_metadata,
             "w",
         ) as f:
-            json.dump(self.currentCampaign.model_dump_json(), f, indent=4)
+            json.dump(self.currentCampaign.model_dump(), f, indent=4)
 
         surveys_to_process: List[Survey] = []
         for survey in self.currentCampaign.surveys:
@@ -351,7 +351,7 @@ class IntermediateDataProcessor:
                 self.currentSurveyDir.metadata,
                 "w",
             ) as f:
-                json.dump(survey.model_dump_json(), f, indent=4)
+                json.dump(survey.model_dump(), f, indent=4)
 
         self.directory_handler.save()
 

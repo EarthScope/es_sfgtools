@@ -360,6 +360,8 @@ class GarposHandler:
 
         obsfile_path = self.currentGarposSurveyDir.default_obsfile
 
+       
+
         if not obsfile_path.exists():
             raise ValueError(f"Observation file not found at {obsfile_path}")
 
@@ -373,6 +375,21 @@ class GarposHandler:
                 run_id=f"{i}",
                 override=override,
             )
+            if iterations > 1 and i < iterations - 1:
+                iterationInput = GarposInput.from_datafile(obsfile_path)
+                delta_position = iterationInput.delta_center_position.get_position()
+                iterationInput.array_center_enu.east += delta_position[0]
+                iterationInput.array_center_enu.north += delta_position[1]
+                iterationInput.array_center_enu.up += delta_position[2]
+                # zero out delta position for next iteration
+                iterationInput.delta_center_position.east = 0.0
+                iterationInput.delta_center_position.north = 0.0
+                iterationInput.delta_center_position.up = 0.0
+                iterationInput.to_datafile(obsfile_path)
+
+
+            # Add array delta center position to the array center enu
+
         results = GarposInput.from_datafile(obsfile_path)
         process_garpos_results(results)
 
@@ -417,7 +434,7 @@ class GarposHandler:
     ) -> None:
         """
         Plots the time series results for a given survey.
-        
+
         :param survey_id: ID of the survey to plot results for.
         :type survey_id: str
         :param run_id: The run ID of the survey results to plot. Default is 0.

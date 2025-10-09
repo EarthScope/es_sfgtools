@@ -21,6 +21,7 @@ from typing import (
 import boto3
 import seaborn
 from tqdm.auto import tqdm
+import json
 
 from es_sfgtools.data_mgmt.catalog import PreProcessCatalog
 from es_sfgtools.data_mgmt.constants import DEFAULT_FILE_TYPES_TO_DOWNLOAD, REMOTE_TYPE
@@ -631,7 +632,7 @@ class DataHandler:
                 site = source
                 # Write the site metadata to the station directory
                 with open(site_meta_write_dest, "w") as f:
-                    f.write(site.model_dump_json(indent=4))
+                    json.dump(site.model_dump(), f, indent=4)
                 site_meta_read_dest = site_meta_write_dest
                 logger.loginfo(
                     f"Using provided site metadata and wrote to {site_meta_write_dest}"
@@ -655,7 +656,8 @@ class DataHandler:
                         network=self.current_network, station=self.current_station
                     )
                     with open(site_meta_write_dest, "w") as f:
-                        f.write(site.model_dump_json(indent=4))
+                        json.dump(site.model_dump(), f, indent=4)
+                 
                     site_meta_read_dest = site_meta_write_dest
                     logger.loginfo(
                         f"Downloaded site metadata from the ES archive to {site_meta_write_dest}"
@@ -672,7 +674,7 @@ class DataHandler:
             if site_meta_read_dest != site_meta_write_dest:
                 # Write the site metadata to the station directory
                 with open(site_meta_write_dest, "w") as f:
-                    f.write(site.model_dump_json(indent=4))
+                    json.dump(site.model_dump(), f, indent=4)
                 logger.loginfo(f"Wrote site metadata to {site_meta_write_dest}")
 
         else:
