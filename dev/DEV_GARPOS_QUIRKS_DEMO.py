@@ -28,6 +28,9 @@ def main():
     garpos_config = {
         "maxloop": 50,
     }
+    garpos_config_nbr1 = {
+        "maxloop": 100,
+    }
     override_survey_parsing = False
     override_garpos_parsing = False
     override_garpos_modeling = True
@@ -44,7 +47,7 @@ def main():
     nbr1MidProcess.parse_surveys(override=override_survey_parsing)
     nbr1MidProcess.prepare_shotdata_garpos(custom_filters=filter_config,overwrite=override_garpos_parsing)
     gp_handler_nbr1: GarposHandler = dh.getGARPOSHandler()
-    gp_handler_nbr1.run_garpos(run_id=run_id,iterations=garpos_iterations,override=override_garpos_modeling,custom_settings=garpos_config)
+    gp_handler_nbr1.run_garpos(run_id=run_id,iterations=garpos_iterations,override=override_garpos_modeling,custom_settings=garpos_config_nbr1)
     gp_handler_nbr1.plot_ts_results(run_id=run_id,res_filter=10,savefig=True,showfig=False)
 
     station = "NCC1"
