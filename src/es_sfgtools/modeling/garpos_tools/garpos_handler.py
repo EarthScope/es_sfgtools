@@ -4,6 +4,7 @@ GarposHandler class for processing and preparing shot data for the GARPOS model.
 
 from pathlib import Path
 from typing import Optional
+import shutil
 
 from es_sfgtools.data_mgmt.directory_handler import (
     CampaignDir,
@@ -228,12 +229,11 @@ class GarposHandler:
             currentSurveyDir := self.currentCampaignDir.surveys.get(survey_id, None)
         ) is None:
             currentSurveyDir = self.currentCampaignDir.add_survey(name=survey_id)
-        
+
         if currentSurveyDir.shotdata is None or not currentSurveyDir.shotdata.exists():
             raise ValueError(f"Shotdata for survey {survey_id} not found in directory handler. Please run intermediate data processing to create shotdata file.")
-        
+
         self.currentSurveyDir = currentSurveyDir
-      
 
         try:
             if self.currentSurveyDir.garpos.shotdata_rectified.exists():
@@ -243,7 +243,6 @@ class GarposHandler:
         except Exception:
             pass
         raise ValueError(f"Rectified shotdata for survey {survey_id} not found in directory handler. Please run intermediate data processing to create rectified shotdata file.")
-
 
     def setNetworkStationCampaign(self, network: str, station: str, campaign: str):
         """
@@ -283,7 +282,7 @@ class GarposHandler:
         self,
         obsfile_path: Path,
         results_dir: Path,
-        settings: Optional[GarposFixed] = None,
+        custom_settings: Optional[dict] = None,
         run_id: int | str = 0,
         override: bool = False) -> Path:
         """
@@ -300,7 +299,15 @@ class GarposHandler:
         :return: The path to the results file.
         :rtype: Path
         """
-        garpos_fixed_params = settings if settings is not None else self.garpos_fixed
+        garpos_fixed_params = self.garpos_fixed.model_copy()
+        if custom_settings is not None:
+            for key, value in custom_settings.items():
+                if hasattr(garpos_fixed_params.inversion_params, key):
+                    setattr(garpos_fixed_params.inversion_params, key, value)
+                else:
+                    logger.logwarn(
+                        f"Custom GARPOS setting {key} not found in GarposFixed schema, ignoring."
+                    )
         garpos_input = GarposInput.from_datafile(obsfile_path)
         results_path = results_dir / f"_{run_id}_results.json"
 
@@ -327,7 +334,7 @@ class GarposHandler:
     def _run_garpos_survey(
         self,
         survey_id: str,
-        settings: Optional[GarposFixed] = None,
+        custom_settings: Optional[dict] = None,
         run_id: int | str = 0,
         iterations: int = 1,
         override: bool = False,
@@ -337,6 +344,8 @@ class GarposHandler:
 
         :param survey_id: The ID of the survey to run.
         :type survey_id: str
+        :param custom_settings: Custom GARPOS settings to apply. Defaults to None.
+        :type custom_settings: dict, optional
         :param run_id: The run identifier. Defaults to 0.
         :type run_id: int | str, optional
         :param iterations: The number of iterations to run. Defaults to 1.
@@ -352,24 +361,26 @@ class GarposHandler:
         except ValueError as e:
             logger.logwarn(f"Skipping survey {survey_id}: {e}")
             return
-   
 
         results_dir_main = self.currentGarposSurveyDir.results_dir
         results_dir = results_dir_main / f"run_{run_id}"
+        if results_dir.exists() and override:
+            # Remove existing results directory if override is True
+            shutil.rmtree(results_dir)
         results_dir.mkdir(parents=True, exist_ok=True)
 
         obsfile_path = self.currentGarposSurveyDir.default_obsfile
 
-       
-
         if not obsfile_path.exists():
             raise ValueError(f"Observation file not found at {obsfile_path}")
+
+        initialInput = GarposInput.from_datafile(obsfile_path)
 
         for i in range(iterations):
             logger.loginfo(f"Iteration {i+1} of {iterations} for survey {survey_id}")
 
             obsfile_path = self._run_garpos(
-                settings=settings,
+                custom_settings=custom_settings,
                 obsfile_path=obsfile_path,
                 results_dir=results_dir,
                 run_id=f"{i}",
@@ -382,11 +393,9 @@ class GarposHandler:
                 iterationInput.array_center_enu.north += delta_position[1]
                 iterationInput.array_center_enu.up += delta_position[2]
                 # zero out delta position for next iteration
-                iterationInput.delta_center_position.east = 0.0
-                iterationInput.delta_center_position.north = 0.0
-                iterationInput.delta_center_position.up = 0.0
-                iterationInput.to_datafile(obsfile_path)
+                iterationInput.delta_center_position = initialInput.delta_center_position
 
+                iterationInput.to_datafile(obsfile_path)
 
             # Add array delta center position to the array center enu
 
@@ -399,6 +408,7 @@ class GarposHandler:
         run_id: int | str = 0,
         iterations: int = 1,
         override: bool = False,
+        custom_settings: Optional[dict] = None, 
     ) -> None:
         """
         Run the GARPOS model for a specific date or for all dates.
@@ -411,6 +421,8 @@ class GarposHandler:
         :type iterations: int, optional
         :param override: If True, override existing results. Defaults to False.
         :type override: bool, optional
+        :param custom_settings: Custom GARPOS settings to apply. Defaults to None.
+        :type custom_settings: dict, optional
         """
 
         logger.loginfo(f"Running GARPOS model. Run ID: {run_id}")
@@ -421,7 +433,7 @@ class GarposHandler:
                 f"Running GARPOS model for survey {survey_id}. Run ID: {run_id}"
             )
             self._run_garpos_survey(
-                survey_id=survey_id, run_id=run_id, override=override, iterations=iterations
+                survey_id=survey_id, run_id=run_id, override=override, iterations=iterations, custom_settings=custom_settings
             )
 
     def plot_ts_results(

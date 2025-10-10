@@ -89,19 +89,19 @@ class GarposResultsProcessor:
         if not run_dir.exists():
             raise FileNotFoundError(f"Run directory {run_dir} does not exist.")
 
-        # Get *observation.ini file
-        data_files = list(run_dir.glob("*.dat"))
+        # Get *-res.dat files
+        data_files = list(run_dir.glob("*-res.dat"))
         if not data_files:
             raise FileNotFoundError(f"No .dat files found in run directory {run_dir}.")
 
         """
         sort by iteration number if multiple files found
 
-        >>> data_files = [NTH1.2025_A_1126_0-m.p.dat,NTH1.2025_A_1126_1-m.p.dat,NTH1.2025_A_1126_2-m.p.dat]
+        >>> data_files = [NTH1.2025_A_1126_0-res.dat,NTH1.2025_A_1126_1-res.dat,NTH1.2025_A_1126_2-res.dat]
         >>> sorted_data_files = sorted(data_files, key=lambda x: int(x.stem.split("_")[-1].split("-")[0]))
         >>> sorted_data_files
-        [NTH1.2025_A_1126_0-m.p.dat,NTH1.2025_A_1126_1-m.p.dat,NTH1.2025_A_1126_2-m.p.dat]
-        
+        [NTH1.2025_A_1126_0-res.dat,NTH1.2025_A_1126_1-res.dat,NTH1.2025_A_1126_2-res.dat]
+
         """
         data_files = sorted(
             data_files, key=lambda x: int(x.stem.split("_")[-1].split("-")[0])

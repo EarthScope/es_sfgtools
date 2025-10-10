@@ -82,6 +82,7 @@ def CTD_to_svp_v1(
     """
     df = pd.read_csv(source, names=["depth", "speed"])
     df["depth"] = -df["depth"]
+    df = interpolate_svp(df, additional_depth=200.0)
     return SoundVelocityDataFrame(df, lazy=True)
 
 
@@ -103,4 +104,33 @@ def CTD_to_svp_v2(
     df = pd.read_csv(source, sep="\s+", names=["depth", "speed"])
     df["depth"] = -df["depth"]
     df["speed"] = df["speed"] + np.random.randn(len(df)) * 1e-6
+    df = interpolate_svp(df, additional_depth=200.0)
     return SoundVelocityDataFrame(df, lazy=True)
+
+
+def interpolate_svp(
+        svp:pd.DataFrame,
+        additional_depth:float=200.0,
+) -> pd.DataFrame:
+    """
+    Interpolates a sound velocity profile (SVP) DataFrame to ensure coverage down to a specified additional depth.
+
+    This function checks the maximum depth in the provided SVP DataFrame and, if necessary,
+    extends the profile by adding interpolated values down to the specified additional depth.
+
+    :param svp: A DataFrame containing 'depth' and 'speed' columns.
+    :type svp: pd.DataFrame
+    :param additional_depth: The additional depth (in meters) to extend the SVP profile.
+                             Default is 200.0 meters.
+    :type additional_depth: float
+    :returns: A DataFrame with the interpolated SVP data.
+    :rtype: pd.DataFrame
+    """
+    max_depth = svp['depth'].max()
+
+    new_depths = np.arange(max_depth + 1, max_depth + additional_depth)
+    new_speeds = np.interp(new_depths, svp['depth'].to_numpy(), svp['speed'].to_numpy())
+    new_svp = pd.DataFrame({'depth': new_depths, 'speed': new_speeds})
+    svp = pd.concat([svp, new_svp], ignore_index=True)
+    logger.loginfo(f"Extended SVP to {additional_depth} m depth with interpolation.")
+    return svp

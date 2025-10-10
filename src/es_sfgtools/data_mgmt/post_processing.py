@@ -248,7 +248,7 @@ class IntermediateDataProcessor:
             self.currentCampaignDir.campaign_metadata,
             "w",
         ) as f:
-            json.dump(self.currentCampaign.model_dump(), f, indent=4)
+            json.dump(self.currentCampaign.model_dump_json(), f, indent=4)
 
         surveys_to_process: List[Survey] = []
         for survey in self.currentCampaign.surveys:
@@ -351,7 +351,7 @@ class IntermediateDataProcessor:
                 self.currentSurveyDir.metadata,
                 "w",
             ) as f:
-                json.dump(survey.model_dump(), f, indent=4)
+                json.dump(survey.model_dump_json(), f, indent=4)
 
         self.directory_handler.save()
 
@@ -371,8 +371,8 @@ class IntermediateDataProcessor:
         :type survey_id: str, optional
         :param custom_filters: Custom filters to apply.
         :type custom_filters: dict, optional
-        :param shotdata_filter_config: The shotdata filter configuration.
-        :type shotdata_filter_config: dict, optional
+        :param custom_garpos_settings: Custom GARPOS settings to apply.
+        :type custom_garpos_settings: dict, optional
         :param overwrite: Whether to overwrite existing files.
         :type overwrite: bool, optional
         """
@@ -398,7 +398,7 @@ class IntermediateDataProcessor:
             self.prepare_single_garpos_survey(
                 survey=survey,
                 custom_filters=custom_filters,
-                overwrite=overwrite,
+                overwrite=overwrite
             )
 
     def prepare_single_garpos_survey(
@@ -431,8 +431,9 @@ class IntermediateDataProcessor:
         garposDir : GARPOSSurveyDir = self.currentSurveyDir.garpos
         garposDir.build()
 
-        if not garposDir.default_settings.exists():
+        if not garposDir.default_settings.exists() or overwrite:
             GarposFixed()._to_datafile(garposDir.default_settings)
+        
 
         file_name_filtered = self.currentSurveyDir.shotdata.parent / f"{self.currentSurveyDir.shotdata.stem}_filtered.csv"
         garposDir.shotdata_filtered = file_name_filtered
