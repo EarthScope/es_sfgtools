@@ -436,7 +436,11 @@ class PRIDEPPPFileConfig(BaseModel):
         """
         pdp_home = Path.home() / ".PRIDE_PPPAR_BIN"
         if not pdp_home.exists():
-            raise FileNotFoundError(f"PRIDE PPPAR directory not found: {pdp_home}")
+            # Try jupyter hub path
+            pdp_home = Path("/opt/PRIDE-PPPAR/.PRIDE_PPPAR_BIN")
+            if not pdp_home.exists():
+                raise FileNotFoundError(f"PRIDE PPPAR directory not found: {pdp_home}")
+            
         config_path = pdp_home / "config_template"
         if not config_path.exists():
             raise FileNotFoundError(
