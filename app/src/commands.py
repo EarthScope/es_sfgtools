@@ -44,7 +44,7 @@ def run_manifest(manifest_object: PipelineManifest):
             network=job.network, station=job.station, campaign=job.campaign
         )
         pipeline, config = dh.get_pipeline_sv3()
-        job.config.rinex_config.settings_path = dh.rinex_metav2
+        job.config.rinex_config.settings_path = pipeline.config.rinex_config.settings_path
         pipeline.config = job.config
         pipeline.run_pipeline()
 

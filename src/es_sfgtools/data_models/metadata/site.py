@@ -477,6 +477,9 @@ class Site(BaseModel):
                             equipment.surveys.remove(survey)
                             print(f"Deleted survey {sub_component_name}.")
 
+    class Config:
+        validate_assignment = True
+        json_encoders = {datetime: lambda v: v.isoformat()}
 
 if __name__ == "__main__":
     example_json_filepath = "json_schemas/site_example.json"

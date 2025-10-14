@@ -295,7 +295,11 @@ class DataHandler:
                 continue
             file_type, _size = get_file_type_local(file_path)
             if file_type is not None:
-                symlinked_path = self.currentCampaignDir.raw / file_path.name
+                # Add check to see if the parent directory is the raw directory, if so, just use the file path
+                if file_path.parent == self.currentCampaignDir.raw:
+                    symlinked_path = file_path
+                else:
+                    symlinked_path = self.currentCampaignDir.raw / file_path.name
                 # symlink to the raw directory
                 if symlinked_path != file_path:
                     try:
@@ -656,7 +660,7 @@ class DataHandler:
                         network=self.current_network, station=self.current_station
                     )
                     with open(site_meta_write_dest, "w") as f:
-                        json.dump(site.model_dump(), f, indent=4)
+                        json.dump(site.model_dump_json(indent=4), f)
                  
                     site_meta_read_dest = site_meta_write_dest
                     logger.loginfo(

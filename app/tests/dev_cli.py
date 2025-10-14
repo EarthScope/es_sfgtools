@@ -7,6 +7,8 @@ from pathlib import Path
 
 sys.path.append((test:=str(Path(__file__).parent.parent)))
 os.environ["DYLD_LIBRARY_PATH"] = os.environ.get("CONDA_PREFIX", "") + "/lib"
+# add PRIDE to path
+os.environ["PATH"] += os.pathsep + str(Path.home() / ".PRIDE_PPPAR_BIN")
 from pathlib import Path
 
 sys.path.append("/Users/franklyndunbar/Project/SeaFloorGeodesy/gnatss/src")
@@ -17,7 +19,7 @@ if __name__ == "__main__":
     os.environ["PATH"] += os.pathsep + str(pride_path)
 
     manifest_path = Path(
-        "/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/Eureka25/eureka_preproc.json"
+        "/Users/franklyndunbar/Project/SeaFloorGeodesy/es_sfgtools/dev/NCC1-preproc-manifest.json"
     )
 
     run_manifest(
