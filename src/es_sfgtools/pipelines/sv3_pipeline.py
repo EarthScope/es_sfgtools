@@ -709,7 +709,8 @@ class SV3Pipeline:
         )
         kin_entries = []
         resfile_entries = []
-        count = 0
+        kin_count = 0
+        res_count = 0
         uploadCount = 0
 
         with Pool(
@@ -728,19 +729,22 @@ class SV3Pipeline:
                 )
             ):
                 if kinfile is not None:
-                    count += 1
-                if self.asset_catalog.add_or_update(kinfile):
-                    uploadCount += 1
+                    kin_count += 1
+                    rinex_entries[idx].is_processed = True
+                    self.asset_catalog.add_or_update(rinex_entries[idx])
 
-                if resfile is not None:
-                    count += 1
-                    if self.asset_catalog.add_or_update(resfile):
+                    if self.asset_catalog.add_or_update(kinfile):
                         uploadCount += 1
-                        resfile_entries.append(resfile)
-                rinex_entries[idx].is_processed = True
-                self.asset_catalog.add_or_update(rinex_entries[idx])
 
-        response = f"Generated {count} Kin Files From {len(rinex_entries)} Rinex Files, Added {uploadCount} to the Catalog"
+                    if resfile is not None:
+                        res_count += 1
+                        
+                        if self.asset_catalog.add_or_update(resfile):
+                            uploadCount += 1
+                            resfile_entries.append(resfile)
+
+
+        response = f"Generated {kin_count} Kin Files and {res_count} Residual Files From {len(rinex_entries)} Rinex Files, Added {uploadCount} to the Catalog"
         ProcessLogger.loginfo(response)
 
     def process_kin(self):

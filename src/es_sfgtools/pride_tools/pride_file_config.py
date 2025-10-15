@@ -1,6 +1,6 @@
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List,Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -42,13 +42,13 @@ class ObservationConfig(BaseModel):
 
 
 class SatelliteProducts(BaseModel):
-    product_directory: str  = Field(default="Default", description="Directory for satellite products")
-    satellite_orbit: str = Field(default= "Default",pattern=r".*\.SP3", description="File name of SP3 file")
-    satellite_clock: str = Field(default= "Default",pattern=r".*\.CLK", description="File name of CLK file")
-    erp: str = Field(default= "Default",pattern=r".*\.ERP", description="File name of ERP file")
-    quaternions: str = Field(default= "Default",pattern=r".*\.OBX", description="File name of quaternions file")
-    code_phase_bias: str = Field(default= "Default",pattern=r".*\.BIA", description="File name of code/phase bias file")
-    leo_quaternions: str = "Default"
+    product_directory: Optional[str]  = Field(default="Default", description="Directory for satellite products")
+    satellite_orbit: Optional[str] = Field(default= "Default",pattern=r".*\.SP3", description="File name of SP3 file")
+    satellite_clock: Optional[str] = Field(default= "Default",pattern=r".*\.CLK", description="File name of CLK file")
+    erp: Optional[str] = Field(default= "Default",pattern=r".*\.ERP", description="File name of ERP file")
+    quaternions: Optional[str] = Field(default= "Default",pattern=r".*\.OBX", description="File name of quaternions file")
+    code_phase_bias: Optional[str] = Field(default= "Default",pattern=r".*\.BIA", description="File name of code/phase bias file")
+    leo_quaternions: Optional[str] = Field(default="Default", description="File name of LEO quaternions file")
 
     @field_validator("satellite_orbit", "satellite_clock", "erp", "quaternions", "code_phase_bias",mode='before')
     def override_patternmatch(cls, value: str, field: Field) -> str:

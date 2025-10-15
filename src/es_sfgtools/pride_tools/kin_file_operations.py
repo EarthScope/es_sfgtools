@@ -353,3 +353,27 @@ def read_kin_data(kin_path):
         inplace=True,
     )
     return kin_df
+
+def validate_kin_file(source: Union[str, Path]) -> bool:
+    """
+    Validate a kin file by checking if it can be parsed into a DataFrame and contains data.
+
+    Parameters:
+        source (str|Path): The path to the kin file
+
+    Returns:
+        bool: True if the kin file is valid, False otherwise
+    """
+    if not isinstance(source, (str, Path)):
+        logger.logerr(f"Invalid source type: {type(source)}")
+        return False
+
+    source = Path(source)
+    if not source.exists():
+        return False
+
+    df = kin_to_kin_position_df(source)
+    if df is None or df.empty:
+        logger.logerr(f"Kin file {source} is invalid or contains no data")
+        return False
+    return True
