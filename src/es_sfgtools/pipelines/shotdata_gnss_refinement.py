@@ -136,9 +136,9 @@ def prepare_kinematic_data(kin_positions: pd.DataFrame) -> pd.DataFrame:
     ant_z_diff = gps_df.ant_z.diff()
 
 
-    east_velocity = (ant_x_diff / time_diff).fillna(method='bfill')
-    north_velocity = (ant_y_diff / time_diff).fillna(method='bfill')
-    up_velocity = (ant_z_diff / time_diff).fillna(method='bfill')
+    east_velocity = (ant_x_diff / time_diff).bfill()
+    north_velocity = (ant_y_diff / time_diff).bfill()
+    up_velocity = (ant_z_diff / time_diff).bfill()
 
     gps_df.east = east_velocity
     gps_df.north = north_velocity
