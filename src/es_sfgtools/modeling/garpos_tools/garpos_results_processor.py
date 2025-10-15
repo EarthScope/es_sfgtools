@@ -16,7 +16,7 @@ from matplotlib.colors import Normalize
 
 from es_sfgtools.logging import GarposLogger as logger
 from es_sfgtools.modeling.garpos_tools.schemas import GarposInput, ObservationData
-from es_sfgtools.data_mgmt.directory_handler import SurveyDir,GARPOSSurveyDir,CampaignDir
+from es_sfgtools.data_mgmt.directorymgmt.directory_handler import SurveyDir,GARPOSSurveyDir,CampaignDir
 
 sns.set_theme()
 

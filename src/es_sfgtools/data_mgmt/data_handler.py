@@ -23,21 +23,21 @@ import seaborn
 from tqdm.auto import tqdm
 import json
 
-from es_sfgtools.data_mgmt.catalog import PreProcessCatalog
+from es_sfgtools.data_mgmt.assetcatalog.catalog import PreProcessCatalog
 from es_sfgtools.data_mgmt.constants import DEFAULT_FILE_TYPES_TO_DOWNLOAD, REMOTE_TYPE
-from es_sfgtools.data_mgmt.datadiscovery import (
+from es_sfgtools.data_mgmt.ingestion.datadiscovery import (
     get_file_type_local,
     get_file_type_remote,
     scrape_directory_local,
 )
-from es_sfgtools.data_mgmt.directory_handler import (
+from es_sfgtools.data_mgmt.directorymgmt.directory_handler import (
     CampaignDir,
     DirectoryHandler,
     NetworkDir,
     StationDir,
     SurveyDir,
 )
-from es_sfgtools.data_mgmt.file_schemas import AssetEntry, AssetType
+from es_sfgtools.data_mgmt.assetcatalog.file_schemas import AssetEntry, AssetType
 from es_sfgtools.data_mgmt.post_processing import (
     IntermediateDataProcessor,
 )
@@ -53,7 +53,7 @@ from es_sfgtools.tiledb_tools.tiledb_schemas import (
     TDBKinPositionArray,
     TDBShotDataArray,
 )
-from es_sfgtools.utils.archive_pull import (
+from es_sfgtools.data_mgmt.ingestion.archive_pull import (
     download_file_from_archive,
     list_campaign_files,
     load_site_metadata,

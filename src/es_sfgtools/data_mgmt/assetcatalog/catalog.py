@@ -5,7 +5,7 @@ from typing import Dict, List
 import pandas as pd
 import sqlalchemy as sa
 
-from es_sfgtools.data_mgmt.file_schemas import AssetEntry, AssetType
+from es_sfgtools.data_mgmt.assetcatalog.file_schemas import AssetEntry, AssetType
 from es_sfgtools.logging import ProcessLogger as logger
 
 from .database import Assets, Base, MergeJobs

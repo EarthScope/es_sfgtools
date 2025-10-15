@@ -7,7 +7,7 @@ from typing import List, Optional
 
 import pandas as pd
 
-from es_sfgtools.data_mgmt.directory_handler import (
+from es_sfgtools.data_mgmt.directorymgmt.directory_handler import (
     CampaignDir,
     DirectoryHandler,
     GARPOSSurveyDir,

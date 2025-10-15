@@ -5,7 +5,7 @@ from typing import List
 import matplotlib.pyplot as plt
 import numpy as np
 
-from ..data_mgmt.file_schemas import AssetEntry
+from ..data_mgmt.assetcatalog.file_schemas import AssetEntry
 from ..processing.assets.tiledb import TDBKinPositionArray
 
 UNIX_EPOCH = np.datetime64("1970-01-01T00:00:00Z")

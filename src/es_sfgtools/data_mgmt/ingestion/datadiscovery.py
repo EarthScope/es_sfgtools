@@ -4,7 +4,7 @@ import warnings
 from pathlib import Path
 from typing import List, Union
 from es_sfgtools.logging import ProcessLogger as logger
-from .file_schemas import AssetType
+from ..assetcatalog.file_schemas import AssetType
 
 pattern_map = {
     re.compile(r"\.\d{2}O$"): AssetType.RINEX,

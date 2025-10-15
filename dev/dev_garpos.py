@@ -9,7 +9,7 @@ os.environ["GARPOS_PATH"] = str(
 from es_sfgtools.data_mgmt.data_handler import DataHandler, Site
 from es_sfgtools.logging.loggers import BaseLogger
 from es_sfgtools.modeling.garpos_tools.load_utils import load_drive_garpos
-from es_sfgtools.utils.archive_pull import load_site_metadata
+from es_sfgtools.data_mgmt.ingestion.archive_pull import load_site_metadata
 
 pride_path = Path.home() / ".PRIDE_PPPAR_BIN"
 os.environ["PATH"] += os.pathsep + str(pride_path)

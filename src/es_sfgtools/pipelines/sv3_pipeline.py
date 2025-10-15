@@ -11,14 +11,14 @@ from typing import List, Optional
 from tqdm.auto import tqdm
 
 # Local imports
-from ..data_mgmt.catalog import PreProcessCatalog
-from ..data_mgmt.directory_handler import (
+from ..data_mgmt.assetcatalog.catalog import PreProcessCatalog
+from ..data_mgmt.directorymgmt.directory_handler import (
     CampaignDir,
     DirectoryHandler,
     NetworkDir,
     StationDir,
 )
-from ..data_mgmt.file_schemas import AssetEntry, AssetType
+from ..data_mgmt.assetcatalog.file_schemas import AssetEntry, AssetType
 from ..data_mgmt.utils import (
     get_merge_signature_shotdata,
 )
@@ -47,7 +47,7 @@ from ..tiledb_tools.tiledb_schemas import (
 )
 from .config import SV3PipelineConfig
 from .shotdata_gnss_refinement import merge_shotdata_kinposition
-
+from .exceptions import NoRinexFound, NoNovatelFound,NoRinexBuilt,NoKinFound,NoDFOP00Found,NoSVPFound
 
 def rinex_to_kin_wrapper(
     rinex_prideconfig_path: tuple[AssetEntry, Path],
@@ -398,12 +398,17 @@ class SV3Pipeline:
         """
         Preprocess Novatel 770 and 000 binary files for the current context.
         
+        :rtype: None
+        :raises Exception: If no Novatel 770 or 000 files are found.
+
         Processing steps:
         1. **Novatel 770**: Extracts GNSS observations to primary TileDB array
         2. **Novatel 000**: Extracts GNSS observations to secondary array + IMU positions
         
         Both steps check if processing is needed (via override config or merge status)
         and update the asset catalog upon completion.
+
+
         """
 
         """
@@ -413,6 +418,10 @@ class SV3Pipeline:
         3. Call novatel_770_2tile to process files into TileDB GNSS observation array
         4. Update asset catalog with merge job
         """
+        found_novatel_770 = False
+        found_novatel_000 = False
+
+
         novatel_770_entries: List[AssetEntry] = self.asset_catalog.get_local_assets(
             network=self.currentNetwork,
             station=self.currentStation,
@@ -421,6 +430,7 @@ class SV3Pipeline:
         )
 
         if novatel_770_entries:
+            found_novatel_770 = True
             ProcessLogger.loginfo(
                 f"Processing {len(novatel_770_entries)} Novatel 770 files for {self.currentNetwork} {self.currentStation} {self.currentCampaign}. This may take a few minutes..."
             )
@@ -451,6 +461,7 @@ class SV3Pipeline:
                 response = f"Novatel 770 Data Already Processed for {self.currentNetwork} {self.currentStation} {self.currentCampaign}"
                 ProcessLogger.loginfo(response)
         else:
+           
            ProcessLogger.loginfo(
                 f"No Novatel 770 Files Found to Process for {self.currentNetwork} {self.currentStation} {self.currentCampaign}"
             )
@@ -474,6 +485,7 @@ class SV3Pipeline:
         )
 
         if novatel_000_entries:
+            found_novatel_000 = True
             merge_signature = {
                 "parent_type": AssetType.NOVATEL000.value,
                 "child_type": AssetType.GNSSOBSTDB.value,
@@ -504,7 +516,9 @@ class SV3Pipeline:
             ProcessLogger.loginfo(
                 f"No Novatel 000 Files Found to Process for {self.currentNetwork} {self.currentStation} {self.currentCampaign}"
             )
-            return
+        
+        if not found_novatel_770 and not found_novatel_000:
+            raise NoNovatelFound(f"No Novatel 770 or 000 files found for {self.currentNetwork} {self.currentStation} {self.currentCampaign}. Cannot proceed with GNSS processing.")
 
     def get_rinex_files(self) -> None:
         """
@@ -568,11 +582,13 @@ class SV3Pipeline:
                     time_interval=self.config.rinex_config.time_interval, # seconds
                 processing_year=year,  
                 )
+
                 if len(rinex_paths) == 0:
                     ProcessLogger.logwarn(
                         f"No Rinex Files generated for {self.currentNetwork} {self.currentStation} {self.currentCampaign} {year}."
                     )
-                    return
+                    raise NoRinexBuilt("No RINEX files were built. Try running self.pre_process_novatel() to ensure GNSS data is available.")
+                    
                 rinex_entries: List[AssetEntry] = []
                 uploadCount = 0
                 for rinex_path in rinex_paths:
@@ -600,10 +616,14 @@ class SV3Pipeline:
                 ProcessLogger.logdebug(
                     f"Added {uploadCount} out of {len(rinex_entries)} Rinex files to the catalog"
                 )
+
+            except NoRinexBuilt as e:
+                raise e
+            
             except Exception as e:
                 if (message := ProcessLogger.logerr(f"Error generating RINEX files: {e}")) is not None:
                     print(message)
-                sys.exit(1)
+            
         else:
             rinex_entries = self.asset_catalog.get_local_assets(
                 self.currentNetwork, self.currentStation, self.currentCampaign, AssetType.RINEX
@@ -648,7 +668,7 @@ class SV3Pipeline:
         if not rinex_entries:
             response = f"No Rinex Files Found to Process for {self.currentNetwork} {self.currentStation} {self.currentCampaign}"
             ProcessLogger.logerr(response)
-            return
+            raise NoRinexFound(response)
 
         response = f"Found {len(rinex_entries)} Rinex Files to Process"
         ProcessLogger.loginfo(response)
@@ -781,10 +801,9 @@ class SV3Pipeline:
             )
         )
         if not kin_entries:
-            ProcessLogger.loginfo(
-                f"No Kin Files Found to Process for {self.currentNetwork} {self.currentStation} {self.currentCampaign}"
-            )
-            return
+            message = f"No Kin Files Found to Process for {self.currentNetwork} {self.currentStation} {self.currentCampaign}"
+            ProcessLogger.loginfo(message)
+            raise NoKinFound(message)
 
         ProcessLogger.loginfo(f"Found {len(kin_entries)} Kin Files to Process: processing")
 
@@ -831,7 +850,7 @@ class SV3Pipeline:
         if not dfop00_entries:
             response = f"No DFOP00 Files Found to Process for {self.currentNetwork} {self.currentStation} {self.currentCampaign}"
             ProcessLogger.logerr(response)
-            return
+            raise NoDFOP00Found(response)
 
         response = f"Found {len(dfop00_entries)} DFOP00 Files to Process"
         ProcessLogger.loginfo(response)
@@ -938,7 +957,7 @@ class SV3Pipeline:
         if not ctd_entries and not seabird_entries:
             response = f"No CTD or SEABIRD Files Found to Process for {self.currentNetwork} {self.currentStation} {self.currentCampaign}"
             ProcessLogger.logerr(response)
-            return
+            raise NoSVPFound(response)
         
         ctd_processing_functions = [CTD_to_svp_v2, CTD_to_svp_v1]
 
@@ -1000,14 +1019,37 @@ class SV3Pipeline:
         ProcessLogger.loginfo(
             f"Starting SV3 Processing Pipeline for {self.currentNetwork} {self.currentStation} {self.currentCampaign}"
         )
+        try:
+            self.pre_process_novatel()
+        except NoNovatelFound as e:
+            pass
 
-        self.pre_process_novatel()
-        self.get_rinex_files()
-        self.process_rinex()
-        self.process_kin()
-        self.process_dfop00()
+        try:
+            self.get_rinex_files()
+        except NoRinexBuilt as e:
+            pass
+        
+        try:
+            self.process_rinex()
+        except NoRinexFound as e:
+            pass
+
+        try:
+            self.process_kin()
+        except NoKinFound as e:
+            pass
+
+        try:
+            self.process_dfop00()
+        except NoDFOP00Found as e:
+            pass
+
         self.update_shotdata()
-        self.process_svp()
+
+        try:
+            self.process_svp()
+        except NoSVPFound as e:
+            pass
 
         ProcessLogger.loginfo(
             f"Completed SV3 Processing Pipeline for {self.currentNetwork} {self.currentStation} {self.currentCampaign}"

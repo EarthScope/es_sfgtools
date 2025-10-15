@@ -12,7 +12,7 @@ from earthscope_sdk.config.settings import SdkSettings
 
 from es_sfgtools.data_models.metadata import Site, Vessel, import_site, import_vessel
 
-from ..logging import ProcessLogger as logger
+from ...logging import ProcessLogger as logger
 
 ssl._create_default_https_context = ssl._create_stdlib_context
 

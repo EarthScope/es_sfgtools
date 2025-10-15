@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Optional
 import shutil
 
-from es_sfgtools.data_mgmt.directory_handler import (
+from es_sfgtools.data_mgmt.directorymgmt.directory_handler import (
     CampaignDir,
     DirectoryHandler,
     GARPOSSurveyDir,
