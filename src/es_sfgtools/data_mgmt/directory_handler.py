@@ -13,6 +13,7 @@ and branching into networks, stations, campaigns, and various data and results d
 :class GARPOSSurveyDir: Represents a single GARPOS survey.
 """
 import datetime
+import json
 from pathlib import Path
 from typing import Optional
 
@@ -396,7 +397,9 @@ class DirectoryHandler(_Base):
         Saves the directory structure to a JSON file.
         """
         with open(self.filepath, "w") as file:
-            file.write(self.model_dump_json())
+            json_dict = json.loads(self.model_dump_json())
+            json.dump(json_dict, file, indent=4)
+    
 
     @classmethod
     def load(cls, path: str | Path) -> "DirectoryHandler":

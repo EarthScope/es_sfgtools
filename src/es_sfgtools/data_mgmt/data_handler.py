@@ -660,8 +660,9 @@ class DataHandler:
                         network=self.current_network, station=self.current_station
                     )
                     with open(site_meta_write_dest, "w") as f:
-                        json.dump(site.model_dump_json(indent=4), f)
-                 
+                        json_dict = json.loads(site.model_dump_json())
+                        json.dump(json_dict, f, indent=4)
+    
                     site_meta_read_dest = site_meta_write_dest
                     logger.loginfo(
                         f"Downloaded site metadata from the ES archive to {site_meta_write_dest}"

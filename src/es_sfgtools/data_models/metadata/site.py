@@ -95,7 +95,9 @@ class Site(BaseModel):
 
     def export_site(self, filepath: str):
         with open(filepath, "w") as file:
-            file.write(self.model_dump_json(indent=2))
+            json_dict = json.loads(self.model_dump_json())
+            json.dump(json_dict, file, indent=4)
+     
 
     @classmethod
     def from_json(cls, filepath: str) -> "Site":

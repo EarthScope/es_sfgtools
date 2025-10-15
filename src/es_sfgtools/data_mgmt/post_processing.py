@@ -248,7 +248,8 @@ class IntermediateDataProcessor:
             self.currentCampaignDir.campaign_metadata,
             "w",
         ) as f:
-            json.dump(self.currentCampaign.model_dump_json(), f, indent=4)
+            json_dict = json.loads(self.currentCampaign.model_dump_json())
+            json.dump(json_dict, f, indent=4)
 
         surveys_to_process: List[Survey] = []
         for survey in self.currentCampaign.surveys:
