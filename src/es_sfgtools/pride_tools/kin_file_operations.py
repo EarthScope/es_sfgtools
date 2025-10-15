@@ -76,8 +76,17 @@ class PridePPP(BaseModel):
 
     @classmethod
     def from_kin_file(cls, data: List[str]) -> Union["PridePPP", ValidationError]:
-        """
-        Read kinematic position file and return a DataFrame
+        """Read kinematic position file and return a DataFrame.
+
+        Parameters
+        ----------
+        data : List[str]
+            A list of strings representing a line from the kin file.
+
+        Returns
+        -------
+        Union["PridePPP", ValidationError]
+            A PridePPP object or a validation error.
         """
         try:
             data_dict = {}
@@ -96,6 +105,18 @@ class PridePPP(BaseModel):
 
 
 def get_wrms_from_res(res_path):
+    """Get WRMS from a RES file.
+
+    Parameters
+    ----------
+    res_path : str
+        The path to the RES file.
+
+    Returns
+    -------
+    pd.DataFrame
+        A DataFrame with the WRMS data.
+    """
     with open(res_path, "r") as res_file:
         timestamps = []
         data = []
@@ -149,6 +170,17 @@ def get_wrms_from_res(res_path):
 
 
 def plot_kin_results_wrms(kin_df, title=None, save_as=None):
+    """Plot kinematic results with WRMS.
+
+    Parameters
+    ----------
+    kin_df : pd.DataFrame
+        The kinematic data.
+    title : str, optional
+        The title of the plot, by default None.
+    save_as : str, optional
+        The path to save the plot to, by default None.
+    """
     size = 3
     bad_nsat = kin_df[kin_df["Nsat"] <= 4]
     bad_pdop = kin_df[kin_df["PDOP"] >= 5]
@@ -185,14 +217,20 @@ def plot_kin_results_wrms(kin_df, title=None, save_as=None):
         plt.savefig(save_as)
 
 def kin_to_kin_position_df(source: str|Path) -> Union[pd.DataFrame, None]:
-    """
-    Create a KinPositionDataFrame from a kin file from PRIDE-PPP, including WRMS residuals.
+    """Create a KinPositionDataFrame from a kin file from PRIDE-PPP.
 
-    Parameters:
-        source (str|Path): The path to the kin file
+    This includes WRMS residuals.
 
-    Returns:
-        dataframe (pd.DataFrame): DataFrame with kinematic data and residuals.
+    Parameters
+    ----------
+    source : str | Path
+        The path to the kin file.
+
+    Returns
+    -------
+    pd.DataFrame | None
+        DataFrame with kinematic data and residuals, or None if the file
+        cannot be parsed.
     """
   
     logger.loginfo(f"Parsing KIN file: {source}")
@@ -295,6 +333,18 @@ def kin_to_kin_position_df(source: str|Path) -> Union[pd.DataFrame, None]:
 
 
 def read_kin_data(kin_path):
+    """Read a kin file and return a DataFrame.
+
+    Parameters
+    ----------
+    kin_path : str
+        The path to the kin file.
+
+    Returns
+    -------
+    pd.DataFrame
+        A DataFrame with the kin data.
+    """
     with open(kin_path, "r") as kin_file:
         for i, line in enumerate(kin_file):
             if "END OF HEADER" in line:
@@ -355,14 +405,20 @@ def read_kin_data(kin_path):
     return kin_df
 
 def validate_kin_file(source: Union[str, Path]) -> bool:
-    """
-    Validate a kin file by checking if it can be parsed into a DataFrame and contains data.
+    """Validate a kin file.
 
-    Parameters:
-        source (str|Path): The path to the kin file
+    This is done by checking if it can be parsed into a DataFrame and
+    contains data.
 
-    Returns:
-        bool: True if the kin file is valid, False otherwise
+    Parameters
+    ----------
+    source : str | Path
+        The path to the kin file.
+
+    Returns
+    -------
+    bool
+        True if the kin file is valid, False otherwise.
     """
     if not isinstance(source, (str, Path)):
         logger.logerr(f"Invalid source type: {type(source)}")

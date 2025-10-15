@@ -17,7 +17,6 @@ from typing import (
     Tuple,
     TypeVar,
     Union,
-    Literal
 )
 
 import boto3
@@ -50,7 +49,14 @@ from es_sfgtools.modeling.garpos_tools.garpos_handler import GarposHandler
 from es_sfgtools.pipelines.sv3_pipeline import SV3Pipeline
 from es_sfgtools.pipelines import exceptions as pipeline_exceptions
 
-from es_sfgtools.pipelines.config import SV3PipelineConfig,PrideCLIConfig,NovatelConfig,RinexConfig,DFOP00Config,PositionUpdateConfig
+from es_sfgtools.pipelines.config import (
+    SV3PipelineConfig,
+    PrideCLIConfig,
+    NovatelConfig,
+    RinexConfig,
+    DFOP00Config,
+    PositionUpdateConfig,
+)
 from es_sfgtools.tiledb_tools.tiledb_schemas import (
     TDBAcousticArray,
     TDBGNSSObsArray,
@@ -65,7 +71,8 @@ from es_sfgtools.data_mgmt.ingestion.archive_pull import (
 )
 from es_sfgtools.utils.model_update import validate_and_merge_config
 
-from es_sfgtools.data_mgmt.data_handler import check_network_station_campaign,DataHandler
+from es_sfgtools.data_mgmt.data_handler import check_network_station_campaign, DataHandler
+
 seaborn.set_theme(style="whitegrid")
 
 pipeline_jobs = Literal[
@@ -79,6 +86,7 @@ pipeline_jobs = Literal[
     "process_svp",
 ]
 
+
 class WorkflowHandler:
     """
     Handles data operations including searching, adding, downloading, and processing.
@@ -88,11 +96,12 @@ class WorkflowHandler:
         self,
         directory: Path | str,
     ) -> None:
-        """
-        Initializes the DataHandler, setting up directories and the processing catalog.
+        """Initializes the DataHandler, setting up directories and the processing catalog.
 
-        :param directory: The root directory for data storage and operations.
-        :type directory: Union[Path, str]
+        Parameters
+        ----------
+        directory : Union[Path, str]
+            The root directory for data storage and operations.
         """
 
         self.current_network: Optional[str] = None
@@ -115,21 +124,23 @@ class WorkflowHandler:
         station: str,
         campaign: str,
     ):
-        """
-        Changes the operational context to a specific network, station, and campaign.
+        """Changes the operational context to a specific network, station, and campaign.
 
-        :param network: The network identifier.
-        :type network: str
-        :param station: The station identifier.
-        :type station: str
-        :param campaign: The campaign identifier.
-        :type campaign: str
-        :param site_metadata: Optional site metadata. If not provided, it will be loaded if available.
-        :type site_metadata: Optional[Site], optional
+        Parameters
+        ----------
+        network : str
+            The network identifier.
+        station : str
+            The station identifier.
+        campaign : str
+            The campaign identifier.
 
-        :raises AssertionError: If the station,campaign, or network is not a non-empty string.
-        :raises Warning: If site metadata is not found for the specified network and station.
-
+        Raises
+        ------
+        AssertionError
+            If the station,campaign, or network is not a non-empty string.
+        Warning
+            If site metadata is not found for the specified network and station.
         """
         assert (
             isinstance(network, str) and network is not None
@@ -140,7 +151,7 @@ class WorkflowHandler:
         assert (
             isinstance(campaign, str) and campaign is not None
         ), "Campaign must be a non-empty string"
- 
+
         self.data_handler.change_working_station(
             network=network,
             station=station,
@@ -161,11 +172,12 @@ class WorkflowHandler:
 
     @check_network_station_campaign
     def ingest_add_local_data(self, directory_path: Path) -> None:
-        """
-        Scans a directory for data files and adds them to the catalog.
+        """Scans a directory for data files and adds them to the catalog.
 
-        :param directory_path: The path to the directory to scan.
-        :type directory_path: Path
+        Parameters
+        ----------
+        directory_path : Path
+            The path to the directory to scan.
         """
 
         self.data_handler.discover_data_and_add_files(directory_path=directory_path)
@@ -210,39 +222,74 @@ class WorkflowHandler:
             ]
         ] = None,
     ) -> SV3Pipeline:
-        """
-        Creates and configures an SV3 processing pipeline.
+        """Creates and configures an SV3 processing pipeline.
 
-        :param primary_config: Optional primary configuration for the pipeline.
-        :type primary_config: Optional[Union[SV3PipelineConfig, PrideCLIConfig, NovatelConfig, RinexConfig, DFOP00Config, PositionUpdateConfig, dict]]
-        :param secondary_config: Optional secondary configuration for the pipeline.
-        :type secondary_config: Optional[Union[SV3PipelineConfig, PrideCLIConfig, NovatelConfig, RinexConfig, DFOP00Config, PositionUpdateConfig, dict]]
-        :return: Configured SV3Pipeline instance.
-        :rtype: SV3Pipeline
+        Parameters
+        ----------
+        primary_config : Optional[Union[SV3PipelineConfig, PrideCLIConfig, NovatelConfig, RinexConfig, DFOP00Config, PositionUpdateConfig, dict]], optional
+            Optional primary configuration for the pipeline.
+        secondary_config : Optional[Union[SV3PipelineConfig, PrideCLIConfig, NovatelConfig, RinexConfig, DFOP00Config, PositionUpdateConfig, dict]], optional
+            Optional secondary configuration for the pipeline.
 
-        :raises AssertionError: If current network, station, or campaign is not set.
-        :raises ValueError: If configuration validation fails.
+        Returns
+        -------
+        SV3Pipeline
+            Configured SV3Pipeline instance.
 
-        .. seealso::
-            :class:`~es_sfgtools.pipelines.sv3_pipeline.SV3Pipeline`: The pipeline class used for processing.
+        Raises
+        ------
+        AssertionError
+            If current network, station, or campaign is not set.
+        ValueError
+            If configuration validation fails.
+
+        See Also
+        --------
+        es_sfgtools.pipelines.sv3_pipeline.SV3Pipeline : The pipeline class used for processing.
         """
 
         base_config = SV3PipelineConfig()
         base_config_updated = base_config.model_copy()
         # Merge primary config if provided, overwriting defaults. Also check for misspelled keys
         if primary_config is not None:
-            if isinstance(primary_config,(SV3PipelineConfig,PrideCLIConfig,NovatelConfig,RinexConfig,DFOP00Config,PositionUpdateConfig)):
+            if isinstance(
+                primary_config,
+                (
+                    SV3PipelineConfig,
+                    PrideCLIConfig,
+                    NovatelConfig,
+                    RinexConfig,
+                    DFOP00Config,
+                    PositionUpdateConfig,
+                ),
+            ):
                 primary_config = primary_config.model_dump()
 
-            base_config_updated = validate_and_merge_config(base_class=base_config, override_config=primary_config)
+            base_config_updated = validate_and_merge_config(
+                base_class=base_config, override_config=primary_config
+            )
 
         # Merge secondary config if provided, overwriting primary and defaults. Also check for misspelled keys
         if secondary_config is not None:
-            if isinstance(secondary_config,(SV3PipelineConfig,PrideCLIConfig,NovatelConfig,RinexConfig,DFOP00Config,PositionUpdateConfig)):
+            if isinstance(
+                secondary_config,
+                (
+                    SV3PipelineConfig,
+                    PrideCLIConfig,
+                    NovatelConfig,
+                    RinexConfig,
+                    DFOP00Config,
+                    PositionUpdateConfig,
+                ),
+            ):
                 secondary_config = secondary_config.model_dump()
-            base_config_updated = validate_and_merge_config(base_class=base_config_updated, override_config=secondary_config)
+            base_config_updated = validate_and_merge_config(
+                base_class=base_config_updated, override_config=secondary_config
+            )
 
-        pipeline = SV3Pipeline(directory_handler=self.data_handler.directory_handler, config=base_config)
+        pipeline = SV3Pipeline(
+            directory_handler=self.data_handler.directory_handler, config=base_config
+        )
         pipeline.setNetworkStationCampaign(
             network=self.current_network,
             station=self.current_station,
@@ -285,48 +332,42 @@ class WorkflowHandler:
             ]
         ] = None,
     ) -> None:
-        """
-        Runs the SV3 processing pipeline with optional configuration overrides.
+        """Runs the SV3 processing pipeline with optional configuration overrides.
 
         This method creates and configures an :class:`~es_sfgtools.pipelines.sv3_pipeline.SV3Pipeline`
         instance using the :attr:`data_handler` to access the directory structure and catalog.
 
-        Dependencies:
-            - :class:`~es_sfgtools.pipelines.sv3_pipeline.SV3Pipeline`: Created and configured for processing
-            - :attr:`current_network`, :attr:`current_station`, :attr:`current_campaign`: Required for pipeline setup
+        Parameters
+        ----------
+        job : Literal["all", "process_novatel", "build_rinex", "run_pride", "process_kinematic", "process_dfop00", "refine_shotdata", "process_svp"], optional
+            The specific job to run within the pipeline, by default "all".
+        primary_config : Optional[Union[SV3PipelineConfig, dict]], optional
+            Primary configuration to override defaults.
+        secondary_config : Optional[Union[SV3PipelineConfig, dict]], optional
+            Secondary configuration to override primary and defaults.
 
-        :param job: The specific job to run within the pipeline. Defaults to "all", which runs the entire pipeline.
-        :type job: Literal[
-            "all",
-            "process_novatel",
-            "build_rinex",
-            "run_pride",
-            "process_kinematic",
-            "process_dfop00",
-            "refine_shotdata",
-            "process_svp",
-        ]
-        :param primary_config: Primary configuration to override defaults.
-        :type primary_config: Optional[Union[SV3PipelineConfig, dict]]
-        :param secondary_config: Secondary configuration to override primary and defaults.
-        :type secondary_config: Optional[Union[SV3PipelineConfig, dict]]
+        Raises
+        ------
+        AssertionError
+            If job is not in valid pipeline jobs.
+        ValueError
+            If configuration validation fails.
 
-        :raises AssertionError: If job is not in valid pipeline jobs.
-        :raises ValueError: If configuration validation fails.
+        See Also
+        --------
+        preprocess_get_pipeline_sv3 : Method that creates the pipeline instance.
+        es_sfgtools.pipelines.sv3_pipeline.SV3Pipeline : The pipeline class used.
+        es_sfgtools.data_mgmt.data_handler.DataHandler : Data management dependency.
 
-        .. seealso::
-            :meth:`preprocess_get_pipeline_sv3`: Method that creates the pipeline instance
-            :class:`~es_sfgtools.pipelines.sv3_pipeline.SV3Pipeline`: The pipeline class used
-            :class:`~es_sfgtools.data_mgmt.data_handler.DataHandler`: Data management dependency
-
-        Example:
-            # Run the sv3 pipeline with custom Novatel processing configuration
-            >>> workflow = WorkflowHandler("/path/to/data")
-            >>> workflow.change_working_station("network", "station", "campaign")
-            >>> workflow.preprocess_run_pipeline_sv3(
-            ...     job="process_novatel",
-            ...     primary_config={"novatel_config": {"n_processes": 8}}
-            ... )
+        Examples
+        --------
+        # Run the sv3 pipeline with custom Novatel processing configuration
+        >>> workflow = WorkflowHandler("/path/to/data")
+        >>> workflow.change_working_station("network", "station", "campaign")
+        >>> workflow.preprocess_run_pipeline_sv3(
+        ...     job="process_novatel",
+        ...     primary_config={"novatel_config": {"n_processes": 8}}
+        ... )
         """
         assert job in pipeline_jobs, f"Job must be one of {pipeline_jobs}"
 
@@ -339,8 +380,14 @@ class WorkflowHandler:
                 pipeline.run_pipeline()
 
             case "process_novatel":
-                assert isinstance(primary_config,(type(None),dict,SV3PipelineConfig,NovatelConfig)), "Primary config must be provided and be of type None, dict, SV3PipelineConfig, or NovatelConfig when running process_novatel"
-                assert isinstance(secondary_config,(type(None),dict,SV3PipelineConfig,NovatelConfig)), "Secondary config must be of type None, dict, SV3PipelineConfig, or NovatelConfig when running process_novatel"
+                assert isinstance(
+                    primary_config,
+                    (type(None), dict, SV3PipelineConfig, NovatelConfig),
+                ), "Primary config must be provided and be of type None, dict, SV3PipelineConfig, or NovatelConfig when running process_novatel"
+                assert isinstance(
+                    secondary_config,
+                    (type(None), dict, SV3PipelineConfig, NovatelConfig),
+                ), "Secondary config must be of type None, dict, SV3PipelineConfig, or NovatelConfig when running process_novatel"
                 try:
                     pipeline.pre_process_novatel()
                 except Exception as e:
@@ -348,8 +395,12 @@ class WorkflowHandler:
                     raise e
 
             case "build_rinex":
-                assert isinstance(primary_config,(type(None),dict,SV3PipelineConfig,RinexConfig)), "Primary config must be provided and be of type None, dict, SV3PipelineConfig, or RinexConfig when running build_rinex"
-                assert isinstance(secondary_config,(type(None),dict,SV3PipelineConfig,RinexConfig)), "Secondary config must be of type None, dict, SV3PipelineConfig, or RinexConfig when running build_rinex"
+                assert isinstance(
+                    primary_config, (type(None), dict, SV3PipelineConfig, RinexConfig)
+                ), "Primary config must be provided and be of type None, dict, SV3PipelineConfig, or RinexConfig when running build_rinex"
+                assert isinstance(
+                    secondary_config, (type(None), dict, SV3PipelineConfig, RinexConfig)
+                ), "Secondary config must be of type None, dict, SV3PipelineConfig, or RinexConfig when running build_rinex"
                 try:
                     pipeline.get_rinex_files()
                 except Exception as e:
@@ -357,8 +408,13 @@ class WorkflowHandler:
                     raise e
 
             case "run_pride":
-                assert isinstance(primary_config,(type(None),dict,SV3PipelineConfig,PrideCLIConfig)), "Primary config must be provided and be of type None, dict, SV3PipelineConfig, or PrideCLIConfig when running run_pride"
-                assert isinstance(secondary_config,(type(None),dict,SV3PipelineConfig,PrideCLIConfig)), "Secondary config must be of type None, dict, SV3PipelineConfig, or PrideCLIConfig when running run_pride"
+                assert isinstance(
+                    primary_config, (type(None), dict, SV3PipelineConfig, PrideCLIConfig)
+                ), "Primary config must be provided and be of type None, dict, SV3PipelineConfig, or PrideCLIConfig when running run_pride"
+                assert isinstance(
+                    secondary_config,
+                    (type(None), dict, SV3PipelineConfig, PrideCLIConfig),
+                ), "Secondary config must be of type None, dict, SV3PipelineConfig, or PrideCLIConfig when running run_pride"
                 try:
                     pipeline.process_rinex()
                 except Exception as e:
@@ -366,8 +422,12 @@ class WorkflowHandler:
                     raise e
 
             case "process_kinematic":
-                assert isinstance(primary_config,(type(None),dict,RinexConfig)), "Primary config must be provided and be of type None, dict, or RinexConfig when running process_kinematic"
-                assert isinstance(secondary_config,(type(None),dict,RinexConfig)), "Secondary config must be of type None, dict, or RinexConfig when running process_kinematic"
+                assert isinstance(
+                    primary_config, (type(None), dict, RinexConfig)
+                ), "Primary config must be provided and be of type None, dict, or RinexConfig when running process_kinematic"
+                assert isinstance(
+                    secondary_config, (type(None), dict, RinexConfig)
+                ), "Secondary config must be of type None, dict, or RinexConfig when running process_kinematic"
                 try:
                     pipeline.process_kin()
                 except Exception as e:
@@ -375,8 +435,12 @@ class WorkflowHandler:
                     raise e
 
             case "process_dfop00":
-                assert isinstance(primary_config,(type(None),dict,DFOP00Config)), "Primary config must be provided and be of type None, dict, or DFOP00Config when running process_dfop00"
-                assert isinstance(secondary_config,(type(None),dict,DFOP00Config)), "Secondary config must be of type None, dict, or DFOP00Config when running process_dfop00"
+                assert isinstance(
+                    primary_config, (type(None), dict, DFOP00Config)
+                ), "Primary config must be provided and be of type None, dict, or DFOP00Config when running process_dfop00"
+                assert isinstance(
+                    secondary_config, (type(None), dict, DFOP00Config)
+                ), "Secondary config must be of type None, dict, or DFOP00Config when running process_dfop00"
                 try:
                     pipeline.process_dfop00()
                 except Exception as e:
@@ -384,8 +448,12 @@ class WorkflowHandler:
                     raise e
 
             case "refine_shotdata":
-                assert isinstance(primary_config,(type(None),dict,PositionUpdateConfig)), "Primary config must be provided and be of type None, dict, or PositionUpdateConfig when running refine_shotdata"
-                assert isinstance(secondary_config,(type(None),dict,PositionUpdateConfig)), "Secondary config must be of type None, dict, or PositionUpdateConfig when running refine_shotdata"
+                assert isinstance(
+                    primary_config, (type(None), dict, PositionUpdateConfig)
+                ), "Primary config must be provided and be of type None, dict, or PositionUpdateConfig when running refine_shotdata"
+                assert isinstance(
+                    secondary_config, (type(None), dict, PositionUpdateConfig)
+                ), "Secondary config must be of type None, dict, or PositionUpdateConfig when running refine_shotdata"
                 try:
                     pipeline.update_shotdata()
                 except Exception as e:
@@ -393,8 +461,12 @@ class WorkflowHandler:
                     raise e
 
             case "process_svp":
-                assert isinstance(primary_config,(type(None),dict,SV3PipelineConfig)), "Primary config must be provided and be of type None, dict, or SV3PipelineConfig when running process_svp"
-                assert isinstance(secondary_config,(type(None),dict,SV3PipelineConfig)), "Secondary config must be of type None, dict, or SV3PipelineConfig when running process_svp"
+                assert isinstance(
+                    primary_config, (type(None), dict, SV3PipelineConfig)
+                ), "Primary config must be provided and be of type None, dict, or SV3PipelineConfig when running process_svp"
+                assert isinstance(
+                    secondary_config, (type(None), dict, SV3PipelineConfig)
+                ), "Secondary config must be of type None, dict, or SV3PipelineConfig when running process_svp"
                 try:
                     pipeline.process_svp()
                 except Exception as e:
@@ -405,30 +477,49 @@ class WorkflowHandler:
                 pipeline.run_pipeline()
 
     @check_network_station_campaign
-    def midprocess_get_sitemeta(self,site_metadata: Optional[Union[Site,str]] = None) -> Site:
-        """
-        Loads and returns the site metadata for the current station.
+    def midprocess_get_sitemeta(
+        self, site_metadata: Optional[Union[Site, str]] = None
+    ) -> Site:
+        """Loads and returns the site metadata for the current station.
 
-        :param site_metadata: Optional site metadata or path to metadata file. If not provided, it will be loaded if available.
-        :type site_metadata: Optional[Union[Site,str]], optional
-        :returns: The site metadata.
-        :rtype: Site
-        :raises ValueError: If site metadata cannot be loaded or is not provided.
+        Parameters
+        ----------
+        site_metadata : Optional[Union[Site, str]], optional
+            Optional site metadata or path to metadata file. If not provided, it will be loaded if available.
+
+        Returns
+        -------
+        Site
+            The site metadata.
+
+        Raises
+        ------
+        ValueError
+            If site metadata cannot be loaded or is not provided.
         """
-        siteMeta: Union[Site,None] = self.data_handler.get_site_metadata(site_metadata=site_metadata)
+        siteMeta: Union[Site, None] = self.data_handler.get_site_metadata(
+            site_metadata=site_metadata
+        )
         if siteMeta is None:
             raise ValueError("Site metadata not loaded or provided, cannot proceed")
         self.currentSiteMetaData = siteMeta
         return self.currentSiteMetaData
-    
-    @check_network_station_campaign
-    def midprocess_get_processor(self,site_metadata: Optional[Union[Site,str]] = None) -> IntermediateDataProcessor:
-        """
-        Returns an instance of the IntermediateDataProcessor for the current station.
 
-        :returns: An instance of IntermediateDataProcessor.
-        :rtype: IntermediateDataProcessor
-        :raises ValueError: If site metadata is not loaded.
+    @check_network_station_campaign
+    def midprocess_get_processor(
+        self, site_metadata: Optional[Union[Site, str]] = None
+    ) -> IntermediateDataProcessor:
+        """Returns an instance of the IntermediateDataProcessor for the current station.
+
+        Returns
+        -------
+        IntermediateDataProcessor
+            An instance of IntermediateDataProcessor.
+
+        Raises
+        ------
+        ValueError
+            If site metadata is not loaded.
         """
         # Ensure site metadata is loaded
         self.midprocess_get_sitemeta(site_metadata=site_metadata)
@@ -442,19 +533,29 @@ class WorkflowHandler:
         dataPostProcessor.setCampaign(campaign_id=self.current_campaign)
 
         return dataPostProcessor
-    
-    @check_network_station_campaign
-    def midprocess_parse_surveys(self, site_metadata: Optional[Union[Site, str]] = None,override: bool = False, write_intermediate: bool = False) -> None:
-        """
-        Parses survey data for the current station.
 
-        :param site_metadata: Optional site metadata or path to metadata file. If not provided, it will be loaded if available.
-        :type site_metadata: Optional[Union[Site,str]], optional
-        :param override: If True, re-parses existing data. Defaults to False.
-        :type override: bool, optional
-        :param write_intermediate: If True, writes intermediate files. Defaults to False.
-        :type write_intermediate: bool, optional
-        :raises ValueError: If site metadata is not loaded.
+    @check_network_station_campaign
+    def midprocess_parse_surveys(
+        self,
+        site_metadata: Optional[Union[Site, str]] = None,
+        override: bool = False,
+        write_intermediate: bool = False,
+    ) -> None:
+        """Parses survey data for the current station.
+
+        Parameters
+        ----------
+        site_metadata : Optional[Union[Site, str]], optional
+            Optional site metadata or path to metadata file. If not provided, it will be loaded if available.
+        override : bool, optional
+            If True, re-parses existing data, by default False.
+        write_intermediate : bool, optional
+            If True, writes intermediate files, by default False.
+
+        Raises
+        ------
+        ValueError
+            If site metadata is not loaded.
         """
         dataPostProcessor = self.midprocess_get_processor(site_metadata=site_metadata)
         dataPostProcessor.parse_surveys(
@@ -473,24 +574,29 @@ class WorkflowHandler:
         override: bool = False,
         write_intermediate: bool = False,
     ) -> None:
-        """
-        Prepares data for GARPOS processing.
+        """Prepares data for GARPOS processing.
 
-        :param site_metadata: Optional site metadata or path to metadata file. If not provided, it will be loaded if available.
-        :type site_metadata: Optional[Union[Site,str]], optional
-        :param survey_id: Optional survey identifier to process. If None, processes all surveys. Defaults to None.
-        :type survey_id: Optional[str], optional
-        :param custom_filter: Custom filter settings for shot data preparation. Defaults to None.
-        :type custom_filter: dict, optional
-        :param shotdata_filter_config: Configuration for shot data filtering. Defaults to DEFAULT_FILTER_CONFIG.
-        :type shotdata_filter_config: dict, optional
-        :param override: If True, re-prepares existing data. Defaults to False.
-        :type override: bool, optional
-        :param write_intermediate: If True, writes intermediate files. Defaults to False.
-        :type write_intermediate: bool, optional
-        :raises ValueError: If site metadata is not loaded.
+        Parameters
+        ----------
+        site_metadata : Optional[Union[Site, str]], optional
+            Optional site metadata or path to metadata file. If not provided, it will be loaded if available.
+        survey_id : Optional[str], optional
+            Optional survey identifier to process. If None, processes all surveys, by default None.
+        custom_filters : dict, optional
+            Custom filter settings for shot data preparation, by default None.
+        override : bool, optional
+            If True, re-prepares existing data, by default False.
+        write_intermediate : bool, optional
+            If True, writes intermediate files, by default False.
+
+        Raises
+        ------
+        ValueError
+            If site metadata is not loaded.
         """
-        dataPostProcessor: IntermediateDataProcessor = self.midprocess_get_processor(site_metadata=site_metadata)
+        dataPostProcessor: IntermediateDataProcessor = self.midprocess_get_processor(
+            site_metadata=site_metadata
+        )
 
         dataPostProcessor.parse_surveys(
             override=override,
@@ -503,12 +609,17 @@ class WorkflowHandler:
         )
 
     def print_logs(self, log: Literal["base", "gnss", "process"]):
-        """
-        Prints the specified log to the console.
+        """Prints the specified log to the console.
 
-        :param log: The type of log to print.
-        :type log: Literal["base", "gnss", "process"]
-        :raises ValueError: If the specified log type is not recognized.
+        Parameters
+        ----------
+        log : Literal["base", "gnss", "process"]
+            The type of log to print.
+
+        Raises
+        ------
+        ValueError
+            If the specified log type is not recognized.
         """
         if log == "base":
             logger.route_to_console()
@@ -521,15 +632,19 @@ class WorkflowHandler:
                 f"Log type {log} not recognized. Must be one of ['base','gnss','process']"
             )
 
-
     @check_network_station_campaign
     def modeling_get_garpos_handler(self) -> GarposHandler:
-        """
-        Returns an instance of the GarposHandler for the current station.
+        """Returns an instance of the GarposHandler for the current station.
 
-        :returns: An instance of GarposHandler.
-        :rtype: GarposHandler
-        :raises ValueError: If site metadata is not loaded.
+        Returns
+        -------
+        GarposHandler
+            An instance of GarposHandler.
+
+        Raises
+        ------
+        ValueError
+            If site metadata is not loaded.
         """
         if self.currentSiteMetaData is None:
             raise ValueError("Site metadata not loaded, cannot get GarposHandler")

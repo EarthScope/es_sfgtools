@@ -7,15 +7,20 @@ from .utils import display_pipelinemanifest
 
 
 def run_manifest(manifest_object: PipelineManifest):
-    """
-    Executes a series of data ingestion, download, and processing jobs based on the 
-    provided PipelineManifest object.
+    """Executes a series of data ingestion, download, and processing jobs.
 
-    :param manifest_object: An object containing details about 
-            ingestion jobs, download jobs, and process jobs, as well as the main 
-            directory for data handling.
-    :type manifest_object: PipelineManifest
-    :raises AssertionError: If a directory listed in an ingestion job does not exist.
+    This is based on the provided PipelineManifest object.
+
+    Parameters
+    ----------
+    manifest_object : PipelineManifest
+        An object containing details about ingestion jobs, download jobs, and
+        process jobs, as well as the main directory for data handling.
+
+    Raises
+    ------
+    AssertionError
+        If a directory listed in an ingestion job does not exist.
     """
 
     display_pipelinemanifest(manifest_object)

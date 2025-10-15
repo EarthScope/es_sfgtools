@@ -1,3 +1,4 @@
+```
 """
 This module contains the GarposResultsProcessor class, which is responsible for processing and analyzing GARPOS results.
 """
@@ -104,7 +105,8 @@ class GarposResultsProcessor:
 
         """
         data_files = sorted(
-            data_files, key=lambda x: int(x.stem.split("_")[-1].split("-")[0])
+            data_files,
+            key=lambda x: int(x.stem.split("_")[-1].split("-")[0])
         )
         data_file = data_files[-1]
         logger.loginfo(f"Using data file {data_file} for plotting.")
@@ -275,3 +277,4 @@ class GarposResultsProcessor:
                 bbox_inches="tight",
                 pad_inches=0.1,
             )
+```

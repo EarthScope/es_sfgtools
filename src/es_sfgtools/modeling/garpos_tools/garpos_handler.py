@@ -32,44 +32,47 @@ from es_sfgtools.modeling.garpos_tools.functions import process_garpos_results
 from es_sfgtools.modeling.garpos_tools.garpos_results_processor import GarposResultsProcessor
 
 class GarposHandler:
+    """Handles the processing and preparation of shot data for the GARPOS model.
+
+    This class provides a high-level interface for running the GARPOS model,
+    including data preparation, setting parameters, and processing results.
+
+    Attributes
+    ----------
+    directory_handler : DirectoryHandler
+        Handles the directory structure.
+    site : Site
+        The site metadata.
+    network : str
+        The network name.
+    station : str
+        The station name.
+    campaign : Campaign
+        The campaign metadata.
+    current_survey : Survey
+        The current survey being processed.
+    coord_transformer : CoordTransformer
+        Coordinate transformer for the site.
+    garpos_fixed : GarposFixed
+        Fixed parameters for the GARPOS model.
+    sound_speed_path : Path
+        Path to the sound speed profile file.
+    garpos_results_processor : GarposResultsProcessor
+        Processes and plots GARPOS results.
     """
-    Handles the processing and preparation of shot data for the GARPOS model.
 
-    This class provides a high-level interface for running the GARPOS model, including
-    data preparation, setting parameters, and processing results.
-
-    :ivar directory_handler: Handles the directory structure.
-    :vartype directory_handler: DirectoryHandler
-    :ivar site: The site metadata.
-    :vartype site: Site
-    :ivar network: The network name.
-    :vartype network: str
-    :ivar station: The station name.
-    :vartype station: str
-    :ivar campaign: The campaign metadata.
-    :vartype campaign: Campaign
-    :ivar current_survey: The current survey being processed.
-    :vartype current_survey: Survey
-    :ivar coord_transformer: Coordinate transformer for the site.
-    :vartype coord_transformer: CoordTransformer
-    :ivar garpos_fixed: Fixed parameters for the GARPOS model.
-    :vartype garpos_fixed: GarposFixed
-    :ivar sound_speed_path: Path to the sound speed profile file.
-    :vartype sound_speed_path: Path
-    :ivar garpos_results_processor: Processes and plots GARPOS results.
-    :vartype garpos_results_processor: GarposResultsProcessor
-    """
-
-    def __init__(self,
+    def __init__(
+                 self,
                  directory_handler: DirectoryHandler,
                  site: Site):
-        """
-        Initializes the GarposHandler.
+        """Initializes the GarposHandler.
 
-        :param main_directory: The main directory for data and results.
-        :type main_directory: Path
-        :param site: The site metadata.
-        :type site: Site
+        Parameters
+        ----------
+        directory_handler : DirectoryHandler
+            The directory handler.
+        site : Site
+            The site metadata.
         """
 
         self.directory_handler = directory_handler
@@ -93,12 +96,17 @@ class GarposHandler:
         self.currentGarposSurveyDir: GARPOSSurveyDir = None
 
     def setNetwork(self, network_id: str):
-        """
-        Sets the current network.
+        """Sets the current network.
 
-        :param network_id: The ID of the network to set.
-        :type network_id: str
-        :raises ValueError: If the network is not found in the site metadata.
+        Parameters
+        ----------
+        network_id : str
+            The ID of the network to set.
+
+        Raises
+        ------
+        ValueError
+            If the network is not found in the site metadata.
         """
         self.currentNetwork = None
         self.currentNetworkDir = None
@@ -135,12 +143,17 @@ class GarposHandler:
         self.currentNetworkDir = currentNetworkDir
 
     def setStation(self, station_id: str):
-        """
-        Sets the current station.
+        """Sets the current station.
 
-        :param station_id: The ID of the station to set.
-        :type station_id: str
-        :raises ValueError: If the station is not found in the site metadata.
+        Parameters
+        ----------
+        station_id : str
+            The ID of the station to set.
+
+        Raises
+        ------
+        ValueError
+            If the station is not found in the site metadata.
         """
 
         self.currentStation = None
@@ -171,12 +184,17 @@ class GarposHandler:
         self.currentStationDir = currentStationDir
 
     def setCampaign(self, campaign_id: str):
-        """
-        Sets the current campaign.
+        """Sets the current campaign.
 
-        :param campaign_id: The ID of the campaign to set.
-        :type campaign_id: str
-        :raises ValueError: If the campaign is not found in the site metadata.
+        Parameters
+        ----------
+        campaign_id : str
+            The ID of the campaign to set.
+
+        Raises
+        ------
+        ValueError
+            If the campaign is not found in the site metadata.
         """
         self.currentCampaign = None
         self.currentCampaignDir = None
@@ -204,12 +222,17 @@ class GarposHandler:
         self.garpos_results_processor = GarposResultsProcessor(self.currentCampaignDir)
 
     def setSurvey(self, survey_id: str):
-        """
-        Sets the current survey.
+        """Sets the current survey.
 
-        :param survey_id: The ID of the survey to set.
-        :type survey_id: str
-        :raises ValueError: If the survey is not found in the current campaign.
+        Parameters
+        ----------
+        survey_id : str
+            The ID of the survey to set.
+
+        Raises
+        ------
+        ValueError
+            If the survey is not found in the current campaign.
         """
         assert isinstance(survey_id, str), "survey_id must be a string"
 
@@ -245,31 +268,40 @@ class GarposHandler:
         raise ValueError(f"Rectified shotdata for survey {survey_id} not found in directory handler. Please run intermediate data processing to create rectified shotdata file.")
 
     def setNetworkStationCampaign(self, network: str, station: str, campaign: str):
-        """
-        Sets the network, station, and campaign for the handler.
+        """Sets the network, station, and campaign for the handler.
 
-        :param network: The network name.
-        :type network: str
-        :param station: The station name.
-        :type station: str
-        :param campaign: The campaign name.
-        :type campaign: str
-        :raises ValueError: If the station, network, or campaign is not found in the site metadata.
+        Parameters
+        ----------
+        network : str
+            The network name.
+        station : str
+            The station name.
+        campaign : str
+            The campaign name.
+
+        Raises
+        ------
+        ValueError
+            If the station, network, or campaign is not found in the site
+            metadata.
         """
         self.setNetwork(network)
         self.setStation(station)
         self.setCampaign(campaign)
 
     def set_inversion_params(self, parameters: dict | InversionParams):
-        """
-        Set inversion parameters for the model.
+        """Set inversion parameters for the model.
 
-        This method updates the inversion parameters of the model using the key-value pairs
-        provided in the `args` dictionary. Each key in the dictionary corresponds to an attribute
-        of the `inversion_params` object, and the associated value is assigned to that attribute.
+        This method updates the inversion parameters of the model using the
+        key-value pairs provided in the `args` dictionary. Each key in the
+        dictionary corresponds to an attribute of the `inversion_params`
+        object, and the associated value is assigned to that attribute.
 
-        :param parameters: A dictionary containing key-value pairs to update the inversion parameters or an InversionParams object.
-        :type parameters: dict | InversionParams
+        Parameters
+        ----------
+        parameters : dict | InversionParams
+            A dictionary containing key-value pairs to update the inversion
+            parameters or an InversionParams object.
         """
 
         if isinstance(parameters, InversionParams):
@@ -285,19 +317,25 @@ class GarposHandler:
         custom_settings: Optional[dict] = None,
         run_id: int | str = 0,
         override: bool = False) -> Path:
-        """
-        Runs the GARPOS model.
+        """Runs the GARPOS model.
 
-        :param obsfile_path: The path to the observation file.
-        :type obsfile_path: Path
-        :param results_dir: The path to the results directory.
-        :type results_dir: Path
-        :param run_id: The run ID. Defaults to 0.
-        :type run_id: int | str, optional
-        :param override: If True, override existing results. Defaults to False.
-        :type override: bool, optional
-        :return: The path to the results file.
-        :rtype: Path
+        Parameters
+        ----------
+        obsfile_path : Path
+            The path to the observation file.
+        results_dir : Path
+            The path to the results directory.
+        custom_settings : Optional[dict], optional
+            Custom GARPOS settings to apply, by default None.
+        run_id : int | str, optional
+            The run ID, by default 0.
+        override : bool, optional
+            If True, override existing results, by default False.
+
+        Returns
+        -------
+        Path
+            The path to the results file.
         """
         garpos_fixed_params = self.garpos_fixed.model_copy()
         if custom_settings is not None:
@@ -339,20 +377,25 @@ class GarposHandler:
         iterations: int = 1,
         override: bool = False,
     ) -> None:
-        """
-        Run the GARPOS model for a specific survey.
+        """Run the GARPOS model for a specific survey.
 
-        :param survey_id: The ID of the survey to run.
-        :type survey_id: str
-        :param custom_settings: Custom GARPOS settings to apply. Defaults to None.
-        :type custom_settings: dict, optional
-        :param run_id: The run identifier. Defaults to 0.
-        :type run_id: int | str, optional
-        :param iterations: The number of iterations to run. Defaults to 1.
-        :type iterations: int, optional
-        :param override: If True, override existing results. Defaults to False.
-        :type override: bool, optional
-        :raises ValueError: If the observation file does not exist.
+        Parameters
+        ----------
+        survey_id : str
+            The ID of the survey to run.
+        custom_settings : dict, optional
+            Custom GARPOS settings to apply, by default None.
+        run_id : int | str, optional
+            The run identifier, by default 0.
+        iterations : int, optional
+            The number of iterations to run, by default 1.
+        override : bool, optional
+            If True, override existing results, by default False.
+
+        Raises
+        ------
+        ValueError
+            If the observation file does not exist.
         """
         logger.loginfo(f"Running GARPOS model for survey {survey_id}. Run ID: {run_id}")
 
@@ -410,19 +453,20 @@ class GarposHandler:
         override: bool = False,
         custom_settings: Optional[dict] = None, 
     ) -> None:
-        """
-        Run the GARPOS model for a specific date or for all dates.
+        """Run the GARPOS model for a specific date or for all dates.
 
-        :param survey_id: The ID of the survey to run. Defaults to None.
-        :type survey_id: str, optional
-        :param run_id: The run identifier. Defaults to 0.
-        :type run_id: int | str, optional
-        :param iterations: The number of iterations to run. Defaults to 1.
-        :type iterations: int, optional
-        :param override: If True, override existing results. Defaults to False.
-        :type override: bool, optional
-        :param custom_settings: Custom GARPOS settings to apply. Defaults to None.
-        :type custom_settings: dict, optional
+        Parameters
+        ----------
+        survey_id : str, optional
+            The ID of the survey to run, by default None.
+        run_id : int | str, optional
+            The run identifier, by default 0.
+        iterations : int, optional
+            The number of iterations to run, by default 1.
+        override : bool, optional
+            If True, override existing results, by default False.
+        custom_settings : dict, optional
+            Custom GARPOS settings to apply, by default None.
         """
 
         logger.loginfo(f"Running GARPOS model. Run ID: {run_id}")
@@ -444,19 +488,21 @@ class GarposHandler:
         savefig: bool = False,
         showfig: bool = True,
     ) -> None:
-        """
-        Plots the time series results for a given survey.
+        """Plots the time series results for a given survey.
 
-        :param survey_id: ID of the survey to plot results for.
-        :type survey_id: str
-        :param run_id: The run ID of the survey results to plot. Default is 0.
-        :type run_id: int or str, optional
-        :param res_filter: The residual filter value to filter outrageous values (m). Default is 10.
-        :type res_filter: float, optional
-        :param savefig: If True, save the figure. Default is False.
-        :type savefig: bool, optional
-        :param showfig: If True, display the figure. Default is True.
-        :type showfig: bool, optional
+        Parameters
+        ----------
+        survey_id : str, optional
+            ID of the survey to plot results for, by default None.
+        run_id : int or str, optional
+            The run ID of the survey results to plot, by default 0.
+        res_filter : float, optional
+            The residual filter value to filter outrageous values (m), by
+            default 10.
+        savefig : bool, optional
+            If True, save the figure, by default False.
+        showfig : bool, optional
+            If True, display the figure, by default True.
         """
         surveys_to_process = []
         for survey in self.currentCampaign.surveys:
@@ -479,7 +525,7 @@ class GarposHandler:
                 continue
 
 # def load_sound_speed_data(
-#     self,
+#     self, 
 #     local_svp: Optional[Path] = None,
 #     local_ctd: Optional[Path] = None,
 #     catalog_db_path: Optional[Path] = None
@@ -513,14 +559,14 @@ class GarposHandler:
 #    """
 #         This function will check the catalog database for SVP or CTD files related to the current campaign. If found and local, set as sound
 #         speed file or convert to SVP. If only remote, download it first and then set or convert to sound speed profile.
-#
+# 
 #         If no files are found in catalog, raise an error.
-#
+# 
 #         :param catalog_db_path: The path to the catalog database. Default is None. Will check in local working directory if not provided.
 #         :type catalog_db_path: Path, optional
 #         :raises ValueError: If no CTD files are found for the campaign in the catalog or if the catalog database path is not found or provided.
 #         """
-#
+# 
 #         if not catalog_db_path:
 #             catalog_db_path = self.directory_handler.location / "catalog.sqlite"
 #             logger.logdebug(
@@ -535,27 +581,27 @@ class GarposHandler:
 #                 logger.logdebug(
 #                     f"Using local catalog database found at {catalog_db_path}.."
 #                 )
-#
+# 
 #         logger.loginfo(
 #             f"Checking catalog database for SVP, CTD, and SEABIRD files related to campaign {self.currentCampaign_name.name}.."
 #         )
 #         catalog = PreProcessCatalog(db_path=catalog_db_path)
-#
+# 
 #         ctd_assets: List[AssetEntry] = catalog.get_ctds(
 #             station=self.currentStation_name, campaign=self.currentCampaign_name.name
 #         )
-#
+# 
 #         if not ctd_assets:
 #             raise ValueError(
 #                 f"No SVP, CTD, or SEABIRD files found for campaign {self.currentCampaign_name.name} in the catalog, "
 #                 "use the data handler add_ctds_to_catalog() to catalog available CTD files, or provide a local SVP file"
 #             )
-#
+# 
 #         for file in ctd_assets:
 #             logger.loginfo(
 #                 f"Found {file.type} files related to campaign {self.currentCampaign_name.name}"
 #             )
-#
+# 
 #         preferred_types = [AssetType.SVP, AssetType.CTD, AssetType.SEABIRD]
 #         for preferred in preferred_types:
 #             for file in ctd_assets:
@@ -565,15 +611,15 @@ class GarposHandler:
 #                         download_file_from_archive(
 #                             url=file.remote_path, dest_dir=str(self.working_dir)
 #                         )
-#
+# 
 #                         if not local_path.exists():
 #                             raise ValueError(f"File {local_path} not downloaded")
-#
+# 
 #                         logger.loginfo(f"Downloaded {file.remote_path} to {local_path}")
 #                         catalog.update_local_path(
 #                             id=file.id, local_path=str(local_path)
 #                         )
-#
+# 
 #                     elif file.local_path is not None:
 #                         local_path = file.local_path
 #                         if not Path(local_path).exists():
@@ -581,10 +627,10 @@ class GarposHandler:
 #                                 f"Local path {local_path} from catalog for file {file.id} does not exist, skipping this file."
 #                             )
 #                             continue
-#
+# 
 #                     else:
 #                         continue
-#
+# 
 #                     if preferred == AssetType.SVP:
 #                         logger.loginfo(
 #                             f"Using local sound speed profile found at {local_path}.."
@@ -605,7 +651,7 @@ class GarposHandler:
 #                         raise ValueError(
 #                             f"Unknown file type {file.type} for file {local_path}"
 #                         )
-#
+# 
 #                     self.sound_speed_path = self.working_dir / SVP_FILE_NAME
 #                     df.to_csv(self.sound_speed_path, index=False)
 #                     logger.loginfo(

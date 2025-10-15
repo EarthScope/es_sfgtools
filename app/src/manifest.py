@@ -118,6 +118,18 @@ class PipelineManifest(BaseModel):
 
     @classmethod
     def _load(cls,data:dict) -> 'PipelineManifest':
+        """Load a PipelineManifest from a dictionary.
+
+        Parameters
+        ----------
+        data : dict
+            The dictionary to load from.
+
+        Returns
+        -------
+        PipelineManifest
+            The loaded PipelineManifest.
+        """
         global_config = SV3PipelineConfig(**data.get("globalConfig",{})) 
         garpos_config = GARPOSConfig(**data.get("garposConfig", {}))
         
@@ -204,13 +216,17 @@ class PipelineManifest(BaseModel):
     
     @classmethod
     def from_json(cls, json_data:Path) -> 'PipelineManifest':
-        """
-        Instantiates a PipelineManifest object from a JSON schema.
+        """Instantiates a PipelineManifest object from a JSON schema.
 
-        :param json_data: The JSON data to parse.
-        :type json_data: dict
-        :return: An instance of the PipelineManifest class.
-        :rtype: PipelineManifest
+        Parameters
+        ----------
+        json_data : Path
+            The path to the JSON file.
+
+        Returns
+        -------
+        PipelineManifest
+            An instance of the PipelineManifest class.
         """
         # Load JSON data
         with open(json_data, "r") as f:
@@ -219,13 +235,17 @@ class PipelineManifest(BaseModel):
     
     @classmethod
     def from_yaml(cls, yaml_data:Path) -> 'PipelineManifest':
-        """
-        Instantiates a PipelineManifest object from a YAML schema.
+        """Instantiates a PipelineManifest object from a YAML schema.
 
-        :param yaml_data: The YAML data to parse.
-        :type yaml_data: dict
-        :return: An instance of the PipelineManifest class.
-        :rtype: PipelineManifest
+        Parameters
+        ----------
+        yaml_data : Path
+            The path to the YAML file.
+
+        Returns
+        -------
+        PipelineManifest
+            An instance of the PipelineManifest class.
         """
         # Load YAML data
         with open(yaml_data, "r") as f:

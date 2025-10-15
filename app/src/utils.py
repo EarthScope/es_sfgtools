@@ -6,11 +6,14 @@ from .manifest import PipelineManifest
 
 
 def display_pipelinemanifest(pipeline_manifest: PipelineManifest):
-    """
-    Displays a table of jobs organized by network, station, and campaign using rich.table.
+    """Displays a table of jobs organized by network, station, and campaign.
 
-    :param pipeline_manifest: The PipelineManifest object containing the jobs.
-    :type pipeline_manifest: PipelineManifest
+    This uses rich.table.
+
+    Parameters
+    ----------
+    pipeline_manifest : PipelineManifest
+        The PipelineManifest object containing the jobs.
     """
     CONSOLE_WIDTH = 80
     console = Console()
@@ -69,4 +72,3 @@ def display_pipelinemanifest(pipeline_manifest: PipelineManifest):
     console.print(metatable)
     # Print the table
     console.print(jobtable)
-

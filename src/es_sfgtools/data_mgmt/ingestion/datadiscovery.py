@@ -26,6 +26,18 @@ pattern_map = {
 }
 
 def _get_time(line):
+    """Gets the time from a RINEX file line.
+
+    Parameters
+    ----------
+    line : str
+        The line from the RINEX file.
+
+    Returns
+    -------
+    datetime.datetime
+        The time from the line.
+    """
     time_values = line.split("GPS")[0].strip().split()
     start_time = datetime.datetime(
         year=int(time_values[0]),
@@ -38,6 +50,18 @@ def _get_time(line):
     return start_time
 
 def _rinex_get_meta(data:AssetType) -> AssetType:
+    """Gets the metadata from a RINEX file.
+
+    Parameters
+    ----------
+    data : AssetType
+        The RINEX asset entry.
+
+    Returns
+    -------
+    AssetType
+        The RINEX asset entry with metadata.
+    """
     assert data.type == AssetType.RINEX, f"Expected RINEX file, got {data.type}"
     with open(data.local_path) as f:
         files = f.readlines()
@@ -55,15 +79,17 @@ def _rinex_get_meta(data:AssetType) -> AssetType:
 
 
 def get_file_type_local(file_path: Path) -> tuple[Union[AssetType, None], Union[int, None]]:
-    """
-    Get the file type of a file.
+    """Get the file type of a file.
 
-    Args:
-        file_path (Path): The file path.
+    Parameters
+    ----------
+    file_path : Path
+        The file path.
 
-    Returns:
-        file_type: The file type.
-        file_size: The file size.
+    Returns
+    -------
+    tuple[Union[AssetType, None], Union[int, None]]
+        The file type and size.
     """
     file_type = None
     for pattern, ftype in pattern_map.items():
@@ -85,14 +111,17 @@ def get_file_type_local(file_path: Path) -> tuple[Union[AssetType, None], Union[
 
 
 def get_file_type_remote(file_path: str) -> AssetType:
-    """
-    Get the file type of a file.
+    """Get the file type of a file.
 
-    Args:
-        file_path (str): The file path.
+    Parameters
+    ----------
+    file_path : str
+        The file path.
 
-    Returns:
-        file_type: The file type.
+    Returns
+    -------
+    AssetType
+        The file type.
     """
     file_type = None
     for pattern, ftype in pattern_map.items():
@@ -108,15 +137,17 @@ def get_file_type_remote(file_path: str) -> AssetType:
 
 
 def scrape_directory_local(directory: Path) -> List[Path]:
-    """
-    Scrape a directory for files.
+    """Scrape a directory for files.
 
-    Args:
-        directory (str): The directory to scrape files from.
+    Parameters
+    ----------
+    directory : str
+        The directory to scrape files from.
 
-    Returns:
-        List[Path]: The list of files in the directory.
-
+    Returns
+    -------
+    List[Path]
+        The list of files in the directory.
     """
     if isinstance(directory, str):
         directory = Path(directory)

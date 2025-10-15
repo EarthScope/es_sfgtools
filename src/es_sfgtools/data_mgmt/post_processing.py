@@ -46,13 +46,20 @@ class IntermediateDataProcessor:
     A class to handle post-processing of data.
     """
     def __init__(self, site: Site, directory_handler: DirectoryHandler, network: Optional[str] = None, station: Optional[str] = None, campaign: Optional[str] = None):
-        """
-        Initializes the IntermediateDataProcessor.
+        """Initializes the IntermediateDataProcessor.
 
-        :param site: The site metadata.
-        :type site: Site
-        :param directory_handler: The directory handler.
-        :type directory_handler: DirectoryHandler
+        Parameters
+        ----------
+        site : Site
+            The site metadata.
+        directory_handler : DirectoryHandler
+            The directory handler.
+        network : Optional[str], optional
+            The network ID, by default None.
+        station : Optional[str], optional
+            The station ID, by default None.
+        campaign : Optional[str], optional
+            The campaign ID, by default None.
         """
         self.site = site
         self.directory_handler = directory_handler
@@ -82,12 +89,17 @@ class IntermediateDataProcessor:
             self.setCampaign(campaign)
 
     def setNetwork(self, network_id: str):
-        """
-        Sets the current network.
+        """Sets the current network.
 
-        :param network_id: The ID of the network to set.
-        :type network_id: str
-        :raises ValueError: If the network is not found in the site metadata.
+        Parameters
+        ----------
+        network_id : str
+            The ID of the network to set.
+
+        Raises
+        ------
+        ValueError
+            If the network is not found in the site metadata.
         """
         self.currentNetwork = None
         self.currentNetworkDir = None
@@ -120,12 +132,17 @@ class IntermediateDataProcessor:
         self.currentNetworkDir = currentNetworkDir
 
     def setStation(self, station_id: str):
-        """
-        Sets the current station.
+        """Sets the current station.
 
-        :param station_id: The ID of the station to set.
-        :type station_id: str
-        :raises ValueError: If the station is not found in the site metadata.
+        Parameters
+        ----------
+        station_id : str
+            The ID of the station to set.
+
+        Raises
+        ------
+        ValueError
+            If the station is not found in the site metadata.
         """
 
         self.currentStation = None
@@ -156,12 +173,17 @@ class IntermediateDataProcessor:
         self.currentStationDir = currentStationDir
 
     def setCampaign(self, campaign_id: str):
-        """
-        Sets the current campaign.
+        """Sets the current campaign.
 
-        :param campaign_id: The ID of the campaign to set.
-        :type campaign_id: str
-        :raises ValueError: If the campaign is not found in the site metadata.
+        Parameters
+        ----------
+        campaign_id : str
+            The ID of the campaign to set.
+
+        Raises
+        ------
+        ValueError
+            If the campaign is not found in the site metadata.
         """
         self.currentCampaign = None
         self.currentCampaignDir = None
@@ -187,12 +209,17 @@ class IntermediateDataProcessor:
         self.currentCampaignDir = currentCampaignDir
 
     def setSurvey(self, survey_id: str):
-        """
-        Sets the current survey.
+        """Sets the current survey.
 
-        :param survey_id: The ID of the survey to set.
-        :type survey_id: str
-        :raises ValueError: If the survey is not found in the current campaign.
+        Parameters
+        ----------
+        survey_id : str
+            The ID of the survey to set.
+
+        Raises
+        ------
+        ValueError
+            If the survey is not found in the current campaign.
         """
         assert isinstance(survey_id,str), "survey_id must be a string"
 
@@ -220,19 +247,16 @@ class IntermediateDataProcessor:
         override: bool = False,
         write_intermediate: bool = False,
     ):
-        """
-        Parses the surveys from the current campaign and adds them to the directory structure.
+        """Parses the surveys from the current campaign and adds them to the directory structure.
 
-        :param network: The network ID.
-        :type network: str
-        :param station: The station ID.
-        :type station: str
-        :param campaign: The campaign ID.
-        :type campaign: str, optional
-        :param override: Whether to override existing files.
-        :type override: bool, optional
-        :param write_intermediate: Whether to write intermediate files.
-        :type write_intermediate: bool, optional
+        Parameters
+        ----------
+        survey_id : Optional[str], optional
+            The ID of the survey to parse. If None, all surveys are parsed, by default None.
+        override : bool, optional
+            Whether to override existing files, by default False.
+        write_intermediate : bool, optional
+            Whether to write intermediate files, by default False.
         """
         if self.currentNetwork is None or self.currentStation is None:
             raise ValueError("Network and station must be set before parsing surveys.")
@@ -363,19 +387,18 @@ class IntermediateDataProcessor:
         custom_filters: Optional[dict] = None,
         overwrite: bool = False,
     ) -> None:
-        """
-        Prepares shotdata for GARPOS processing.
+        """Prepares shotdata for GARPOS processing.
 
-        :param campaign_id: The ID of the campaign.
-        :type campaign_id: str
-        :param survey_id: The ID of the survey.
-        :type survey_id: str, optional
-        :param custom_filters: Custom filters to apply.
-        :type custom_filters: dict, optional
-        :param custom_garpos_settings: Custom GARPOS settings to apply.
-        :type custom_garpos_settings: dict, optional
-        :param overwrite: Whether to overwrite existing files.
-        :type overwrite: bool, optional
+        Parameters
+        ----------
+        campaign_id : Optional[str], optional
+            The ID of the campaign, by default None.
+        survey_id : Optional[str], optional
+            The ID of the survey, by default None.
+        custom_filters : Optional[dict], optional
+            Custom filters to apply, by default None.
+        overwrite : bool, optional
+            Whether to overwrite existing files, by default False.
         """
 
         if campaign_id is None:
@@ -408,16 +431,17 @@ class IntermediateDataProcessor:
         custom_filters: dict = None,
         overwrite: bool = False,
     ):
+        """Prepares a single survey for GARPOS processing.
+
+        Parameters
+        ----------
+        survey : Survey
+            The survey metadata.
+        custom_filters : dict, optional
+            Custom filters to apply, by default None.
+        overwrite : bool, optional
+            Whether to overwrite existing files, by default False.
         """
-            Prepares a single survey for GARPOS processing.
-            
-            :param survey: The survey metadata.
-            :type survey: Survey
-            :param custom_filters: Custom filters to apply.
-            :type custom_filters: dict, optional
-            :param overwrite: Whether to overwrite existing files.
-            :type overwrite: bool, optional
-            """
         if not self.currentSurveyDir.shotdata.exists():
             raise FileNotFoundError(
                 f"Shotdata file {self.currentSurveyDir.shotdata} does not exist. Please run parse_surveys first."

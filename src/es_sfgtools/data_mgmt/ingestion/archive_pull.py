@@ -18,14 +18,19 @@ ssl._create_default_https_context = ssl._create_stdlib_context
 
 
 def retrieve_token(profile=None):
-    """
-    Retrieve or generate a token for the public archive using the EarthScope SDK (new method).
+    """Retrieve or generate a token for the public archive.
 
-    Args:
-        profile (str, optional): The profile to use for authentication (e.g., 'dev'). Default is None (prod).
+    This uses the EarthScope SDK (new method).
 
-    Returns:
-        str: The access token.
+    Parameters
+    ----------
+    profile : str, optional
+        The profile to use for authentication (e.g., 'dev'), by default None (prod).
+
+    Returns
+    -------
+    str
+        The access token.
     """
     es = EarthScopeClient()
     settings = SdkSettings(profile_name=profile) if profile else SdkSettings()
@@ -44,12 +49,18 @@ def download_file_from_archive(url,
                                dest_dir = "./", 
                                profile = None, 
                                show_details: bool = True) -> None:
-    """
-    Download a file from the public archive using the EarthScope SDK.
-    Args:
-        url (str): The URL of the file to download.
-        dest_dir (str): The directory to save the downloaded file.
-        show_details (bool): log the file details
+    """Download a file from the public archive using the EarthScope SDK.
+
+    Parameters
+    ----------
+    url : str
+        The URL of the file to download.
+    dest_dir : str, optional
+        The directory to save the downloaded file, by default "./".
+    profile : str, optional
+        The profile to use for authentication (e.g., 'dev'), by default None (prod).
+    show_details : bool, optional
+        Log the file details, by default True.
     """
 
     # Make the destination directory if it doesn't exis
@@ -75,13 +86,19 @@ def download_file_from_archive(url,
             f"Failed to download file from {url}, status code: {r.status_code}, reason: {r.reason}"
         )
 
-
 def list_files_from_archive(url) -> list:
-    """
-    List files from the public archive using urllib
+    """List files from the public archive using urllib.
 
-    Args:
-        url (str): The URL of the directory to list. This must be a directory that contains files
+    Parameters
+    ----------
+    url : str
+        The URL of the directory to list. This must be a directory that
+        contains files.
+
+    Returns
+    -------
+    list
+        A list of files.
     """
 
     token = retrieve_token()
@@ -107,15 +124,18 @@ def list_files_from_archive(url) -> list:
 
     return _parse_output(result)
 
-
 def _parse_output(output) -> list:
-    """
-    Parse the output from the public archive
-    Args:
-        output (str): The file output from the public archive
+    """Parse the output from the public archive.
 
-    Returns:
-        list: A list of files
+    Parameters
+    ----------
+    output : str
+        The file output from the public archive.
+
+    Returns
+    -------
+    list
+        A list of files.
     """
 
     lines = output.split("\n")
@@ -129,14 +149,15 @@ def _parse_output(output) -> list:
 
     return files
 
-
 def download_file_list_from_archive(file_urls: list, dest_dir="./files") -> None:
-    """
-    Download a list of files from the public archive
+    """Download a list of files from the public archive.
 
-    Args:
-        file_urls (list): A list of URLs to download
-        dest_dir (str): The directory to save the downloaded files
+    Parameters
+    ----------
+    file_urls : list
+        A list of URLs to download.
+    dest_dir : str, optional
+        The directory to save the downloaded files, by default "./files".
     """
 
     successful_files = []
@@ -157,18 +178,22 @@ def download_file_list_from_archive(file_urls: list, dest_dir="./files") -> None
         logger.logwarn(f"Failed to download {len(failed_files)} files.")
         print(failed_files)
 
-
 def generate_archive_campaign_url(network, station, campaign):
-    """
-    Generate a URL for a campaign in the public archive
+    """Generate a URL for a campaign in the public archive.
 
-    Args:
-        network (str): The network name
-        station (str): The station name
-        campaign (str): The campaign name (e.g YYYY_A_WVGL)
+    Parameters
+    ----------
+    network : str
+        The network name.
+    station : str
+        The station name.
+    campaign : str
+        The campaign name (e.g YYYY_A_WVGL).
 
-    Returns:
-        str: The URL of the campaign directory
+    Returns
+    -------
+    str
+        The URL of the campaign directory.
     """
 
     # Grab the year out of the campaign name
@@ -177,16 +202,21 @@ def generate_archive_campaign_url(network, station, campaign):
     return f"https://data.earthscope.org/archive/seafloor/{network}/{year}/{station}/{campaign}/raw"
 
 def generate_archive_campaign_metadata_url(network, station, campaign):
-    """
-    Generate a URL for campaign metadata in the public archive
+    """Generate a URL for campaign metadata in the public archive.
 
-    Args:
-        network (str): The network name
-        station (str): The station name
-        campaign (str): The campaign name (e.g YYYY_A_WVGL)
+    Parameters
+    ----------
+    network : str
+        The network name.
+    station : str
+        The station name.
+    campaign : str
+        The campaign name (e.g YYYY_A_WVGL).
 
-    Returns:
-        str: The URL of the campaign directory
+    Returns
+    -------
+    str
+        The URL of the campaign directory.
     """
 
     # Grab the year out of the campaign name
@@ -195,16 +225,21 @@ def generate_archive_campaign_metadata_url(network, station, campaign):
     return f"https://data.earthscope.org/archive/seafloor/{network}/{year}/{station}/{campaign}/metadata"
 
 def generate_archive_site_json_url(network, station, profile: str = None) -> str:
-    """
-    Generate a URL for the site JSON file in the public archive
+    """Generate a URL for the site JSON file in the public archive.
 
-    Args:
-        network (str): The network name
-        station (str): The station name
-        env (Environment): The environment (PROD or STAGE)
+    Parameters
+    ----------
+    network : str
+        The network name.
+    station : str
+        The station name.
+    profile : str, optional
+        The profile to use for the archive (e.g., 'prod', 'dev'), by default None (prod).
 
-    Returns:
-        str: The URL of the site JSON file
+    Returns
+    -------
+    str
+        The URL of the site JSON file.
     """
     if profile == "prod" or profile is None:
         return f"https://data.earthscope.org/archive/seafloor/metadata/{network}/{station}.json"
@@ -214,15 +249,19 @@ def generate_archive_site_json_url(network, station, profile: str = None) -> str
         raise ValueError("Invalid profile specified.")
 
 def generate_archive_vessel_json_url(vessel_code, profile: str = None) -> str:
-    """
-    Generate a URL for the site JSON file in the public archive
+    """Generate a URL for the vessel JSON file in the public archive.
 
-    Args:
-        vessel_id (str): The vessel ID
-        env (Environment): The environment (PROD or STAGE)
+    Parameters
+    ----------
+    vessel_code : str
+        The vessel code.
+    profile : str, optional
+        The profile to use for the archive (e.g., 'prod', 'dev'), by default None (prod).
 
-    Returns:
-        str: The URL of the vessel JSON file
+    Returns
+    -------
+    str
+        The URL of the vessel JSON file.
     """
     if profile == "prod" or profile is None:
         return f"https://data.earthscope.org/archive/seafloor/metadata/vessels/{vessel_code}.json"
@@ -232,21 +271,30 @@ def generate_archive_vessel_json_url(vessel_code, profile: str = None) -> str:
         raise ValueError("Invalid profile specified.")
 
 def load_vessel_metadata(vessel_code: str, profile: str = None, local_path: Path|str = None) -> Vessel:
-    """
-    Load the vessel metadata from the s3 archive.  
-    
-    Note: to access the dev archive, you must 
-    - 1. set up ~/.earthscope/config.toml  
-    - 2. run `es login --profile dev`
-    - 3. be on the earthscope vpn
+    """Load the vessel metadata from the s3 archive.
 
-    Args:
-        vessel_id (str): The vessel ID.
-        profile (str): The profile to use for the archive (e.g., 'prod', 'dev'). Default is None (prod).
-        local_path (Path|str, optional): Local path to a JSON file containing vessel metadata. If provided, this will be used instead of downloading from the archive.
+    Note
+    ----
+    To access the dev archive, you must:
+    1. set up ~/.earthscope/config.toml
+    2. run `es login --profile dev`
+    3. be on the earthscope vpn
 
-    Returns:
-        Vessel: An instance of the Vessel class with the metadata loaded.
+    Parameters
+    ----------
+    vessel_code : str
+        The vessel code.
+    profile : str, optional
+        The profile to use for the archive (e.g., 'prod', 'dev'), by default
+        None (prod).
+    local_path : Path | str, optional
+        Local path to a JSON file containing vessel metadata. If provided,
+        this will be used instead of downloading from the archive.
+
+    Returns
+    -------
+    Vessel
+        An instance of the Vessel class with the metadata loaded.
     """
     if local_path is not None:
         # If a local path is provided, load the vessel metadata from the local file
@@ -267,22 +315,32 @@ def load_vessel_metadata(vessel_code: str, profile: str = None, local_path: Path
         return vessel   
 
 def load_site_metadata(network: str, station: str, profile: str = None, local_path: Path|str = None) -> Site:
-    """
-    Load the site metadata from the s3 archive.  
-    
-    Note: to access the dev archive, you must 
-    - 1. set up ~/.earthscope/config.toml  
-    - 2. run `es login --profile dev`
-    - 3. be on the earthscope vpn
+    """Load the site metadata from the s3 archive.
 
-    Args:
-        network (str): The network name.
-        station (str): The station name.
-        profile (str): The profile to use for the archive (e.g., 'prod', 'dev'). Default is None (prod).
-        local_path (Path|str, optional): Local path to a JSON file containing site metadata. If provided, this will be used instead of downloading from the archive.
+    Note
+    ----
+    To access the dev archive, you must:
+    1. set up ~/.earthscope/config.toml
+    2. run `es login --profile dev`
+    3. be on the earthscope vpn
 
-    Returns:
-        Site: An instance of the Site class with the metadata loaded.
+    Parameters
+    ----------
+    network : str
+        The network name.
+    station : str
+        The station name.
+    profile : str, optional
+        The profile to use for the archive (e.g., 'prod', 'dev'), by default
+        None (prod).
+    local_path : Path | str, optional
+        Local path to a JSON file containing site metadata. If provided,
+        this will be used instead of downloading from the archive.
+
+    Returns
+    -------
+    Site
+        An instance of the Site class with the metadata loaded.
     """
     if local_path is not None:
         # If a local path is provided, load the site metadata from the local file.
@@ -315,17 +373,22 @@ def load_site_metadata(network: str, station: str, profile: str = None, local_pa
             campaign.vessel = None
     return site
 
-
 def list_file_counts_by_type(file_list: list, url: Optional[str] = None, show_logs=True) -> dict:
-    """
-    Counts files by type, and builds a dictionary.
+    """Counts files by type, and builds a dictionary.
 
-    Args:
-        file_list (list): list of files from the archive
-        url (str): url of where in the archive the files were found
+    Parameters
+    ----------
+    file_list : list
+        List of files from the archive.
+    url : str, optional
+        URL of where in the archive the files were found, by default None.
+    show_logs : bool, optional
+        Whether to show logs containing file counts, by default True.
 
-    Returns:
-        dict: dictionary of files by type
+    Returns
+    -------
+    dict
+        Dictionary of files by type.
     """
     file_dict = {}
     for file in file_list:
@@ -360,32 +423,41 @@ def list_file_counts_by_type(file_list: list, url: Optional[str] = None, show_lo
 
     return file_dict
 
-
 def get_campaign_file_dict(url: str) -> dict:
-    """
+    """Get a dictionary of campaign files by type.
 
-    Args:
-        url (str): location in archive
+    Parameters
+    ----------
+    url : str
+        Location in archive.
 
-    Returns:
-        dict: dictionary of file locations by type
+    Returns
+    -------
+    dict
+        Dictionary of file locations by type.
     """
 
     file_list = list_files_from_archive(url)
     return list_file_counts_by_type(file_list, url)
 
-
 def list_campaign_files(network: str, station: str, campaign: str) -> list:
-    """
-    Returns a list of files for a given campaign in the archive.  Optionally displays a summary of file counts by type
+    """Returns a list of files for a given campaign in the archive.
 
-    Args:
-        network (str): network name
-        station (str): station name
-        campaign (str): campaign name
+    Optionally displays a summary of file counts by type.
 
-    Returns:
-        list: list of file locations in archive
+    Parameters
+    ----------
+    network : str
+        Network name.
+    station : str
+        Station name.
+    campaign : str
+        Campaign name.
+
+    Returns
+    -------
+    list
+        List of file locations in archive.
     """
 
     # Generate the URLs for raw data & metadata
@@ -406,18 +478,24 @@ def list_campaign_files(network: str, station: str, campaign: str) -> list:
 
     return file_list
 
-
 def list_campaign_files_by_type(network: str, station: str, campaign: str, show_logs: bool=True) -> dict:
-    """
+    """List campaign files by type.
 
-    Args:
-        network (str): network name
-        station (str): station name
-        campaign (str): campaign name
-        show_logs (bool): whether to show logs containing file counts
+    Parameters
+    ----------
+    network : str
+        Network name.
+    station : str
+        Station name.
+    campaign : str
+        Campaign name.
+    show_logs : bool, optional
+        Whether to show logs containing file counts, by default True.
 
-    Returns:
-        dict: dictionary of file locations by type
+    Returns
+    -------
+    dict
+        Dictionary of file locations by type.
     """
 
     # Generate the URLs for raw data & metadata
@@ -440,16 +518,22 @@ def list_campaign_files_by_type(network: str, station: str, campaign: str, show_
 
     return file_dict
 
-
 def list_s3_directory_files(bucket_name: str, prefix: str) -> List[str]:
-    """
-    Returns a list all files in a given S3 bucket under a specified prefix and return absolute S3 paths.
+    """Returns a list all files in a given S3 bucket.
 
-    Args:
-        bucket_name (str): Name of the S3 bucket.
-        prefix (str): S3 prefix (folder path) to filter the files.
-    Returns:
-        List[str]: List of absolute S3 file paths.
+    This is under a specified prefix and return absolute S3 paths.
+
+    Parameters
+    ----------
+    bucket_name : str
+        Name of the S3 bucket.
+    prefix : str
+        S3 prefix (folder path) to filter the files.
+
+    Returns
+    -------
+    List[str]
+        List of absolute S3 file paths.
     """
     s3_client = boto3.client("s3")
     file_paths = []

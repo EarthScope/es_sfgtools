@@ -3,7 +3,22 @@ from pydantic import BaseModel
 from difflib import get_close_matches
 
 def validate_keys_recursively(config_dict: dict, model_class: BaseModel, path: str = ""):
-    """Recursively validate keys and suggest corrections for typos."""
+    """Recursively validate keys and suggest corrections for typos.
+
+    Parameters
+    ----------
+    config_dict : dict
+        The dictionary to validate.
+    model_class : BaseModel
+        The Pydantic model to validate against.
+    path : str, optional
+        The current path in the nested dictionary, for error reporting.
+    
+    Returns
+    -------
+    list
+        A list of error messages.
+    """
     valid_fields = set(model_class.model_fields.keys())
     errors = []
 
@@ -55,17 +70,24 @@ def validate_keys_recursively(config_dict: dict, model_class: BaseModel, path: s
 def validate_and_merge_config(
      base_class: BaseModel, override_config: dict
 ) -> BaseModel:
-    """
-    Validates and merges override configuration with base config, checking for typos.
+    """Validates and merges override configuration with base config, checking for typos.
 
-    :param base_class: The base configuration class instance (Pydantic model).
-    :type base_class: BaseModel
-    :param override_config: The override configuration dictionary to update the base config.
-    :type override_config: dict
-    :return: A new instance of the base_class with merged configuration.
-    :rtype: BaseModel
+    Parameters
+    ----------
+    base_class : BaseModel
+        The base configuration class instance (Pydantic model).
+    override_config : dict
+        The override configuration dictionary to update the base config.
 
-    :raises ValueError: If there are typos or invalid keys in the override_config.
+    Returns
+    -------
+    BaseModel
+        A new instance of the base_class with merged configuration.
+
+    Raises
+    ------
+    ValueError
+        If there are typos or invalid keys in the override_config.
     """
 
     # Check if the base class is a Pydantic model

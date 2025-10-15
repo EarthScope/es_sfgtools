@@ -141,8 +141,12 @@ class PRIDEPPPFileConfig(BaseModel):
 
 
     def write_config_file(self, filepath: str|Path):
-        """
-        Write the PRIDE PPP configuration to a file.
+        """Write the PRIDE PPP configuration to a file.
+
+        Parameters
+        ----------
+        filepath : str | Path
+            The path to the file.
         """
         if isinstance(filepath, str):
             filepath = Path(filepath)
@@ -275,8 +279,12 @@ class PRIDEPPPFileConfig(BaseModel):
 
     @classmethod
     def read_config_file(cls, file_path: str) -> "PRIDEPPPFileConfig":
-        """
-        Reads a PRIDE PPP configuration file and returns a PRIDEPPPConfig instance.
+        """Reads a PRIDE PPP configuration file.
+
+        Returns
+        -------
+        PRIDEPPPFileConfig
+            A PRIDEPPPConfig instance.
         """
         with open(file_path, "r") as file:
             text = file.read()
@@ -431,8 +439,12 @@ class PRIDEPPPFileConfig(BaseModel):
 
     @classmethod
     def load_default(cls) -> "PRIDEPPPFileConfig":
-        """
-        Loads a default PRIDE PPP configuration with predefined values.
+        """Loads a default PRIDE PPP configuration with predefined values.
+
+        Returns
+        -------
+        PRIDEPPPFileConfig
+            A PRIDEPPPFileConfig instance.
         """
         pdp_home = Path.home() / ".PRIDE_PPPAR_BIN"
         if not pdp_home.exists():

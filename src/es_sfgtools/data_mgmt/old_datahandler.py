@@ -76,14 +76,17 @@ class DEV_DH_DEP:
         )
 
     def get_parent_stack(self, child_type: AssetType) -> List[AssetType]:
-        """
-        Get a list of parent types for a given child type.
+        """Get a list of parent types for a given child type.
 
-        Args:
-            child_type (Union[FILE_TYPE,DATA_TYPE]): The child type.
+        Parameters
+        ----------
+        child_type : Union[FILE_TYPE, DATA_TYPE]
+            The child type.
 
-        Returns:
-            List[Union[FILE_TYPE,DATA_TYPE]]: A list of parent types.
+        Returns
+        -------
+        List[Union[FILE_TYPE, DATA_TYPE]]
+            A list of parent types.
         """
         stack = [child_type]
         pointer = 0
@@ -318,16 +321,30 @@ class DEV_DH_DEP:
         parent_entries: Union[List[AssetEntry], List[MultiAssetEntry]] = None,
         show_details: bool = False,
     ) -> Tuple[List[AssetEntry | MultiAssetEntry], List[AssetEntry | MultiAssetEntry]]:
-        """
-        Process data from a source to a target.
+        """Process data from a source to a target.
 
-        Args:
-            target (Union[FILE_TYPE,DATA_TYPE]): The target data type.
-            source (List[FILE_TYPE]): The source data types.
-            override (bool): Whether to override existing child entries.
+        Parameters
+        ----------
+        target : Union[AssetType, MultiAssetEntry]
+            The target data type.
+        source : Union[AssetType, MultiAssetEntry]
+            The source data types.
+        override : bool, optional
+            Whether to override existing child entries, by default False.
+        parent_entries : Union[List[AssetEntry], List[MultiAssetEntry]], optional
+            A list of parent entries, by default None.
+        show_details : bool, optional
+            Whether to show details, by default False.
 
-        Raises:
-            Exception: If no matching data is found in the catalog.
+        Returns
+        -------
+        Tuple[List[AssetEntry | MultiAssetEntry], List[AssetEntry | MultiAssetEntry]]
+            A tuple of lists containing the parent and child entries.
+
+        Raises
+        ------
+        Exception
+            If no matching data is found in the catalog.
         """
         # Get the parent entries
         if parent_entries is None:

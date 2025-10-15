@@ -24,18 +24,24 @@ def interpolate_enu(
     tenu_r: np.ndarray,
     enu_r_sig: np.ndarray,
 ) -> np.ndarray:
-    
-    """
-    Interpolate the enu values between the left and right enu values
+    """Interpolate the enu values between the left and right enu values.
 
-    Args:
-        tenu_l (np.ndarray): The left enu time values in unix epoch
-        enu_l_sig (np.ndarray): The standard deviation of the left enu values in ECEF coordinates
-        tenu_r (np.ndarray): The right enu time values in unix epoch
-        enu_r_sig (np.ndarray): The standard deviation of the right enu values in ECEF coordinates
+    Parameters
+    ----------
+    tenu_l : np.ndarray
+        The left enu time values in unix epoch.
+    enu_l_sig : np.ndarray
+        The standard deviation of the left enu values in ECEF coordinates.
+    tenu_r : np.ndarray
+        The right enu time values in unix epoch.
+    enu_r_sig : np.ndarray
+        The standard deviation of the right enu values in ECEF coordinates.
 
-    Returns:
-        np.ndarray: The interpolated enu values and the standard deviation of the interpolated enu values predicted at the time values from tenu_r
+    Returns
+    -------
+    np.ndarray
+        The interpolated enu values and the standard deviation of the
+        interpolated enu values predicted at the time values from tenu_r.
     """
 
     logger.loginfo("Interpolating ENU values")
@@ -83,15 +89,21 @@ def interpolate_enu_kernalridge(
     lengthscale: float = 0.5
     
 ) -> np.ndarray:
-    """
-    Interpolate the enu values between the left and right enu values using Kernel Ridge Regression.
+    """Interpolate the enu values using Kernel Ridge Regression.
 
-    Args:
-        tenu_l (np.ndarray): The left enu time values in unix epoch
-        tenu_r (np.ndarray): The right enu time values in unix epoch
-        lengthscale (float, optional): The length scale for the kernel. Defaults to 2.0 seconds.
-    Returns:
-        np.ndarray: The interpolated enu values at the time values from tenu_r
+    Parameters
+    ----------
+    kin_position_data : np.ndarray
+        The kinematic position data.
+    shot_data : np.ndarray
+        The shot data.
+    lengthscale : float, optional
+        The length scale for the kernel, by default 0.5.
+
+    Returns
+    -------
+    np.ndarray
+        The interpolated enu values at the time values from tenu_r.
     """
 
     logger.loginfo("Interpolating ENU values using Kernel Ridge Regression")
@@ -188,12 +200,27 @@ def interpolate_enu_kernalridge(
     # tenu_r = tenu_r[np.argsort(tenu_r[:, 0])].astype(float)
     return shot_data
 
-
 def interpolate_enu_radius_regression(
         kin_position_df:pd.DataFrame,
         shotdata_df:pd.DataFrame,
         lengthscale:float=0.1,
 ) -> pd.DataFrame:
+    """Interpolate the enu values using Radius Neighbors Regression.
+
+    Parameters
+    ----------
+    kin_position_df : pd.DataFrame
+        The kinematic position data.
+    shotdata_df : pd.DataFrame
+        The shot data.
+    lengthscale : float, optional
+        The length scale for the kernel, by default 0.1.
+
+    Returns
+    -------
+    pd.DataFrame
+        The updated shotdata DataFrame.
+    """
    
     X_train = kin_position_df[["time"]].to_numpy()
     Y_train = kin_position_df[["east", "north", "up"]].to_numpy()
@@ -233,15 +260,19 @@ def interpolate_enu_radius_regression(
     return shotdata_df
 
 def get_merge_signature_shotdata(shotdata: TDBShotDataArray, kin_position: TDBKinPositionArray) -> Tuple[List[str], List[np.datetime64]]:
-    """
-    Get the merge signature for the shotdata and kin_position data
-    
-    Args:
-        shotdata (TDBShotDataArray): The shotdata array
-        kin_position (TDBKinPositionArray): The kinposition array
-        
-    Returns:
-        Tuple[List[str], List[np.datetime64]]: The merge signature and the dates to merge
+    """Get the merge signature for the shotdata and kin_position data.
+
+    Parameters
+    ----------
+    shotdata : TDBShotDataArray
+        The shotdata array.
+    kin_position : TDBKinPositionArray
+        The kinposition array.
+
+    Returns
+    -------
+    Tuple[List[str], List[np.datetime64]]
+        The merge signature and the dates to merge.
     """
     
     merge_signature = []
@@ -272,16 +303,27 @@ def merge_shotdata_kinposition(
         lengthscale:float=0.1,
         plot:bool=False) -> TDBShotDataArray:
 
-    """
-    Merge the shotdata and kin_position data
+    """Merge the shotdata and kin_position data.
 
-    Args:
-        shotdata_pre (TDBShotDataArray): the DFOP00 data
-        shotdata (TDBShotDataArray): The shotdata array to write to
-        kin_position (TDBKinPositionArray): The TileDB KinPosition array
-        dates (List[datetime64]): The dates to merge
-        plot (bool, optional): Plot the interpolated values. Defaults to False.
+    Parameters
+    ----------
+    shotdata_pre : TDBShotDataArray
+        The DFOP00 data.
+    shotdata : TDBShotDataArray
+        The shotdata array to write to.
+    kin_position : TDBKinPositionArray
+        The TileDB KinPosition array.
+    dates : List[datetime64]
+        The dates to merge.
+    lengthscale : float, optional
+        The length scale for the kernel, by default 0.1.
+    plot : bool, optional
+        Plot the interpolated values, by default False.
 
+    Returns
+    -------
+    TDBShotDataArray
+        The updated shotdata array.
     """
 
     logger.loginfo("Merging shotdata and kin_position data")

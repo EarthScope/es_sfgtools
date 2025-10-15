@@ -93,6 +93,19 @@ class Transponder(AttributeUpdater, BaseModel):
     _check_dates = field_validator("end")(check_dates)
 
     def get_tat_by_datetime(self, dt: datetime) -> Optional[float]:
+        """Get the turn around time (TAT) for a given datetime.
+
+        Parameters
+        ----------
+        dt : datetime
+            The datetime to get the TAT for.
+
+        Returns
+        -------
+        Optional[float]
+            The TAT value, or None if no TAT is found for the given
+            datetime.
+        """
         # If there is only 1 TAT available, return that TAT
         if len(self.tat) == 1:
             return self.tat[0].value
@@ -134,6 +147,19 @@ class Benchmark(AttributeUpdater, BaseModel):
     _check_dates = field_validator("end")(check_dates)
 
     def get_transponder_by_datetime(self, dt: datetime) -> Optional[Transponder]:
+        """Get the transponder for a given datetime.
+
+        Parameters
+        ----------
+        dt : datetime
+            The datetime to get the transponder for.
+
+        Returns
+        -------
+        Optional[Transponder]
+            The transponder, or None if no transponder is found for the
+            given datetime.
+        """
         # If there is only 1 transponder available, return that transponder
         if len(self.transponders) == 1:
             return self.transponders[0]

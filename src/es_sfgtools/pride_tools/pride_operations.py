@@ -21,55 +21,66 @@ def rinex_to_kin(
     site="SIT1",
     pride_cli_config: PrideCLIConfig = None,
 ) -> Tuple[Path, Path]:
-    """
-    This function is a wrapper for the PRIDE-PPP processing tool (pdp3) to generate kinematic and residual files from a RINEX file.
+    """Generate kinematic and residual files from a RINEX file.
 
-    Args:
-        source (Union[AssetEntry,str,Path]): The source RINEX file to convert.
-        writedir (Path): The directory to write the converted kin file.
-        pridedir (Path): The directory where PRIDE-PPP observables are stored.
-        site (str, optional): The site name. Defaults to "SITE1".
-        pride_cli_config (PrideCLIConfig, optional): The configuration for PRIDE-PPP processing. If None, uses default settings.
+    This function is a wrapper for the PRIDE-PPP processing tool (pdp3).
 
-    Returns:
-        Tuple[Path, Path]: The generated kin and result files as Path objects.
+    Parameters
+    ----------
+    source : str
+        The source RINEX file to convert.
+    writedir : Path
+        The directory to write the converted kin file.
+    pridedir : Path
+        The directory where PRIDE-PPP observables are stored.
+    site : str, optional
+        The site name, by default "SIT1".
+    pride_cli_config : PrideCLIConfig, optional
+        The configuration for PRIDE-PPP processing. If None, uses default
+        settings.
 
-    Raises:
-        FileNotFoundError: If the PRIDE-PPP binary is not found in the system path.
-        FileNotFoundError: If the source RINEX file does not exist.
+    Returns
+    -------
+    Tuple[Path, Path]
+        The generated kin and result files as Path objects.
 
-    Notes:
+    Raises
+    ------
+    FileNotFoundError
+        If the PRIDE-PPP binary is not found in the system path.
+    FileNotFoundError
+        If the source RINEX file does not exist.
 
-    Examples:
-        >>> source = Path("/path/to/NCB12450.24o") # Example RINEX file path
-        >>> writedir = Path("/writedir") # Directory to write the kin file
-        >>> pridedir = Path("/pridedir") # Directory where PRIDE-PPP observables are stored
-        # Get the PRIDE configuration file path
-        >>> pride_configfile_path = get_gnss_products(
-            rinex_path=source,
-            pride_dir=pridedir,
-            override=False,
-            source="all"
-        )
-        # Create a PrideCLIConfig instance with the configuration file path
-        >>> pride_config = PrideCLIConfig(
-            sample_frequency=1,
-            override=False,
-            pride_configfile_path=pride_configfile_path,
-        )
-        # Run PRIDE-PPP to generate kin and res files
-        >>> kin_file, res_file = rinex_to_kin(
-            source=source,
-            writedir=writedir,
-            pridedir=pridedir,
-            site="NCB1",
-            pride_config=pride_config,
-        )
-        >>> kin_file
-        Path("writedir/kin_2024126_ncb1.kin")
-        >>> res_file
-        Path("writedir/res_2024126_ncb1.res")
-
+    Examples
+    --------
+    >>> source = Path("/path/to/NCB12450.24o") # Example RINEX file path
+    >>> writedir = Path("/writedir") # Directory to write the kin file
+    >>> pridedir = Path("/pridedir") # Directory where PRIDE-PPP observables are stored
+    # Get the PRIDE configuration file path
+    >>> pride_configfile_path = get_gnss_products(
+    ...     rinex_path=source,
+    ...     pride_dir=pridedir,
+    ...     override=False,
+    ...     source="all"
+    ... )
+    # Create a PrideCLIConfig instance with the configuration file path
+    >>> pride_config = PrideCLIConfig(
+    ...     sample_frequency=1,
+    ...     override=False,
+    ...     pride_configfile_path=pride_configfile_path,
+    ... )
+    # Run PRIDE-PPP to generate kin and res files
+    >>> kin_file, res_file = rinex_to_kin(
+    ...     source=source,
+    ...     writedir=writedir,
+    ...     pridedir=pridedir,
+    ...     site="NCB1",
+    ...     pride_config=pride_config,
+    ... )
+    >>> kin_file
+    Path("writedir/kin_2024126_ncb1.kin")
+    >>> res_file
+    Path("writedir/res_2024126_ncb1.res")
     """
 
     # Check if the pride binary is in the path

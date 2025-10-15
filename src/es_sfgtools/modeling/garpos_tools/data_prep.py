@@ -46,18 +46,26 @@ class NoGPTranspondersError(Exception):
 
 
 def GP_Transponders_from_benchmarks(coord_transformer: CoordTransformer, survey: Survey, site: Site) -> List[GPTransponder]:
-    """
-    Get GP transponders from the benchmarks in the survey.
+    """Get GP transponders from the benchmarks in the survey.
 
-    :param coord_transformer: The coordinate transformer.
-    :type coord_transformer: CoordTransformer
-    :param survey: The survey object.
-    :type survey: Survey
-    :param site: The site metadata.
-    :type site: Site
-    :return: List of GPTransponder objects for the survey.
-    :rtype: List[GPTransponder]
-    :raises NoGPTranspondersError: If no transponders are found for the survey.
+    Parameters
+    ----------
+    coord_transformer : CoordTransformer
+        The coordinate transformer.
+    survey : Survey
+        The survey object.
+    site : Site
+        The site metadata.
+
+    Returns
+    -------
+    List[GPTransponder]
+        List of GPTransponder objects for the survey.
+
+    Raises
+    ------
+    NoGPTranspondersError
+        If no transponders are found for the survey.
     """
     survey_benchmarks = []
     for benchmark in site.benchmarks:
@@ -87,17 +95,21 @@ def GP_Transponders_from_benchmarks(coord_transformer: CoordTransformer, survey:
 def create_GPTransponder(
     coord_transformer:CoordTransformer, benchmark: Benchmark, transponder: Transponder
 ) -> GPTransponder:
-    """
-    Create a GPTransponder object from a benchmark and transponder.
+    """Create a GPTransponder object from a benchmark and transponder.
 
-    :param coord_transformer: The coordinate transformer.
-    :type coord_transformer: CoordTransformer
-    :param benchmark: The benchmark object.
-    :type benchmark: Benchmark
-    :param transponder: The transponder object.
-    :type transponder: Transponder
-    :return: The created GPTransponder object.
-    :rtype: GPTransponder
+    Parameters
+    ----------
+    coord_transformer : CoordTransformer
+        The coordinate transformer.
+    benchmark : Benchmark
+        The benchmark object.
+    transponder : Transponder
+        The transponder object.
+
+    Returns
+    -------
+    GPTransponder
+        The created GPTransponder object.
     """
     gp_transponder = GPTransponder(
         position_llh=GPPositionLLH(
@@ -124,15 +136,19 @@ def create_GPTransponder(
     return gp_transponder
 
 def get_array_dpos_center(coord_transformer: CoordTransformer, transponders: List[GPTransponder]):
-    """
-    Get the average transponder position in ENU coordinates.
+    """Get the average transponder position in ENU coordinates.
 
-    :param coord_transformer: The coordinate transformer.
-    :type coord_transformer: CoordTransformer
-    :param transponders: List of GPTransponder objects.
-    :type transponders: List[GPTransponder]
-    :return: Average transponder position in ENU and LLH coordinates.
-    :rtype: Tuple[GPPositionENU, GPPositionLLH]
+    Parameters
+    ----------
+    coord_transformer : CoordTransformer
+        The coordinate transformer.
+    transponders : List[GPTransponder]
+        List of GPTransponder objects.
+
+    Returns
+    -------
+    Tuple[GPPositionENU, GPPositionLLH]
+        Average transponder position in ENU and LLH coordinates.
     """
     _, array_center_llh = avg_transponder_position(transponders)
     array_dpos_center = coord_transformer.LLH2ENU(
@@ -146,13 +162,17 @@ def get_array_dpos_center(coord_transformer: CoordTransformer, transponders: Lis
 def avg_transponder_position(
     transponders: List[GPTransponder]
 ) -> Tuple[GPPositionENU, GPPositionLLH]:
-    """
-    Calculate the average position of the transponders
+    """Calculate the average position of the transponders.
 
-    :param transponders: List of transponders.
-    :type transponders: List[GPTransponder]
-    :return: Average position in ENU and LLH.
-    :rtype: Tuple[GPPositionENU, GPPositionLLH]
+    Parameters
+    ----------
+    transponders : List[GPTransponder]
+        List of transponders.
+
+    Returns
+    -------
+    Tuple[GPPositionENU, GPPositionLLH]
+        Average position in ENU and LLH.
     """
     pos_array_llh = []
     pos_array_enu = []
@@ -183,20 +203,30 @@ def prepare_shotdata_for_garpos(
     shot_data: pd.DataFrame,
     GPtransponders: List[GPTransponder],
 ):
-    """
-    Prepare the shot data for GARPOS by rectifying it and saving it to a CSV file.
+    """Prepare the shot data for GARPOS.
 
-    :param coord_transformer: The coordinate transformer.
-    :type coord_transformer: CoordTransformer
-    :param shodata_out_path: The path to save the shot data CSV file.
-    :type shodata_out_path: Path
-    :param shot_data: The shot data DataFrame to be prepared.
-    :type shot_data: pd.DataFrame
-    :param GPtransponders: List of GPTransponder objects for the survey.
-    :type GPtransponders: List[GPTransponder]
-    :return: The rectified shot data DataFrame.
-    :rtype: pd.DataFrame
-    :raises ValueError: If the shot data fails validation.
+    This is done by rectifying it and saving it to a CSV file.
+
+    Parameters
+    ----------
+    coord_transformer : CoordTransformer
+        The coordinate transformer.
+    shodata_out_path : Path
+        The path to save the shot data CSV file.
+    shot_data : pd.DataFrame
+        The shot data DataFrame to be prepared.
+    GPtransponders : List[GPTransponder]
+        List of GPTransponder objects for the survey.
+
+    Returns
+    -------
+    pd.DataFrame
+        The rectified shot data DataFrame.
+
+    Raises
+    ------
+    ValueError
+        If the shot data fails validation.
     """
 
     shot_data_rectified = rectify_shotdata(
@@ -229,27 +259,31 @@ def prepare_garpos_input_from_survey(
     num_of_shots: int,
     GPtransponders: List[GPTransponder],
 ) -> GarposInput:
-    """
-    Prepare the GarposInput object from the survey and shot data.
+    """Prepare the GarposInput object from the survey and shot data.
 
-    :param shot_data_path: The path to the shot data CSV file.
-    :type shot_data_path: Path
-    :param survey: The survey object.
-    :type survey: Survey
-    :param site: The site metadata.
-    :type site: Site
-    :param campaign: The campaign metadata.
-    :type campaign: Campaign
-    :param ss_path: The relative path to the sound speed profile file.
-    :type ss_path: str
-    :param array_dpos_center: The average position of the transponders in ENU coordinates.
-    :type array_dpos_center: Tuple[float, float, float]
-    :param num_of_shots: The number of shots in the shot data.
-    :type num_of_shots: int
-    :param GPtransponders: List of GPTransponder objects for the survey.
-    :type GPtransponders: List[GPTransponder]
-    :return: The prepared GarposInput object.
-    :rtype: GarposInput
+    Parameters
+    ----------
+    shot_data_path : Path
+        The path to the shot data CSV file.
+    survey : Survey
+        The survey object.
+    site : Site
+        The site metadata.
+    campaign : Campaign
+        The campaign metadata.
+    ss_path : str
+        The relative path to the sound speed profile file.
+    array_dpos_center : Tuple[float, float, float]
+        The average position of the transponders in ENU coordinates.
+    num_of_shots : int
+        The number of shots in the shot data.
+    GPtransponders : List[GPTransponder]
+        List of GPTransponder objects for the survey.
+
+    Returns
+    -------
+    GarposInput
+        The prepared GarposInput object.
     """
     garpos_input = GarposInput(
         site_name=site.names[0],
@@ -282,15 +316,19 @@ def prepare_garpos_input_from_survey(
 
 
 def apply_survey_config(config: GarposSiteConfig, garpos_input: GarposInput) -> GarposInput:
-    """
-    Apply the site configuration to the GarposInput object.
+    """Apply the site configuration to the GarposInput object.
 
-    :param config: The site configuration.
-    :type config: GarposSiteConfig
-    :param garpos_input: The GarposInput object to be modified.
-    :type garpos_input: GarposInput
-    :return: The modified GarposInput object with the site configuration applied.
-    :rtype: GarposInput
+    Parameters
+    ----------
+    config : GarposSiteConfig
+        The site configuration.
+    garpos_input : GarposInput
+        The GarposInput object to be modified.
+
+    Returns
+    -------
+    GarposInput
+        The modified GarposInput object with the site configuration applied.
     """
     garpos_input.delta_center_position.east_sigma = config.inversion_params.delta_center_position.east_sigma
     garpos_input.delta_center_position.north_sigma = config.inversion_params.delta_center_position.north_sigma
@@ -303,4 +341,3 @@ def apply_survey_config(config: GarposSiteConfig, garpos_input: GarposInput) -> 
         transponder.position_enu.up_sigma = config.transponder_position_variance.up_sigma
     
     return garpos_input
-    

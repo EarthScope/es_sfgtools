@@ -23,12 +23,17 @@ app = typer.Typer()
 
 @app.command()
 def run(file: Path):
-    """
-    Runs the pipeline from a manifest file.
+    """Runs the pipeline from a manifest file.
 
-    :param file: The path to the manifest file.
-    :type file: Path
-    :raises ValueError: If the file type is not supported.
+    Parameters
+    ----------
+    file : Path
+        The path to the manifest file.
+
+    Raises
+    ------
+    ValueError
+        If the file type is not supported.
     """
     match file.suffix:
         case ".json":

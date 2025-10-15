@@ -170,6 +170,20 @@ class SFGDTSFSite(Basemodel):
 
     @classmethod
     def from_site_vessel(cls, site: Site, vessel: Vessel) -> "SFGDTSFSite":
+        """Create a SFGDTSFSite object from a Site and Vessel object.
+
+        Parameters
+        ----------
+        site : Site
+            The site object.
+        vessel : Vessel
+            The vessel object.
+
+        Returns
+        -------
+        SFGDTSFSite
+            The SFGDTSFSite object.
+        """
         mt_app_pos = {}
         for benchmark in site.benchmarks:
             east,north,up = pm.geodetic2ecef(

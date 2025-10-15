@@ -8,24 +8,37 @@ from pydantic import BaseModel, Field, field_serializer, field_validator, root_v
 
 
 class BaseObservable(BaseModel):
-    """
-    Base class for observable objects.
+    """Base class for observable objects.
 
-    Attributes:
-        local_path (Optional[Union[str,Path]]): The local_path of the data.
-        id (Optional[str]): The ID of the object.
-        epoch_id (Optional[str]): The ID of the epoch.
-        campaign_id (Optional[str]): The ID of the campaign.
-        timestamp_data_start (Optional[datetime]): The capture time of the data.
-        data (Optional[mmap.mmap]): The data object.
+    Attributes
+    ----------
+    local_path : Optional[Union[str, Path]]
+        The local_path of the data.
+    uuid : Optional[int]
+        The ID of the object.
+    epoch_id : Optional[str]
+        The ID of the epoch.
+    campaign_id : Optional[str]
+        The ID of the campaign.
+    timestamp_data_start : Optional[datetime]
+        The capture time of the data.
+    timestamp_data_end : Optional[datetime]
+        The end time of the data.
+    data : Optional[mmap.mmap]
+        The data object.
 
-    Methods:
-        read(path: Union[str,Path]): Read the data from the local_path.
-        write(dir: Union[str,Path]): Write the data to the local_path.
+    Methods
+    -------
+    read(path: Union[str, Path])
+        Read the data from the local_path.
+    write(dir: Union[str, Path])
+        Write the data to the local_path.
 
-    Notes:
-        This class is intended to be subclassed by other classes.
-        read/write methods are used to interface between temporary files and the data object.
+    Notes
+    -----
+    This class is intended to be subclassed by other classes.
+    read/write methods are used to interface between temporary files and the
+    data object.
     """
 
     local_path: Optional[Union[str, Path]] = Field(default=None)
@@ -40,22 +53,24 @@ class BaseObservable(BaseModel):
         arbitrary_types_allowed = True
 
     def read(self, path: Union[str, Path]):
-        """
-        Read the data from the local_path.
+        """Read the data from the local_path.
 
-        Args:
-            path (Union[str,Path]): The path to the data file.
+        Parameters
+        ----------
+        path : Union[str, Path]
+            The path to the data file.
         """
         with open(path, "r+b") as f:
             self.data = mmap.mmap(f.fileno(), 0)
         self.local_path = path
 
     def write(self, dir: Union[str, Path]):
-        """
-        Write the data to the local_path.
+        """Write the data to the local_path.
 
-        Args:
-            dir (Union[str,Path]): The directory to write the data file to.
+        Parameters
+        ----------
+        dir : Union[str, Path]
+            The directory to write the data file to.
         """
 
         path = Path(dir) / Path(self.local_path).name
@@ -156,55 +171,57 @@ class AssetEntry(_AssetBase):
 
 
 class NovatelFile(BaseObservable):
-    """
-    Represents a Novatel file from SV2.
+    """Represents a Novatel file from SV2.
 
-    This class provides methods and attributes to handle Novatel files in the SeaFloorGeodesy project.
-    Used to get acoustic/IMU data from Novatel files.
+    This class provides methods and attributes to handle Novatel files in the
+    SeaFloorGeodesy project. Used to get acoustic/IMU data from Novatel
+    files.
 
-    Processing Functions:
-        src.processing.functions.gnss_functions.novatel_to_rinex
-        src.processing.functions.imu_functions.novatel_to_imudf
-
+    Processing Functions
+    --------------------
+    src.processing.functions.gnss_functions.novatel_to_rinex
+    src.processing.functions.imu_functions.novatel_to_imudf
     """
     name:str = "novatel"
 
 
 class Novatel770File(BaseObservable):
-    """
-    Represents a Novatel700 file from SV3.
+    """Represents a Novatel700 file from SV3.
 
-    This class provides methods and attributes to handle Novatel files in the SeaFloorGeodesy project.
-    Used to get acoustic/IMU data from Novatel files.
+    This class provides methods and attributes to handle Novatel files in the
+    SeaFloorGeodesy project. Used to get acoustic/IMU data from Novatel
+    files.
 
-    Processing Functions:
-        src.processing.functions.gnss_functions.novatel700_to_rinex
-       
-
+    Processing Functions
+    --------------------
+    src.processing.functions.gnss_functions.novatel700_to_rinex
     """
     name:str = "novatel770"
 
 
 class DFPO00RawFile(BaseObservable):
-    """
+    """Represents a DFOP00.raw file.
 
-    The DFOP00.raw file contains the real time amalgamation of all sensors using the common JSON style format. 
-    For each range cycle there are multiple JSON entries created. 
-    The first entry is the “Interrogate” entry which contains the GNSS, AHRS, INS & 
-    TIME data from when the acoustic signal is transmitted.
+    The DFOP00.raw file contains the real time amalgamation of all sensors
+    using the common JSON style format. For each range cycle there are
+    multiple JSON entries created. The first entry is the “Interrogate”
+    entry which contains the GNSS, AHRS, INS & TIME data from when the
+    acoustic signal is transmitted.
 
-    processing functions:
-        src.processing.functions.acoustic_functions.dfpo00_to_imudf
-        src.processing.functions.acoustic_functions.dfpo00_to_acousticdf
+    Processing Functions
+    --------------------
+    src.processing.functions.acoustic_functions.dfpo00_to_imudf
+    src.processing.functions.acoustic_functions.dfpo00_to_acousticdf
     """
     name:str = "dfpo00"
 
 
 class SonardyneFile(BaseObservable):
-    """
+    """Represents a Sonardyne file.
 
-    Processing Functions:
-        src.processing.functions.acoustic_functions.sonardyne_to_acousticdf
+    Processing Functions
+    --------------------
+    src.processing.functions.acoustic_functions.sonardyne_to_acousticdf
     """
     name:str = "sonardyne"
 
@@ -387,7 +404,7 @@ class SonardyneFile(BaseObservable):
 #                 f.write(f"{glonass:<60}GLONASS SLOT / FRQ #\n")
 #             if self.leap_seconds is not None:
 #                 f.write(f"{self.leap_seconds:<60}LEAP SECONDS\n")
-#             f.write(f"{'':<60}END OF HEADER\n")
+#             f.write(f"{''<60}END OF HEADER\n")
 
 
 #     def make_template(self)->str:
@@ -396,9 +413,9 @@ class SonardyneFile(BaseObservable):
 #     NAS Convert 1.13.0  NovAtel             20231109 004337 UTC PGM / RUN BY / DATE
 #     {self.approx_position_xyz[0]}  {self.approx_position_xyz[1]}   {self.approx_position_xyz[2]}     APPROX POSITION XYZ
 #             {self.antenna_delta_hen[0]}         {self.antenna_delta_hen[1]}         {self.antenna_delta_hen[2]}     ANTENNA: DELTA H/E/N
-#     {self.sys_obs_types[0]}                      SYS / # / OBS TYPES
-#     {self.sys_obs_types[1]}                      SYS / # / OBS TYPES
-#     {self.sys_obs_types[2]}                      SYS / # / OBS TYPES
+#     G    8 C1C L1C D1C S1C C2W L2W D2W S2W                      SYS / # / OBS TYPES
+#     R    8 C1C L1C D1C S1C C2P L2P D2P S2P                      SYS / # / OBS TYPES
+#     J    8 C1C L1C D1C S1C C2S L2S D2S S2S                      SYS / # / OBS TYPES
 #     DBHZ                                                        SIGNAL STRENGTH UNIT
 #     0.100                                                       INTERVAL
 #     {self.time_of_first_obs.year()}    {self.time_of_first_obs.month()}    {self.time_of_first_obs.day()}    {self.time_of_first_obs.hour()}    {self.time_of_first_obs.minute()}   {self.time_of_first_obs.second()}     GPS           TIME OF FIRST OBS
@@ -416,7 +433,7 @@ class SonardyneFile(BaseObservable):
 #     15 R21  4 R03  5 R19  3 R10 -7 R20  2 R09 -2 R04  6 R12 -1  GLONASS SLOT / FRQ #
 #     R05  1 R07  5 R23  3 R06 -4 R22 -3 R08  6 R14 -7            GLONASS SLOT / FRQ #
 #     0                                                           LEAP SECONDS
-#                                                                 END OF HEADER
+#                                                             END OF HEADER
 #         """
 #         return template
 
@@ -473,139 +490,137 @@ class SonardyneFile(BaseObservable):
 #         )
 
 
-# def make_template(version:float,x:float,y:float,z:float,
-#                   time_of_first_obs:datetime,
-#                   time_of_last_obs:datetime)->str:
-#     template = f"""
-# {version}            OBSERVATION DATA    M (MIXED)           RINEX VERSION / TYPE
-# NAS Convert 1.13.0  NovAtel             20231109 004337 UTC PGM / RUN BY / DATE
-# {x}  {y}   {z}     APPROX POSITION XYZ
-#         0.0000         0.0000         0.0000     ANTENNA: DELTA H/E/N
-# G    8 C1C L1C D1C S1C C2W L2W D2W S2W                      SYS / # / OBS TYPES
-# R    8 C1C L1C D1C S1C C2P L2P D2P S2P                      SYS / # / OBS TYPES
-# J    8 C1C L1C D1C S1C C2S L2S D2S S2S                      SYS / # / OBS TYPES
-# DBHZ                                                        SIGNAL STRENGTH UNIT
-# 0.100                                                       INTERVAL
-# {time_of_first_obs.year()}    {time_of_first_obs.month()}    {time_of_first_obs.day()}    {time_of_first_obs.hour()}    {time_of_first_obs.minute()}   {time_of_first_obs.second()}     GPS           TIME OF FIRST OBS
-# {time_of_last_obs.year()}    {time_of_last_obs.month()}    {time_of_last_obs.day()}    {time_of_last_obs.hour()}    {time_of_last_obs.minute()}   {time_of_last_obs.second()}     GPS           TIME OF LAST OBS
-# G L1C  0.00000  17 G25 G06 G20 G29 G24 G12 G02 G19 G05 G31  SYS / PHASE SHIFT
-# G18 G26 G23 G15 G13 G16 G10                                 SYS / PHASE SHIFT
-# G L2W  0.00000  17 G25 G06 G20 G29 G24 G12 G02 G19 G05 G31  SYS / PHASE SHIFT
-# G18 G26 G23 G15 G13 G16 G10                                 SYS / PHASE SHIFT
-# R L1C  0.00000  15 R21 R03 R19 R10 R20 R09 R04 R12 R05 R07  SYS / PHASE SHIFT
-# R23 R06 R22 R08 R14                                         SYS / PHASE SHIFT
-# R L2P  0.25000  12 R21 R03 R19 R20 R09 R04 R12 R05 R07 R22  SYS / PHASE SHIFT
-# R08 R14                                                     SYS / PHASE SHIFT
-# J L1C  0.00000  01 J02                                      SYS / PHASE SHIFT
-# J L2S  0.00000  01 J02                                      SYS / PHASE SHIFT
-# 15 R21  4 R03  5 R19  3 R10 -7 R20  2 R09 -2 R04  6 R12 -1  GLONASS SLOT / FRQ #
-# R05  1 R07  5 R23  3 R06 -4 R22 -3 R08  6 R14 -7            GLONASS SLOT / FRQ #
-# 0                                                           LEAP SECONDS
-#                                                             END OF HEADER
-#     """
-#     return template
+def make_template(version:float,x:float,y:float,z:float,
+                  time_of_first_obs:datetime,
+                  time_of_last_obs:datetime)->str:
+    template = f"""
+{version}            OBSERVATION DATA    M (MIXED)           RINEX VERSION / TYPE
+NAS Convert 1.13.0  NovAtel             20231109 004337 UTC PGM / RUN BY / DATE
+{x}  {y}   {z}     APPROX POSITION XYZ
+        0.0000         0.0000         0.0000     ANTENNA: DELTA H/E/N
+G    8 C1C L1C D1C S1C C2W L2W D2W S2W                      SYS / # / OBS TYPES
+R    8 C1C L1C D1C S1C C2P L2P D2P S2P                      SYS / # / OBS TYPES
+J    8 C1C L1C D1C S1C C2S L2S D2S S2S                      SYS / # / OBS TYPES
+DBHZ                                                        SIGNAL STRENGTH UNIT
+0.100                                                       INTERVAL
+{time_of_first_obs.year()}    {time_of_first_obs.month()}    {time_of_first_obs.day()}    {time_of_first_obs.hour()}    {time_of_first_obs.minute()}   {time_of_first_obs.second()}     GPS           TIME OF FIRST OBS
+{time_of_last_obs.year()}    {time_of_last_obs.month()}    {time_of_last_obs.day()}    {time_of_last_obs.hour()}    {time_of_last_obs.minute()}   {time_of_last_obs.second()}     GPS           TIME OF LAST OBS
+G L1C  0.00000  17 G25 G06 G20 G29 G24 G12 G02 G19 G05 G31  SYS / PHASE SHIFT
+G18 G26 G23 G15 G13 G16 G10                                 SYS / PHASE SHIFT
+G L2W  0.00000  17 G25 G06 G20 G29 G24 G12 G02 G19 G05 G31  SYS / PHASE SHIFT
+G18 G26 G23 G15 G13 G16 G10                                 SYS / PHASE SHIFT
+R L1C  0.00000  15 R21 R03 R19 R10 R20 R09 R04 R12 R05 R07  SYS / PHASE SHIFT
+R23 R06 R22 R08 R14                                         SYS / PHASE SHIFT
+R L2P  0.25000  12 R21 R03 R19 R20 R09 R04 R12 R05 R07 R22  SYS / PHASE SHIFT
+R08 R14                                                     SYS / PHASE SHIFT
+J L1C  0.00000  01 J02                                      SYS / PHASE SHIFT
+J L2S  0.00000  01 J02                                      SYS / PHASE SHIFT
+15 R21  4 R03  5 R19  3 R10 -7 R20  2 R09 -2 R04  6 R12 -1  GLONASS SLOT / FRQ #
+R05  1 R07  5 R23  3 R06 -4 R22 -3 R08  6 R14 -7            GLONASS SLOT / FRQ #
+0                                                           LEAP SECONDS
+                                                             END OF HEADER
+    """
+    return template
 
-# class SatelliteData(BaseModel):
-#     satellite_id: str = Field(
-#         ..., description="Satellite identifier (e.g., G09, G31, R12)"
-#     )
-#     pseudorange: float = Field(..., description="Pseudorange (m)")
-#     carrier_phase: float = Field(..., description="Carrier phase (cycles)")
-#     doppler_shift: Optional[float] = Field(None, description="Doppler shift (Hz)")
-#     signal_strength: Optional[float] = Field(None, description="Signal strength (dBHz)")
+class SatelliteData(BaseModel):
+    satellite_id: str = Field(
+        ..., description="Satellite identifier (e.g., G09, G31, R12)"
+    )
+    pseudorange: float = Field(..., description="Pseudorange (m)")
+    carrier_phase: float = Field(..., description="Carrier phase (cycles)")
+    doppler_shift: Optional[float] = Field(None, description="Doppler shift (Hz)")
+    signal_strength: Optional[float] = Field(None, description="Signal strength (dBHz)")
 
 
-# class RinexLog(BaseModel):
-#     timestamp: datetime = Field(..., description="Timestamp of the log entry")
-#     num_satellites: int = Field(..., description="Number of satellites in the entry")
-#     satellite_data: List[SatelliteData] = Field(
-#         ..., description="List of satellite data associated with the timestamp"
-#     )
+class RinexLog(BaseModel):
+    timestamp: datetime = Field(..., description="Timestamp of the log entry")
+    num_satellites: int = Field(..., description="Number of satellites in the entry")
+    satellite_data: List[SatelliteData] = Field(
+        ..., description="List of satellite data associated with the timestamp"
+    )
 
-#     @classmethod
-#     def from_file(cls,path:str) -> List["RinexLog"]:
-#         logs = []
-#         with open(path,"r") as f:
-#             for line in f:
-#                 if line.startswith(">"):
-#                     logs.append(
-#                         cls.from_log_entry(line)
-#                     )
+    @classmethod
+    def from_file(cls,path:str) -> List["RinexLog"]:
+        logs = []
+        with open(path,"r") as f:
+            for line in f:
+                if line.startswith(">"):
+                    logs.append(
+                        cls.from_log_entry(line)
+                    )
 
-#         return logs
+        return logs
 
-#     @staticmethod
-#     def from_log_entry(log_entry: str) -> "RinexLog":
-#         lines = log_entry.strip().split("\n")
+    @staticmethod
+    def from_log_entry(log_entry: str) -> "RinexLog":
+        lines = log_entry.strip().split("\n")
 
-#         # Extract the timestamp from the first line
-#         first_line = lines[0]
-#         timestamp_str = first_line[1:27].strip()
-#         timestamp = datetime.strptime(timestamp_str, "%Y %m %d %H %M %S.%f")
+        # Extract the timestamp from the first line
+        first_line = lines[0]
+        timestamp_str = first_line[1:27].strip()
+        timestamp = datetime.strptime(timestamp_str, "%Y %m %d %H %M %S.%f")
 
-#         # Number of satellites
-#         num_satellites = int(first_line[28:30].strip())
+        # Number of satellites
+        num_satellites = int(first_line[28:30].strip())
 
-#         # Parse satellite data from the following lines
-#         satellite_data = []
-#         for line in lines[1:]:
-#             satellite_id = line[:4].strip()
-#             pseudorange = float(line[5:23].strip())
-#             carrier_phase = float(line[24:42].strip())
-#             doppler_shift = float(line[43:57].strip())
-#             signal_strength = float(line[58:65].strip())
-#             satellite_data.append(
-#                 SatelliteData(
-#                     satellite_id=satellite_id,
-#                     pseudorange=pseudorange,
-#                     carrier_phase=carrier_phase,
-#                     doppler_shift=doppler_shift,
-#                     signal_strength=signal_strength,
-#                 )
-#             )
+        # Parse satellite data from the following lines
+        satellite_data = []
+        for line in lines[1:]:
+            satellite_id = line[:4].strip()
+            pseudorange = float(line[5:23].strip())
+            carrier_phase = float(line[24:42].strip())
+            doppler_shift = float(line[43:57].strip())
+            signal_strength = float(line[58:65].strip())
+            satellite_data.append(
+                SatelliteData(
+                    satellite_id=satellite_id,
+                    pseudorange=pseudorange,
+                    carrier_phase=carrier_phase,
+                    doppler_shift=doppler_shift,
+                    signal_strength=signal_strength,
+                )
+            )
 
-#         return RinexLog(
-#             timestamp=timestamp,
-#             num_satellites=num_satellites,
-#             satellite_data=satellite_data,
-#         )
+        return RinexLog(
+            timestamp=timestamp,
+            num_satellites=num_satellites,
+            satellite_data=satellite_data,
+        )
 
-#     def to_str(self) -> str:
-#         """Converts the log entry to a string."""
-#         lines = []
-#         lines.append(f"> {self.timestamp.strftime('%Y %m %d %H %M %S.%f')} {self.num_satellites}")
-#         for satellite in self.satellite_data:
-#             lines.append(
-#                 f"{satellite.satellite_id:<4} {satellite.pseudorange:>18.3f} {satellite.carrier_phase:>18.3f} {satellite.doppler_shift:>14.3f} {satellite.signal_strength:>7.3f}"
-#             )
-#         return "\n".join(lines)
+    def to_str(self) -> str:
+        """Converts the log entry to a string."""
+        lines = []
+        lines.append(f"> {self.timestamp.strftime('%Y %m %d %H %M %S.%f')} {self.num_satellites}")
+        for satellite in self.satellite_data:
+            lines.append(
+                f"{satellite.satellite_id:<4} {satellite.pseudorange:>18.3f} {satellite.carrier_phase:>18.3f} {satellite.doppler_shift:>14.3f} {satellite.signal_strength:>7.3f}"
+            )
+        return "\n".join(lines)
 
-# class RinexFileV3(BaseModel):
-#     header: RinexHeader = Field(..., description="RINEX header information")
-#     logs: List[RinexLog] = Field(..., description="List of RINEX log entries")
+class RinexFileV3(BaseModel):
+    header: RinexHeader = Field(..., description="RINEX header information")
+    logs: List[RinexLog] = Field(..., description="List of RINEX log entries")
 
-#     @classmethod
-#     def from_file(cls, filepath: str) -> "RinexFileV3":
-#         header = RinexHeader.from_file(filepath)
-#         logs = RinexLog.from_file(filepath)
-#         return cls(header=header, logs=logs)
+    @classmethod
+    def from_file(cls, filepath: str) -> "RinexFileV3":
+        header = RinexHeader.from_file(filepath)
+        logs = RinexLog.from_file(filepath)
+        return cls(header=header, logs=logs)
 
-#     def to_file(self, filepath: str):
-#         """Writes the RINEX file to a file."""
-#         with open(filepath, "w") as f:
-#             f.write(self.header.to_str() + "\n")
-#             for log in self.logs:
-#                 f.write(log.to_str() + "\n")
+    def to_file(self, filepath: str):
+        """Writes the RINEX file to a file."""
+        with open(filepath, "w") as f:
+            f.write(self.header.to_str() + "\n")
+            for log in self.logs:
+                f.write(log.to_str() + "\n")
 
-#     def merge(self, other: "RinexFileV3") -> "RinexFileV3":
-#         """Merges another RINEX file with this one."""
-#         header = self.header.merge(other.header)
-#         logs = self.logs + other.logs
-#         logs = sorted(logs, key=lambda x: x.timestamp)
-#         return RinexFileV3(header=header, logs=logs)
+    def merge(self, other: "RinexFileV3") -> "RinexFileV3":
+        """Merges another RINEX file with this one."""
+        header = self.header.merge(other.header)
+        logs = self.logs + other.logs
+        logs = sorted(logs, key=lambda x: x.timestamp)
+        return RinexFileV3(header=header, logs=logs)
 
 # Example usage:
 # rinex_header = RinexHeader.from_file('example_rinex.obs')
 # rinex_header.to_file('output_rinex_header.obs')
-
-

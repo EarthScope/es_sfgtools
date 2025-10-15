@@ -101,8 +101,10 @@ class DataHandler:
         """
         Initializes the DataHandler, setting up directories and the processing catalog.
 
-        :param directory: The root directory for data storage and operations.
-        :type directory: Union[Path, str]
+        Parameters
+        ----------
+        directory : Path or str
+            The root directory for data storage and operations.
         """
 
         self.current_network: Optional[str] = None
@@ -132,12 +134,14 @@ class DataHandler:
         This includes directories for raw data, intermediate files, GARPOS processing,
         logs, and quality control.
 
-        :param network: The name of the network.
-        :type network: str
-        :param station: The name of the station.
-        :type station: str
-        :param campaign: The name of the campaign.
-        :type campaign: str
+        Parameters
+        ----------
+        network : str
+            The name of the network.
+        station : str
+            The name of the station.
+        campaign : str
+            The name of the campaign.
         """
 
         networkDir, stationDir, campaignDir, _ = self.directory_handler.build_station_directory(
@@ -212,14 +216,16 @@ class DataHandler:
         """
         Changes the operational context to a specific network, station, and campaign.
 
-        :param network: The network identifier.
-        :type network: str
-        :param station: The station identifier.
-        :type station: str
-        :param campaign: The campaign identifier.
-        :type campaign: str
-        :param site_metadata: Optional site metadata. If not provided, it will be loaded if available.
-        :type site_metadata: Optional[Site], optional
+        Parameters
+        ----------
+        network : str
+            The network identifier.
+        station : str
+            The station identifier.
+        campaign : str
+            The campaign identifier.
+        site_metadata : Site, Path, str, optional
+            Optional site metadata. If not provided, it will be loaded if available.
 
         """
         assert isinstance(network, str) and network is not None, "Network must be a non-empty string"
@@ -252,8 +258,10 @@ class DataHandler:
         """
         Retrieves the counts of different data types for the current operational context.
 
-        :returns: A dictionary mapping data types to their counts.
-        :rtype: Dict[str, int]
+        Returns
+        -------
+        dict of {str : int}
+            A dictionary mapping data types to their counts.
         """
         return self.catalog.get_dtype_counts(
             network=self.current_network, station=self.current_station, campaign=self.current_campaign
@@ -264,8 +272,10 @@ class DataHandler:
         """
         Scans a directory for data files and adds them to the catalog.
 
-        :param directory_path: The path to the directory to scan.
-        :type directory_path: Path
+        Parameters
+        ----------
+        directory_path : Path
+            The path to the directory to scan.
         """
 
         files: List[Path] = scrape_directory_local(directory_path)
@@ -284,8 +294,10 @@ class DataHandler:
         """
         Adds a list of local files to the data catalog.
 
-        :param local_filepaths: A list of paths to the files to add.
-        :type local_filepaths: List[Path]
+        Parameters
+        ----------
+        local_filepaths : list of Path
+            A list of paths to the files to add.
         """
 
         file_data_list = []
@@ -333,11 +345,17 @@ class DataHandler:
         """
         Adds remote data files to the catalog.
 
-        :param remote_filepaths: A list of remote file paths.
-        :type remote_filepaths: List[str]
-        :param remote_type: The type of the remote storage. Defaults to REMOTE_TYPE.HTTP.
-        :type remote_type: Union[REMOTE_TYPE, str]
-        :raises ValueError: If the specified remote type is not recognized.
+        Parameters
+        ----------
+        remote_filepaths : list of str
+            A list of remote file paths.
+        remote_type : REMOTE_TYPE or str, default REMOTE_TYPE.HTTP
+            The type of the remote storage.
+
+        Raises
+        ------
+        ValueError
+            If the specified remote type is not recognized.
         """
 
         # Check that the remote type is valid, default is HTTP
@@ -406,11 +424,17 @@ class DataHandler:
         """
         Downloads files of specified types from remote storage.
 
-        :param file_types: The types of files to download.
-        :type file_types: Union[List[AssetType], List[str], str], optional
-        :param override: If True, redownloads files even if they exist locally. Defaults to False.
-        :type override: bool, optional
-        :raises ValueError: If a specified file type is not recognized.
+        Parameters
+        ----------
+        file_types : list of AssetType, list of str, or str, default DEFAULT_FILE_TYPES_TO_DOWNLOAD
+            The types of files to download.
+        override : bool, default False
+            If True, redownloads files even if they exist locally.
+
+        Raises
+        ------
+        ValueError
+            If a specified file type is not recognized.
         """
 
         # Grab assests from the catalog that match the network, station, campaign, and file type
@@ -490,8 +514,10 @@ class DataHandler:
         """
         Downloads files from S3 and updates the catalog with local paths.
 
-        :param s3_assets: A list of S3 assets to download.
-        :type s3_assets: List[AssetEntry]
+        Parameters
+        ----------
+        s3_assets : list of AssetEntry
+            A list of S3 assets to download.
         """
 
         s3_entries_processed = []
@@ -520,14 +546,19 @@ class DataHandler:
         """
         Downloads a single file from an S3 bucket.
 
-        :param client: The Boto3 S3 client.
-        :type client: boto3.client
-        :param bucket: The S3 bucket name.
-        :type bucket: str
-        :param prefix: The S3 object key.
-        :type prefix: str
-        :returns: The local path of the downloaded file, or None if the download fails.
-        :rtype: Optional[Path]
+        Parameters
+        ----------
+        client : boto3.client
+            The Boto3 S3 client.
+        bucket : str
+            The S3 bucket name.
+        prefix : str
+            The S3 object key.
+
+        Returns
+        -------
+        Path or None
+            The local path of the downloaded file, or None if the download fails.
         """
 
         local_path = self.currentCampaignDir.raw / Path(prefix).name
@@ -554,10 +585,12 @@ class DataHandler:
         """
         Downloads files from an HTTP server and updates the catalog.
 
-        :param http_assets: A list of HTTP assets to download.
-        :type http_assets: List[AssetEntry]
-        :param file_type: The type of file being downloaded. Defaults to None.
-        :type file_type: Optional[AssetType], optional
+        Parameters
+        ----------
+        http_assets : list of AssetEntry
+            A list of HTTP assets to download.
+        file_type : AssetType, optional
+            The type of file being downloaded.
         """
 
         for file_asset in tqdm(
@@ -577,10 +610,15 @@ class DataHandler:
         """
         Downloads a single file from an HTTP URL.
 
-        :param remote_url: The URL of the file to download.
-        :type remote_url: Path
-        :returns: The local path of the downloaded file, or None if the download fails.
-        :rtype: Optional[Path]
+        Parameters
+        ----------
+        remote_url : Path
+            The URL of the file to download.
+
+        Returns
+        -------
+        Path or None
+            The local path of the downloaded file, or None if the download fails.
         """
         try:
             local_path = self.currentCampaignDir.raw / Path(remote_url).name
@@ -618,6 +656,19 @@ class DataHandler:
 
     @check_network_station_campaign
     def get_site_metadata(self, site_metadata: Optional[Union[Site,Path]] = None) -> Optional[Site]:
+        """
+        Loads or validates site metadata for the current station.
+
+        Parameters
+        ----------
+        site_metadata : Site, Path, or None, optional
+            Site metadata to use. If None, attempts to load from station directory or archive.
+
+        Returns
+        -------
+        Site or None
+            The loaded site metadata, or None if not found.
+        """
 
         site_meta_write_dest = self.currentStationDir.site_metadata
         site_meta_read_dest = None
@@ -695,8 +746,10 @@ class DataHandler:
         """
         Initializes and returns an SV3 processing pipeline and its configuration.
 
-        :returns: A tuple containing the pipeline and its config.
-        :rtype: Tuple[SV3Pipeline, SV3PipelineConfig]
+        Returns
+        -------
+        tuple of (SV3Pipeline, SV3PipelineConfig)
+            A tuple containing the pipeline and its config.
         """
 
         config = SV3PipelineConfig()
@@ -715,9 +768,15 @@ class DataHandler:
         """
         Prints the specified log to the console.
 
-        :param log: The type of log to print.
-        :type log: Literal["base", "gnss", "process"]
-        :raises ValueError: If the specified log type is not recognized.
+        Parameters
+        ----------
+        log : {'base', 'gnss', 'process'}
+            The type of log to print.
+
+        Raises
+        ------
+        ValueError
+            If the specified log type is not recognized.
         """
         if log == "base":
             logger.route_to_console()
@@ -734,11 +793,17 @@ class DataHandler:
         """
         Parses survey data for a given site.
 
-        :param override: If True, re-parses existing data. Defaults to False.
-        :type override: bool, optional
-        :param write_intermediate: If True, writes intermediate files. Defaults to False.
-        :type write_intermediate: bool, optional
-        :raises ValueError: If site metadata is not loaded.
+        Parameters
+        ----------
+        override : bool, default False
+            If True, re-parses existing data.
+        write_intermediate : bool, default False
+            If True, writes intermediate files.
+
+        Raises
+        ------
+        ValueError
+            If site metadata is not loaded.
         """
         if self.currentSiteMetaData is None:
             raise ValueError("Site metadata not loaded, cannot parse surveys")
@@ -755,21 +820,22 @@ class DataHandler:
         )
 
     @check_network_station_campaign
-    def prep_garpos(self,
+    def prep_garpos(
+        self,
                     custom_filters:dict = None,
                     override:bool=False,
                     write_intermediate:bool=False):
         """
         Prepares data for GARPOS processing.
 
-        :param custom_filter: Custom filter settings for shot data preparation. Defaults to None.
-        :type custom_filter: dict, optional
-        :param shotdata_filter_config: Configuration for shot data filtering. Defaults to DEFAULT_FILTER_CONFIG.
-        :type shotdata_filter_config: dict, optional
-        :param override: If True, re-prepares existing data. Defaults to False.
-        :type override: bool, optional
-        :param write_intermediate: If True, writes intermediate files. Defaults to False.
-        :type write_intermediate: bool, optional
+        Parameters
+        ----------
+        custom_filters : dict, optional
+            Custom filter settings for shot data preparation.
+        override : bool, default False
+            If True, re-prepares existing data.
+        write_intermediate : bool, default False
+            If True, writes intermediate files.
         """
         dataPostProcessor: IntermediateDataProcessor = self.getIntermediateDataProcessor()
 
@@ -787,9 +853,15 @@ class DataHandler:
         """
         Returns an instance of the IntermediateDataProcessor for the current station.
 
-        :returns: An instance of IntermediateDataProcessor.
-        :rtype: IntermediateDataProcessor
-        :raises ValueError: If site metadata is not loaded.
+        Returns
+        -------
+        IntermediateDataProcessor
+            An instance of IntermediateDataProcessor.
+
+        Raises
+        ------
+        ValueError
+            If site metadata is not loaded.
         """
         if self.currentSiteMetaData is None:
             raise ValueError("Site metadata not loaded, cannot get IntermediateDataProcessor")
@@ -809,9 +881,15 @@ class DataHandler:
         """
         Returns an instance of the GarposHandler for the current station.
 
-        :returns: An instance of GarposHandler.
-        :rtype: GarposHandler
-        :raises ValueError: If site metadata is not loaded.
+        Returns
+        -------
+        GarposHandler
+            An instance of GarposHandler.
+
+        Raises
+        ------
+        ValueError
+            If site metadata is not loaded.
         """
         if self.currentSiteMetaData is None:
             raise ValueError("Site metadata not loaded, cannot get GarposHandler")

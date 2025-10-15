@@ -23,15 +23,18 @@ MEDIAN_NORTH_POSITION = 0
 MEDIAN_UP_POSITION = 0
 
 def prepare_positions_data(positions_data:pd.DataFrame) -> pd.DataFrame:
-    """
-    Prepares IMU positions data for Kalman filtering by converting geodetic coordinates to ECEF,
-    computing median positions, and adding velocity and uncertainty columns.
+    """Prepares IMU positions data for Kalman filtering.
+
+    This is done by converting geodetic coordinates to ECEF, computing median
+    positions, and adding velocity and uncertainty columns.
+
     Parameters
     ----------
     positions_data : pandas.DataFrame
         DataFrame containing IMU position and velocity data with columns:
         'latitude', 'longitude', 'height', 'eastVelocity', 'northVelocity', 'upVelocity',
         and their respective standard deviations.
+
     Returns
     -------
     positions_data_copy : pandas.DataFrame
@@ -42,6 +45,7 @@ def prepare_positions_data(positions_data:pd.DataFrame) -> pd.DataFrame:
         - 'rho_xy', 'rho_xz', 'rho_yz': correlation coefficients (set to 0)
         - 'east_sig', 'north_sig', 'up_sig': uncertainties in velocity
         - 'v_sden', 'v_sdeu', 'v_sdnu': additional velocity uncertainty columns (set to 0)
+
     Notes
     -----
     Also sets global variables MEDIAN_EAST_POSITION, MEDIAN_NORTH_POSITION, and MEDIAN_UP_POSITION
@@ -81,12 +85,15 @@ def prepare_positions_data(positions_data:pd.DataFrame) -> pd.DataFrame:
     return positions_data_copy
 
 def prepare_kinematic_data(kin_positions: pd.DataFrame) -> pd.DataFrame:
-    """
-    Prepares kinematic GPS data for Kalman filtering by computing velocities and filtering outliers.
+    """Prepares kinematic GPS data for Kalman filtering.
 
-    This function takes a DataFrame containing kinematic GPS positions and processes it as follows:
+    This is done by computing velocities and filtering outliers.
+
+    This function takes a DataFrame containing kinematic GPS positions and
+    processes it as follows:
     - Copies the input DataFrame to avoid modifying the original.
-    - Renames position columns ('east', 'north', 'up') to antenna coordinates ('ant_x', 'ant_y', 'ant_z').
+    - Renames position columns ('east', 'north', 'up') to antenna
+      coordinates ('ant_x', 'ant_y', 'ant_z').
     - Initializes velocity columns ('east', 'north', 'up') with NaN values.
     - Adds uncertainty and correlation columns with default values.
     - Calculates velocity components by differentiating position over time.
@@ -163,16 +170,18 @@ def prepare_kinematic_data(kin_positions: pd.DataFrame) -> pd.DataFrame:
     logger.loginfo(f"Kinematic data filtered from {original_len} to {filtered_len} rows for a {((original_len - filtered_len) / original_len * 100):.2f} % reduction using z-score threshold of {z_thresh}.")
     return gps_df
 
-
 def combine_data(imu_position_data: pd.DataFrame, ppp_position_data: pd.DataFrame) -> pd.DataFrame:
-    """
-    Combines IMU position and PPP position data into a single DataFrame with a specified column order.
+    """Combines IMU position and PPP position data into a single DataFrame.
+
+    This is done with a specified column order.
+
     Parameters
     ----------
     imu_position_data : pd.DataFrame
         DataFrame containing IMU position data with columns matching the expected column order.
     ppp_position_data : pd.DataFrame
         DataFrame containing PPP position data with columns matching the expected column order.
+
     Returns
     -------
     pd.DataFrame
@@ -194,8 +203,8 @@ def combine_data(imu_position_data: pd.DataFrame, ppp_position_data: pd.DataFram
     return df_all
 
 def run_kalman_filter_and_smooth(df_all: pd.DataFrame, start_dt: float, gnss_pos_psd: float, vel_psd: float, cov_err: float) -> pd.DataFrame:
-    """
-    Runs a Kalman filter simulation on GNSS shot data and processes the results.
+    """Runs a Kalman filter simulation on GNSS shot data and processes the results.
+
     Parameters
     ----------
     df_all : pd.DataFrame
@@ -208,6 +217,7 @@ def run_kalman_filter_and_smooth(df_all: pd.DataFrame, start_dt: float, gnss_pos
         Velocity process spectral density for the filter.
     cov_err : float
         Initial covariance error for the filter.
+
     Returns
     -------
     pd.DataFrame
@@ -250,17 +260,20 @@ def run_kalman_filter_and_smooth(df_all: pd.DataFrame, start_dt: float, gnss_pos
     return smoothed_results
 
 def analyze_offsets(merged_positions: pd.DataFrame):
-    """
-    Analyzes the offsets between smoothed and original antenna positions in the provided DataFrame.
-    Calculates the absolute differences for the X, Y, and Z coordinates between the columns
-    'ant_x_smoothed', 'ant_y_smoothed', 'ant_z_smoothed' and their respective original columns
-    'ant_x', 'ant_y', 'ant_z'. Computes summary statistics (count, mean, std, min, 25%, 50%, 75%, max)
+    """Analyzes the offsets between smoothed and original antenna positions.
+
+    Calculates the absolute differences for the X, Y, and Z coordinates
+    between the columns 'ant_x_smoothed', 'ant_y_smoothed', 'ant_z_smoothed'
+    and their respective original columns 'ant_x', 'ant_y', 'ant_z'.
+    Computes summary statistics (count, mean, std, min, 25%, 50%, 75%, max)
     for each offset and prints the results in a formatted table.
+
     Parameters
     ----------
     merged_positions : pd.DataFrame
         DataFrame containing the columns 'ant_x', 'ant_y', 'ant_z', 'ant_x_smoothed',
         'ant_y_smoothed', and 'ant_z_smoothed'.
+
     Returns
     -------
     None
@@ -284,8 +297,19 @@ def analyze_offsets(merged_positions: pd.DataFrame):
     logger.loginfo(summary_df.round(6).to_string())
 
 def update_shotdata_with_smoothed_positions(shotdata: pd.DataFrame, smoothed_results: pd.DataFrame):
-    """
-    Interpolates smoothed positions onto shotdata ping and return times.
+    """Interpolates smoothed positions onto shotdata ping and return times.
+
+    Parameters
+    ----------
+    shotdata : pd.DataFrame
+        The shotdata DataFrame.
+    smoothed_results : pd.DataFrame
+        The smoothed results DataFrame.
+
+    Returns
+    -------
+    pd.DataFrame
+        The updated shotdata DataFrame.
     """
     if smoothed_results.empty:
         logger.loginfo("No smoothed results to interpolate from.")
@@ -326,14 +350,15 @@ def update_shotdata_with_smoothed_positions(shotdata: pd.DataFrame, smoothed_res
     return shotdata
 
 def filter_spatial_outliers(df: pd.DataFrame, radius: float = 5000) -> pd.DataFrame:
-    """
-    Filters out rows in the DataFrame that are outside a specified radius from the median ECEF position.
+    """Filters out rows that are outside a specified radius from the median ECEF position.
+
     Parameters
     ----------
     df : pd.DataFrame
         Input DataFrame containing ECEF position columns 'ant_x', 'ant_y', 'ant_z'.
     radius : float
         Radius in meters to define the acceptable range from the median position.
+
     Returns
     -------
     pd.DataFrame
@@ -361,38 +386,37 @@ def main(
     start_dt=constants.start_dt,
     filter_radius=5000,
  ) -> pd.DataFrame:
-    """
-        Refines shotdata using GNSS and IMU data through Kalman filtering and smoothing.
+    """Refines shotdata using GNSS and IMU data through Kalman filtering and smoothing.
 
-        Parameters
-        ----------
-        shotdata : pd.DataFrame
-            DataFrame containing shot event data to be refined.
-        kin_positions : pd.DataFrame
-            DataFrame containing kinematic GNSS positions.
-        positions_data : pd.DataFrame
-            DataFrame containing original positions data.
-        gnss_pos_psd : float or array-like, optional
-            GNSS position process noise spectral density (default: constants.GNSS_POS_PSD).
-        vel_psd : float or array-like, optional
-            Velocity process noise spectral density (default: constants.VEL_PSD).
-        cov_err : float or array-like, optional
-            Initial covariance error (default: constants.COV_ERR).
-        start_dt : float or pd.Timestamp, optional
-            Start datetime for filtering (default: constants.START_DT).
-        filter_radius : float, optional
-            Radius for spatial outlier filtering in meters (default: 5000).
+    Parameters
+    ----------
+    shotdata : pd.DataFrame
+        DataFrame containing shot event data to be refined.
+    kin_positions : pd.DataFrame
+        DataFrame containing kinematic GNSS positions.
+    positions_data : pd.DataFrame
+        DataFrame containing original positions data.
+    gnss_pos_psd : float or array-like, optional
+        GNSS position process noise spectral density (default: constants.GNSS_POS_PSD).
+    vel_psd : float or array-like, optional
+        Velocity process noise spectral density (default: constants.VEL_PSD).
+    cov_err : float or array-like, optional
+        Initial covariance error (default: constants.COV_ERR).
+    start_dt : float or pd.Timestamp, optional
+        Start datetime for filtering (default: constants.START_DT).
+    filter_radius : float, optional
+        Radius for spatial outlier filtering in meters (default: 5000).
 
-        Returns
-        -------
-        pd.DataFrame
-            Updated shotdata DataFrame with refined positions and antenna offsets.
+    Returns
+    -------
+    pd.DataFrame
+        Updated shotdata DataFrame with refined positions and antenna offsets.
 
-        Notes
-        -----
-        - Combines positions and kinematic GNSS data, filters spatial outliers, and applies Kalman filter smoothing.
-        - Merges smoothed results with original and kinematic positions for offset analysis.
-        - Updates shotdata with refined positions and prints summary statistics of antenna offsets.
+    Notes
+    -----
+    - Combines positions and kinematic GNSS data, filters spatial outliers, and applies Kalman filter smoothing.
+    - Merges smoothed results with original and kinematic positions for offset analysis.
+    - Updates shotdata with refined positions and prints summary statistics of antenna offsets.
     """
 
     if positions_data.empty:
@@ -445,15 +469,27 @@ def merge_shotdata_kinposition(
     dates: List[datetime64],
     filter_radius: float = 5000,
 ) -> TDBShotDataArray:
-    """
-    Merge the shotdata and kin_position data
+    """Merge the shotdata and kin_position data.
 
-    Args:
-        shotdata_pre (TDBShotDataArray): the DFOP00 data
-        shotdata (TDBShotDataArray): The shotdata array to write to
-        kin_position (TDBKinPositionArray): The TileDB KinPosition array
-        dates (List[datetime64]): The dates to merge
-        filter_radius (float, optional): Radius for spatial outlier filtering in meters (default: 5000).
+    Parameters
+    ----------
+    shotdata_pre : TDBShotDataArray
+        The DFOP00 data.
+    shotdata : TDBShotDataArray
+        The shotdata array to write to.
+    kin_position : TDBKinPositionArray
+        The TileDB KinPosition array.
+    position_data : TDBIMUPositionArray
+        The TileDB IMU position array.
+    dates : List[datetime64]
+        The dates to merge.
+    filter_radius : float, optional
+        Radius for spatial outlier filtering in meters, by default 5000.
+
+    Returns
+    -------
+    TDBShotDataArray
+        The updated shotdata array.
     """
 
     logger.loginfo("Merging shotdata and kin_position data")

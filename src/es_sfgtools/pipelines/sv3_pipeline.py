@@ -56,27 +56,39 @@ def rinex_to_kin_wrapper(
     site: str,
     pride_config: PrideCLIConfig,
 ) -> tuple[Optional[AssetEntry], Optional[AssetEntry]]:
-    """
-    Wrapper function to convert a RINEX file to KIN format using PRIDE configuration.
+    """Wrapper function to convert a RINEX file to KIN format using PRIDE configuration.
 
-    This function takes a tuple containing an AssetEntry for the RINEX file and the path to the PRIDE configuration file,
-    along with directories for writing output and PRIDE processing, the site name, and a PRIDE CLI configuration object.
-    It updates the PRIDE configuration with the provided config file path, then calls `rinex_to_kin` to perform the conversion.
-    If successful, it returns AssetEntry objects for the generated KIN file and its residuals file; otherwise, returns (None, None).
+    This function takes a tuple containing an AssetEntry for the RINEX file and the
+    path to the PRIDE configuration file, along with directories for writing
+    output and PRIDE processing, the site name, and a PRIDE CLI configuration
+    object. It updates the PRIDE configuration with the provided config file
+    path, then calls `rinex_to_kin` to perform the conversion. If successful,
+    it returns AssetEntry objects for the generated KIN file and its
+    residuals file; otherwise, returns (None, None).
 
-    :param rinex_prideconfig_path: Tuple containing the RINEX AssetEntry and PRIDE config file path.
-    :type rinex_prideconfig_path: tuple[AssetEntry, Path]
-    :param writedir: Directory where output files should be written.
-    :type writedir: Path
-    :param pridedir: Directory for PRIDE processing.
-    :type pridedir: Path
-    :param site: Name of the site/station.
-    :type site: str
-    :param pride_config: PRIDE CLI configuration object.
-    :type pride_config: PrideCLIConfig
-    :return: AssetEntry for the generated KIN file and AssetEntry for the residuals file, or (None, None) if conversion fails.
-    :rtype: tuple[Optional[AssetEntry], Optional[AssetEntry]]
-    :raises Exception: If an error occurs during AssetEntry creation for KIN or RES file.
+    Parameters
+    ----------
+    rinex_prideconfig_path : tuple[AssetEntry, Path]
+        Tuple containing the RINEX AssetEntry and PRIDE config file path.
+    writedir : Path
+        Directory where output files should be written.
+    pridedir : Path
+        Directory for PRIDE processing.
+    site : str
+        Name of the site/station.
+    pride_config : PrideCLIConfig
+        PRIDE CLI configuration object.
+
+    Returns
+    -------
+    tuple[Optional[AssetEntry], Optional[AssetEntry]]
+        AssetEntry for the generated KIN file and AssetEntry for the
+        residuals file, or (None, None) if conversion fails.
+
+    Raises
+    ------
+    Exception
+        If an error occurs during AssetEntry creation for KIN or RES file.
     """
 
     rinex_entry, pride_config_path = rinex_prideconfig_path
@@ -125,10 +137,10 @@ def rinex_to_kin_wrapper(
     return kin_entry, resfile_entry
 
 class SV3Pipeline:
-    """
-    Orchestrates the end-to-end processing of Sonardyne SV3 and Novatel GNSS data for seafloor geodesy.
+    """Orchestrates the end-to-end processing of Sonardyne SV3 and Novatel GNSS data for seafloor geodesy.
     
-    This class manages a comprehensive workflow for processing seafloor geodesy data, including:
+    This class manages a comprehensive workflow for processing seafloor geodesy
+    data, including:
     
     1. **GNSS Data Preprocessing**:
        - Processes Novatel 770 binary files (primary GNSS observations)
@@ -160,78 +172,68 @@ class SV3Pipeline:
        - Processes CTD and Seabird files
        - Generates sound velocity profiles for acoustic corrections
     
-    The pipeline operates on a hierarchical directory structure (network/station/campaign)
-    and uses TileDB for efficient storage and retrieval of time-series data.
+    The pipeline operates on a hierarchical directory structure
+    (network/station/campaign) and uses TileDB for efficient storage and
+    retrieval of time-series data.
     
-    :ivar directory_handler: Manages the project directory structure, including network, station, and campaign directories.
-    :vartype directory_handler: DirectoryHandler
-    :ivar config: Configuration settings for all pipeline steps, including Novatel, RINEX, PRIDE, DFOP00, and position update configs.
-    :vartype config: SV3PipelineConfig
-    :ivar asset_catalog: SQLite-based catalog for tracking processed assets and their relationships (parent-child, merge jobs).
-    :vartype asset_catalog: PreProcessCatalog
-    :ivar currentNetwork: Current network identifier (e.g., "cascadia-gorda")
-    :vartype currentNetwork: str
-    :ivar currentStation: Current station identifier (e.g., "NCC1")
-    :vartype currentStation: str
-    :ivar currentCampaign: Current campaign identifier (e.g., "2023_A_1126")
-    :vartype currentCampaign: str
-    :ivar currentNetworkDir: Directory object for current network.
-    :vartype currentNetworkDir: NetworkDir
-    :ivar currentStationDir: Directory object for current station.
-    :vartype currentStationDir: StationDir
-    :ivar currentCampaignDir: Directory object for current campaign.
-    :vartype currentCampaignDir: CampaignDir
-    :ivar shotDataPreTDB: Preliminary shotdata (before position refinement).
-    :vartype shotDataPreTDB: TDBShotDataArray
-    :ivar kinPositionTDB: High-precision kinematic positions.
-    :vartype kinPositionTDB: TDBKinPositionArray
-    :ivar imuPositionTDB: IMU-derived positions (from Novatel 000).
-    :vartype imuPositionTDB: TDBIMUPositionArray
-    :ivar shotDataFinalTDB: Final shotdata (after position refinement).
-    :vartype shotDataFinalTDB: TDBShotDataArray
-    :ivar gnssObsTDBURI: Primary GNSS observation array (from Novatel 770).
-    :vartype gnssObsTDBURI: Path
-    :ivar gnssObsTDB_secondaryURI: Secondary GNSS observation array (from Novatel 000).
-    :vartype gnssObsTDB_secondaryURI: Path
+    Attributes
+    ----------
+    directory_handler : DirectoryHandler
+        Manages the project directory structure, including network, station,
+        and campaign directories.
+    config : SV3PipelineConfig
+        Configuration settings for all pipeline steps, including Novatel,
+        RINEX, PRIDE, DFOP00, and position update configs.
+    asset_catalog : PreProcessCatalog
+        SQLite-based catalog for tracking processed assets and their
+        relationships (parent-child, merge jobs).
+    currentNetwork : str
+        Current network identifier (e.g., "cascadia-gorda").
+    currentStation : str
+        Current station identifier (e.g., "NCC1").
+    currentCampaign : str
+        Current campaign identifier (e.g., "2023_A_1126").
+    currentNetworkDir : NetworkDir
+        Directory object for current network.
+    currentStationDir : StationDir
+        Directory object for current station.
+    currentCampaignDir : CampaignDir
+        Directory object for current campaign.
+    shotDataPreTDB : TDBShotDataArray
+        Preliminary shotdata (before position refinement).
+    kinPositionTDB : TDBKinPositionArray
+        High-precision kinematic positions.
+    imuPositionTDB : TDBIMUPositionArray
+        IMU-derived positions (from Novatel 000).
+    shotDataFinalTDB : TDBShotDataArray
+        Final shotdata (after position refinement).
+    gnssObsTDBURI : Path
+        Primary GNSS observation array (from Novatel 770).
+    gnssObsTDB_secondaryURI : Path
+        Secondary GNSS observation array (from Novatel 000).
 
-    .. py:method:: setNetworkStationCampaign(network, station, campaign)
-
-        Set the current processing context and initialize directories and TileDB arrays.
-
-    .. py:method:: _build_rinex_metadata()
-
+    Methods
+    -------
+    setNetworkStationCampaign(network, station, campaign)
+        Set the current processing context and initialize directories and
+        TileDB arrays.
+    _build_rinex_metadata()
         Prepare metadata for RINEX file generation from GNSS observations.
-
-    .. py:method:: pre_process_novatel()
-
+    pre_process_novatel()
         Preprocess Novatel 770 and 000 binary files into TileDB arrays.
-
-    .. py:method:: get_rinex_files()
-
+    get_rinex_files()
         Generate daily RINEX files from TileDB GNSS observations.
-
-    .. py:method:: process_rinex()
-
+    process_rinex()
         Process RINEX files using PRIDE-PPPAR to generate Kinematic files.
-
-    .. py:method:: process_kin()
-
+    process_kin()
         Convert Kinematic files to structured dataframes and store in TileDB.
-
-    .. py:method:: process_dfop00()
-
+    process_dfop00()
         Process Sonardyne DFOP00 files to generate preliminary shotdata.
-
-    .. py:method:: update_shotdata()
-
+    update_shotdata()
         Refine shotdata by interpolating high-precision GNSS positions.
-
-    .. py:method:: process_svp()
-
+    process_svp()
         Process CTD and Seabird files to generate sound velocity profiles.
-
-    .. py:method:: run_pipeline()
-
+    run_pipeline()
         Execute the full processing pipeline in sequence.
     """
 
@@ -240,8 +242,7 @@ class SV3Pipeline:
         directory_handler: DirectoryHandler = None,
         config: SV3PipelineConfig = None,
     ):
-        """
-        Initializes the SV3Pipeline with directory handler and configuration.
+        """Initializes the SV3Pipeline with directory handler and configuration.
         
         Sets up the pipeline with necessary infrastructure including:
         - Directory structure management
@@ -249,15 +250,26 @@ class SV3Pipeline:
         - Configuration for all processing steps
         - Context attributes (network, station, campaign)
         
-        :param directory_handler: Handler for managing project directory structure. Must be provided and should already be built.
-        :type directory_handler: DirectoryHandler, optional
-        :param config: Configuration settings for the pipeline. If None, uses default configuration. Defaults to None.
-        :type config: Optional[SV3PipelineConfig], optional
-        :raises AttributeError: If directory_handler is None or doesn't have asset_catalog_db_path
-        
-        .. note::
-            The pipeline will not be ready for processing until :py:meth:`setNetworkStationCampaign`
-            is called to establish the processing context.
+        Parameters
+        ----------
+        directory_handler : DirectoryHandler, optional
+            Handler for managing project directory structure. Must be provided
+            and should already be built.
+        config : Optional[SV3PipelineConfig], optional
+            Configuration settings for the pipeline. If None, uses default
+            configuration. Defaults to None.
+            
+        Raises
+        ------
+        AttributeError
+            If directory_handler is None or doesn't have
+            asset_catalog_db_path.
+            
+        Notes
+        -----
+        The pipeline will not be ready for processing until
+        :meth:`setNetworkStationCampaign` is called to establish the
+        processing context.
         """
         # Store directory handler and configuration
         self.directory_handler = directory_handler
@@ -292,10 +304,10 @@ class SV3Pipeline:
         campaign: str,
     
     ) -> None:
-        """
-        Set the current network, station, and campaign context for pipeline processing.
+        """Set the current network, station, and campaign context for pipeline processing.
         
-        This method establishes the processing context and performs several initialization tasks:
+        This method establishes the processing context and performs several
+        initialization tasks:
         1. Resets previous context
         2. Validates data availability
         3. Creates directory structure
@@ -303,12 +315,14 @@ class SV3Pipeline:
         5. Configures logging
         6. Prepares RINEX metadata
         
-        :param network: Network identifier (e.g., "cascadia-gorda").
-        :type network: str
-        :param station: Station identifier (e.g., "NCC1").
-        :type station: str
-        :param campaign: Campaign identifier (e.g., "2023_A_1126").
-        :type campaign: str
+        Parameters
+        ----------
+        network : str
+            Network identifier (e.g., "cascadia-gorda").
+        station : str
+            Station identifier (e.g., "NCC1").
+        campaign : str
+            Campaign identifier (e.g., "2023_A_1126").
         """
 
         # Reset current attributes
@@ -365,14 +379,14 @@ class SV3Pipeline:
         self._build_rinex_meta()
 
     def _build_rinex_meta(self) -> None:
-        """
-        Build RINEX metadata files for the current campaign if they don't exist.
+        """Build RINEX metadata files for the current campaign if they don't exist.
         
         Creates two metadata files:
         - rinex_metav2.json: Updated format with metadata
         - rinex_metav1.json: Legacy format for backward compatibility
         
-        These files contain station-specific information needed for RINEX generation.
+        These files contain station-specific information needed for RINEX
+        generation.
         """
 
         # Get the RINEX metadata
@@ -395,20 +409,20 @@ class SV3Pipeline:
         self.config.rinex_config.settings_path = rinex_metav2
 
     def pre_process_novatel(self) -> None:
-        """
-        Preprocess Novatel 770 and 000 binary files for the current context.
+        """Preprocess Novatel 770 and 000 binary files for the current context.
         
-        :rtype: None
-        :raises Exception: If no Novatel 770 or 000 files are found.
-
         Processing steps:
         1. **Novatel 770**: Extracts GNSS observations to primary TileDB array
-        2. **Novatel 000**: Extracts GNSS observations to secondary array + IMU positions
+        2. **Novatel 000**: Extracts GNSS observations to secondary array + IMU
+           positions
         
-        Both steps check if processing is needed (via override config or merge status)
-        and update the asset catalog upon completion.
-
-
+        Both steps check if processing is needed (via override config or merge
+        status) and update the asset catalog upon completion.
+        
+        Raises
+        ------
+        Exception
+            If no Novatel 770 or 000 files are found.
         """
 
         """
@@ -521,8 +535,7 @@ class SV3Pipeline:
             raise NoNovatelFound(f"No Novatel 770 or 000 files found for {self.currentNetwork} {self.currentStation} {self.currentCampaign}. Cannot proceed with GNSS processing.")
 
     def get_rinex_files(self) -> None:
-        """
-        Generate and catalog daily RINEX files for the current campaign.
+        """Generate and catalog daily RINEX files for the current campaign.
         
         Steps:
         1. Consolidates GNSS observation data
@@ -531,8 +544,12 @@ class SV3Pipeline:
         4. Creates AssetEntry for each RINEX file
         5. Updates asset catalog with merge job
         
-        :raises ValueError: If a processing year cannot be determined from the campaign name.
-        :raises Exception: If an error occurs during RINEX file generation.
+        Raises
+        ------
+        ValueError
+            If a processing year cannot be determined from the campaign name.
+        Exception
+            If an error occurs during RINEX file generation.
         """
 
         rinexDestination = self.currentCampaignDir.intermediate
@@ -634,8 +651,7 @@ class SV3Pipeline:
             )
 
     def process_rinex(self) -> None:
-        """
-        Run PRIDE-PPP on RINEX files to generate KIN and residual files.
+        """Run PRIDE-PPP on RINEX files to generate KIN and residual files.
         
         Processing steps:
         1. Retrieves RINEX files needing processing
@@ -643,7 +659,8 @@ class SV3Pipeline:
         3. Runs PRIDE-PPPAR in parallel to convert RINEX to KIN format
         4. Adds KIN and residual files to asset catalog
         
-        Uses multiprocessing for efficient parallel processing of multiple RINEX files.
+        Uses multiprocessing for efficient parallel processing of multiple RINEX
+        files.
         """
 
         response = f"Running PRIDE-PPPAR on Rinex Data for {self.currentNetwork} {self.currentStation} {self.currentCampaign}. This may take a few minutes..."
@@ -768,8 +785,7 @@ class SV3Pipeline:
         ProcessLogger.loginfo(response)
 
     def process_kin(self):
-        """
-        Process KIN files to generate kinematic position dataframes.
+        """Process KIN files to generate kinematic position dataframes.
         
         Steps:
         1. Retrieves KIN files needing processing
@@ -825,12 +841,12 @@ class SV3Pipeline:
         )
 
     def process_dfop00(self) -> None:
-        """
-        Process Sonardyne DFOP00 files to generate preliminary shotdata.
+        """Process Sonardyne DFOP00 files to generate preliminary shotdata.
         
         Steps:
         1. Retrieves DFOP00 files needing processing
-        2. Converts each file to shotdata dataframe (acoustic ping-reply sequences)
+        2. Converts each file to shotdata dataframe (acoustic ping-reply
+           sequences)
         3. Writes dataframes to preliminary shotdata TileDB array
         4. Marks files as processed in asset catalog
         
@@ -877,18 +893,18 @@ class SV3Pipeline:
         ProcessLogger.loginfo(response)
 
     def update_shotdata(self):
-        """
-        Refine shotdata with interpolated high-precision kinematic positions.
+        """Refine shotdata with interpolated high-precision kinematic positions.
         
         Steps:
-        1. Gets merge signature from preliminary shotdata and kinematic position arrays
+        1. Gets merge signature from preliminary shotdata and kinematic
+           position arrays
         2. Checks if refinement is needed (via override or merge status)
         3. Merges shotdata with interpolated kinematic positions
         4. Writes refined shotdata to final TileDB array
         5. Records merge job in asset catalog
         
-        This step significantly improves position accuracy by replacing GNSS positions
-        with interpolated PRIDE-PPP solutions.
+        This step significantly improves position accuracy by replacing GNSS
+        positions with interpolated PRIDE-PPP solutions.
         """
 
         ProcessLogger.loginfo("Updating shotdata with interpolated KinPosition data")
@@ -923,18 +939,21 @@ class SV3Pipeline:
             self.asset_catalog.add_merge_job(**merge_job)
 
     def process_svp(self, override: bool = False) -> None:
-        """
-        Process CTD and Seabird files to generate sound velocity profiles (SVP).
+        """Process CTD and Seabird files to generate sound velocity profiles (SVP).
         
-        :param override: If True, forces reprocessing even if SVP file exists. Default is False.
-        :type override: bool, optional
-
         Processing order:
         1. Tries CTD files with CTD_to_svp_v2
         2. If that fails, tries CTD_to_svp_v1
         3. If still no success, tries Seabird files
         
-        The first successful SVP is saved to the campaign directory and processing stops.
+        The first successful SVP is saved to the campaign directory and
+        processing stops.
+        
+        Parameters
+        ----------
+        override : bool, optional
+            If True, forces reprocessing even if SVP file exists. Default is
+            False.
         """
         svp_df_destination = self.currentCampaignDir.svp_file
         if svp_df_destination.exists() and not override:
@@ -992,8 +1011,7 @@ class SV3Pipeline:
                 continue
 
     def run_pipeline(self):
-        """
-        Execute the complete SV3 data processing pipeline in sequence.
+        """Execute the complete SV3 data processing pipeline in sequence.
         
         Pipeline steps (in order):
         1. pre_process_novatel(): Process Novatel GNSS data
@@ -1004,7 +1022,8 @@ class SV3Pipeline:
         6. update_shotdata(): Refine shotdata with high-precision positions
         7. process_svp(): Generate sound velocity profile
         
-        Each step checks if processing is needed via config overrides or catalog status.
+        Each step checks if processing is needed via config overrides or
+        catalog status.
         """
         if (
             self.currentNetwork is None

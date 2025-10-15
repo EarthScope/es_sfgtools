@@ -14,18 +14,27 @@ from .vessel import Vessel
 
 
 def campaign_checks(campaign_year, campaign_interval, vessel_code):
-    """
-    Checks the campaign year, interval, and vessel code for validity.
+    """Checks the campaign year, interval, and vessel code for validity.
 
-    :param campaign_year: The campaign year (e.g., "2023").
-    :type campaign_year: str
-    :param campaign_interval: The campaign interval (e.g., "A").
-    :type campaign_interval: str
-    :param vessel_code: The 4-character vessel code.
-    :type vessel_code: str
-    :return: A tuple containing the formatted campaign name and the uppercase vessel code.
-    :rtype: Tuple[str, str]
-    :raises ValueError: If the campaign year, interval, or vessel code are invalid.
+    Parameters
+    ----------
+    campaign_year : str
+        The campaign year (e.g., "2023").
+    campaign_interval : str
+        The campaign interval (e.g., "A").
+    vessel_code : str
+        The 4-character vessel code.
+
+    Returns
+    -------
+    Tuple[str, str]
+        A tuple containing the formatted campaign name and the uppercase
+        vessel code.
+
+    Raises
+    ------
+    ValueError
+        If the campaign year, interval, or vessel code are invalid.
     """
     if not campaign_year.isnumeric() or not len(campaign_year) == 4:
         raise ValueError("Campaign year must be a 4 digit year")
@@ -51,14 +60,22 @@ class SurveyType(str, Enum):
     OTHER = "other"
 
 def classify_survey_type(survey_type: str) -> SurveyType:
-    """
-    Classifies the survey type based on the provided string.
+    """Classifies the survey type based on the provided string.
 
-    :param survey_type: The survey type as a string.
-    :type survey_type: str
-    :return: The classified SurveyType.
-    :rtype: SurveyType
-    :raises ValueError: If the survey type is not recognized.
+    Parameters
+    ----------
+    survey_type : str
+        The survey type as a string.
+
+    Returns
+    -------
+    SurveyType
+        The classified SurveyType.
+
+    Raises
+    ------
+    ValueError
+        If the survey type is not recognized.
     """
     survey_type = survey_type.lower()
     if match(r"^(circle|circledrive|circle drive)$", survey_type):
@@ -174,10 +191,12 @@ class Campaign(AttributeUpdater, BaseModel):
     )(check_fields_for_empty_strings)
 
     def check_survey_times(self):
-        """
-        Checks that survey times within the campaign do not overlap with each other.
+        """Checks that survey times within the campaign do not overlap.
 
-        :raises ValueError: If any survey times overlap.
+        Raises
+        ------
+        ValueError
+            If any survey times overlap.
         """
         # TODO test this
 
@@ -202,14 +221,22 @@ class Campaign(AttributeUpdater, BaseModel):
     #     return {k:v for k,v in self if k not in to_omit}
 
     def get_survey_by_datetime(self, dt: datetime) -> Survey:
-        """
-        Returns the survey that encompasses the given datetime.
+        """Returns the survey that encompasses the given datetime.
 
-        :param dt: The datetime to check against surveys.
-        :type dt: datetime
-        :return: The Survey object that contains the given datetime.
-        :rtype: Survey
-        :raises ValueError: If no survey is found for the given datetime.
+        Parameters
+        ----------
+        dt : datetime
+            The datetime to check against surveys.
+
+        Returns
+        -------
+        Survey
+            The Survey object that contains the given datetime.
+
+        Raises
+        ------
+        ValueError
+            If no survey is found for the given datetime.
         """
         for survey in self.surveys:
             if survey.start <= dt <= survey.end:
