@@ -636,7 +636,8 @@ class DataHandler:
                 site = source
                 # Write the site metadata to the station directory
                 with open(site_meta_write_dest, "w") as f:
-                    json.dump(site.model_dump(), f, indent=4)
+                    json_dict = json.loads(site.model_dump_json())
+                    json.dump(json_dict, f, indent=4)
                 site_meta_read_dest = site_meta_write_dest
                 logger.loginfo(
                     f"Using provided site metadata and wrote to {site_meta_write_dest}"
@@ -662,7 +663,7 @@ class DataHandler:
                     with open(site_meta_write_dest, "w") as f:
                         json_dict = json.loads(site.model_dump_json())
                         json.dump(json_dict, f, indent=4)
-    
+
                     site_meta_read_dest = site_meta_write_dest
                     logger.loginfo(
                         f"Downloaded site metadata from the ES archive to {site_meta_write_dest}"
