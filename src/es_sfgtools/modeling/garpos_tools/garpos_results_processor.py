@@ -1,4 +1,4 @@
-```
+
 """
 This module contains the GarposResultsProcessor class, which is responsible for processing and analyzing GARPOS results.
 """
@@ -62,18 +62,20 @@ class GarposResultsProcessor:
         """
         Plots the time series results for a given survey.
         
-        :param survey_id: The ID of the survey to plot results for.
-        :type survey_id: str
-        :param survey_type: Optional survey type to include in the title.
-        :type survey_type: str, optional
-        :param run_id: The GARPOS run ID to plot results for. Defaults to 0.
-        :type run_id: int | str, optional
-        :param res_filter: The residual filter value to apply. Defaults to 10.
-        :type res_filter: float, optional
-        :param savefig: Whether to save the figure as a PNG file. Defaults to False.
-        :type savefig: bool, optional
-        :param showfig: Whether to display the figure. Defaults to True.
-        :type showfig: bool, optional
+        Parameters
+        ----------
+        survey_id : str
+            The ID of the survey to plot results for.
+        survey_type : str, optional
+            Optional survey type to include in the title.
+        run_id : int or str, default 0
+            The GARPOS run ID to plot results for.
+        res_filter : float, default 10
+            The residual filter value to apply.
+        savefig : bool, default False
+            Whether to save the figure as a PNG file.
+        showfig : bool, default True
+            Whether to display the figure.
 
         """
         if (survey_dir := self.campaign_dir.surveys.get(survey_id)) is None:
@@ -277,4 +279,3 @@ class GarposResultsProcessor:
                 bbox_inches="tight",
                 pad_inches=0.1,
             )
-```

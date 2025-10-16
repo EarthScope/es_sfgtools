@@ -25,12 +25,22 @@ def seabird_to_soundvelocity(
     The function expects a file where data starts after a line containing "*END*".
     It extracts depth and speed values to create a SoundVelocityDataFrame.
 
-    :param source: The path to the Seabird data file.
-    :type source: Union[str, Path]
-    :returns: A DataFrame containing 'depth' and 'speed' columns.
-    :rtype: DataFrame[SoundVelocityDataFrame]
-    :raises FileNotFoundError: If the source file does not exist.
-    :raises ValueError: If no data is found in the file after the "*END*" marker.
+    Parameters
+    ----------
+    source : str or Path
+        The path to the Seabird data file.
+
+    Returns
+    -------
+    DataFrame[SoundVelocityDataFrame]
+        A DataFrame containing 'depth' and 'speed' columns.
+
+    Raises
+    ------
+    FileNotFoundError
+        If the source file does not exist.
+    ValueError
+        If no data is found in the file after the "*END*" marker.
     """
  
     with open(source, "r") as f:
@@ -75,10 +85,15 @@ def CTD_to_svp_v1(
 
     This function reads a CSV file, expecting two columns (depth and speed), and negates the depth values.
 
-    :param source: The path to the CTD data file.
-    :type source: Union[str, Path]
-    :returns: A DataFrame containing 'depth' and 'speed' columns.
-    :rtype: DataFrame[SoundVelocityDataFrame]
+    Parameters
+    ----------
+    source : str or Path
+        The path to the CTD data file.
+
+    Returns
+    -------
+    DataFrame[SoundVelocityDataFrame]
+        A DataFrame containing 'depth' and 'speed' columns.
     """
     df = pd.read_csv(source, names=["depth", "speed"])
     df["depth"] = -df["depth"]
@@ -96,10 +111,15 @@ def CTD_to_svp_v2(
     This function reads a space-separated file, renames columns to 'depth' and 'speed',
     negates depth values, and applies a small random adjustment to speed values.
 
-    :param source: The path to the CTD data file.
-    :type source: Union[str, Path]
-    :returns: A DataFrame containing 'depth' and 'speed' columns.
-    :rtype: DataFrame[SoundVelocityDataFrame]
+    Parameters
+    ----------
+    source : str or Path
+        The path to the CTD data file.
+
+    Returns
+    -------
+    DataFrame[SoundVelocityDataFrame]
+        A DataFrame containing 'depth' and 'speed' columns.
     """
     df = pd.read_csv(source, sep="\s+", names=["depth", "speed"])
     df["depth"] = -df["depth"]
@@ -118,13 +138,17 @@ def interpolate_svp(
     This function checks the maximum depth in the provided SVP DataFrame and, if necessary,
     extends the profile by adding interpolated values down to the specified additional depth.
 
-    :param svp: A DataFrame containing 'depth' and 'speed' columns.
-    :type svp: pd.DataFrame
-    :param additional_depth: The additional depth (in meters) to extend the SVP profile.
-                             Default is 200.0 meters.
-    :type additional_depth: float
-    :returns: A DataFrame with the interpolated SVP data.
-    :rtype: pd.DataFrame
+    Parameters
+    ----------
+    svp : pd.DataFrame
+        A DataFrame containing 'depth' and 'speed' columns.
+    additional_depth : float, default 200.0
+        The additional depth (in meters) to extend the SVP profile.
+
+    Returns
+    -------
+    pd.DataFrame
+        A DataFrame with the interpolated SVP data.
     """
     max_depth = svp['depth'].max()
 

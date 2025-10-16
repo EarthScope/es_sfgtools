@@ -279,7 +279,7 @@ class DataHandler:
         """
 
         files: List[Path] = scrape_directory_local(directory_path)
-        if len(files) == 0:
+        if not isinstance(files, list) or len(files) == 0:
             logger.logerr(
                 f"No files found in {directory_path}, ensure the directory is correct."
             )

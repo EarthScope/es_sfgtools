@@ -117,7 +117,7 @@ class WorkflowHandler:
 
         self.data_handler = DataHandler(directory=directory)
 
-    @check_network_station_campaign
+
     def change_working_station(
         self,
         network: str,
@@ -369,7 +369,7 @@ class WorkflowHandler:
         ...     primary_config={"novatel_config": {"n_processes": 8}}
         ... )
         """
-        assert job in pipeline_jobs, f"Job must be one of {pipeline_jobs}"
+        assert job in ['all', 'process_novatel', 'build_rinex', 'run_pride', 'process_kinematic', 'process_dfop00', 'refine_shotdata', 'process_svp'], f"Job must be one of {pipeline_jobs}"
 
         pipeline: SV3Pipeline = self.preprocess_get_pipeline_sv3(
             primary_config=primary_config, secondary_config=secondary_config
@@ -540,6 +540,7 @@ class WorkflowHandler:
         site_metadata: Optional[Union[Site, str]] = None,
         override: bool = False,
         write_intermediate: bool = False,
+        survey_id: Optional[str] = None,
     ) -> None:
         """Parses survey data for the current station.
 
@@ -557,10 +558,9 @@ class WorkflowHandler:
         ValueError
             If site metadata is not loaded.
         """
-        dataPostProcessor = self.midprocess_get_processor(site_metadata=site_metadata)
+        dataPostProcessor: IntermediateDataProcessor = self.midprocess_get_processor(site_metadata=site_metadata)
         dataPostProcessor.parse_surveys(
-            network=self.current_network,
-            station=self.current_station,
+            survey_id=survey_id,
             override=override,
             write_intermediate=write_intermediate,
         )
@@ -659,3 +659,43 @@ class WorkflowHandler:
             campaign=self.current_campaign,
         )
         return gp_handler
+    
+    @check_network_station_campaign
+    def modeling_run_garpos(
+        self,
+        survey_id: Optional[str] = None,
+        run_id: str = "Test",
+        iterations: int = 1,
+        override: bool = False,
+        custom_settings: Optional[dict] = None,
+    ) -> None:
+        """Runs GARPOS processing for the current station.
+
+        Parameters
+        ----------
+        survey_id : Optional[str], optional
+            Optional survey identifier to process. If None, processes all surveys, by default None.
+        run_id : str
+            Identifier for the GARPOS run.
+        iterations : int, optional
+            Number of GARPOS iterations to perform, by default 1.
+        site_metadata : Optional[Union[Site, str]], optional
+            Optional site metadata or path to metadata file. If not provided, it will be loaded if available.
+        override : bool, optional
+            If True, re-runs GARPOS even if results exist, by default False.
+        custom_settings : Optional[dict], optional
+            Custom settings to override GARPOS defaults, by default None.
+
+        Raises
+        ------
+        ValueError
+            If site metadata is not loaded.
+        """
+        gp_handler = self.modeling_get_garpos_handler()
+        gp_handler.run_garpos(
+            survey_id=survey_id,
+            run_id=run_id,
+            iterations=iterations,
+            override=override,
+            custom_settings=custom_settings,
+        )

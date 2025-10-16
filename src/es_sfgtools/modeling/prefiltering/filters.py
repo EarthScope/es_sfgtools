@@ -21,22 +21,27 @@ def filter_shotdata(
     """
     Filter the shot data based on the specified acoustic level and minimum ping replies.
 
-    :param survey_type: The type of survey.
-    :type survey_type: str
-    :param site: The site metadata.
-    :type site: Site
-    :param shot_data: The shot data to filter.
-    :type shot_data: pd.DataFrame
-    :param kinPostionTDBUri: The URI of the kinematic position TileDB array.
-    :type kinPostionTDBUri: str
-    :param start_time: The start time of the survey.
-    :type start_time: datetime
-    :param end_time: The end time of the survey.
-    :type end_time: datetime
-    :param custom_filters: Custom filters to apply. Defaults to None.
-    :type custom_filters: Optional[dict], optional
-    :return: The filtered shot data.
-    :rtype: pd.DataFrame
+    Parameters
+    ----------
+    survey_type : str
+        The type of survey.
+    site : Site
+        The site metadata.
+    shot_data : pd.DataFrame
+        The shot data to filter.
+    kinPostionTDBUri : str
+        The URI of the kinematic position TileDB array.
+    start_time : datetime
+        The start time of the survey.
+    end_time : datetime
+        The end time of the survey.
+    custom_filters : dict, optional
+        Custom filters to apply.
+
+    Returns
+    -------
+    pd.DataFrame
+        The filtered shot data.
     """
     if isinstance(survey_type,str):
         survey_type:SurveyType = classify_survey_type(survey_type)
@@ -190,14 +195,19 @@ def filter_dbv(df, dbv_min=-36, dbv_max=-3):
     OKAY: -26 to -36
     DIFFICULT (default): <-36 or >-3
 
-    :param df: DataFrame with shotdata.
-    :type df: pd.DataFrame
-    :param dbv_min: Minimum DBV threshold. Defaults to -36.
-    :type dbv_min: int, optional
-    :param dbv_max: Maximum DBV threshold. Defaults to -3.
-    :type dbv_max: int, optional
-    :return: Filtered DataFrame.
-    :rtype: pd.DataFrame
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame with shotdata.
+    dbv_min : int, default -36
+        Minimum DBV threshold.
+    dbv_max : int, default -3
+        Maximum DBV threshold.
+
+    Returns
+    -------
+    pd.DataFrame
+        Filtered DataFrame.
     """
     if "dbv" not in df.columns:
         logger.logerr("DBV column not found, skipping filter")
@@ -219,12 +229,17 @@ def filter_xc(df, xc_min=45):
     OKAY: 45-60
     DIFFICULT (Default): < 45
 
-    :param df: DataFrame with shotdata.
-    :type df: pd.DataFrame
-    :param xc_min: Minimum XC threshold. Defaults to 45.
-    :type xc_min: int, optional
-    :return: Filtered DataFrame.
-    :rtype: pd.DataFrame
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame with shotdata.
+    xc_min : int, default 45
+        Minimum XC threshold.
+
+    Returns
+    -------
+    pd.DataFrame
+        Filtered DataFrame.
     """
     if "xc" not in df.columns:
         logger.logerr("XC column not found, skipping filter")
@@ -246,18 +261,23 @@ def filter_acoustic_diagnostics(df, snr_min=12, dbv_min=-36, dbv_max=-3, xc_min=
     - Okay: SNR(12-20), DBV(-26 to -36), XC(45-60)
     - Difficult (default): SNR<12, DBV(<-36 or >-3), XC<45
 
-    :param df: DataFrame with shotdata.
-    :type df: pd.DataFrame
-    :param snr_min: Minimum SNR threshold.
-    :type snr_min: int, optional
-    :param dbv_min: Minimum DBV threshold.
-    :type dbv_min: int, optional
-    :param dbv_max: Maximum DBV threshold.
-    :type dbv_max: int, optional
-    :param xc_min: Minimum XC threshold.
-    :type xc_min: int, optional
-    :return: Filtered DataFrame.
-    :rtype: pd.DataFrame
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame with shotdata.
+    snr_min : int, optional
+        Minimum SNR threshold.
+    dbv_min : int, optional
+        Minimum DBV threshold.
+    dbv_max : int, optional
+        Maximum DBV threshold.
+    xc_min : int, optional
+        Minimum XC threshold.
+
+    Returns
+    -------
+    pd.DataFrame
+        Filtered DataFrame.
     """
 
     initial_count = len(df)
