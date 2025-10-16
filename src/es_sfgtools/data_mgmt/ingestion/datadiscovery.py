@@ -4,26 +4,8 @@ import warnings
 from pathlib import Path
 from typing import List, Union
 from es_sfgtools.logging import ProcessLogger as logger
-from ..assetcatalog.file_schemas import AssetType
-
-pattern_map = {
-    re.compile(r"\.\d{2}O$"): AssetType.RINEX,
-    re.compile("sonardyne"): AssetType.SONARDYNE,
-    re.compile(r"^(?=.*novatel)(?!.*pin).*$", re.IGNORECASE): AssetType.NOVATELPIN,
-    re.compile("novatel"): AssetType.NOVATEL,
-    re.compile("kin"): AssetType.KIN,
-    re.compile("NOV000"): AssetType.NOVATEL000,
-    # re.compile("rinex"): AssetType.RINEX,
-    re.compile(r"\.\d{2}o$"): AssetType.RINEX,
-    re.compile("NOV770"): AssetType.NOVATEL770,
-    re.compile("DFOP00.raw"): AssetType.DFOP00,
-    re.compile("lever_arms"): AssetType.LEVERARM,
-    re.compile("master"): AssetType.MASTER,
-    re.compile(r"\.pin$"): AssetType.QCPIN,
-    re.compile("CTD"): AssetType.CTD,
-    re.compile("svpavg"): AssetType.SEABIRD,
-    re.compile(r"\.res$"): AssetType.KINRESIDUALS,
-}
+from ..config import AssetType
+from .config import pattern_map
 
 def _get_time(line):
     """Gets the time from a RINEX file line.

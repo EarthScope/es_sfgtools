@@ -7,7 +7,7 @@ import yaml
 from pydantic import BaseModel, Field, field_serializer, field_validator
 
 # Local imports
-from ..pride_tools import PrideCLIConfig
+from es_sfgtools.pride_tools.pride_cli_config import PrideCLIConfig
 
 
 class NovatelConfig(BaseModel):

@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Optional
 import shutil
 
-from es_sfgtools.data_mgmt.directorymgmt.directory_handler import (
+from es_sfgtools.data_mgmt.directorymgmt.handler import (
     CampaignDir,
     DirectoryHandler,
     GARPOSSurveyDir,
@@ -84,18 +84,18 @@ class GarposHandler:
 
         self.garpos_results_processor: GarposResultsProcessor = None
 
-        self.currentCampaign: Campaign = None
-        self.currentSurvey: Survey = None
+        self.current_campaign: Campaign = None
+        self.current_survey: Survey = None
 
-        self.currentStation: str = None
-        self.currentNetwork: str = None
+        self.current_station: str = None
+        self.current_network: str = None
 
-        self.currentNetworkDir: NetworkDir = None
-        self.currentCampaignDir: CampaignDir = None
-        self.currentSurveyDir: SurveyDir = None
+        self.current_network_dir: NetworkDir = None
+        self.current_campaign_dir: CampaignDir = None
+        self.current_survey_dir: SurveyDir = None
         self.currentGarposSurveyDir: GARPOSSurveyDir = None
 
-    def setNetwork(self, network_id: str):
+    def set_network(self, network_id: str):
         """Sets the current network.
 
         Parameters
@@ -108,41 +108,41 @@ class GarposHandler:
         ValueError
             If the network is not found in the site metadata.
         """
-        self.currentNetwork = None
-        self.currentNetworkDir = None
+        self.current_network = None
+        self.current_network_dir = None
 
-        self.currentStation = None
-        self.currentStationDir = None
+        self.current_station = None
+        self.current_station_dir = None
 
-        self.currentCampaign = None
-        self.currentCampaignDir = None
+        self.current_campaign = None
+        self.current_campaign_dir = None
         self.garpos_results_processor = None
 
-        self.currentSurvey = None
-        self.currentSurveyDir = None
+        self.current_survey = None
+        self.current_survey_dir = None
 
         self.currentGarposSurveyDir = None
 
         # Set current network attributes
         for network_name in self.site.networks:
             if network_name == network_id:
-                self.currentNetwork = network_name
+                self.current_network = network_name
                 break
-        if self.currentNetwork is None:
+        if self.current_network is None:
             raise ValueError(f"Network {network_id} not found in site metadata.")
 
         if (
-            currentNetworkDir := self.directory_handler.networks.get(
-                self.currentNetwork, None
+            current_network_dir := self.directory_handler.networks.get(
+                self.current_network, None
             )
         ) is None:
-            currentNetworkDir = self.directory_handler.add_network(
-                name=self.currentNetwork
+            current_network_dir = self.directory_handler.add_network(
+                name=self.current_network
             )
 
-        self.currentNetworkDir = currentNetworkDir
+        self.current_network_dir = current_network_dir
 
-    def setStation(self, station_id: str):
+    def set_station(self, station_id: str):
         """Sets the current station.
 
         Parameters
@@ -156,34 +156,34 @@ class GarposHandler:
             If the station is not found in the site metadata.
         """
 
-        self.currentStation = None
-        self.currentStationDir = None
+        self.current_station = None
+        self.current_station_dir = None
 
-        self.currentCampaign = None
-        self.currentCampaignDir = None
+        self.current_campaign = None
+        self.current_campaign_dir = None
         self.garpos_results_processor = None
 
-        self.currentSurvey = None
-        self.currentSurveyDir = None
+        self.current_survey = None
+        self.current_survey_dir = None
 
         # Set current station attributes
         for station_name in self.site.names:
             if station_name == station_id:
-                self.currentStation = station_name
+                self.current_station = station_name
                 break
-        if self.currentStation is None:
+        if self.current_station is None:
             raise ValueError(f"Station {station_id} not found in site metadata.")
 
         if (
-            currentStationDir := self.currentNetworkDir.stations.get(
-                self.currentStation, None
+            current_station_dir := self.current_network_dir.stations.get(
+                self.current_station, None
             )
         ) is None:
             raise ValueError(f"Station {station_id} not found in directory handler. Please run intermediate data processing to create station directory.")
 
-        self.currentStationDir = currentStationDir
+        self.current_station_dir = current_station_dir
 
-    def setCampaign(self, campaign_id: str):
+    def set_campaign(self, campaign_id: str):
         """Sets the current campaign.
 
         Parameters
@@ -196,32 +196,32 @@ class GarposHandler:
         ValueError
             If the campaign is not found in the site metadata.
         """
-        self.currentCampaign = None
-        self.currentCampaignDir = None
+        self.current_campaign = None
+        self.current_campaign_dir = None
 
-        self.currentSurvey = None
-        self.currentSurveyDir = None
+        self.current_survey = None
+        self.current_survey_dir = None
 
         # Set current campaign attributes
 
         for campaign in self.site.campaigns:
             if campaign.name == campaign_id:
-                self.currentCampaign = campaign
+                self.current_campaign = campaign
                 break
-        if self.currentCampaign is None:
+        if self.current_campaign is None:
             raise ValueError(f"Campaign {campaign_id} not found in site metadata.")
 
         if (
-            currentCampaignDir := self.currentStationDir.campaigns.get(
-                self.currentCampaign.name, None
+            current_campaign_dir := self.current_station_dir.campaigns.get(
+                self.current_campaign.name, None
             )
         ) is None:
             raise ValueError(f"Campaign {campaign_id} not found in directory handler. Please run intermediate data processing to create campaign directory.")
 
-        self.currentCampaignDir = currentCampaignDir
-        self.garpos_results_processor = GarposResultsProcessor(self.currentCampaignDir)
+        self.current_campaign_dir = current_campaign_dir
+        self.garpos_results_processor = GarposResultsProcessor(self.current_campaign_dir)
 
-    def setSurvey(self, survey_id: str):
+    def set_survey(self, survey_id: str):
         """Sets the current survey.
 
         Parameters
@@ -236,38 +236,38 @@ class GarposHandler:
         """
         assert isinstance(survey_id, str), "survey_id must be a string"
 
-        self.currentSurvey = None
-        self.currentSurveyDir = None
+        self.current_survey = None
+        self.current_survey_dir = None
         # Set current survey attributes
-        for survey in self.currentCampaign.surveys:
+        for survey in self.current_campaign.surveys:
             if survey.id == survey_id:
-                self.currentSurvey = survey
+                self.current_survey = survey
                 break
-        if self.currentSurvey is None:
+        if self.current_survey is None:
             raise ValueError(
-                f"Survey {survey_id} not found in campaign {self.currentCampaign.name}."
+                f"Survey {survey_id} not found in campaign {self.current_campaign.name}."
             )
 
         if (
-            currentSurveyDir := self.currentCampaignDir.surveys.get(survey_id, None)
+            current_survey_dir := self.current_campaign_dir.surveys.get(survey_id, None)
         ) is None:
-            currentSurveyDir = self.currentCampaignDir.add_survey(name=survey_id)
+            current_survey_dir = self.current_campaign_dir.add_survey(name=survey_id)
 
-        if currentSurveyDir.shotdata is None or not currentSurveyDir.shotdata.exists():
+        if current_survey_dir.shotdata is None or not current_survey_dir.shotdata.exists():
             raise ValueError(f"Shotdata for survey {survey_id} not found in directory handler. Please run intermediate data processing to create shotdata file.")
 
-        self.currentSurveyDir = currentSurveyDir
+        self.current_survey_dir = current_survey_dir
 
         try:
-            if self.currentSurveyDir.garpos.shotdata_rectified.exists():
-                self.currentGarposSurveyDir = self.currentSurveyDir.garpos
+            if self.current_survey_dir.garpos.shotdata_rectified.exists():
+                self.currentGarposSurveyDir = self.current_survey_dir.garpos
                 logger.set_dir(self.currentGarposSurveyDir.log_directory)
                 return
         except Exception:
             pass
         raise ValueError(f"Rectified shotdata for survey {survey_id} not found in directory handler. Please run intermediate data processing to create rectified shotdata file.")
 
-    def setNetworkStationCampaign(self, network: str, station: str, campaign: str):
+    def set_network_station_campaign(self, network: str, station: str, campaign: str):
         """Sets the network, station, and campaign for the handler.
 
         Parameters
@@ -285,9 +285,9 @@ class GarposHandler:
             If the station, network, or campaign is not found in the site
             metadata.
         """
-        self.setNetwork(network)
-        self.setStation(station)
-        self.setCampaign(campaign)
+        self.set_network(network)
+        self.set_station(station)
+        self.set_campaign(campaign)
 
     def set_inversion_params(self, parameters: dict | InversionParams):
         """Set inversion parameters for the model.
@@ -400,7 +400,7 @@ class GarposHandler:
         logger.loginfo(f"Running GARPOS model for survey {survey_id}. Run ID: {run_id}")
 
         try:
-            self.setSurvey(survey_id=survey_id)
+            self.set_survey(survey_id=survey_id)
         except ValueError as e:
             logger.logwarn(f"Skipping survey {survey_id}: {e}")
             return
@@ -470,7 +470,7 @@ class GarposHandler:
         """
 
         logger.loginfo(f"Running GARPOS model. Run ID: {run_id}")
-        surveys = [s.id for s in self.currentCampaign.surveys] if survey_id is None else [survey_id]
+        surveys = [s.id for s in self.current_campaign.surveys] if survey_id is None else [survey_id]
 
         for survey_id in surveys:
             logger.loginfo(
@@ -505,13 +505,13 @@ class GarposHandler:
             If True, display the figure, by default True.
         """
         surveys_to_process = []
-        for survey in self.currentCampaign.surveys:
+        for survey in self.current_campaign.surveys:
             if survey.id == survey_id or survey_id is None:
                 surveys_to_process.append((survey.id,survey.type.value))
 
         for survey_id, survey_type in surveys_to_process:
             try:
-                self.setSurvey(survey_id)
+                self.set_survey(survey_id)
                 self.garpos_results_processor.plot_ts_results(
                     survey_id=survey_id,
                     survey_type=survey_type,
@@ -583,23 +583,23 @@ class GarposHandler:
 #                 )
 # 
 #         logger.loginfo(
-#             f"Checking catalog database for SVP, CTD, and SEABIRD files related to campaign {self.currentCampaign_name.name}.."
+#             f"Checking catalog database for SVP, CTD, and SEABIRD files related to campaign {self.current_campaign_name.name}.."
 #         )
 #         catalog = PreProcessCatalog(db_path=catalog_db_path)
 # 
 #         ctd_assets: List[AssetEntry] = catalog.get_ctds(
-#             station=self.currentStation_name, campaign=self.currentCampaign_name.name
+#             station=self.currentStation_name, campaign=self.current_campaign_name.name
 #         )
 # 
 #         if not ctd_assets:
 #             raise ValueError(
-#                 f"No SVP, CTD, or SEABIRD files found for campaign {self.currentCampaign_name.name} in the catalog, "
+#                 f"No SVP, CTD, or SEABIRD files found for campaign {self.current_campaign_name.name} in the catalog, "
 #                 "use the data handler add_ctds_to_catalog() to catalog available CTD files, or provide a local SVP file"
 #             )
 # 
 #         for file in ctd_assets:
 #             logger.loginfo(
-#                 f"Found {file.type} files related to campaign {self.currentCampaign_name.name}"
+#                 f"Found {file.type} files related to campaign {self.current_campaign_name.name}"
 #             )
 # 
 #         preferred_types = [AssetType.SVP, AssetType.CTD, AssetType.SEABIRD]

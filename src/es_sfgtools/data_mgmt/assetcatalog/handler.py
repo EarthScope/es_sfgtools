@@ -5,13 +5,15 @@ from typing import Dict, List
 import pandas as pd
 import sqlalchemy as sa
 
-from es_sfgtools.data_mgmt.assetcatalog.file_schemas import AssetEntry, AssetType
+from .schemas import AssetEntry
+from ..config.enums import AssetType
+
 from es_sfgtools.logging import ProcessLogger as logger
 
-from .database import Assets, Base, MergeJobs
+from .tables import Assets, Base, MergeJobs
 
 
-class PreProcessCatalog:
+class PreProcessCatalogHandler:
     """
     A class to handle the preprocessing catalog.
     """

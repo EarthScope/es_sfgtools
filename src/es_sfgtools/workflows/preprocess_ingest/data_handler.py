@@ -1,4 +1,5 @@
-""" Contains the DataHandler class for handling data operations. """
+"""Contains the DataHandler class for handling data operations."""
+
 import concurrent.futures
 import os
 import threading
@@ -24,7 +25,11 @@ from tqdm.auto import tqdm
 import json
 
 from es_sfgtools.data_mgmt.assetcatalog.handler import PreProcessCatalogHandler
-from es_sfgtools.data_mgmt.config.enums import REMOTE_TYPE, DEFAULT_FILE_TYPES_TO_DOWNLOAD, AssetType
+from es_sfgtools.data_mgmt.config.enums import (
+    REMOTE_TYPE,
+    DEFAULT_FILE_TYPES_TO_DOWNLOAD,
+    AssetType,
+)
 
 from es_sfgtools.data_mgmt.ingestion.datadiscovery import (
     get_file_type_local,
@@ -46,7 +51,7 @@ from es_sfgtools.data_models.metadata.site import Site
 from es_sfgtools.logging import ProcessLogger as logger
 from es_sfgtools.logging import change_all_logger_dirs
 from es_sfgtools.modeling.garpos_tools.garpos_handler import GarposHandler
-from es_sfgtools.workflows.pipelines.sv3_pipeline import SV3Pipeline, SV3PipelineConfig
+from es_sfgtools.workflows.preprocess_ingest.pipelines.sv3_pipeline import SV3Pipeline, SV3PipelineConfig
 from es_sfgtools.tiledb_tools.tiledb_schemas import (
     TDBAcousticArray,
     TDBGNSSObsArray,
@@ -59,10 +64,8 @@ from es_sfgtools.data_mgmt.ingestion.archive_pull import (
     list_campaign_files,
     load_site_metadata,
 )
-
+from es_sfgtools.data_mgmt.utils import check_network_station_campaign
 seaborn.set_theme(style="whitegrid")
-
-from .utils import check_network_station_campaign
 
 class DataHandler:
     """
@@ -100,7 +103,9 @@ class DataHandler:
 
         logger.set_dir(self.main_directory)
 
-        self.catalog = PreProcessCatalogHandler(self.directory_handler.asset_catalog_db_path)
+        self.catalog = PreProcessCatalogHandler(
+            self.directory_handler.asset_catalog_db_path
+        )
 
     def _build_station_dir_structure(self, network: str, station: str, campaign: str):
         """
@@ -119,8 +124,10 @@ class DataHandler:
             The name of the campaign.
         """
 
-        networkDir, stationDir, campaignDir, _ = self.directory_handler.build_station_directory(
-            network_name=network, station_name=station, campaign_name=campaign
+        networkDir, stationDir, campaignDir, _ = (
+            self.directory_handler.build_station_directory(
+                network_name=network, station_name=station, campaign_name=campaign
+            )
         )
         self.current_network_dir = networkDir
         self.current_station_dir = stationDir
@@ -146,7 +153,9 @@ class DataHandler:
         acoustic_tdb_uri = self.current_station_dir.tiledb_directory.acoustic_data
         self.acoustic_tdb = TDBAcousticArray(acoustic_tdb_uri)
 
-        kin_position_tdb_uri = self.directory_handler[self.current_network][self.current_station].tiledb_directory.kin_position_data
+        kin_position_tdb_uri = self.directory_handler[self.current_network][
+            self.current_station
+        ].tiledb_directory.kin_position_data
         self.kin_position_tdb = TDBKinPositionArray(kin_position_tdb_uri)
 
         imu_position_tdb_uri = self.current_station_dir.tiledb_directory.imu_position_data
@@ -167,12 +176,14 @@ class DataHandler:
 
         # this is the secondary GNSS observables (5hz NOV000 collected on USB2 for SV3)
         # can choose to use this instead of the primary GNSS observables if desired
-        gnss_obs_secondary_tdb_uri = self.current_station_dir.tiledb_directory.gnss_obs_data_secondary
-        self.gnss_obs_secondary_tdb = TDBGNSSObsArray(
-            gnss_obs_secondary_tdb_uri
+        gnss_obs_secondary_tdb_uri = (
+            self.current_station_dir.tiledb_directory.gnss_obs_data_secondary
         )
+        self.gnss_obs_secondary_tdb = TDBGNSSObsArray(gnss_obs_secondary_tdb_uri)
 
-        logger.loginfo(f"Consolidating existing TileDB arrays for {self.current_station}")
+        logger.loginfo(
+            f"Consolidating existing TileDB arrays for {self.current_station}"
+        )
         self.acoustic_tdb.consolidate()
         self.kin_position_tdb.consolidate()
         self.imu_position_tdb.consolidate()
@@ -185,8 +196,7 @@ class DataHandler:
         network: str,
         station: str,
         campaign: str,
-        site_metadata: Optional[Union[Site,Path,str]] = None,
-
+        site_metadata: Optional[Union[Site, Path, str]] = None,
     ):
         """
         Changes the operational context to a specific network, station, and campaign.
@@ -203,14 +213,26 @@ class DataHandler:
             Optional site metadata. If not provided, it will be loaded if available.
 
         """
-        assert isinstance(network, str) and network is not None, "Network must be a non-empty string"
-        assert isinstance(station, str) and station is not None, "Station must be a non-empty string"
-        assert isinstance(campaign, str) and campaign is not None, "Campaign must be a non-empty string"
+        assert (
+            isinstance(network, str) and network is not None
+        ), "Network must be a non-empty string"
+        assert (
+            isinstance(station, str) and station is not None
+        ), "Station must be a non-empty string"
+        assert (
+            isinstance(campaign, str) and campaign is not None
+        ), "Campaign must be a non-empty string"
 
-        assert site_metadata is None or isinstance(site_metadata, (Site, Path, str)), "Site metadata must be a Site, Path, or str"
+        assert site_metadata is None or isinstance(
+            site_metadata, (Site, Path, str)
+        ), "Site metadata must be a Site, Path, or str"
 
         getSiteMeta = False
-        if (self.current_network != network or self.current_station != station or self.currentSiteMetaData is None):
+        if (
+            self.current_network != network
+            or self.current_station != station
+            or self.currentSiteMetaData is None
+        ):
             getSiteMeta = True
 
         # Set class attributes & create the directory structure
@@ -224,7 +246,9 @@ class DataHandler:
 
         if getSiteMeta or site_metadata is not None:
             # Load site metadata
-            self.currentSiteMetaData = self.get_site_metadata(site_metadata=site_metadata)
+            self.currentSiteMetaData = self.get_site_metadata(
+                site_metadata=site_metadata
+            )
 
         logger.loginfo(f"Changed working station to {network} {station} {campaign}")
 
@@ -239,7 +263,9 @@ class DataHandler:
             A dictionary mapping data types to their counts.
         """
         return self.catalog.get_dtype_counts(
-            network=self.current_network, station=self.current_station, campaign=self.current_campaign
+            network=self.current_network,
+            station=self.current_station,
+            campaign=self.current_campaign,
         )
 
     @check_network_station_campaign
@@ -623,14 +649,18 @@ class DataHandler:
             f"Updating catalog with remote paths of available data for {self.current_network} {self.current_station} {self.current_campaign}"
         )
         remote_filepaths = list_campaign_files(
-            network=self.current_network, station=self.current_station, campaign=self.current_campaign
+            network=self.current_network,
+            station=self.current_station,
+            campaign=self.current_campaign,
         )
         self.add_data_remote(
             remote_filepaths=remote_filepaths, remote_type=REMOTE_TYPE.HTTP
         )
 
     @check_network_station_campaign
-    def get_site_metadata(self, site_metadata: Optional[Union[Site,Path]] = None) -> Optional[Site]:
+    def get_site_metadata(
+        self, site_metadata: Optional[Union[Site, Path]] = None
+    ) -> Optional[Site]:
         """
         Loads or validates site metadata for the current station.
 
@@ -651,7 +681,9 @@ class DataHandler:
 
         sources = [site_metadata, site_meta_write_dest]
         if site_metadata is None:
-            sources = sources[::-1]  # reverse the list to prioritize the station directory file
+            sources = sources[
+                ::-1
+            ]  # reverse the list to prioritize the station directory file
 
         for source in sources:
 
@@ -716,166 +748,3 @@ class DataHandler:
 
         return site
 
-    @check_network_station_campaign
-    def get_pipeline_sv3(self) -> Tuple[SV3Pipeline, SV3PipelineConfig]:
-        """
-        Initializes and returns an SV3 processing pipeline and its configuration.
-
-        Returns
-        -------
-        tuple of (SV3Pipeline, SV3PipelineConfig)
-            A tuple containing the pipeline and its config.
-        """
-
-        config = SV3PipelineConfig()
-        pipeline = SV3Pipeline(
-           directory_handler=self.directory_handler, config=config
-        )
-        pipeline.set_network_station_campaign(
-            network=self.current_network,
-            station=self.current_station,
-            campaign=self.current_campaign
-        )
-        return pipeline, config
-
-
-    def print_logs(self, log: Literal["base", "gnss", "process"]):
-        """
-        Prints the specified log to the console.
-
-        Parameters
-        ----------
-        log : {'base', 'gnss', 'process'}
-            The type of log to print.
-
-        Raises
-        ------
-        ValueError
-            If the specified log type is not recognized.
-        """
-        if log == "base":
-            logger.route_to_console()
-        elif log == "gnss":
-            pass # GNSS logger not implemented yet
-        elif log == "process":
-            pass # Process logger not implemented yet
-        else:
-            raise ValueError(
-                f"Log type {log} not recognized. Must be one of ['base','gnss','process']"
-            )
-
-    def parse_surveys(self,override:bool=False,write_intermediate:bool=False):
-        """
-        Parses survey data for a given site.
-
-        Parameters
-        ----------
-        override : bool, default False
-            If True, re-parses existing data.
-        write_intermediate : bool, default False
-            If True, writes intermediate files.
-
-        Raises
-        ------
-        ValueError
-            If site metadata is not loaded.
-        """
-        if self.currentSiteMetaData is None:
-            raise ValueError("Site metadata not loaded, cannot parse surveys")
-        
-        dataPostProcessor = IntermediateDataProcessor(
-            site=self.currentSiteMetaData,
-            directory_handler=self.directory_handler,
-        )
-        dataPostProcessor.parse_surveys(
-            network=self.current_network,
-            station=self.current_station,
-            override=override,
-            write_intermediate=write_intermediate,
-        )
-
-    @check_network_station_campaign
-    def prep_garpos(
-        self,
-                    custom_filters:dict = None,
-                    override:bool=False,
-                    write_intermediate:bool=False):
-        """
-        Prepares data for GARPOS processing.
-
-        Parameters
-        ----------
-        custom_filters : dict, optional
-            Custom filter settings for shot data preparation.
-        override : bool, default False
-            If True, re-prepares existing data.
-        write_intermediate : bool, default False
-            If True, writes intermediate files.
-        """
-        dataPostProcessor: IntermediateDataProcessor = self.getIntermediateDataProcessor()
-
-        dataPostProcessor.parse_surveys(
-            override=override,
-            write_intermediate=write_intermediate,
-        )
-        dataPostProcessor.prepare_shotdata_garpos(
-            custom_filters=custom_filters,
-            overwrite=override,
-        )
-
-    @check_network_station_campaign
-    def getIntermediateDataProcessor(self)->IntermediateDataProcessor:
-        """
-        Returns an instance of the IntermediateDataProcessor for the current station.
-
-        Returns
-        -------
-        IntermediateDataProcessor
-            An instance of IntermediateDataProcessor.
-
-        Raises
-        ------
-        ValueError
-            If site metadata is not loaded.
-        """
-        if self.currentSiteMetaData is None:
-            raise ValueError("Site metadata not loaded, cannot get IntermediateDataProcessor")
-        
-        dataPostProcessor = IntermediateDataProcessor(
-            site=self.currentSiteMetaData,
-            directory_handler=self.directory_handler,
-        )
-        dataPostProcessor.set_network(network_id=self.current_network)
-        dataPostProcessor.set_station(station_id=self.current_station)
-        dataPostProcessor.set_campaign(campaign_id=self.current_campaign)
-
-        return dataPostProcessor
-    
-    @check_network_station_campaign
-    def getGARPOSHandler(self)->GarposHandler:
-        """
-        Returns an instance of the GarposHandler for the current station.
-
-        Returns
-        -------
-        GarposHandler
-            An instance of GarposHandler.
-
-        Raises
-        ------
-        ValueError
-            If site metadata is not loaded.
-        """
-        if self.currentSiteMetaData is None:
-            raise ValueError("Site metadata not loaded, cannot get GarposHandler")
-        
-        gp_handler = GarposHandler(
-            directory_handler=self.directory_handler,
-            site=self.currentSiteMetaData,
-        )
-        gp_handler.set_network_station_campaign(
-            network=self.current_network,
-            station=self.current_station,
-            campaign=self.current_campaign,
-        )
-        return gp_handler

@@ -10,7 +10,7 @@ from matplotlib.colors import Normalize
 
 sns.set_theme()
 
-from es_sfgtools.modeling.garpos_tools.model_io import GPPositionENU, GPTransponder
+from .schemas import GPPositionENU, GPTransponder
 
 
 class DOYResult:

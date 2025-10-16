@@ -3,8 +3,9 @@ import ssl
 import urllib.request
 from pathlib import Path
 from typing import List, Optional
-
+from collections import defaultdict
 import boto3
+from es_sfgtools.data_mgmt.assetcatalog.schemas import AssetType
 import requests
 from earthscope_cli.login import login as es_login
 from earthscope_sdk import EarthScopeClient
@@ -13,6 +14,9 @@ from earthscope_sdk.config.settings import SdkSettings
 from es_sfgtools.data_models.metadata import Site, Vessel, import_site, import_vessel
 
 from ...logging import ProcessLogger as logger
+
+from .config import ARCHIVE_PREFIX
+from .datadiscovery import get_file_type_remote
 
 ssl._create_default_https_context = ssl._create_stdlib_context
 
@@ -199,7 +203,7 @@ def generate_archive_campaign_url(network, station, campaign):
     # Grab the year out of the campaign name
     year = campaign.split("_")[0]
 
-    return f"https://data.earthscope.org/archive/seafloor/{network}/{year}/{station}/{campaign}/raw"
+    return f"{ARCHIVE_PREFIX}{network}/{year}/{station}/{campaign}/raw"
 
 def generate_archive_campaign_metadata_url(network, station, campaign):
     """Generate a URL for campaign metadata in the public archive.
@@ -222,7 +226,7 @@ def generate_archive_campaign_metadata_url(network, station, campaign):
     # Grab the year out of the campaign name
     year = campaign.split("_")[0]
 
-    return f"https://data.earthscope.org/archive/seafloor/{network}/{year}/{station}/{campaign}/metadata"
+    return f"{ARCHIVE_PREFIX}/{network}/{year}/{station}/{campaign}/metadata"
 
 def generate_archive_site_json_url(network, station, profile: str = None) -> str:
     """Generate a URL for the site JSON file in the public archive.
@@ -242,9 +246,9 @@ def generate_archive_site_json_url(network, station, profile: str = None) -> str
         The URL of the site JSON file.
     """
     if profile == "prod" or profile is None:
-        return f"https://data.earthscope.org/archive/seafloor/metadata/{network}/{station}.json"
+        return f"{ARCHIVE_PREFIX}/metadata/{network}/{station}.json"
     elif profile == "dev":
-        return f"https://data.dev.earthscope.org/archive/seafloor/metadata/{network}/{station}.json"
+        return f"{ARCHIVE_PREFIX}/metadata/{network}/{station}.json"
     else:
         raise ValueError("Invalid profile specified.")
 
@@ -264,9 +268,9 @@ def generate_archive_vessel_json_url(vessel_code, profile: str = None) -> str:
         The URL of the vessel JSON file.
     """
     if profile == "prod" or profile is None:
-        return f"https://data.earthscope.org/archive/seafloor/metadata/vessels/{vessel_code}.json"
+        return f"{ARCHIVE_PREFIX}/metadata/vessels/{vessel_code}.json"
     elif profile == "dev":
-        return f"https://data.dev.earthscope.org/archive/seafloor/metadata/vessels/{vessel_code}.json"
+        return f"{ARCHIVE_PREFIX}/metadata/vessels/{vessel_code}.json"
     else:
         raise ValueError("Invalid profile specified.")
 
@@ -390,28 +394,12 @@ def list_file_counts_by_type(file_list: list, url: Optional[str] = None, show_lo
     dict
         Dictionary of files by type.
     """
-    file_dict = {}
+    file_dict = defaultdict(list)
     for file in file_list:
-        if "master" in file:
-            file_dict.setdefault("master", []).append(file)
-        elif "lever_arms" in file:
-            file_dict.setdefault("lever_arms", []).append(file)
-        elif "config.yaml" in file:
-            file_dict.setdefault("config", []).append(file)
-        elif "bcsonardyne" in file:
-            file_dict.setdefault("sonardyne", []).append(file)
-        elif "bcnovatel" in file:
-            file_dict.setdefault("novatel", []).append(file)
-        elif "bcoffload" in file:
-            file_dict.setdefault("offload", []).append(file)
-        elif file.endswith("NOV770.raw"):
-            file_dict.setdefault("NOV770", []).append(file)
-        elif file.endswith("DFOP00.raw"):
-            file_dict.setdefault("DFOP00", []).append(file)
-        elif file.endswith("NOV000.bin"):
-            file_dict.setdefault("NOV000", []).append(file)
-        elif "ctd" in file:
-            file_dict.setdefault("ctd", []).append(file)
+        file_type:AssetType = get_file_type_remote(file)
+
+        if file_type is not None:
+            file_dict[file_type.value].append(file)
 
     if show_logs:
         if url is not None:

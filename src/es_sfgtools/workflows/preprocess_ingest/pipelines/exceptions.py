@@ -30,3 +30,8 @@ class NoSVPFound(Exception):
     """Custom exception raised when no SVP files are found for processing."""
 
     pass
+
+class NoLocalData(Exception):
+    """Custom exception raised when no data is ingested for processing."""
+
+    pass

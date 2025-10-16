@@ -5,8 +5,8 @@ from typing import List
 import matplotlib.pyplot as plt
 import numpy as np
 
-from ..data_mgmt.assetcatalog.file_schemas import AssetEntry
-from ..processing.assets.tiledb import TDBKinPositionArray
+from es_sfgtools.data_mgmt.assetcatalog import AssetEntry
+from es_sfgtools.tiledb_tools.tiledb_schemas import TDBKinPositionArray
 
 UNIX_EPOCH = np.datetime64("1970-01-01T00:00:00Z")
 def to_timestamp(time:np.datetime64 | datetime.datetime) -> float:

@@ -11,21 +11,21 @@ from typing import List, Optional
 from tqdm.auto import tqdm
 
 # Local imports
-from ..data_mgmt.assetcatalog.catalog import PreProcessCatalog
-from ..data_mgmt.directorymgmt.directory_handler import (
+from es_sfgtools.data_mgmt.assetcatalog.handler import PreProcessCatalogHandler
+from es_sfgtools.data_mgmt.assetcatalog.schemas import AssetEntry, AssetType
+from es_sfgtools.data_mgmt.directorymgmt.handler import (
     CampaignDir,
     DirectoryHandler,
     NetworkDir,
     StationDir,
 )
-from ..data_mgmt.assetcatalog.file_schemas import AssetEntry, AssetType
-from ..data_mgmt.utils import (
+from es_sfgtools.data_mgmt.utils import (
     get_merge_signature_shotdata,
 )
-from ..logging import ProcessLogger, change_all_logger_dirs
-from ..novatel_tools import novatel_binary_operations as novb_ops
-from ..novatel_tools.utils import get_metadata, get_metadatav2
-from ..pride_tools import (
+from es_sfgtools.logging import ProcessLogger, change_all_logger_dirs
+from es_sfgtools.novatel_tools import novatel_binary_operations as novb_ops
+from es_sfgtools.novatel_tools.utils import get_metadata, get_metadatav2
+from es_sfgtools.pride_tools import (
     PrideCLIConfig,
     get_gnss_products,
     get_nav_file,
@@ -33,21 +33,21 @@ from ..pride_tools import (
     rinex_to_kin,
     rinex_utils,
 )
-from ..seafloor_site_tools.soundspeed_operations import (
+from es_sfgtools.seafloor_site_tools.soundspeed_operations import (
     CTD_to_svp_v1,
     CTD_to_svp_v2,
     seabird_to_soundvelocity,
 )
-from ..sonardyne_tools import sv3_operations as sv3_ops
-from ..tiledb_tools.tiledb_operations import tile2rinex
-from ..tiledb_tools.tiledb_schemas import (
+from es_sfgtools.sonardyne_tools import sv3_operations as sv3_ops
+from es_sfgtools.tiledb_tools.tiledb_operations import tile2rinex
+from es_sfgtools.tiledb_tools.tiledb_schemas import (
     TDBIMUPositionArray,
     TDBKinPositionArray,
     TDBShotDataArray,
 )
 from .config import SV3PipelineConfig
 from .shotdata_gnss_refinement import merge_shotdata_kinposition
-from .exceptions import NoRinexFound, NoNovatelFound,NoRinexBuilt,NoKinFound,NoDFOP00Found,NoSVPFound
+from .exceptions import NoRinexFound, NoNovatelFound,NoRinexBuilt,NoKinFound,NoDFOP00Found,NoSVPFound,NoLocalData
 
 def rinex_to_kin_wrapper(
     rinex_prideconfig_path: tuple[AssetEntry, Path],
@@ -187,17 +187,17 @@ class SV3Pipeline:
     asset_catalog : PreProcessCatalog
         SQLite-based catalog for tracking processed assets and their
         relationships (parent-child, merge jobs).
-    currentNetwork : str
+    current_network : str
         Current network identifier (e.g., "cascadia-gorda").
-    currentStation : str
+    current_station : str
         Current station identifier (e.g., "NCC1").
-    currentCampaign : str
+    current_campaign : str
         Current campaign identifier (e.g., "2023_A_1126").
-    currentNetworkDir : NetworkDir
+    current_network_dir : NetworkDir
         Directory object for current network.
-    currentStationDir : StationDir
+    current_station_dir : StationDir
         Directory object for current station.
-    currentCampaignDir : CampaignDir
+    current_campaign_dir : CampaignDir
         Directory object for current campaign.
     shotDataPreTDB : TDBShotDataArray
         Preliminary shotdata (before position refinement).
@@ -214,7 +214,7 @@ class SV3Pipeline:
 
     Methods
     -------
-    setNetworkStationCampaign(network, station, campaign)
+    set_network_station_campaign(network, station, campaign)
         Set the current processing context and initialize directories and
         TileDB arrays.
     _build_rinex_metadata()
@@ -268,7 +268,7 @@ class SV3Pipeline:
         Notes
         -----
         The pipeline will not be ready for processing until
-        :meth:`setNetworkStationCampaign` is called to establish the
+        :meth:`set_network_station_campaign` is called to establish the
         processing context.
         """
         # Store directory handler and configuration
@@ -276,28 +276,28 @@ class SV3Pipeline:
         self.config = config if config is not None else SV3PipelineConfig()
         
         # Initialize asset catalog from directory handler's database path
-        self.asset_catalog = PreProcessCatalog(self.directory_handler.asset_catalog_db_path)
+        self.asset_catalog = PreProcessCatalogHandler(self.directory_handler.asset_catalog_db_path)
 
         # Initialize current processing context to None
-        # These will be set when setNetworkStationCampaign() is called
-        self.currentNetwork: str = None  # e.g., "cascadia-gorda"
-        self.currentStation: str = None  # e.g., "NCC1"
-        self.currentCampaign: str = None  # e.g., "2023_A_1126"
+        # These will be set when set_network_station_campaign() is called
+        self.current_network: str = None  # e.g., "cascadia-gorda"
+        self.current_station: str = None  # e.g., "NCC1"
+        self.current_campaign: str = None  # e.g., "2023_A_1126"
 
         # Initialize directory objects for current context
         # These provide access to subdirectories and files for the current campaign
-        self.currentNetworkDir: NetworkDir = None
-        self.currentStationDir: StationDir = None
-        self.currentCampaignDir: CampaignDir = None
+        self.current_network_dir: NetworkDir = None
+        self.current_station_dir: StationDir = None
+        self.current_campaign_dir: CampaignDir = None
 
         # Initialize TileDB array objects to None
-        # These will be created when setNetworkStationCampaign() is called
+        # These will be created when set_network_station_campaign() is called
         self.shotDataPreTDB: TDBShotDataArray = None  # Preliminary shotdata (before refinement)
         self.kinPositionTDB: TDBKinPositionArray = None  # High-precision kinematic positions
         self.imuPositionTDB: TDBIMUPositionArray = None  # IMU positions from Novatel 000
         self.shotDataFinalTDB: TDBShotDataArray = None  # Final shotdata (after refinement)
 
-    def setNetworkStationCampaign(
+    def set_network_station_campaign(
         self,
         network: str,
         station: str,
@@ -326,13 +326,13 @@ class SV3Pipeline:
         """
 
         # Reset current attributes
-        self.currentNetwork = None
-        self.currentStation = None
-        self.currentCampaign = None
+        self.current_network = None
+        self.current_station = None
+        self.current_campaign = None
 
-        self.currentNetworkDir = None
-        self.currentStationDir = None
-        self.currentCampaignDir = None
+        self.current_network_dir = None
+        self.current_station_dir = None
+        self.current_campaign_dir = None
 
         self.shotDataPreTDB = None
         self.kinPositionTDB = None
@@ -342,20 +342,22 @@ class SV3Pipeline:
         # Make sure there are files to process
         dtype_counts = self.asset_catalog.get_dtype_counts(network, station, campaign)
         if dtype_counts == {}:
-            ProcessLogger.logwarn(f"No local files found for {network}/{station}/{campaign}")
-            return
+            message = f"No local files found for {network}/{station}/{campaign}. Ensure data is ingested before processing."
+            ProcessLogger.logerr(message)
+            raise NoLocalData(message)
+         
 
         # Build the campaign directory structure, this changes the logger directory as well
         networkDir, stationDir, campaignDir, _ = self.directory_handler.build_station_directory(
             network_name=network, station_name=station, campaign_name=campaign
         )
-        self.currentNetworkDir = networkDir
-        self.currentStationDir = stationDir
-        self.currentCampaignDir = campaignDir
+        self.current_network_dir = networkDir
+        self.current_station_dir = stationDir
+        self.current_campaign_dir = campaignDir
 
-        self.currentNetwork = network
-        self.currentStation = station
-        self.currentCampaign = campaign
+        self.current_network = network
+        self.current_station = station
+        self.current_campaign = campaign
 
         # Update all log directories
         change_all_logger_dirs(campaignDir.log_directory)
@@ -363,18 +365,18 @@ class SV3Pipeline:
         for dtype, count in dtype_counts.items():
             ProcessLogger.loginfo(f"Found {count} local files of type {dtype} for {network}/{station}/{campaign}")
 
-        shotDataPreURI = self.currentStationDir.tiledb_directory.shot_data_pre
-        kinematicDataURI = self.currentStationDir.tiledb_directory.kin_position_data
-        shotDataFinalURI = self.currentStationDir.tiledb_directory.shot_data
-        positionDataURI = self.currentStationDir.tiledb_directory.imu_position_data
+        shotDataPreURI = self.current_station_dir.tiledb_directory.shot_data_pre
+        kinematicDataURI = self.current_station_dir.tiledb_directory.kin_position_data
+        shotDataFinalURI = self.current_station_dir.tiledb_directory.shot_data
+        positionDataURI = self.current_station_dir.tiledb_directory.imu_position_data
 
         self.shotDataPreTDB = TDBShotDataArray(shotDataPreURI)
         self.kinPositionTDB = TDBKinPositionArray(kinematicDataURI)
         self.imuPositionTDB = TDBIMUPositionArray(positionDataURI)
         self.shotDataFinalTDB = TDBShotDataArray(shotDataFinalURI)
 
-        self.gnssObsTDBURI = self.currentStationDir.tiledb_directory.gnss_obs_data
-        self.gnssObsTDB_secondaryURI = self.currentStationDir.tiledb_directory.gnss_obs_data_secondary
+        self.gnssObsTDBURI = self.current_station_dir.tiledb_directory.gnss_obs_data
+        self.gnssObsTDB_secondaryURI = self.current_station_dir.tiledb_directory.gnss_obs_data_secondary
 
         self._build_rinex_meta()
 
@@ -391,20 +393,20 @@ class SV3Pipeline:
 
         # Get the RINEX metadata
         rinex_metav2 = (
-            self.currentCampaignDir.metadata_directory
+            self.current_campaign_dir.metadata_directory
             / "rinex_metav2.json"
         )
         rinex_metav1 = (
-            self.currentCampaignDir.metadata_directory
+            self.current_campaign_dir.metadata_directory
             / "rinex_metav1.json"
         )
         if not rinex_metav2.exists():
             with open(rinex_metav2, "w") as f:
-                json.dump(get_metadatav2(site=self.currentStation), f)
+                json.dump(get_metadatav2(site=self.current_station), f)
 
         if not rinex_metav1.exists():
             with open(rinex_metav1, "w") as f:
-                json.dump(get_metadata(site=self.currentStation), f)
+                json.dump(get_metadata(site=self.current_station), f)
 
         self.config.rinex_config.settings_path = rinex_metav2
 
@@ -437,16 +439,16 @@ class SV3Pipeline:
 
 
         novatel_770_entries: List[AssetEntry] = self.asset_catalog.get_local_assets(
-            network=self.currentNetwork,
-            station=self.currentStation,
-            campaign=self.currentCampaign,
+            network=self.current_network,
+            station=self.current_station,
+            campaign=self.current_campaign,
             type=AssetType.NOVATEL770,
         )
 
         if novatel_770_entries:
             found_novatel_770 = True
             ProcessLogger.loginfo(
-                f"Processing {len(novatel_770_entries)} Novatel 770 files for {self.currentNetwork} {self.currentStation} {self.currentCampaign}. This may take a few minutes..."
+                f"Processing {len(novatel_770_entries)} Novatel 770 files for {self.current_network} {self.current_station} {self.current_campaign}. This may take a few minutes..."
             )
             merge_signature = {
                 "parent_type": AssetType.NOVATEL770.value,
@@ -472,12 +474,12 @@ class SV3Pipeline:
                         print(message)
                     sys.exit(1)
             else:
-                response = f"Novatel 770 Data Already Processed for {self.currentNetwork} {self.currentStation} {self.currentCampaign}"
+                response = f"Novatel 770 Data Already Processed for {self.current_network} {self.current_station} {self.current_campaign}"
                 ProcessLogger.loginfo(response)
         else:
            
            ProcessLogger.loginfo(
-                f"No Novatel 770 Files Found to Process for {self.currentNetwork} {self.currentStation} {self.currentCampaign}"
+                f"No Novatel 770 Files Found to Process for {self.current_network} {self.current_station} {self.current_campaign}"
             )
 
         """
@@ -489,12 +491,12 @@ class SV3Pipeline:
         
         """
         ProcessLogger.loginfo(
-            f"Processing Novatel 000 data for {self.currentNetwork} {self.currentStation} {self.currentCampaign}"
+            f"Processing Novatel 000 data for {self.current_network} {self.current_station} {self.current_campaign}"
         )
         novatel_000_entries: List[AssetEntry] = self.asset_catalog.get_local_assets(
-            network=self.currentNetwork,
-            station=self.currentStation,
-            campaign=self.currentCampaign,
+            network=self.current_network,
+            station=self.current_station,
+            campaign=self.current_campaign,
             type=AssetType.NOVATEL000,
         )
 
@@ -528,11 +530,11 @@ class SV3Pipeline:
 
         else:
             ProcessLogger.loginfo(
-                f"No Novatel 000 Files Found to Process for {self.currentNetwork} {self.currentStation} {self.currentCampaign}"
+                f"No Novatel 000 Files Found to Process for {self.current_network} {self.current_station} {self.current_campaign}"
             )
         
         if not found_novatel_770 and not found_novatel_000:
-            raise NoNovatelFound(f"No Novatel 770 or 000 files found for {self.currentNetwork} {self.currentStation} {self.currentCampaign}. Cannot proceed with GNSS processing.")
+            raise NoNovatelFound(f"No Novatel 770 or 000 files found for {self.current_network} {self.current_station} {self.current_campaign}. Cannot proceed with GNSS processing.")
 
     def get_rinex_files(self) -> None:
         """Generate and catalog daily RINEX files for the current campaign.
@@ -552,11 +554,11 @@ class SV3Pipeline:
             If an error occurs during RINEX file generation.
         """
 
-        rinexDestination = self.currentCampaignDir.intermediate
+        rinexDestination = self.current_campaign_dir.intermediate
 
         if self.config.rinex_config.use_secondary:
             ProcessLogger.loginfo(
-                f"Using secondary GNSS data for RINEX generation for {self.currentNetwork} {self.currentStation} {self.currentCampaign}"
+                f"Using secondary GNSS data for RINEX generation for {self.current_network} {self.current_station} {self.current_campaign}"
             )
             gnss_obs_data_dest = self.gnssObsTDB_secondaryURI
         else:
@@ -566,13 +568,13 @@ class SV3Pipeline:
             year = self.config.rinex_config.processing_year
         else:
             year = int(
-                self.currentCampaign.split("_")[0]
+                self.current_campaign.split("_")[0]
             )  # default to the year from the campaign name
 
         ProcessLogger.loginfo(
-            f"Generating Rinex Files for {self.currentNetwork} {self.currentStation} {year}. This may take a few minutes..."
+            f"Generating Rinex Files for {self.current_network} {self.current_station} {year}. This may take a few minutes..."
         )
-        parent_ids = f"N-{self.currentNetwork}|ST-{self.currentStation}|SV-{self.currentCampaign}|TDB-{gnss_obs_data_dest}|YEAR-{year}"
+        parent_ids = f"N-{self.current_network}|ST-{self.current_station}|SV-{self.current_campaign}|TDB-{gnss_obs_data_dest}|YEAR-{year}"
         merge_signature = {
             "parent_type": AssetType.GNSSOBSTDB.value,
             "child_type": AssetType.RINEX.value,
@@ -602,7 +604,7 @@ class SV3Pipeline:
 
                 if len(rinex_paths) == 0:
                     ProcessLogger.logwarn(
-                        f"No Rinex Files generated for {self.currentNetwork} {self.currentStation} {self.currentCampaign} {year}."
+                        f"No Rinex Files generated for {self.current_network} {self.current_station} {self.current_campaign} {year}."
                     )
                     raise NoRinexBuilt("No RINEX files were built. Try running self.pre_process_novatel() to ensure GNSS data is available.")
                     
@@ -613,9 +615,9 @@ class SV3Pipeline:
                     rinex_time_start, rinex_time_end = rinex_utils.rinex_get_time_range(rinex_path)
                     rinex_entry = AssetEntry(
                         local_path=rinex_path,
-                        network=self.currentNetwork,
-                        station=self.currentStation,
-                        campaign=self.currentCampaign,
+                        network=self.current_network,
+                        station=self.current_station,
+                        campaign=self.current_campaign,
                         timestamp_data_start=rinex_time_start,
                         timestamp_data_end=rinex_time_end,
                         type=AssetType.RINEX,
@@ -643,11 +645,11 @@ class SV3Pipeline:
             
         else:
             rinex_entries = self.asset_catalog.get_local_assets(
-                self.currentNetwork, self.currentStation, self.currentCampaign, AssetType.RINEX
+                self.current_network, self.current_station, self.current_campaign, AssetType.RINEX
             )
             num_rinex_entries = len(rinex_entries)
             ProcessLogger.logdebug(
-                f"RINEX files have already been generated for {self.currentNetwork}, {self.currentStation}, and {year} Found {num_rinex_entries} entries."
+                f"RINEX files have already been generated for {self.current_network}, {self.current_station}, and {year} Found {num_rinex_entries} entries."
             )
 
     def process_rinex(self) -> None:
@@ -663,27 +665,27 @@ class SV3Pipeline:
         files.
         """
 
-        response = f"Running PRIDE-PPPAR on Rinex Data for {self.currentNetwork} {self.currentStation} {self.currentCampaign}. This may take a few minutes..."
+        response = f"Running PRIDE-PPPAR on Rinex Data for {self.current_network} {self.current_station} {self.current_campaign}. This may take a few minutes..."
         ProcessLogger.loginfo(response)
 
         # Get the PRIDE directory and intermediate directory
         prideDir = self.directory_handler.pride_directory
-        intermediateDir = self.currentCampaignDir.intermediate
+        intermediateDir = self.current_campaign_dir.intermediate
 
 
         # Get the Rinex files to process
         rinex_entries: List[AssetEntry] = (
             self.asset_catalog.get_single_entries_to_process(
-                network=self.currentNetwork,
-                station=self.currentStation,
-                campaign=self.currentCampaign,
+                network=self.current_network,
+                station=self.current_station,
+                campaign=self.current_campaign,
                 parent_type=AssetType.RINEX,
                 child_type=AssetType.KIN,
                 override=self.config.pride_config.override,
             )
         )
         if not rinex_entries:
-            response = f"No Rinex Files Found to Process for {self.currentNetwork} {self.currentStation} {self.currentCampaign}"
+            response = f"No Rinex Files Found to Process for {self.current_network} {self.current_station} {self.current_campaign}"
             ProcessLogger.logerr(response)
             raise NoRinexFound(response)
 
@@ -741,7 +743,7 @@ class SV3Pipeline:
             rinex_to_kin_wrapper,
             writedir=intermediateDir,
             pridedir=prideDir,
-            site=self.currentStation,
+            site=self.current_station,
             pride_config=self.config.pride_config,
         )
         kin_entries = []
@@ -795,29 +797,29 @@ class SV3Pipeline:
         """
 
         ProcessLogger.loginfo(
-            f"Looking for Kin Files to Process for {self.currentNetwork} {self.currentStation} {self.currentCampaign}"
+            f"Looking for Kin Files to Process for {self.current_network} {self.current_station} {self.current_campaign}"
         )
 
         kin_entries: List[AssetEntry] = (
             self.asset_catalog.get_single_entries_to_process(
-                network=self.currentNetwork,
-                station=self.currentStation,
-                campaign=self.currentCampaign,
+                network=self.current_network,
+                station=self.current_station,
+                campaign=self.current_campaign,
                 parent_type=AssetType.KIN,
                 override=self.config.rinex_config.override,
             )
         )
         res_entries: List[AssetEntry] = (
             self.asset_catalog.get_single_entries_to_process(
-                network=self.currentNetwork,
-                station=self.currentStation,
-                campaign=self.currentCampaign,
+                network=self.current_network,
+                station=self.current_station,
+                campaign=self.current_campaign,
                 parent_type=AssetType.KINRESIDUALS,
                 override=self.config.rinex_config.override,
             )
         )
         if not kin_entries:
-            message = f"No Kin Files Found to Process for {self.currentNetwork} {self.currentStation} {self.currentCampaign}"
+            message = f"No Kin Files Found to Process for {self.current_network} {self.current_station} {self.current_campaign}"
             ProcessLogger.loginfo(message)
             raise NoKinFound(message)
 
@@ -856,15 +858,15 @@ class SV3Pipeline:
         # 1. Get the DFOP00 files to process
         dfop00_entries: List[AssetEntry] = (
             self.asset_catalog.get_single_entries_to_process(
-                network=self.currentNetwork,
-                station=self.currentStation,
-                campaign=self.currentCampaign,
+                network=self.current_network,
+                station=self.current_station,
+                campaign=self.current_campaign,
                 parent_type=AssetType.DFOP00,
                 override=self.config.dfop00_config.override,
             )
         )
         if not dfop00_entries:
-            response = f"No DFOP00 Files Found to Process for {self.currentNetwork} {self.currentStation} {self.currentCampaign}"
+            response = f"No DFOP00 Files Found to Process for {self.current_network} {self.current_station} {self.current_campaign}"
             ProcessLogger.logerr(response)
             raise NoDFOP00Found(response)
 
@@ -955,26 +957,26 @@ class SV3Pipeline:
             If True, forces reprocessing even if SVP file exists. Default is
             False.
         """
-        svp_df_destination = self.currentCampaignDir.svp_file
+        svp_df_destination = self.current_campaign_dir.svp_file
         if svp_df_destination.exists() and not override:
             return
         
         # Get the CTD and Seabird files to process
         ctd_entries: List[AssetEntry] = self.asset_catalog.get_local_assets(
-            network=self.currentNetwork,
-            station=self.currentStation,
-            campaign=self.currentCampaign,
+            network=self.current_network,
+            station=self.current_station,
+            campaign=self.current_campaign,
             type=AssetType.CTD,
         )
         seabird_entries: List[AssetEntry] = self.asset_catalog.get_local_assets(
-            network=self.currentNetwork,
-            station=self.currentStation,
-            campaign=self.currentCampaign,
+            network=self.current_network,
+            station=self.current_station,
+            campaign=self.current_campaign,
             type=AssetType.SEABIRD,
         )
 
         if not ctd_entries and not seabird_entries:
-            response = f"No CTD or SEABIRD Files Found to Process for {self.currentNetwork} {self.currentStation} {self.currentCampaign}"
+            response = f"No CTD or SEABIRD Files Found to Process for {self.current_network} {self.current_station} {self.current_campaign}"
             ProcessLogger.logerr(response)
             raise NoSVPFound(response)
         
@@ -1026,17 +1028,17 @@ class SV3Pipeline:
         catalog status.
         """
         if (
-            self.currentNetwork is None
-            or self.currentStation is None
-            or self.currentCampaign is None
+            self.current_network is None
+            or self.current_station is None
+            or self.current_campaign is None
         ):
             ProcessLogger.logerr(
-                "Pipeline context not set. Please call setNetworkStationCampaign() before running the pipeline."
+                "Pipeline context not set. Please call set_network_station_campaign() before running the pipeline."
             )
             return
 
         ProcessLogger.loginfo(
-            f"Starting SV3 Processing Pipeline for {self.currentNetwork} {self.currentStation} {self.currentCampaign}"
+            f"Starting SV3 Processing Pipeline for {self.current_network} {self.current_station} {self.current_campaign}"
         )
         try:
             self.pre_process_novatel()
@@ -1071,5 +1073,5 @@ class SV3Pipeline:
             pass
 
         ProcessLogger.loginfo(
-            f"Completed SV3 Processing Pipeline for {self.currentNetwork} {self.currentStation} {self.currentCampaign}"
+            f"Completed SV3 Processing Pipeline for {self.current_network} {self.current_station} {self.current_campaign}"
         )

@@ -1,10 +1,3 @@
-"""Contains the DataHandler class for handling data operations."""
-
-import concurrent.futures
-import os
-import threading
-import warnings
-from functools import wraps
 from pathlib import Path
 from typing import (
     Callable,
@@ -19,26 +12,19 @@ from typing import (
     Union,
 )
 
-import boto3
 import seaborn
 from tqdm.auto import tqdm
-import json
 
-from es_sfgtools.data_mgmt.assetcatalog.catalog import PreProcessCatalog
-from es_sfgtools.data_mgmt.constants import DEFAULT_FILE_TYPES_TO_DOWNLOAD, REMOTE_TYPE
-from es_sfgtools.data_mgmt.ingestion.datadiscovery import (
-    get_file_type_local,
-    get_file_type_remote,
-    scrape_directory_local,
-)
-from es_sfgtools.data_mgmt.directorymgmt.directory_handler import (
+from es_sfgtools.data_mgmt.config import DEFAULT_FILE_TYPES_TO_DOWNLOAD, REMOTE_TYPE
+
+from es_sfgtools.data_mgmt.directorymgmt.handler import (
     CampaignDir,
     DirectoryHandler,
     NetworkDir,
     StationDir,
     SurveyDir,
 )
-from es_sfgtools.data_mgmt.assetcatalog.file_schemas import AssetEntry, AssetType
+from es_sfgtools.data_mgmt.assetcatalog.schemas import AssetEntry, AssetType
 from es_sfgtools.data_mgmt.post_processing import (
     IntermediateDataProcessor,
 )
@@ -57,13 +43,7 @@ from es_sfgtools.pipelines.config import (
     DFOP00Config,
     PositionUpdateConfig,
 )
-from es_sfgtools.tiledb_tools.tiledb_schemas import (
-    TDBAcousticArray,
-    TDBGNSSObsArray,
-    TDBIMUPositionArray,
-    TDBKinPositionArray,
-    TDBShotDataArray,
-)
+
 from es_sfgtools.data_mgmt.ingestion.archive_pull import (
     download_file_from_archive,
     list_campaign_files,
@@ -108,15 +88,14 @@ class WorkflowHandler:
         self.current_station: Optional[str] = None
         self.current_campaign: Optional[str] = None
 
-        self.currentNetworkDir: Optional[NetworkDir] = None
-        self.currentStationDir: Optional[StationDir] = None
-        self.currentCampaignDir: Optional[CampaignDir] = None
-        self.currentSurveyDir: Optional[SurveyDir] = None
+        self.current_network_dir: Optional[NetworkDir] = None
+        self.current_station_dir: Optional[StationDir] = None
+        self.current_campaign_dir: Optional[CampaignDir] = None
+        self.current_survey_dir: Optional[SurveyDir] = None
 
         self.currentSiteMetaData: Optional[Site] = None
 
         self.data_handler = DataHandler(directory=directory)
-
 
     def change_working_station(
         self,
@@ -160,9 +139,9 @@ class WorkflowHandler:
         self.current_network = self.data_handler.current_network
         self.current_station = self.data_handler.current_station
         self.current_campaign = self.data_handler.current_campaign
-        self.currentNetworkDir = self.data_handler.currentNetworkDir
-        self.currentStationDir = self.data_handler.currentStationDir
-        self.currentCampaignDir = self.data_handler.currentCampaignDir
+        self.current_network_dir = self.data_handler.current_network_dir
+        self.current_station_dir = self.data_handler.current_station_dir
+        self.current_campaign_dir = self.data_handler.current_campaign_dir
         self.currentSiteMetaData = self.data_handler.currentSiteMetaData
 
         if self.currentSiteMetaData is None:
@@ -183,16 +162,25 @@ class WorkflowHandler:
         self.data_handler.discover_data_and_add_files(directory_path=directory_path)
 
     @check_network_station_campaign
-    def ingest_get_archive_data(self) -> None:
+    def ingest_catalog_archive_data(self) -> None:
         """
-        Downloads and catalogs data from the remote archive for the current network, station, and campaign.
+        Updates the data catalog with the s3 uri's for data hosted in Earthscope's remote archive for the current network, station, and campaign.
+
+        Notes
+        -----
+        This method does not download any data files. It only updates the catalog with remote file paths. See `ingest_download_archive_data` to download files.
+
         """
         self.data_handler.update_catalog_from_archive()
 
     @check_network_station_campaign
-    def ingest_download_archive_data(self):
+    def ingest_download_archive_data(self,file_types:Optional[List[AssetType] | List[str]]=DEFAULT_FILE_TYPES_TO_DOWNLOAD) -> None:
         """
-        Downloads data files from the Earthscope archive based on the current catalog entries.
+        Downloads data files from the Earthscope archive based on the current catalog entries. 
+
+        Notes
+        -----
+        This method requires that the catalog has been populated with remote file paths using `ingest_catalog_archive_data`.
         """
         self.data_handler.download_data()
 
@@ -290,13 +278,14 @@ class WorkflowHandler:
         pipeline = SV3Pipeline(
             directory_handler=self.data_handler.directory_handler, config=base_config
         )
-        pipeline.setNetworkStationCampaign(
+        pipeline.set_network_station_campaign(
             network=self.current_network,
             station=self.current_station,
             campaign=self.current_campaign,
         )
         return pipeline
 
+    @check_network_station_campaign
     def preprocess_run_pipeline_sv3(
         self,
         job: Literal[
@@ -480,7 +469,7 @@ class WorkflowHandler:
     def midprocess_get_sitemeta(
         self, site_metadata: Optional[Union[Site, str]] = None
     ) -> Site:
-        """Loads and returns the site metadata for the current station.
+        """Loads and returns the site metadata for the current station. Sets the currentSiteMetaData attribute.
 
         Parameters
         ----------
@@ -528,9 +517,9 @@ class WorkflowHandler:
             site=self.currentSiteMetaData,
             directory_handler=self.data_handler.directory_handler,
         )
-        dataPostProcessor.setNetwork(network_id=self.current_network)
-        dataPostProcessor.setStation(station_id=self.current_station)
-        dataPostProcessor.setCampaign(campaign_id=self.current_campaign)
+        dataPostProcessor.set_network(network_id=self.current_network)
+        dataPostProcessor.set_station(station_id=self.current_station)
+        dataPostProcessor.set_campaign(campaign_id=self.current_campaign)
 
         return dataPostProcessor
 
@@ -551,7 +540,9 @@ class WorkflowHandler:
         override : bool, optional
             If True, re-parses existing data, by default False.
         write_intermediate : bool, optional
-            If True, writes intermediate files, by default False.
+            If True, writes intermediate files to disk, by default False.
+        survey_id : Optional[str], optional
+            Optional survey identifier to process. If None, processes all surveys, by default None.
 
         Raises
         ------
@@ -608,30 +599,6 @@ class WorkflowHandler:
             overwrite=override,
         )
 
-    def print_logs(self, log: Literal["base", "gnss", "process"]):
-        """Prints the specified log to the console.
-
-        Parameters
-        ----------
-        log : Literal["base", "gnss", "process"]
-            The type of log to print.
-
-        Raises
-        ------
-        ValueError
-            If the specified log type is not recognized.
-        """
-        if log == "base":
-            logger.route_to_console()
-        elif log == "gnss":
-            pass  # GNSS logger not implemented yet
-        elif log == "process":
-            pass  # Process logger not implemented yet
-        else:
-            raise ValueError(
-                f"Log type {log} not recognized. Must be one of ['base','gnss','process']"
-            )
-
     @check_network_station_campaign
     def modeling_get_garpos_handler(self) -> GarposHandler:
         """Returns an instance of the GarposHandler for the current station.
@@ -653,13 +620,13 @@ class WorkflowHandler:
             directory_handler=self.data_handler.directory_handler,
             site=self.currentSiteMetaData,
         )
-        gp_handler.setNetworkStationCampaign(
+        gp_handler.set_network_station_campaign(
             network=self.current_network,
             station=self.current_station,
             campaign=self.current_campaign,
         )
         return gp_handler
-    
+
     @check_network_station_campaign
     def modeling_run_garpos(
         self,
@@ -698,4 +665,38 @@ class WorkflowHandler:
             iterations=iterations,
             override=override,
             custom_settings=custom_settings,
+        )
+
+    @check_network_station_campaign
+    def modeling_plot_garpos_results(
+        self,
+        survey_id: Optional[str] = None,
+        run_id: str = "Test",
+        residuals_filter: Optional[float] = 10,
+        save_fig: bool = True,
+        show_fig: bool = False,
+    ) -> None:
+        """Plots the time series results for a given survey.
+
+        Parameters
+        ----------
+        survey_id : str, optional
+            ID of the survey to plot results for, by default None.
+        run_id : int or str, optional
+            The run ID of the survey results to plot, by default 0.
+        res_filter : float, optional
+            The residual filter value to filter outrageous values (m), by
+            default 10.
+        save_fig : bool, optional
+            If True, save the figure, by default True.
+        show_fig : bool, optional
+            If True, display the figure, by default False.
+        """
+        gp_handler = self.modeling_get_garpos_handler()
+        gp_handler.plot_ts_results(
+            survey_id=survey_id,
+            run_id=run_id,
+            res_filter=residuals_filter,
+            savefig=save_fig,
+            showfig=show_fig,
         )
