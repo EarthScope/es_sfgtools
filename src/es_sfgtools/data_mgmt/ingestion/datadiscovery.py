@@ -2,12 +2,12 @@ import datetime
 import re
 import warnings
 from pathlib import Path
-from typing import List, Union
+from typing import List, Union, Optional
 from es_sfgtools.logging import ProcessLogger as logger
-from ..config import AssetType
+from ..config import AssetType, AssetEntry
 from .config import pattern_map
 
-def _get_time(line):
+def _get_time(line: str) -> datetime.datetime:
     """Gets the time from a RINEX file line.
 
     Parameters
@@ -31,7 +31,7 @@ def _get_time(line):
     )
     return start_time
 
-def _rinex_get_meta(data:AssetType) -> AssetType:
+def _rinex_get_meta(data: AssetEntry) -> AssetEntry:
     """Gets the metadata from a RINEX file.
 
     Parameters
@@ -92,7 +92,7 @@ def get_file_type_local(file_path: Path) -> tuple[Union[AssetType, None], Union[
     return file_type, size
 
 
-def get_file_type_remote(file_path: str) -> AssetType:
+def get_file_type_remote(file_path: str) -> Optional[AssetType]:
     """Get the file type of a file.
 
     Parameters
@@ -118,7 +118,7 @@ def get_file_type_remote(file_path: str) -> AssetType:
     return file_type
 
 
-def scrape_directory_local(directory: Path) -> List[Path]:
+def scrape_directory_local(directory: Path) -> Optional[List[Path]]:
     """Scrape a directory for files.
 
     Parameters

@@ -66,19 +66,19 @@ class IntermediateDataProcessor(MidProcessIngestProtocol):
         self.current_station_meta: Site = site
         self.directory_handler: DirectoryHandler = directory_handler
 
-        self.current_network_name: str = None
-        self.current_network_dir: NetworkDir = None
+        self.current_network_name: Optional[str] = None
+        self.current_network_dir: Optional[NetworkDir] = None
 
-        self.current_station_name: str = None
-        self.current_station_dir: StationDir = None
+        self.current_station_name: Optional[str] = None
+        self.current_station_dir: Optional[StationDir] = None
 
-        self.current_campaign_name: str = None
-        self.current_campaign: Campaign = None
-        self.current_campaign_dir: CampaignDir = None
+        self.current_campaign_name: Optional[str] = None
+        self.current_campaign: Optional[Campaign] = None
+        self.current_campaign_dir: Optional[CampaignDir] = None
 
-        self.current_survey_name: str = None
-        self.current_survey_dir: SurveyDir = None
-        self.current_survey: Survey = None
+        self.current_survey_name: Optional[str] = None
+        self.current_survey_dir: Optional[SurveyDir] = None
+        self.current_survey: Optional[Survey] = None
 
         self.coordTransformer = CoordTransformer(
             latitude=site.arrayCenter.latitude,
@@ -456,7 +456,7 @@ class IntermediateDataProcessor(MidProcessIngestProtocol):
     def prepare_single_garpos_survey(
         self,
         survey: Survey,
-        custom_filters: dict = None,
+        custom_filters: Optional[dict] = None,
         overwrite: bool = False,
     ):
         """Prepares a single survey for GARPOS processing.

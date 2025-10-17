@@ -6,15 +6,16 @@ from es_sfgtools.data_mgmt.assetcatalog.handler import PreProcessCatalogHandler
 from es_sfgtools.data_models.metadata import Site,Campaign,Survey
 
 class PreProcessIngestProtocol(Protocol):
+    """A protocol for pre-processing and ingestion of data."""
     asset_catalog: PreProcessCatalogHandler
     directory_handler: DirectoryHandler
-    current_campaign_name: str
-    current_station_name: str
-    current_network_name: str
-    current_network_dir: NetworkDir
-    current_campaign_dir: CampaignDir
-    current_station_dir: StationDir
-    current_station_meta: Site
+    current_campaign_name: Optional[str]
+    current_station_name: Optional[str]
+    current_network_name: Optional[str]
+    current_network_dir: Optional[NetworkDir]
+    current_campaign_dir: Optional[CampaignDir]
+    current_station_dir: Optional[StationDir]
+    current_station_meta: Optional[Site]
 
     def set_network(self, network_id: str) -> None: ...
     def _reset_network(self) -> None: ...
@@ -29,10 +30,11 @@ class PreProcessIngestProtocol(Protocol):
 
 
 class MidProcessIngestProtocol(PreProcessIngestProtocol):
-    current_campaign: Campaign
-    current_survey_name: str
-    current_survey_dir: SurveyDir
-    current_survey: Survey
+    """A protocol for mid-processing and ingestion of data."""
+    current_campaign: Optional[Campaign]
+    current_survey_name: Optional[str]
+    current_survey_dir: Optional[SurveyDir]
+    current_survey: Optional[Survey]
 
     def set_survey(self, survey: str) -> None: ...
     def _reset_survey(self) -> None: ...
@@ -43,6 +45,7 @@ R = TypeVar("R")
 
 
 class HasNetworkStationCampaign(Protocol):
+    """A protocol for classes that have network, station, and campaign attributes."""
     current_network_name: Optional[str]
     current_station_name: Optional[str]
     current_campaign_name: Optional[str]

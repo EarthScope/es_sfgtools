@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Union
 
 import gnatss.constants as constants
 import numpy as np
@@ -266,7 +266,7 @@ def run_kalman_filter_and_smooth(df_all: pd.DataFrame, start_dt: float, gnss_pos
     
     return smoothed_results
 
-def analyze_offsets(merged_positions: pd.DataFrame):
+def analyze_offsets(merged_positions: pd.DataFrame) -> None:
     """Analyzes the offsets between smoothed and original antenna positions.
 
     Calculates the absolute differences for the X, Y, and Z coordinates
@@ -303,7 +303,7 @@ def analyze_offsets(merged_positions: pd.DataFrame):
     
     logger.loginfo(summary_df.round(6).to_string())
 
-def update_shotdata_with_smoothed_positions(shotdata: pd.DataFrame, smoothed_results: pd.DataFrame):
+def update_shotdata_with_smoothed_positions(shotdata: pd.DataFrame, smoothed_results: pd.DataFrame) -> pd.DataFrame:
     """Interpolates smoothed positions onto shotdata ping and return times.
 
     Parameters
@@ -387,11 +387,11 @@ def main(
     shotdata: pd.DataFrame,
     kin_positions: pd.DataFrame,
     positions_data: pd.DataFrame,
-    gnss_pos_psd=constants.gnss_pos_psd,
-    vel_psd=constants.vel_psd,
-    cov_err=constants.cov_err,
-    start_dt=constants.start_dt,
-    filter_radius=5000,
+    gnss_pos_psd: Union[float, np.ndarray] = constants.gnss_pos_psd,
+    vel_psd: Union[float, np.ndarray] = constants.vel_psd,
+    cov_err: Union[float, np.ndarray] = constants.cov_err,
+    start_dt: Union[float, pd.Timestamp] = constants.start_dt,
+    filter_radius: float = 5000,
  ) -> pd.DataFrame:
     """Refines shotdata using GNSS and IMU data through Kalman filtering and smoothing.
 
@@ -595,7 +595,7 @@ def interpolate_enu(
     return tenu_r.astype(float), enu_r_sig.astype(float)
 
 
-def interpolate_enu_kernalridge(
+def interpolate_enu_kernelridge(
     kin_position_data: np.ndarray, shot_data: np.ndarray, lengthscale: float = 0.5
 ) -> np.ndarray:
     """Interpolate the enu values using Kernel Ridge Regression.
@@ -793,7 +793,7 @@ def interpolate_enu_radius_regression(
     return shotdata_df
 
 
-def merge_shotdata_kinposition(
+def merge_shotdata_kinposition_radius_regression(
     shotdata_pre: TDBShotDataArray,
     shotdata: TDBShotDataArray,
     kin_position: TDBKinPositionArray,
@@ -844,3 +844,5 @@ def merge_shotdata_kinposition(
         )
 
         shotdata.write_df(shotdata_df_updated, validate=False)
+
+    return shotdata

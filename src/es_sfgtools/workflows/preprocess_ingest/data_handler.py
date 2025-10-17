@@ -138,6 +138,7 @@ class DataHandler(PreProcessIngestProtocol):
         logger.loginfo(f"Built directory structure for {network_id} {station_id} {campaign_id}")
 
     def set_network(self, network_id:str):
+        """Sets the current network."""
         self._reset_network()
         self.current_network_name = network_id
         if (
@@ -148,12 +149,14 @@ class DataHandler(PreProcessIngestProtocol):
             current_network_dir = self.directory_handler.add_network(name=network_id)
         self.current_network_dir = current_network_dir
 
-    def _reset_network(self):
+    def _reset_network(self) -> None:
+        """Resets the current network."""
         self.current_network_name = None
         self.current_network_dir = None
         self._reset_station()
 
     def set_station(self, station_id:str,site_metadata: Optional[Union[Site, Path, str]] = None):
+        """Sets the current station."""
         self._reset_station()
         self.current_station_name = station_id
         if (
@@ -165,13 +168,15 @@ class DataHandler(PreProcessIngestProtocol):
         self.current_station_dir = current_station_dir
         self.get_site_metadata(site_metadata=site_metadata)
 
-    def _reset_station(self):
+    def _reset_station(self) -> None:
+        """Resets the current station."""
         self.current_station_name = None
         self.current_station_dir = None
         self.current_station_metadata = None
         self._reset_campaign()
 
-    def set_campaign(self, campaign_id):
+    def set_campaign(self, campaign_id: str):
+        """Sets the current campaign."""
 
         self._reset_campaign()
         self.current_campaign_name = campaign_id
@@ -184,11 +189,12 @@ class DataHandler(PreProcessIngestProtocol):
         self.current_campaign_dir = current_campaign_dir
 
         
-    def _reset_campaign(self):
+    def _reset_campaign(self) -> None:
+        """Resets the current campaign."""
         self.current_campaign_name = None
         self.current_campaign_dir = None
 
-    def _build_tileDB_arrays(self):
+    def _build_tileDB_arrays(self) -> None:
         """
         Initializes and consolidates TileDB arrays for the current station.
 
@@ -467,7 +473,7 @@ class DataHandler(PreProcessIngestProtocol):
 
     def download_data(
         self,
-        file_types: List[AssetType] | List[str] | str = DEFAULT_FILE_TYPES_TO_DOWNLOAD,
+        file_types: Union[List[AssetType], List[str], str] = DEFAULT_FILE_TYPES_TO_DOWNLOAD,
         override: bool = False,
     ):
         """
@@ -591,7 +597,7 @@ class DataHandler(PreProcessIngestProtocol):
 
     def _S3_download_file(
         self, client: boto3.client, bucket: str, prefix: str
-    ) -> Path | None:
+    ) -> Optional[Path]:
         """
         Downloads a single file from an S3 bucket.
 
@@ -629,7 +635,7 @@ class DataHandler(PreProcessIngestProtocol):
             return local_path
 
     def download_HTTP_files(
-        self, http_assets: List[AssetEntry], file_type: AssetType = None
+        self, http_assets: List[AssetEntry], file_type: Optional[AssetType] = None
     ):
         """
         Downloads files from an HTTP server and updates the catalog.
@@ -689,7 +695,7 @@ class DataHandler(PreProcessIngestProtocol):
             return local_path
 
     @validate_network_station_campaign
-    def update_catalog_from_archive(self):
+    def update_catalog_from_archive(self) -> None:
         """
         Updates the catalog with remote file paths from the data archive.
         """

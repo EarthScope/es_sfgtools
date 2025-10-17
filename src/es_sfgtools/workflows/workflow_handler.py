@@ -55,10 +55,9 @@ from es_sfgtools.data_mgmt.ingestion.archive_pull import (
 from es_sfgtools.utils.model_update import validate_and_merge_config
 
 from es_sfgtools.workflows.preprocess_ingest.pipelines.sv3_pipeline import SV3Pipeline
-from es_sfgtools.workflows.config.protocols import (validate_network_station_campaign, MidProcessIngestProtocol)
+from es_sfgtools.workflows.config.protocols import validate_network_station_campaign, MidProcessIngestProtocol
 from es_sfgtools.workflows.preprocess_ingest.data_handler import DataHandler
 
-seaborn.set_theme(style="whitegrid")
 
 pipeline_jobs = Literal[
     "all",
@@ -673,7 +672,7 @@ class WorkflowHandler(MidProcessIngestProtocol):
         self,
         site_metadata: Optional[Union[Site, str]] = None,
         survey_id: Optional[str] = None,
-        custom_filters: dict = None,
+        custom_filters: Optional[dict] = None,
         override: bool = False,
         write_intermediate: bool = False,
     ) -> None:

@@ -239,7 +239,7 @@ class SV3Pipeline:
 
     def __init__(
         self,
-        directory_handler: DirectoryHandler = None,
+        directory_handler: Optional[DirectoryHandler] = None,
         config: SV3PipelineConfig = None,
     ):
         """Initializes the SV3Pipeline with directory handler and configuration.
@@ -786,7 +786,7 @@ class SV3Pipeline:
         response = f"Generated {kin_count} Kin Files and {res_count} Residual Files From {len(rinex_entries)} Rinex Files, Added {uploadCount} to the Catalog"
         ProcessLogger.loginfo(response)
 
-    def process_kin(self):
+    def process_kin(self) -> None:
         """Process KIN files to generate kinematic position dataframes.
         
         Steps:
@@ -895,6 +895,7 @@ class SV3Pipeline:
         ProcessLogger.loginfo(response)
 
     def update_shotdata(self):
+        """Refine shotdata with interpolated high-precision kinematic positions."""
         """Refine shotdata with interpolated high-precision kinematic positions.
         
         Steps:
@@ -1012,7 +1013,7 @@ class SV3Pipeline:
                 ProcessLogger.logerr(f"Error processing Seabird file {seabird_entry.local_path}: {e}")
                 continue
 
-    def run_pipeline(self):
+    def run_pipeline(self) -> None:
         """Execute the complete SV3 data processing pipeline in sequence.
         
         Pipeline steps (in order):

@@ -137,6 +137,9 @@ class DataHandler:
     def _build_tileDB_arrays(self):
         """
         Initializes and consolidates TileDB arrays for the current station.
+        """
+        """
+        Initializes and consolidates TileDB arrays for the current station.
 
         This includes arrays for acoustic data, kinematic positions, IMU positions,
         shot data, and GNSS observables.
@@ -720,6 +723,9 @@ class DataHandler:
     def get_pipeline_sv3(self) -> Tuple[SV3Pipeline, SV3PipelineConfig]:
         """
         Initializes and returns an SV3 processing pipeline and its configuration.
+        """
+        """
+        Initializes and returns an SV3 processing pipeline and its configuration.
 
         Returns
         -------
@@ -740,6 +746,9 @@ class DataHandler:
 
 
     def print_logs(self, log: Literal["base", "gnss", "process"]):
+        """
+        Prints the specified log to the console.
+        """
         """
         Prints the specified log to the console.
 
@@ -765,6 +774,9 @@ class DataHandler:
             )
 
     def parse_surveys(self,override:bool=False,write_intermediate:bool=False):
+        """
+        Parses survey data for a given site.
+        """
         """
         Parses survey data for a given site.
 
@@ -802,6 +814,9 @@ class DataHandler:
                     write_intermediate:bool=False):
         """
         Prepares data for GARPOS processing.
+        """
+        """
+        Prepares data for GARPOS processing.
 
         Parameters
         ----------
@@ -825,6 +840,9 @@ class DataHandler:
 
     @check_network_station_campaign
     def getIntermediateDataProcessor(self)->IntermediateDataProcessor:
+        """
+        Returns an instance of the IntermediateDataProcessor for the current station.
+        """
         """
         Returns an instance of the IntermediateDataProcessor for the current station.
 
@@ -853,6 +871,9 @@ class DataHandler:
     
     @check_network_station_campaign
     def getGARPOSHandler(self)->GarposHandler:
+        """
+        Returns an instance of the GarposHandler for the current station.
+        """
         """
         Returns an instance of the GarposHandler for the current station.
 
