@@ -11,13 +11,13 @@ from es_sfgtools.data_mgmt.config import DEFAULT_FILE_TYPES_TO_DOWNLOAD
 
 
 from es_sfgtools.data_mgmt.assetcatalog.schemas import AssetEntry, AssetType
-from es_sfgtools.data_mgmt.post_processing import (
-    IntermediateDataProcessor,
-)
+from es_sfgtools.workflows.midprocess.mid_processing import IntermediateDataProcessor
+from es_sfgtools.workflows.modeling.garpos_handler import GarposHandler
+
 from es_sfgtools.data_models.metadata.site import Site
 from es_sfgtools.logging import ProcessLogger as logger
 from es_sfgtools.logging import change_all_logger_dirs
-from es_sfgtools.modeling.garpos_tools.garpos_handler import GarposHandler
+
 from es_sfgtools.workflows.pipelines.sv3_pipeline import SV3Pipeline
 from es_sfgtools.workflows.pipelines import exceptions as pipeline_exceptions
 
@@ -34,7 +34,7 @@ from es_sfgtools.workflows.pipelines.config import (
 from es_sfgtools.utils.model_update import validate_and_merge_config
 
 
-from es_sfgtools.workflows.config.protocols import WorkflowABC, validate_network_station_campaign
+from es_sfgtools.workflows.utils.protocols import WorkflowABC, validate_network_station_campaign
 from es_sfgtools.workflows.preprocess_ingest.data_handler import DataHandler
 
 

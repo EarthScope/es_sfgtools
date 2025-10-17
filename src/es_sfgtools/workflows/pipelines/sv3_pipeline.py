@@ -48,7 +48,7 @@ from es_sfgtools.tiledb_tools.tiledb_schemas import (
 from .config import SV3PipelineConfig
 from .shotdata_gnss_refinement import merge_shotdata_kinposition
 from .exceptions import NoRinexFound, NoNovatelFound,NoRinexBuilt,NoKinFound,NoDFOP00Found,NoSVPFound,NoLocalData
-from ..config.protocols import WorkflowABC,validate_network_station_campaign
+from ..utils.protocols import WorkflowABC,validate_network_station_campaign
 
 def rinex_to_kin_wrapper(
     rinex_prideconfig_path: tuple[AssetEntry, Path],

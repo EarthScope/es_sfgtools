@@ -33,14 +33,14 @@ from es_sfgtools.prefiltering import filter_shotdata
 from es_sfgtools.modeling.garpos_tools.functions import (
     CoordTransformer,
 )
-from es_sfgtools.modeling.garpos_tools.schemas import GarposFixed
+from es_sfgtools.modeling.garpos_tools.schemas import GarposFixed, GarposInput
 
 from es_sfgtools.tiledb_tools.tiledb_schemas import (
     TDBIMUPositionArray,
     TDBKinPositionArray,
     TDBShotDataArray,
 )
-from es_sfgtools.workflows.utils.loadconfigs import get_survey_filter_config
+from es_sfgtools.config.loadconfigs import get_survey_filter_config,get_garpos_site_config,GarposSiteConfig,FilterConfig
 
 from es_sfgtools.workflows.utils.protocols import WorkflowABC,validate_network_station_campaign
 from es_sfgtools.utils.model_update import validate_and_merge_config
@@ -368,13 +368,10 @@ class IntermediateDataProcessor(WorkflowABC):
                     GPtransponders=GPtransponders,
                 )
             # Apply survey-type-specific configuration to garpos_input
-
-            match survey.type:
-                # TODO Get the right configs for survey patterns
-                case _:
-                    garpos_input_configured = apply_survey_config(
-                        DEFAULT_SITE_CONFIG, garpos_input
-                    )
+            site_config_update: GarposSiteConfig = get_garpos_site_config(survey.type)
+            garpos_input_configured: GarposInput = apply_survey_config(
+                site_config_update, garpos_input
+            )
 
             garpos_input_configured.to_datafile(garposDir.default_obsfile)
 

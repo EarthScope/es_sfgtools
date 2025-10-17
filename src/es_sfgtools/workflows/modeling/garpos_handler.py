@@ -41,9 +41,9 @@ except ImportError:
 from es_sfgtools.modeling.garpos_tools.schemas import GarposInput, ObservationData
 from es_sfgtools.logging import GarposLogger as logger
 from es_sfgtools.modeling.garpos_tools.functions import process_garpos_results
-from es_sfgtools.modeling.garpos_tools.garpos_results_processor import GarposResultsProcessor
+
 from es_sfgtools.utils.model_update import validate_and_merge_config
-from ..config.protocols import WorkflowABC
+from ..utils.protocols import WorkflowABC
 
 colors = [
     "blue",

@@ -53,7 +53,7 @@ from es_sfgtools.data_mgmt.ingestion.archive_pull import (
     list_campaign_files,
     load_site_metadata,
 )
-from es_sfgtools.workflows.config.protocols import WorkflowABC,validate_network_station_campaign
+from es_sfgtools.workflows.utils.protocols import WorkflowABC,validate_network_station_campaign
 
 
 

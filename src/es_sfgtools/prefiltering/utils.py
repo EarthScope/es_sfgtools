@@ -9,7 +9,7 @@ from es_sfgtools.logging import GarposLogger as logger
 from es_sfgtools.tiledb_tools.tiledb_schemas import TDBKinPositionArray
 from es_sfgtools.utils.model_update import validate_and_merge_config
 
-from .config import  FilterLevel, get_survey_filter_config,FilterConfig
+from .schemas import  FilterLevel ,FilterConfig
 
 def filter_shotdata(
     survey_type: Union[str, SurveyType],
