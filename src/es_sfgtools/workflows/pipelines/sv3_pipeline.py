@@ -300,33 +300,33 @@ class SV3Pipeline(WorkflowABC):
         
         This method establishes the processing context and performs several
         initialization tasks:
-        1. Resets previous context
-        2. Validates data availability
-        3. Creates directory structure
+        1. Resets previous context and clears TileDB arrays if context changes
+        2. Calls parent method to handle context switching
+        3. Validates data availability
         4. Initializes TileDB arrays
         5. Configures logging
         6. Prepares RINEX metadata
         
         Parameters
         ----------
-        network : str
+        network_id : str
             Network identifier (e.g., "cascadia-gorda").
-        station : str
+        station_id : str
             Station identifier (e.g., "NCC1").
-        campaign : str
+        campaign_id : str
             Campaign identifier (e.g., "2023_A_1126").
         """
-        if network_id != self.current_campaign_name or station_id != self.current_station_name:
+        # Clear TileDB arrays if switching context to avoid stale references
+        if (network_id != self.current_network_name or 
+            station_id != self.current_station_name or
+            campaign_id != self.current_campaign_name):
             self.shotDataPreTDB = None
             self.kinPositionTDB = None
             self.imuPositionTDB = None
             self.shotDataFinalTDB = None
 
-        super().set_network_station_campaign(
-            network=network_id,
-            station=station_id,
-            campaign=campaign_id,
-        )
+        # Call parent method with correct parameter names
+        super().set_network_station_campaign(network_id, station_id, campaign_id)
 
  
 
@@ -344,20 +344,25 @@ class SV3Pipeline(WorkflowABC):
         for dtype, count in dtype_counts.items():
             ProcessLogger.loginfo(f"Found {count} local files of type {dtype} for {network_id}/{station_id}/{campaign_id}")
 
-        if self.shotDataFinalTDB is None or self.kinPositionTDB is None or self.shotDataPreTDB is None or self.imuPositionTDB is None:
-            
-            shotDataPreURI = self.current_station_dir.tiledb_directory.shot_data_pre
-            kinematicDataURI = self.current_station_dir.tiledb_directory.kin_position_data
-            shotDataFinalURI = self.current_station_dir.tiledb_directory.shot_data
-            positionDataURI = self.current_station_dir.tiledb_directory.imu_position_data
+        # Initialize TileDB arrays if not already created
+        self._build_tiledb_arrays()
 
-            self.shotDataPreTDB = TDBShotDataArray(shotDataPreURI)
-            self.kinPositionTDB = TDBKinPositionArray(kinematicDataURI)
-            self.imuPositionTDB = TDBIMUPositionArray(positionDataURI)
-            self.shotDataFinalTDB = TDBShotDataArray(shotDataFinalURI)
+    def _build_tiledb_arrays(self) -> None:
+        """Initialize TileDB arrays for the current station context."""
+        tiledb_dir = self.current_station_dir.tiledb_directory
+        
+        if self.shotDataPreTDB is None:
+            self.shotDataPreTDB = TDBShotDataArray(tiledb_dir.shot_data_pre)
+        if self.kinPositionTDB is None:
+            self.kinPositionTDB = TDBKinPositionArray(tiledb_dir.kin_position_data)
+        if self.imuPositionTDB is None:
+            self.imuPositionTDB = TDBIMUPositionArray(tiledb_dir.imu_position_data)
+        if self.shotDataFinalTDB is None:
+            self.shotDataFinalTDB = TDBShotDataArray(tiledb_dir.shot_data)
 
-            self.gnssObsTDBURI = self.current_station_dir.tiledb_directory.gnss_obs_data
-            self.gnssObsTDB_secondaryURI = self.current_station_dir.tiledb_directory.gnss_obs_data_secondary
+        # Store GNSS URIs for later use
+        self.gnssObsTDBURI = tiledb_dir.gnss_obs_data
+        self.gnssObsTDB_secondaryURI = tiledb_dir.gnss_obs_data_secondary
 
         self._build_rinex_meta()
 

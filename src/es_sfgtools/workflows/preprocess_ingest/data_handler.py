@@ -109,6 +109,23 @@ class DataHandler(WorkflowABC):
         # Log to the new log
         logger.loginfo(f"Built directory structure for {network_id} {station_id} {campaign_id}")
 
+    def _ensure_tiledb_array(self, array_attr_name: str, array_class, uri_path):
+        """
+        Helper method to ensure a TileDB array is properly initialized.
+
+        Parameters
+        ----------
+        array_attr_name : str
+            The attribute name on this instance to store the array.
+        array_class : type
+            The TileDB array class to instantiate.
+        uri_path : Path
+            The URI path for the TileDB array.
+        """
+        current_array = getattr(self, array_attr_name, None)
+        if current_array is None or uri_path != current_array.uri:
+            setattr(self, array_attr_name, array_class(uri_path))
+
     def _build_tileDB_arrays(self) -> None:
         """
         Initializes and consolidates TileDB arrays for the current station.
@@ -118,39 +135,22 @@ class DataHandler(WorkflowABC):
         """
         logger.loginfo(f"Creating TileDB arrays for {self.current_station_name}")
 
-        acoustic_tdb_uri = self.current_station_dir.tiledb_directory.acoustic_data
-        if self.acoustic_tdb is None or acoustic_tdb_uri != self.acoustic_tdb.uri:
-            self.acoustic_tdb = TDBAcousticArray(acoustic_tdb_uri)
+        tiledb_dir = self.current_station_dir.tiledb_directory
 
-        kin_position_tdb_uri = self.current_station_dir.tiledb_directory.kin_position_data
-        if self.kin_position_tdb is None or kin_position_tdb_uri != self.kin_position_tdb.uri:
-            self.kin_position_tdb = TDBKinPositionArray(kin_position_tdb_uri)
-
-        imu_position_tdb_uri = self.current_station_dir.tiledb_directory.imu_position_data
-        if self.imu_position_tdb is None or imu_position_tdb_uri != self.imu_position_tdb.uri:
-            self.imu_position_tdb = TDBIMUPositionArray(imu_position_tdb_uri)
-
-        shotdata_tdb_uri = self.current_station_dir.tiledb_directory.shot_data
-        if self.shotdata_tdb is None or shotdata_tdb_uri != self.shotdata_tdb.uri:
-            self.shotdata_tdb = TDBShotDataArray(shotdata_tdb_uri)
-
+        # Use standardized pattern for all TileDB arrays
+        self._ensure_tiledb_array('acoustic_tdb', TDBAcousticArray, tiledb_dir.acoustic_data)
+        self._ensure_tiledb_array('kin_position_tdb', TDBKinPositionArray, tiledb_dir.kin_position_data)
+        self._ensure_tiledb_array('imu_position_tdb', TDBIMUPositionArray, tiledb_dir.imu_position_data)
+        self._ensure_tiledb_array('shotdata_tdb', TDBShotDataArray, tiledb_dir.shot_data)
+        
         # Use a pre-array for dfo processing, self.shotdata_tdb is where we store the updated version
-        shotdata_tdb_uri_pre = self.current_station_dir.tiledb_directory.shot_data_pre
-        if self.shotdata_tdb_pre is None or shotdata_tdb_uri_pre != self.shotdata_tdb_pre.uri:
-            self.shotdata_tdb_pre = TDBShotDataArray(shotdata_tdb_uri_pre)
-
-        # this is the primary GNSS observables (10hz NOV770 collected on USB3 for SV3, 5hz bcnovatel for SV2)
-        gnss_obs_tdb_uri = self.current_station_dir.tiledb_directory.gnss_obs_data
-        if self.gnss_obs_tdb is None or gnss_obs_tdb_uri != self.gnss_obs_tdb.uri:
-            self.gnss_obs_tdb = TDBGNSSObsArray(
-                gnss_obs_tdb_uri
-            )  # golang binaries will be used to interact with this array
-
-        # this is the secondary GNSS observables (5hz NOV000 collected on USB2 for SV3)
-        # can choose to use this instead of the primary GNSS observables if desired
-        gnss_obs_secondary_tdb_uri = self.current_station_dir.tiledb_directory.gnss_obs_data_secondary
-        if self.gnss_obs_secondary_tdb is None or gnss_obs_secondary_tdb_uri != self.gnss_obs_secondary_tdb.uri:
-            self.gnss_obs_secondary_tdb = TDBGNSSObsArray(gnss_obs_secondary_tdb_uri)
+        self._ensure_tiledb_array('shotdata_tdb_pre', TDBShotDataArray, tiledb_dir.shot_data_pre)
+        
+        # Primary GNSS observables (10hz NOV770 collected on USB3 for SV3, 5hz bcnovatel for SV2)
+        self._ensure_tiledb_array('gnss_obs_tdb', TDBGNSSObsArray, tiledb_dir.gnss_obs_data)
+        
+        # Secondary GNSS observables (5hz NOV000 collected on USB2 for SV3)
+        self._ensure_tiledb_array('gnss_obs_secondary_tdb', TDBGNSSObsArray, tiledb_dir.gnss_obs_data_secondary)
 
         logger.loginfo(
             f"Consolidating existing TileDB arrays for {self.current_station_name}"
@@ -168,35 +168,24 @@ class DataHandler(WorkflowABC):
         network_id: str,
         station_id: str,
         campaign_id: str,
-        site_metadata: Optional[Union[Site, Path, str]] = None,
     ):
         """
         Changes the operational context to a specific network, station, and campaign.
 
+        Overrides the parent method to add DataHandler-specific setup including
+        TileDB array initialization and logging configuration.
+
         Parameters
         ----------
-        network : str
+        network_id : str
             The network identifier.
-        station : str
+        station_id : str
             The station identifier.
-        campaign : str
+        campaign_id : str
             The campaign identifier.
-        site_metadata : Site, Path, str, optional
-            Optional site metadata. If not provided, it will be loaded if available.
-
         """
-        getSiteMeta = False
-        if (
-            self.current_network_name != network_id
-            or self.current_station_name != station_id
-            or self.current_station_metadata is None
-        ):
-            getSiteMeta = True
-
-        # Set class attributes & create the directory structure
-        self.set_network(network_id) if self.current_network_name != network_id else None
-        self.set_station(station_id) if self.current_station_name != station_id else None
-        self.set_campaign(campaign_id) if self.current_campaign_name != campaign_id else None
+        # Call parent method to handle context switching
+        super().set_network_station_campaign(network_id, station_id, campaign_id)
 
         # Build the campaign directory structure and TileDB arrays, this changes the logger directory as well
         log_dir = self.current_campaign_dir.log_directory
@@ -204,13 +193,40 @@ class DataHandler(WorkflowABC):
         os.environ["LOG_FILE_PATH"] = str(log_dir)
         self._build_tileDB_arrays()
 
-        if getSiteMeta or site_metadata is not None:
-            # Load site metadata
+        logger.loginfo(f"Changed working station to {network_id} {station_id} {campaign_id}")
+
+    def set_network_station_campaign_with_metadata(
+        self,
+        network_id: str,
+        station_id: str,
+        campaign_id: str,
+        site_metadata: Optional[Union[Site, Path, str]] = None,
+    ):
+        """
+        Changes the operational context and loads specific site metadata.
+
+        This method extends set_network_station_campaign() by allowing custom
+        site metadata to be loaded for the station context.
+
+        Parameters
+        ----------
+        network_id : str
+            The network identifier.
+        station_id : str
+            The station identifier.
+        campaign_id : str
+            The campaign identifier.
+        site_metadata : Site, Path, str, optional
+            Optional site metadata. If not provided, it will be loaded if available.
+        """
+        # First set the context
+        self.set_network_station_campaign(network_id, station_id, campaign_id)
+        
+        # Then load metadata if provided or if none exists
+        if site_metadata is not None or self.current_station_metadata is None:
             self.current_station_metadata = self.get_site_metadata(
                 site_metadata=site_metadata
             )
-
-        logger.loginfo(f"Changed working station to {network_id} {station_id} {campaign_id}")
 
     @validate_network_station_campaign
     def get_dtype_counts(self):
