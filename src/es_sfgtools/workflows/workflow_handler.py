@@ -1,24 +1,13 @@
 from pathlib import Path
 from typing import (
-    Callable,
-    Concatenate,
     List,
     Literal,
     Optional,
-    ParamSpec,
-    Protocol,
-    Tuple,
-    TypeVar,
     Union,
 )
 
-from es_sfgtools.data_mgmt.assetcatalog.handler import PreProcessCatalogHandler
-from es_sfgtools.data_mgmt.utils import validate_network_station_campaign
-from es_sfgtools.data_models.metadata.campaign import Campaign, Survey
-import seaborn
-from tqdm.auto import tqdm
 
-from es_sfgtools.data_mgmt.config import DEFAULT_FILE_TYPES_TO_DOWNLOAD, REMOTE_TYPE
+from es_sfgtools.data_mgmt.config import DEFAULT_FILE_TYPES_TO_DOWNLOAD
 
 from es_sfgtools.data_mgmt.directorymgmt.handler import (
     CampaignDir,
@@ -35,10 +24,10 @@ from es_sfgtools.data_models.metadata.site import Site
 from es_sfgtools.logging import ProcessLogger as logger
 from es_sfgtools.logging import change_all_logger_dirs
 from es_sfgtools.modeling.garpos_tools.garpos_handler import GarposHandler
-from es_sfgtools.workflows.preprocess_ingest.pipelines.sv3_pipeline import SV3Pipeline
-from es_sfgtools.workflows.preprocess_ingest.pipelines import exceptions as pipeline_exceptions
+from es_sfgtools.workflows.pipelines.sv3_pipeline import SV3Pipeline
+from es_sfgtools.workflows.pipelines import exceptions as pipeline_exceptions
 
-from es_sfgtools.workflows.preprocess_ingest.pipelines.config import (
+from es_sfgtools.workflows.pipelines.config import (
     SV3PipelineConfig,
     PrideCLIConfig,
     NovatelConfig,
@@ -54,12 +43,12 @@ from es_sfgtools.data_mgmt.ingestion.archive_pull import (
 )
 from es_sfgtools.utils.model_update import validate_and_merge_config
 
-from es_sfgtools.workflows.preprocess_ingest.pipelines.sv3_pipeline import SV3Pipeline
-from es_sfgtools.workflows.config.protocols import validate_network_station_campaign, MidProcessIngestProtocol
+
+from es_sfgtools.workflows.config.protocols import WorkflowABC, validate_network_station_campaign
 from es_sfgtools.workflows.preprocess_ingest.data_handler import DataHandler
 
 
-pipeline_jobs = Literal[
+pipeline_jobs = [
     "all",
     "process_novatel",
     "build_rinex",
@@ -71,194 +60,63 @@ pipeline_jobs = Literal[
 ]
 
 
-class WorkflowHandler(MidProcessIngestProtocol):
+class WorkflowHandler(WorkflowABC):
     """
     Handles data operations including searching, adding, downloading, and processing.
+    
+    This class extends WorkflowABC to provide comprehensive workflow management
+    capabilities including data ingestion, processing pipelines, and analysis
+    tools for seafloor geodesy workflows.
     """
 
     def __init__(
         self,
         directory: Path | str,
     ) -> None:
-        """Initializes the DataHandler, setting up directories and the processing catalog.
+        """Initializes the WorkflowHandler with directory structure and handlers.
+
+        Sets up the workflow infrastructure and creates a DataHandler instance
+        for data operations.
 
         Parameters
         ----------
-        directory : Union[Path, str]
+        directory : Path | str
             The root directory for data storage and operations.
         """
+        # Initialize parent WorkflowABC with directory
+        super().__init__(directory=directory)
 
-        self.current_network_name: Optional[str] = None
-        self.current_network_dir: Optional[NetworkDir] = None
-
-        self.current_station_name: Optional[str] = None
-        self.current_station_dir: Optional[StationDir] = None
-        self.current_station_metadata: Optional[Site] = None
-
-        self.current_campaign_name: Optional[str] = None
-        self.current_campaign: Optional[Campaign] = None
-        self.current_campaign_dir: Optional[CampaignDir] = None
-
-        self.current_survey_name: Optional[str] = None
-        self.current_survey_dir: Optional[SurveyDir] = None
-        self.current_survey: Optional[Survey] = None
-
-        self.directory_handler: DirectoryHandler = DirectoryHandler(directory=directory)
+        # Create DataHandler instance for data operations
         self.data_handler = DataHandler(directory=directory)
-        self.asset_catalog: PreProcessCatalogHandler = self.data_handler.asset_catalog
-
-    def set_network(self, network_id: str):
-        """Sets the current network.
-
-        Parameters
-        ----------
-        network_id : str
-            The ID of the network to set.
-
-        Raises
-        ------
-        ValueError
-            If the network is not found in the site metadata.
-        """
-        self._reset_network()
-
-        # Set current network attributes
-        for network_name in self.current_station_meta.networks:
-            if network_name == network_id:
-                self.current_network = network_name
-                break
-        if self.current_network is None:
-            raise ValueError(f"Network {network_id} not found in site metadata.")
-
-        if (
-            current_network_dir := self.directory_handler.networks.get(
-                self.current_network, None
-            )
-        ) is None:
-            current_network_dir = self.directory_handler.add_network(
-                name=self.current_network
-            )
-        self.current_network_dir = current_network_dir
-
-    def _reset_network(self) -> None:
-        """Resets the current network."""
-        self.current_network_name = None
-        self.current_network_dir = None
-        self._reset_station()
-
-    def set_station(self, station_id: str):
-        """Sets the current station.
-
-        Parameters
-        ----------
-        station_id : str
-            The ID of the station to set.
-
-        Raises
-        ------
-        ValueError
-            If the station is not found in the site metadata.
-        """
-
-        self._reset_station()
-
-        # Set current station attributes
-        for station_name in self.current_station_meta.names:
-            if station_name == station_id:
-                self.current_station = station_name
-                break
-        if self.current_station is None:
-            raise ValueError(f"Station {station_id} not found in site metadata.")
-
-        if (
-            current_station_dir := self.current_network_dir.stations.get(
-                self.current_station, None
-            )
-        ) is None:
-            current_station_dir = self.current_network_dir.add_station(
-                name=self.current_station
-            )
-        self.current_station_dir = current_station_dir
-
-    def _reset_station(self) -> None:
-        """Resets the current station."""
-        self.current_station_name = None
-        self.current_station_dir = None
-        self.current_station_meta = None
-
-        self._reset_campaign()
-
-    def set_campaign(self, campaign_id: str):
-        """Sets the current campaign.
-
-        Parameters
-        ----------
-        campaign_id : str
-            The ID of the campaign to set.
-
-        Raises
-        ------
-        ValueError
-            If the campaign is not found in the site metadata.
-        """
-        self._reset_campaign()
-
-        # Set current campaign attributes
-
-        for campaign in self.current_station_meta.campaigns:
-            if campaign.name == campaign_id:
-                self.current_campaign = campaign
-                self.current_campaign_name = campaign.name
-                break
-        if self.current_campaign is None:
-            raise ValueError(f"Campaign {campaign_id} not found in site metadata.")
-
-        if (
-            current_campaign_dir := self.current_station_dir.campaigns.get(
-                self.current_campaign.name, None
-            )
-        ) is None:
-            current_campaign_dir = self.current_station_dir.add_campaign(
-                name=campaign_id
-            )
-        self.current_campaign_dir = current_campaign_dir
-
-    def _reset_campaign(self) -> None:
-        """Resets the current campaign."""
-        self.current_campaign_name = None
-        self.current_campaign = None
-        self.current_campaign_dir = None
-
-        self._reset_survey()
 
     def set_network_station_campaign(
         self, network_id: str, station_id: str, campaign_id: str
     ):
         """Sets the current network, station, and campaign.
 
+        Overrides the parent method to add WorkflowHandler-specific setup
+        including DataHandler context switching.
+
         Parameters
         ----------
-        network : str
+        network_id : str
             The ID of the network to set.
-        station : str
+        station_id : str
             The ID of the station to set.
-        campaign : str
+        campaign_id : str
             The ID of the campaign to set.
         """
-        assert isinstance(network_id, str), "network_id must be a string"
-        assert isinstance(station_id, str), "station_id must be a string"
-        assert isinstance(campaign_id, str), "campaign_id must be a string"
+        # Update DataHandler context to match
+        self.data_handler.set_network_station_campaign(network_id, station_id, campaign_id)
 
-        self.set_network(network_id=network_id)
-        self.set_station(station_id=station_id)
-        self.set_campaign(campaign_id=campaign_id)
+        # Call parent method to handle context switching
+        super().set_network_station_campaign(network_id, station_id, campaign_id)
 
-        if self.current_station_meta is None:
-    
-            message = f"No site metadata found for {self.current_network} {self.current_station}. Some processing steps may fail."
+        self.current_station_metadata = self.data_handler.current_station_metadata
+
+        if self.current_station_metadata is None:
+            message = f"No site metadata found for {network_id} {station_id}. Some processing steps may fail."
             logger.logwarn(message)
-            raise Warning(message)
-
 
     @validate_network_station_campaign
     def ingest_add_local_data(self, directory_path: Path) -> None:
@@ -293,7 +151,7 @@ class WorkflowHandler(MidProcessIngestProtocol):
         -----
         This method requires that the catalog has been populated with remote file paths using `ingest_catalog_archive_data`.
         """
-        self.data_handler.download_data()
+        self.data_handler.download_data(file_types=file_types)
 
     @validate_network_station_campaign
     def preprocess_get_pipeline_sv3(
@@ -390,9 +248,9 @@ class WorkflowHandler(MidProcessIngestProtocol):
             directory_handler=self.data_handler.directory_handler, config=base_config
         )
         pipeline.set_network_station_campaign(
-            network=self.current_network,
-            station=self.current_station,
-            campaign=self.current_campaign,
+            network_id=self.current_network_name,
+            station_id=self.current_station_name,
+            campaign_id=self.current_campaign_name,
         )
         return pipeline
 
@@ -432,7 +290,7 @@ class WorkflowHandler(MidProcessIngestProtocol):
             ]
         ] = None,
     ) -> None:
-        """Runs the SV3 processing pipeline with optional configuration overrides.
+        f"""Runs the SV3 processing pipeline with optional configuration overrides.
 
         This method creates and configures an :class:`~es_sfgtools.pipelines.sv3_pipeline.SV3Pipeline`
         instance using the :attr:`data_handler` to access the directory structure and catalog.
@@ -469,7 +327,7 @@ class WorkflowHandler(MidProcessIngestProtocol):
         ...     primary_config={"novatel_config": {"n_processes": 8}}
         ... )
         """
-        assert job in ['all', 'process_novatel', 'build_rinex', 'run_pride', 'process_kinematic', 'process_dfop00', 'refine_shotdata', 'process_svp'], f"Job must be one of {pipeline_jobs}"
+        assert job in pipeline_jobs, f"Job must be one of {pipeline_jobs}"
 
         pipeline: SV3Pipeline = self.preprocess_get_pipeline_sv3(
             primary_config=primary_config, secondary_config=secondary_config
@@ -580,7 +438,7 @@ class WorkflowHandler(MidProcessIngestProtocol):
     def midprocess_get_sitemeta(
         self, site_metadata: Optional[Union[Site, str]] = None
     ) -> Site:
-        """Loads and returns the site metadata for the current station. Sets the currentSiteMetaData attribute.
+        """Loads and returns the site metadata for the current station. Sets the current_station_metadata attribute.
 
         Parameters
         ----------
@@ -602,8 +460,8 @@ class WorkflowHandler(MidProcessIngestProtocol):
         )
         if siteMeta is None:
             raise ValueError("Site metadata not loaded or provided, cannot proceed")
-        self.currentSiteMetaData = siteMeta
-        return self.currentSiteMetaData
+        self.current_station_metadata = siteMeta
+        return self.current_station_metadata
 
     @validate_network_station_campaign
     def midprocess_get_processor(
@@ -625,12 +483,12 @@ class WorkflowHandler(MidProcessIngestProtocol):
         self.midprocess_get_sitemeta(site_metadata=site_metadata)
 
         dataPostProcessor = IntermediateDataProcessor(
-            site=self.currentSiteMetaData,
+            site=self.current_station_metadata,
             directory_handler=self.data_handler.directory_handler,
         )
-        dataPostProcessor.set_network(network_id=self.current_network)
-        dataPostProcessor.set_station(station_id=self.current_station)
-        dataPostProcessor.set_campaign(campaign_id=self.current_campaign)
+        dataPostProcessor.set_network(network_id=self.current_network_name)
+        dataPostProcessor.set_station(station_id=self.current_station_name)
+        dataPostProcessor.set_campaign(campaign_id=self.current_campaign_name)
 
         return dataPostProcessor
 
@@ -724,17 +582,17 @@ class WorkflowHandler(MidProcessIngestProtocol):
         ValueError
             If site metadata is not loaded.
         """
-        if self.currentSiteMetaData is None:
+        if self.current_station_metadata is None:
             raise ValueError("Site metadata not loaded, cannot get GarposHandler")
 
         gp_handler = GarposHandler(
             directory_handler=self.data_handler.directory_handler,
-            site=self.currentSiteMetaData,
+            site=self.current_station_metadata,
         )
         gp_handler.set_network_station_campaign(
-            network=self.current_network,
-            station=self.current_station,
-            campaign=self.current_campaign,
+            network=self.current_network_name,
+            station=self.current_station_name,
+            campaign=self.current_campaign_name,
         )
         return gp_handler
 
