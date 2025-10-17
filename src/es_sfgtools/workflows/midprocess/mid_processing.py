@@ -25,10 +25,10 @@ from es_sfgtools.modeling.garpos_tools.data_prep import (
     prepare_shotdata_for_garpos,
     apply_survey_config
 )
-from es_sfgtools.modeling.garpos_tools.garpos_config import (
+from es_sfgtools.config.garpos_config import (
     DEFAULT_SITE_CONFIG,
 )
-from es_sfgtools.modeling.prefiltering import filter_shotdata
+from es_sfgtools.prefiltering import filter_shotdata
 
 from es_sfgtools.modeling.garpos_tools.functions import (
     CoordTransformer,
@@ -40,8 +40,10 @@ from es_sfgtools.tiledb_tools.tiledb_schemas import (
     TDBKinPositionArray,
     TDBShotDataArray,
 )
+from es_sfgtools.workflows.utils.loadconfigs import get_survey_filter_config
 
-from ..config.protocols import WorkflowABC,validate_network_station_campaign
+from es_sfgtools.workflows.utils.protocols import WorkflowABC,validate_network_station_campaign
+from es_sfgtools.utils.model_update import validate_and_merge_config
 
 class IntermediateDataProcessor(WorkflowABC):
     """
@@ -291,6 +293,15 @@ class IntermediateDataProcessor(WorkflowABC):
             shot_data_filtered = pd.DataFrame()
 
         if shot_data_filtered.empty or overwrite:
+            filter_config = get_survey_filter_config(
+                survey_type=survey.type,
+                station_metadata=self.current_station_metadata,
+            )
+            if custom_filters is not None:
+                filter_config = validate_and_merge_config(
+                    base_model=filter_config,
+                    update_dict=custom_filters,
+                )
             shot_data_filtered = filter_shotdata(
                 survey_type=survey.type,
                 site=self.current_station_metadata,

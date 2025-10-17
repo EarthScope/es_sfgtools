@@ -24,7 +24,7 @@ from es_sfgtools.modeling.garpos_tools.schemas import (
     GPTransponder,
 )
 
-from es_sfgtools.modeling.garpos_tools.garpos_config import GarposSiteConfig, DEFAULT_SITE_CONFIG
+from es_sfgtools.config.garpos_config import GarposSiteConfig, DEFAULT_SITE_CONFIG
 
 class NoShotDataError(Exception):
     """

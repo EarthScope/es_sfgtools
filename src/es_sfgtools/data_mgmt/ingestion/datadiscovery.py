@@ -4,7 +4,8 @@ import warnings
 from pathlib import Path
 from typing import List, Union, Optional
 from es_sfgtools.logging import ProcessLogger as logger
-from ..config import AssetType, AssetEntry
+from ..config import AssetType
+from ..assetcatalog.schemas import AssetEntry
 from .config import pattern_map
 
 def _get_time(line: str) -> datetime.datetime:

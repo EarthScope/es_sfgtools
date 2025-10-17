@@ -9,13 +9,7 @@ from typing import (
 
 from es_sfgtools.data_mgmt.config import DEFAULT_FILE_TYPES_TO_DOWNLOAD
 
-from es_sfgtools.data_mgmt.directorymgmt.handler import (
-    CampaignDir,
-    DirectoryHandler,
-    NetworkDir,
-    StationDir,
-    SurveyDir,
-)
+
 from es_sfgtools.data_mgmt.assetcatalog.schemas import AssetEntry, AssetType
 from es_sfgtools.data_mgmt.post_processing import (
     IntermediateDataProcessor,
@@ -36,11 +30,7 @@ from es_sfgtools.workflows.pipelines.config import (
     PositionUpdateConfig,
 )
 
-from es_sfgtools.data_mgmt.ingestion.archive_pull import (
-    download_file_from_archive,
-    list_campaign_files,
-    load_site_metadata,
-)
+
 from es_sfgtools.utils.model_update import validate_and_merge_config
 
 
@@ -290,7 +280,7 @@ class WorkflowHandler(WorkflowABC):
             ]
         ] = None,
     ) -> None:
-        f"""Runs the SV3 processing pipeline with optional configuration overrides.
+        """Runs the SV3 processing pipeline with optional configuration overrides.
 
         This method creates and configures an :class:`~es_sfgtools.pipelines.sv3_pipeline.SV3Pipeline`
         instance using the :attr:`data_handler` to access the directory structure and catalog.

@@ -40,9 +40,8 @@ def main():
     # garpos_iterations = 2
 
     station = "NBR1"
-    wfh.change_working_station(network=network, station=station, campaign=campaign)
+    wfh.set_network_station_campaign(network_id=network, station_id=station, campaign_id=campaign)
     wfh.preprocess_run_pipeline_sv3()
-    wfh.midprocess_parse_surveys(override=override_survey_parsing)
     wfh.midprocess_prep_garpos(override=override_garpos_parsing,custom_filters=filter_config)
     wfh.modeling_run_garpos(run_id="Test2",iterations=2,override=True,custom_settings={"maxloop":100})
     # nbr1MidProcess.prepare_shotdata_garpos(custom_filters=filter_config,overwrite=override_garpos_parsing)

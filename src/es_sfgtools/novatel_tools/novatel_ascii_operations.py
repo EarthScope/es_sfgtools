@@ -16,8 +16,8 @@ from .utils import (
     get_metadata,
     get_nova2rnxo_binary_path,
     get_nova2tile_binary_path,
-    parse_cli_logs,
 )
+from es_sfgtools.utils.command_line_utils import parse_cli_logs
 
 
 def novatel_ascii_2tile(files: List[str], gnss_obs_tdb: Path, n_procs: int = 10) -> None:

@@ -68,7 +68,7 @@ def validate_keys_recursively(config_dict: dict, model_class: BaseModel, path: s
     return errors
 
 def validate_and_merge_config(
-     base_class: BaseModel, override_config: dict
+     base_class: BaseModel, override_config: Union[BaseModel, Dict[str, Any]]
 ) -> BaseModel:
     """Validates and merges override configuration with base config, checking for typos.
 
@@ -96,7 +96,8 @@ def validate_and_merge_config(
     if not isinstance(override_config, dict):
         raise TypeError("override_config must be a dictionary")
 
-
+    if isinstance(override_config, BaseModel):
+        override_config = override_config.model_dump()
     # Check for typos and validate keys
     errors = validate_keys_recursively(override_config, base_class)
     if errors:

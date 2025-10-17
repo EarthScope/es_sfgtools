@@ -24,7 +24,7 @@ from es_sfgtools.modeling.garpos_tools.data_prep import (
     prepare_shotdata_for_garpos,
     apply_survey_config
 )
-from es_sfgtools.modeling.garpos_tools.garpos_config import (
+from es_sfgtools.config.garpos_config import (
     DEFAULT_SITE_CONFIG,
 )
 from es_sfgtools.modeling.prefiltering import filter_shotdata

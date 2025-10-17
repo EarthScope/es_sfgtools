@@ -7,7 +7,9 @@ import pymap3d as pm
 from es_sfgtools.data_models.metadata import Site,SurveyType,classify_survey_type
 from es_sfgtools.logging import GarposLogger as logger
 from es_sfgtools.tiledb_tools.tiledb_schemas import TDBKinPositionArray
-from .config import  FilterLevel, get_survey_filter_config
+from es_sfgtools.utils.model_update import validate_and_merge_config
+
+from .config import  FilterLevel, get_survey_filter_config,FilterConfig
 
 def filter_shotdata(
     survey_type: Union[str, SurveyType],
@@ -16,6 +18,7 @@ def filter_shotdata(
     kinPostionTDBUri: str,
     start_time: datetime,
     end_time: datetime,
+    base_config: Optional[FilterConfig] = None,
     custom_filters: Optional[dict] = None,
 ) -> pd.DataFrame:
     """
@@ -43,16 +46,16 @@ def filter_shotdata(
     pd.DataFrame
         The filtered shot data.
     """
-    if isinstance(survey_type,str):
-        survey_type:SurveyType = classify_survey_type(survey_type)
 
-
-    filter_config = get_survey_filter_config(survey_type)
+    if base_config is None:
+        filter_config = FilterConfig()
 
     initial_count = len(shot_data)
     new_shot_data_df = shot_data.copy()
     if custom_filters:
-        filter_config.update(custom_filters)
+        filter_config = validate_and_merge_config(
+            base_model=filter_config, custom_config=custom_filters
+        )
         logger.loginfo(f"Using custom filter configuration: {filter_config}")
 
     """
@@ -122,16 +125,21 @@ def filter_wg_distance_from_center(
     """
     Remove data where waveglider is > x meters from array center. Typically used for center surveys.
 
-    :param df: DataFrame with shotdata.
-    :type df: pd.DataFrame
-    :param array_center_lat: Latitude of array center.
-    :type array_center_lat: float
-    :param array_center_lon: Longitude of array center.
-    :type array_center_lon: float
-    :param max_distance_m: Maximum distance in meters. Defaults to 150.
-    :type max_distance_m: float, optional
-    :return: Filtered DataFrame.
-    :rtype: pd.DataFrame
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame with shotdata.
+    array_center_lat : float
+        Latitude of the array center.
+    array_center_lon : float
+        Longitude of the array center.
+    max_distance_m : float, optional
+        Maximum distance from center in meters, by default 150.
+    
+    Returns
+    -------
+    pd.DataFrame
+        Filtered DataFrame.
     """
     # Convert array center lat/lon to ECEF coordinates (assuming sea level)
     center_x, center_y, center_z = pm.geodetic2ecef(

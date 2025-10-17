@@ -547,7 +547,7 @@ class WorkflowABC(ABC):
             self.current_campaign_name = campaign_id
         if (
             current_campaign_dir := self.current_station_dir.campaigns.get(
-                self.current_campaign_metadata.name, None
+                self.current_campaign_name, None
             )
         ) is None:
             current_campaign_dir = self.current_station_dir.add_campaign(
