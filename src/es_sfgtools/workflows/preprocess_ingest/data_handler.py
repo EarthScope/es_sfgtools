@@ -4,23 +4,17 @@ import concurrent.futures
 import os
 import threading
 import warnings
-from functools import wraps
 from pathlib import Path
 from typing import (
-    Callable,
-    Concatenate,
+
     List,
-    Literal,
+
     Optional,
-    ParamSpec,
-    Protocol,
-    Tuple,
-    TypeVar,
+
     Union,
 )
 
 import boto3
-import seaborn
 from tqdm.auto import tqdm
 import json
 
@@ -41,17 +35,12 @@ from es_sfgtools.data_mgmt.directorymgmt.handler import (
     DirectoryHandler,
     NetworkDir,
     StationDir,
-    SurveyDir,
 )
 from es_sfgtools.data_mgmt.assetcatalog.schemas import AssetEntry
-from es_sfgtools.data_mgmt.post_processing import (
-    IntermediateDataProcessor,
-)
+
 from es_sfgtools.data_models.metadata.site import Site
 from es_sfgtools.logging import ProcessLogger as logger
 from es_sfgtools.logging import change_all_logger_dirs
-from es_sfgtools.modeling.garpos_tools.garpos_handler import GarposHandler
-from es_sfgtools.workflows.preprocess_ingest.pipelines.sv3_pipeline import SV3Pipeline, SV3PipelineConfig
 from es_sfgtools.tiledb_tools.tiledb_schemas import (
     TDBAcousticArray,
     TDBGNSSObsArray,
@@ -64,10 +53,11 @@ from es_sfgtools.data_mgmt.ingestion.archive_pull import (
     list_campaign_files,
     load_site_metadata,
 )
-from es_sfgtools.data_mgmt.utils import check_network_station_campaign
-seaborn.set_theme(style="whitegrid")
+from es_sfgtools.workflows.config.protocols import PreProcessIngestProtocol,validate_network_station_campaign
 
-class DataHandler:
+
+
+class DataHandler(PreProcessIngestProtocol):
     """
     Handles data operations including searching, adding, downloading, and processing.
     """
@@ -85,16 +75,23 @@ class DataHandler:
             The root directory for data storage and operations.
         """
 
-        self.current_network: Optional[str] = None
-        self.current_station: Optional[str] = None
-        self.current_campaign: Optional[str] = None
+        self.current_network_name: Optional[str] = None
+        self.current_station_name: Optional[str] = None
+        self.current_campaign_name: Optional[str] = None
 
         self.current_network_dir: Optional[NetworkDir] = None
         self.current_station_dir: Optional[StationDir] = None
         self.current_campaign_dir: Optional[CampaignDir] = None
-        self.current_survey_dir: Optional[SurveyDir] = None
 
-        self.currentSiteMetaData: Optional[Site] = None
+        self.current_station_metadata: Optional[Site] = None
+
+        self.acoustic_tdb: Optional[TDBAcousticArray] = None
+        self.kin_position_tdb: Optional[TDBKinPositionArray] = None
+        self.imu_position_tdb: Optional[TDBIMUPositionArray] = None
+        self.shotdata_tdb: Optional[TDBShotDataArray] = None
+        self.shotdata_tdb_pre: Optional[TDBShotDataArray] = None
+        self.gnss_obs_tdb: Optional[TDBGNSSObsArray] = None
+        self.gnss_obs_secondary_tdb: Optional[TDBGNSSObsArray] = None
 
         # Create the directory structures
         self.main_directory = Path(directory)
@@ -103,11 +100,11 @@ class DataHandler:
 
         logger.set_dir(self.main_directory)
 
-        self.catalog = PreProcessCatalogHandler(
+        self.asset_catalog = PreProcessCatalogHandler(
             self.directory_handler.asset_catalog_db_path
         )
 
-    def _build_station_dir_structure(self, network: str, station: str, campaign: str):
+    def _build_station_dir_structure(self, network_id: str, station_id: str, campaign_id: str):
         """
         Constructs the necessary directory structure for a given station and campaign.
 
@@ -126,7 +123,7 @@ class DataHandler:
 
         networkDir, stationDir, campaignDir, _ = (
             self.directory_handler.build_station_directory(
-                network_name=network, station_name=station, campaign_name=campaign
+                network_name=network_id, station_name=station_id, campaign_name=campaign_id
             )
         )
         self.current_network_dir = networkDir
@@ -138,9 +135,59 @@ class DataHandler:
         change_all_logger_dirs(log_dir)
         os.environ["LOG_FILE_PATH"] = str(log_dir)
         # Log to the new log
-        logger.loginfo(f"Built directory structure for {network} {station} {campaign}")
+        logger.loginfo(f"Built directory structure for {network_id} {station_id} {campaign_id}")
 
-    @check_network_station_campaign
+    def set_network(self, network_id:str):
+        self._reset_network()
+        self.current_network_name = network_id
+        if (
+            current_network_dir := self.directory_handler.networks.get(
+                network_id, None
+            )
+        ) is None:
+            current_network_dir = self.directory_handler.add_network(name=network_id)
+        self.current_network_dir = current_network_dir
+
+    def _reset_network(self):
+        self.current_network_name = None
+        self.current_network_dir = None
+        self._reset_station()
+
+    def set_station(self, station_id:str,site_metadata: Optional[Union[Site, Path, str]] = None):
+        self._reset_station()
+        self.current_station_name = station_id
+        if (
+            current_station_dir := self.current_network_dir.stations.get(
+                station_id, None
+            )
+        ) is None:
+            current_station_dir = self.current_network_dir.add_station(name=station_id)
+        self.current_station_dir = current_station_dir
+        self.get_site_metadata(site_metadata=site_metadata)
+
+    def _reset_station(self):
+        self.current_station_name = None
+        self.current_station_dir = None
+        self.current_station_metadata = None
+        self._reset_campaign()
+
+    def set_campaign(self, campaign_id):
+
+        self._reset_campaign()
+        self.current_campaign_name = campaign_id
+        if (
+            current_campaign_dir := self.current_station_dir.campaigns.get(
+                campaign_id, None
+            )
+        ) is None:
+            current_campaign_dir = self.current_station_dir.add_campaign(name=campaign_id)
+        self.current_campaign_dir = current_campaign_dir
+
+        
+    def _reset_campaign(self):
+        self.current_campaign_name = None
+        self.current_campaign_dir = None
+
     def _build_tileDB_arrays(self):
         """
         Initializes and consolidates TileDB arrays for the current station.
@@ -153,7 +200,7 @@ class DataHandler:
         acoustic_tdb_uri = self.current_station_dir.tiledb_directory.acoustic_data
         self.acoustic_tdb = TDBAcousticArray(acoustic_tdb_uri)
 
-        kin_position_tdb_uri = self.directory_handler[self.current_network][
+        kin_position_tdb_uri = self.directory_handler[self.current_network_name][
             self.current_station
         ].tiledb_directory.kin_position_data
         self.kin_position_tdb = TDBKinPositionArray(kin_position_tdb_uri)
@@ -191,11 +238,12 @@ class DataHandler:
         self.gnss_obs_tdb.consolidate()
         self.gnss_obs_secondary_tdb.consolidate()
 
-    def change_working_station(
+  
+    def set_network_station_campaign(
         self,
-        network: str,
-        station: str,
-        campaign: str,
+        network_id: str,
+        station_id: str,
+        campaign_id: str,
         site_metadata: Optional[Union[Site, Path, str]] = None,
     ):
         """
@@ -214,13 +262,13 @@ class DataHandler:
 
         """
         assert (
-            isinstance(network, str) and network is not None
+            isinstance(network_id, str) and network_id is not None
         ), "Network must be a non-empty string"
         assert (
-            isinstance(station, str) and station is not None
+            isinstance(station_id, str) and station_id is not None
         ), "Station must be a non-empty string"
         assert (
-            isinstance(campaign, str) and campaign is not None
+            isinstance(campaign_id, str) and campaign_id is not None
         ), "Campaign must be a non-empty string"
 
         assert site_metadata is None or isinstance(
@@ -229,30 +277,30 @@ class DataHandler:
 
         getSiteMeta = False
         if (
-            self.current_network != network
-            or self.current_station != station
-            or self.currentSiteMetaData is None
+            self.current_network_name != network_id
+            or self.current_station != station_id
+            or self.current_station_metadata is None
         ):
             getSiteMeta = True
 
         # Set class attributes & create the directory structure
-        self.current_station = station
-        self.current_network = network
-        self.current_campaign = campaign
+        self.set_network(network_id)
+        self.set_station(station_id)
+        self.set_campaign(campaign_id)
 
         # Build the campaign directory structure and TileDB arrays, this changes the logger directory as well
-        self._build_station_dir_structure(network, station, campaign)
+        self._build_station_dir_structure(network_id, station_id, campaign_id)
         self._build_tileDB_arrays()
 
         if getSiteMeta or site_metadata is not None:
             # Load site metadata
-            self.currentSiteMetaData = self.get_site_metadata(
+            self.current_station_metadata = self.get_site_metadata(
                 site_metadata=site_metadata
             )
 
-        logger.loginfo(f"Changed working station to {network} {station} {campaign}")
+        logger.loginfo(f"Changed working station to {network_id} {station_id} {campaign_id}")
 
-    @check_network_station_campaign
+    @validate_network_station_campaign
     def get_dtype_counts(self):
         """
         Retrieves the counts of different data types for the current operational context.
@@ -262,13 +310,13 @@ class DataHandler:
         dict of {str : int}
             A dictionary mapping data types to their counts.
         """
-        return self.catalog.get_dtype_counts(
-            network=self.current_network,
-            station=self.current_station,
-            campaign=self.current_campaign,
+        return self.asset_catalog.get_dtype_counts(
+            network=self.current_network_name,
+            station=self.current_station_name,
+            campaign=self.current_campaign_name,
         )
 
-    @check_network_station_campaign
+    @validate_network_station_campaign
     def discover_data_and_add_files(self, directory_path: Path) -> None:
         """
         Scans a directory for data files and adds them to the catalog.
@@ -290,7 +338,7 @@ class DataHandler:
 
         self.add_data_to_catalog(files)
 
-    @check_network_station_campaign
+    @validate_network_station_campaign
     def add_data_to_catalog(self, local_filepaths: List[Path]):
         """
         Adds a list of local files to the data catalog.
@@ -322,9 +370,9 @@ class DataHandler:
                 file_data = AssetEntry(
                     local_path=file_path,
                     type=file_type,
-                    network=self.current_network,
-                    station=self.current_station,
-                    campaign=self.current_campaign,
+                    network=self.current_network_name,
+                    station=self.current_station_name,
+                    campaign=self.current_campaign_name,
                 )
                 file_data_list.append(file_data)
 
@@ -332,12 +380,12 @@ class DataHandler:
         count = len(file_data_list)
         uploadCount = 0
         for file_assest in file_data_list:
-            if self.catalog.add_entry(file_assest):
+            if self.asset_catalog.add_entry(file_assest):
                 uploadCount += 1
 
         logger.loginfo(f"Added {uploadCount} out of {count} files to the catalog")
 
-    @check_network_station_campaign
+    @validate_network_station_campaign
     def add_data_remote(
         self,
         remote_filepaths: List[str],
@@ -380,10 +428,10 @@ class DataHandler:
                 not_recognized.append(file)
                 continue
 
-            if not self.catalog.remote_file_exist(
-                network=self.current_network,
-                station=self.current_station,
-                campaign=self.current_campaign,
+            if not self.asset_catalog.remote_file_exist(
+                network=self.current_network_name,
+                station=self.current_station_name,
+                campaign=self.current_campaign_name,
                 type=file_type,
                 remote_path=file,
             ):
@@ -391,9 +439,9 @@ class DataHandler:
                     remote_path=file,
                     remote_type=remote_type,
                     type=file_type,
-                    network=self.current_network,
-                    station=self.current_station,
-                    campaign=self.current_campaign,
+                    network=self.current_network_name,
+                    station=self.current_station_name,
+                    campaign=self.current_campaign_name,
                 )
                 file_data_list.append(file_data)
             else:
@@ -406,7 +454,7 @@ class DataHandler:
         file_count = len(file_data_list)
         uploadCount = 0
         for file_assest in file_data_list:
-            if self.catalog.add_entry(file_assest):
+            if self.asset_catalog.add_entry(file_assest):
                 uploadCount += 1
 
         already_existed_in_catalog = file_count - uploadCount
@@ -460,10 +508,10 @@ class DataHandler:
 
         # Pull files from the catalog by type
         for type in file_types:
-            assets = self.catalog.get_assets(
-                network=self.current_network,
-                station=self.current_station,
-                campaign=self.current_campaign,
+            assets = self.asset_catalog.get_assets(
+                network=self.current_network_name,
+                station=self.current_station_name,
+                campaign=self.current_campaign_name,
                 type=type,
             )
 
@@ -506,7 +554,7 @@ class DataHandler:
                 self._download_S3_files(s3_assets=s3_assets)
                 for file in s3_assets:
                     if file.local_path is not None:
-                        self.catalog.update_local_path(file.id, file.local_path)
+                        self.asset_catalog.update_local_path(file.id, file.local_path)
 
             if len(http_assets) > 0:
                 self.download_HTTP_files(http_assets=http_assets, file_type=type)
@@ -537,7 +585,7 @@ class DataHandler:
                     # Update the local path in the AssetEntry
                     file_asset.local_path = str(local_downloaded_path)
                     # Update catalog with local path
-                    self.catalog.update_local_path(
+                    self.asset_catalog.update_local_path(
                         id=file_asset.id, local_path=file_asset.local_path
                     )
 
@@ -603,7 +651,7 @@ class DataHandler:
                 # Update the local path in the AssetEntry
                 file_asset.local_path = str(local_path)
                 # Update catalog with local path
-                self.catalog.update_local_path(
+                self.asset_catalog.update_local_path(
                     id=file_asset.id, local_path=file_asset.local_path
                 )
 
@@ -640,16 +688,16 @@ class DataHandler:
         finally:
             return local_path
 
-    @check_network_station_campaign
+    @validate_network_station_campaign
     def update_catalog_from_archive(self):
         """
         Updates the catalog with remote file paths from the data archive.
         """
         logger.loginfo(
-            f"Updating catalog with remote paths of available data for {self.current_network} {self.current_station} {self.current_campaign}"
+            f"Updating catalog with remote paths of available data for {self.current_network_name} {self.current_station} {self.current_campaign}"
         )
         remote_filepaths = list_campaign_files(
-            network=self.current_network,
+            network=self.current_network_name,
             station=self.current_station,
             campaign=self.current_campaign,
         )
@@ -657,7 +705,7 @@ class DataHandler:
             remote_filepaths=remote_filepaths, remote_type=REMOTE_TYPE.HTTP
         )
 
-    @check_network_station_campaign
+    @validate_network_station_campaign
     def get_site_metadata(
         self, site_metadata: Optional[Union[Site, Path]] = None
     ) -> Optional[Site]:
@@ -716,7 +764,7 @@ class DataHandler:
 
                 try:
                     site = load_site_metadata(
-                        network=self.current_network, station=self.current_station
+                        network=self.current_network_name, station=self.current_station_name
                     )
                     with open(site_meta_write_dest, "w") as f:
                         json_dict = json.loads(site.model_dump_json())
@@ -742,7 +790,7 @@ class DataHandler:
                 logger.loginfo(f"Wrote site metadata to {site_meta_write_dest}")
 
         else:
-            response = f"Warning: No site metadata found for {self.current_network} {self.current_station}. Some functionality may be limited."
+            response = f"Warning: No site metadata found for {self.current_network_name} {self.current_station_name}. Some functionality may be limited."
             warnings.warn(response)
             logger.logwarn(response)
 
