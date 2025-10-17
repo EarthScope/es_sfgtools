@@ -41,232 +41,31 @@ from es_sfgtools.tiledb_tools.tiledb_schemas import (
     TDBShotDataArray,
 )
 
-from ..config.protocols import MidProcessIngestProtocol,validate_network_station_campaign
+from ..config.protocols import WorkflowABC,validate_network_station_campaign
 
-class IntermediateDataProcessor(MidProcessIngestProtocol):
+class IntermediateDataProcessor(WorkflowABC):
     """
     A class to handle post-processing of data.
     """
-    def __init__(self, site: Site, directory_handler: DirectoryHandler):
+    mid_process_workflow: bool = True
+
+    def __init__(self, station_metadata: Site, directory_handler: DirectoryHandler):
         """Initializes the IntermediateDataProcessor.
 
         Parameters
         ----------
-        site : Site
-            The site metadata.
+        station_metadata : Site
+            The station metadata.
         directory_handler : DirectoryHandler
             The directory handler.
-        network : Optional[str], optional
-            The network ID, by default None.
-        station : Optional[str], optional
-            The station ID, by default None.
-        campaign : Optional[str], optional
-            The campaign ID, by default None.
         """
-        self.current_station_meta: Site = site
-        self.directory_handler: DirectoryHandler = directory_handler
-
-        self.current_network_name: Optional[str] = None
-        self.current_network_dir: Optional[NetworkDir] = None
-
-        self.current_station_name: Optional[str] = None
-        self.current_station_dir: Optional[StationDir] = None
-
-        self.current_campaign_name: Optional[str] = None
-        self.current_campaign: Optional[Campaign] = None
-        self.current_campaign_dir: Optional[CampaignDir] = None
-
-        self.current_survey_name: Optional[str] = None
-        self.current_survey_dir: Optional[SurveyDir] = None
-        self.current_survey: Optional[Survey] = None
+        super().__init__(station_metadata=station_metadata,directory_handler=directory_handler)
 
         self.coordTransformer = CoordTransformer(
-            latitude=site.arrayCenter.latitude,
-            longitude=site.arrayCenter.longitude,
-            elevation=-float(site.localGeoidHeight),
+            latitude=station_metadata.arrayCenter.latitude,
+            longitude=station_metadata.arrayCenter.longitude,
+            elevation=-float(station_metadata.localGeoidHeight),
         )
-
-    def set_network(self, network_id: str):
-        """Sets the current network.
-
-        Parameters
-        ----------
-        network_id : str
-            The ID of the network to set.
-
-        Raises
-        ------
-        ValueError
-            If the network is not found in the site metadata.
-        """
-        self._reset_network()
-
-        # Set current network attributes
-        for network_name in self.current_station_meta.networks:
-            if network_name == network_id:
-                self.current_network = network_name
-                break
-        if self.current_network is None:
-            raise ValueError(f"Network {network_id} not found in site metadata.")
-
-        if (
-            current_network_dir := self.directory_handler.networks.get(
-                self.current_network, None
-            )
-        ) is None:
-            current_network_dir = self.directory_handler.add_network(
-                name=self.current_network
-            )
-        self.current_network_dir = current_network_dir
-
-    def _reset_network(self) -> None:
-        """Resets the current network."""
-        self.current_network_name = None
-        self.current_network_dir = None
-        self._reset_station()
-
-    def set_station(self, station_id: str):
-        """Sets the current station.
-
-        Parameters
-        ----------
-        station_id : str
-            The ID of the station to set.
-
-        Raises
-        ------
-        ValueError
-            If the station is not found in the site metadata.
-        """
-
-        self._reset_station()
-
-        # Set current station attributes
-        for station_name in self.current_station_meta.names:
-            if station_name == station_id:
-                self.current_station = station_name
-                break
-        if self.current_station is None:
-            raise ValueError(f"Station {station_id} not found in site metadata.")
-
-        if (
-            current_station_dir := self.current_network_dir.stations.get(
-                self.current_station, None
-            )
-        ) is None:
-            current_station_dir = self.current_network_dir.add_station(
-                name=self.current_station
-            )
-        self.current_station_dir = current_station_dir
-
-    def _reset_station(self) -> None:
-        """Resets the current station."""
-        self.current_station_name = None
-        self.current_station_dir = None
-        self.current_station_meta = None
-
-        self._reset_campaign()
-
-    def set_campaign(self, campaign_id: str):
-        """Sets the current campaign.
-
-        Parameters
-        ----------
-        campaign_id : str
-            The ID of the campaign to set.
-
-        Raises
-        ------
-        ValueError
-            If the campaign is not found in the site metadata.
-        """
-        self._reset_campaign()
-
-        # Set current campaign attributes
-
-        for campaign in self.current_station_meta.campaigns:
-            if campaign.name == campaign_id:
-                self.current_campaign = campaign
-                self.current_campaign_name = campaign.name
-                break
-        if self.current_campaign is None:
-            raise ValueError(f"Campaign {campaign_id} not found in site metadata.")
-
-        if (
-            current_campaign_dir := self.current_station_dir.campaigns.get(
-                self.current_campaign.name, None
-            )
-        ) is None:
-            current_campaign_dir = self.current_station_dir.add_campaign(name=campaign_id)
-        self.current_campaign_dir = current_campaign_dir
-
-    def _reset_campaign(self) -> None:
-        """Resets the current campaign."""
-        self.current_campaign_name = None
-        self.current_campaign = None
-        self.current_campaign_dir = None
-
-        self._reset_survey()
-
-    def set_network_station_campaign(self, network_id: str, station_id: str, campaign_id: str):
-        """Sets the current network, station, and campaign.
-
-        Parameters
-        ----------
-        network : str
-            The ID of the network to set.
-        station : str
-            The ID of the station to set.
-        campaign : str
-            The ID of the campaign to set.
-        """
-        assert isinstance(network_id,str), "network_id must be a string"
-        assert isinstance(station_id,str), "station_id must be a string"
-        assert isinstance(campaign_id,str), "campaign_id must be a string"
-
-        self.set_network(network_id=network_id)
-        self.set_station(station_id=station_id)
-        self.set_campaign(campaign_id=campaign_id)
-
-    @validate_network_station_campaign
-    def set_survey(self, survey_id: str):
-        """Sets the current survey.
-
-        Parameters
-        ----------
-        survey_id : str
-            The ID of the survey to set.
-
-        Raises
-        ------
-        ValueError
-            If the survey is not found in the current campaign.
-        """
-        assert isinstance(survey_id, str), "survey_id must be a string"
-
-        self._reset_survey()
-
-        # Set current survey attributes
-        for survey in self.current_campaign.surveys:
-            if survey.id == survey_id:
-                self.current_survey = survey
-                break
-        if self.current_survey is None:
-            raise ValueError(
-                f"Survey {survey_id} not found in campaign {self.current_campaign.name}."
-            )
-
-        if (
-            current_survey_dir := self.current_campaign_dir.surveys.get(survey_id, None)
-        ) is None:
-            current_survey_dir = self.current_campaign_dir.add_survey(name=survey_id)
-        self.current_survey_dir = current_survey_dir
-
-    def _reset_survey(self) -> None:
-        """Resets the current survey."""
-        self.current_survey_name = None
-        self.current_survey = None
-        self.current_survey_dir = None
 
     @validate_network_station_campaign
     def parse_surveys(
@@ -286,11 +85,6 @@ class IntermediateDataProcessor(MidProcessIngestProtocol):
         write_intermediate : bool, optional
             Whether to write intermediate files, by default False.
         """
-        if self.current_network is None or self.current_station is None:
-            raise ValueError("Network and station must be set before parsing surveys.")
-
-        if self.current_campaign is None:
-            raise ValueError("Campaign must be set before parsing surveys.")
 
         tileDBDir = self.current_station_dir.tiledb_directory
 
@@ -300,15 +94,15 @@ class IntermediateDataProcessor(MidProcessIngestProtocol):
             self.current_campaign_dir.campaign_metadata,
             "w",
         ) as f:
-            json_dict = json.loads(self.current_campaign.model_dump_json())
+            json_dict = json.loads(self.current_campaign_metadata.model_dump_json())
             json.dump(json_dict, f, indent=4)
 
         surveys_to_process: List[Survey] = []
-        for survey in self.current_campaign.surveys:
+        for survey in self.current_campaign_metadata.surveys:
             if survey_id is None or survey_id == survey.id:
                 surveys_to_process.append(survey)
         if not surveys_to_process:
-            raise ValueError(f"Survey {survey_id} not found in campaign {self.current_campaign.name}.")
+            raise ValueError(f"Survey {survey_id} not found in campaign {self.current_campaign_metadata.name}.")
 
         for survey in surveys_to_process:
             self.set_survey(survey_id=survey.id)
@@ -430,14 +224,14 @@ class IntermediateDataProcessor(MidProcessIngestProtocol):
         """
 
         if campaign_id is None:
-            if self.current_campaign is None:
+            if self.current_campaign_metadata is None:
                 raise ValueError("Campaign must be set before preparing GARPOS shotdata.")
         else:
             # load the campaign
             self.set_campaign(campaign_id=campaign_id)
 
         surveys_to_process = []
-        for survey in self.current_campaign.surveys:
+        for survey in self.current_campaign_metadata.surveys:
             if survey_id is None or survey.id == survey_id:
                 surveys_to_process.append(survey)
         if not surveys_to_process:
@@ -499,7 +293,7 @@ class IntermediateDataProcessor(MidProcessIngestProtocol):
         if shot_data_filtered.empty or overwrite:
             shot_data_filtered = filter_shotdata(
                 survey_type=survey.type,
-                site=self.current_station_meta,
+                site=self.current_station_metadata,
                 shot_data=shotDataRaw,
                 kinPostionTDBUri=self.current_station_dir.tiledb_directory.kin_position_data,
                 start_time=survey.start,
@@ -515,7 +309,7 @@ class IntermediateDataProcessor(MidProcessIngestProtocol):
             shot_data_filtered.to_csv(file_name_filtered)
 
         GPtransponders = GP_Transponders_from_benchmarks(
-            coord_transformer=self.coordTransformer, survey=survey, site=self.current_station_meta
+            coord_transformer=self.coordTransformer, survey=survey, site=self.current_station_metadata
         )
         array_dpos_center = get_array_dpos_center(self.coordTransformer, GPtransponders)
 
@@ -548,15 +342,15 @@ class IntermediateDataProcessor(MidProcessIngestProtocol):
                 shutil.copy(self.current_campaign_dir.svp_file, garposDir.svp_file)
             else:
                 logger.logwarn(
-                        f"No sound speed profile file found for campaign {self.current_campaign.name}, GARPOS processing may fail."
+                        f"No sound speed profile file found for campaign {self.current_campaign_metadata.name}, GARPOS processing may fail."
                     )
         obsfile_out_path = garposDir.default_obsfile
         if not obsfile_out_path.exists() or overwrite:
             garpos_input = prepare_garpos_input_from_survey(
                     shot_data_path=shotdata_out_path,
                     survey=survey,
-                    site=self.current_station_meta,
-                    campaign=self.current_campaign,
+                    site=self.current_station_metadata,
+                    campaign=self.current_campaign_metadata,
                     ss_path=garposDir.svp_file,
                     array_dpos_center=array_dpos_center,
                     num_of_shots=len(shot_data_rectified),

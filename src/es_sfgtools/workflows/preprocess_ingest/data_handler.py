@@ -53,14 +53,15 @@ from es_sfgtools.data_mgmt.ingestion.archive_pull import (
     list_campaign_files,
     load_site_metadata,
 )
-from es_sfgtools.workflows.config.protocols import PreProcessIngestProtocol,validate_network_station_campaign
+from es_sfgtools.workflows.config.protocols import WorkflowABC,validate_network_station_campaign
 
 
 
-class DataHandler(PreProcessIngestProtocol):
+class DataHandler(WorkflowABC):
     """
     Handles data operations including searching, adding, downloading, and processing.
     """
+    mid_process_workflow: bool = False
 
     def __init__(
         self,
@@ -74,16 +75,7 @@ class DataHandler(PreProcessIngestProtocol):
         directory : Path or str
             The root directory for data storage and operations.
         """
-
-        self.current_network_name: Optional[str] = None
-        self.current_station_name: Optional[str] = None
-        self.current_campaign_name: Optional[str] = None
-
-        self.current_network_dir: Optional[NetworkDir] = None
-        self.current_station_dir: Optional[StationDir] = None
-        self.current_campaign_dir: Optional[CampaignDir] = None
-
-        self.current_station_metadata: Optional[Site] = None
+        super().__init__(directory=directory)
 
         self.acoustic_tdb: Optional[TDBAcousticArray] = None
         self.kin_position_tdb: Optional[TDBKinPositionArray] = None
@@ -92,17 +84,6 @@ class DataHandler(PreProcessIngestProtocol):
         self.shotdata_tdb_pre: Optional[TDBShotDataArray] = None
         self.gnss_obs_tdb: Optional[TDBGNSSObsArray] = None
         self.gnss_obs_secondary_tdb: Optional[TDBGNSSObsArray] = None
-
-        # Create the directory structures
-        self.main_directory = Path(directory)
-        self.directory_handler = DirectoryHandler(location=self.main_directory)
-        self.directory_handler.build()
-
-        logger.set_dir(self.main_directory)
-
-        self.asset_catalog = PreProcessCatalogHandler(
-            self.directory_handler.asset_catalog_db_path
-        )
 
     def _build_station_dir_structure(self, network_id: str, station_id: str, campaign_id: str):
         """
@@ -121,78 +102,12 @@ class DataHandler(PreProcessIngestProtocol):
             The name of the campaign.
         """
 
-        networkDir, stationDir, campaignDir, _ = (
-            self.directory_handler.build_station_directory(
-                network_name=network_id, station_name=station_id, campaign_name=campaign_id
-            )
-        )
-        self.current_network_dir = networkDir
-        self.current_station_dir = stationDir
-        self.current_campaign_dir = campaignDir
-
         # Change the logger directory to the campaign log directory
         log_dir = self.current_campaign_dir.log_directory
         change_all_logger_dirs(log_dir)
         os.environ["LOG_FILE_PATH"] = str(log_dir)
         # Log to the new log
         logger.loginfo(f"Built directory structure for {network_id} {station_id} {campaign_id}")
-
-    def set_network(self, network_id:str):
-        """Sets the current network."""
-        self._reset_network()
-        self.current_network_name = network_id
-        if (
-            current_network_dir := self.directory_handler.networks.get(
-                network_id, None
-            )
-        ) is None:
-            current_network_dir = self.directory_handler.add_network(name=network_id)
-        self.current_network_dir = current_network_dir
-
-    def _reset_network(self) -> None:
-        """Resets the current network."""
-        self.current_network_name = None
-        self.current_network_dir = None
-        self._reset_station()
-
-    def set_station(self, station_id:str,site_metadata: Optional[Union[Site, Path, str]] = None):
-        """Sets the current station."""
-        self._reset_station()
-        self.current_station_name = station_id
-        if (
-            current_station_dir := self.current_network_dir.stations.get(
-                station_id, None
-            )
-        ) is None:
-            current_station_dir = self.current_network_dir.add_station(name=station_id)
-        self.current_station_dir = current_station_dir
-        self.get_site_metadata(site_metadata=site_metadata)
-
-    def _reset_station(self) -> None:
-        """Resets the current station."""
-        self.current_station_name = None
-        self.current_station_dir = None
-        self.current_station_metadata = None
-        self._reset_campaign()
-
-    def set_campaign(self, campaign_id: str):
-        """Sets the current campaign."""
-
-        self._reset_campaign()
-        self.current_campaign_name = campaign_id
-        if (
-            current_campaign_dir := self.current_station_dir.campaigns.get(
-                campaign_id, None
-            )
-        ) is None:
-            current_campaign_dir = self.current_station_dir.add_campaign(name=campaign_id)
-        self.current_campaign_dir = current_campaign_dir
-
-        
-    def _reset_campaign(self) -> None:
-        """Resets the current campaign."""
-        self.current_campaign_name = None
-        self.current_campaign_dir = None
 
     def _build_tileDB_arrays(self) -> None:
         """
@@ -201,41 +116,44 @@ class DataHandler(PreProcessIngestProtocol):
         This includes arrays for acoustic data, kinematic positions, IMU positions,
         shot data, and GNSS observables.
         """
-        logger.loginfo(f"Creating TileDB arrays for {self.current_station}")
+        logger.loginfo(f"Creating TileDB arrays for {self.current_station_name}")
 
         acoustic_tdb_uri = self.current_station_dir.tiledb_directory.acoustic_data
-        self.acoustic_tdb = TDBAcousticArray(acoustic_tdb_uri)
+        if self.acoustic_tdb is None or acoustic_tdb_uri != self.acoustic_tdb.uri:
+            self.acoustic_tdb = TDBAcousticArray(acoustic_tdb_uri)
 
-        kin_position_tdb_uri = self.directory_handler[self.current_network_name][
-            self.current_station
-        ].tiledb_directory.kin_position_data
-        self.kin_position_tdb = TDBKinPositionArray(kin_position_tdb_uri)
+        kin_position_tdb_uri = self.current_station_dir.tiledb_directory.kin_position_data
+        if self.kin_position_tdb is None or kin_position_tdb_uri != self.kin_position_tdb.uri:
+            self.kin_position_tdb = TDBKinPositionArray(kin_position_tdb_uri)
 
         imu_position_tdb_uri = self.current_station_dir.tiledb_directory.imu_position_data
-        self.imu_position_tdb = TDBIMUPositionArray(imu_position_tdb_uri)
+        if self.imu_position_tdb is None or imu_position_tdb_uri != self.imu_position_tdb.uri:
+            self.imu_position_tdb = TDBIMUPositionArray(imu_position_tdb_uri)
 
         shotdata_tdb_uri = self.current_station_dir.tiledb_directory.shot_data
+        if self.shotdata_tdb is None or shotdata_tdb_uri != self.shotdata_tdb.uri:
+            self.shotdata_tdb = TDBShotDataArray(shotdata_tdb_uri)
 
-        self.shotdata_tdb = TDBShotDataArray(shotdata_tdb_uri)
         # Use a pre-array for dfo processing, self.shotdata_tdb is where we store the updated version
         shotdata_tdb_uri_pre = self.current_station_dir.tiledb_directory.shot_data_pre
-        self.shotdata_tdb_pre = TDBShotDataArray(shotdata_tdb_uri_pre)
+        if self.shotdata_tdb_pre is None or shotdata_tdb_uri_pre != self.shotdata_tdb_pre.uri:
+            self.shotdata_tdb_pre = TDBShotDataArray(shotdata_tdb_uri_pre)
 
         # this is the primary GNSS observables (10hz NOV770 collected on USB3 for SV3, 5hz bcnovatel for SV2)
         gnss_obs_tdb_uri = self.current_station_dir.tiledb_directory.gnss_obs_data
-        self.gnss_obs_tdb = TDBGNSSObsArray(
-            gnss_obs_tdb_uri
-        )  # golang binaries will be used to interact with this array
+        if self.gnss_obs_tdb is None or gnss_obs_tdb_uri != self.gnss_obs_tdb.uri:
+            self.gnss_obs_tdb = TDBGNSSObsArray(
+                gnss_obs_tdb_uri
+            )  # golang binaries will be used to interact with this array
 
         # this is the secondary GNSS observables (5hz NOV000 collected on USB2 for SV3)
         # can choose to use this instead of the primary GNSS observables if desired
-        gnss_obs_secondary_tdb_uri = (
-            self.current_station_dir.tiledb_directory.gnss_obs_data_secondary
-        )
-        self.gnss_obs_secondary_tdb = TDBGNSSObsArray(gnss_obs_secondary_tdb_uri)
+        gnss_obs_secondary_tdb_uri = self.current_station_dir.tiledb_directory.gnss_obs_data_secondary
+        if self.gnss_obs_secondary_tdb is None or gnss_obs_secondary_tdb_uri != self.gnss_obs_secondary_tdb.uri:
+            self.gnss_obs_secondary_tdb = TDBGNSSObsArray(gnss_obs_secondary_tdb_uri)
 
         logger.loginfo(
-            f"Consolidating existing TileDB arrays for {self.current_station}"
+            f"Consolidating existing TileDB arrays for {self.current_station_name}"
         )
         self.acoustic_tdb.consolidate()
         self.kin_position_tdb.consolidate()
@@ -267,35 +185,23 @@ class DataHandler(PreProcessIngestProtocol):
             Optional site metadata. If not provided, it will be loaded if available.
 
         """
-        assert (
-            isinstance(network_id, str) and network_id is not None
-        ), "Network must be a non-empty string"
-        assert (
-            isinstance(station_id, str) and station_id is not None
-        ), "Station must be a non-empty string"
-        assert (
-            isinstance(campaign_id, str) and campaign_id is not None
-        ), "Campaign must be a non-empty string"
-
-        assert site_metadata is None or isinstance(
-            site_metadata, (Site, Path, str)
-        ), "Site metadata must be a Site, Path, or str"
-
         getSiteMeta = False
         if (
             self.current_network_name != network_id
-            or self.current_station != station_id
+            or self.current_station_name != station_id
             or self.current_station_metadata is None
         ):
             getSiteMeta = True
 
         # Set class attributes & create the directory structure
-        self.set_network(network_id)
-        self.set_station(station_id)
-        self.set_campaign(campaign_id)
+        self.set_network(network_id) if self.current_network_name != network_id else None
+        self.set_station(station_id) if self.current_station_name != station_id else None
+        self.set_campaign(campaign_id) if self.current_campaign_name != campaign_id else None
 
         # Build the campaign directory structure and TileDB arrays, this changes the logger directory as well
-        self._build_station_dir_structure(network_id, station_id, campaign_id)
+        log_dir = self.current_campaign_dir.log_directory
+        change_all_logger_dirs(log_dir)
+        os.environ["LOG_FILE_PATH"] = str(log_dir)
         self._build_tileDB_arrays()
 
         if getSiteMeta or site_metadata is not None:
@@ -700,12 +606,12 @@ class DataHandler(PreProcessIngestProtocol):
         Updates the catalog with remote file paths from the data archive.
         """
         logger.loginfo(
-            f"Updating catalog with remote paths of available data for {self.current_network_name} {self.current_station} {self.current_campaign}"
+            f"Updating catalog with remote paths of available data for {self.current_network_name} {self.current_station_name} {self.current_campaign_name}"
         )
         remote_filepaths = list_campaign_files(
             network=self.current_network_name,
-            station=self.current_station,
-            campaign=self.current_campaign,
+            station=self.current_station_name,
+            campaign=self.current_campaign_name,
         )
         self.add_data_remote(
             remote_filepaths=remote_filepaths, remote_type=REMOTE_TYPE.HTTP
