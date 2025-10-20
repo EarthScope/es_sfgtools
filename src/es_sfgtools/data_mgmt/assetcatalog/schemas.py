@@ -7,7 +7,7 @@ from typing import Any, Dict, Optional, Union, List
 from pydantic import BaseModel, Field, field_serializer, field_validator, root_validator
 
 
-from ..config.enums import AssetType
+from ...config.enums import AssetType
 
 
 class _AssetBase(BaseModel):

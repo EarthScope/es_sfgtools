@@ -409,7 +409,7 @@ class GarposHandler(WorkflowABC):
         for survey_id, survey_type in surveys_to_process:
             try:
                 self.set_survey(survey_id)
-                self.garpos_results_processor.plot_ts_results(
+                self.plot_ts_results(
                     survey_id=survey_id,
                     survey_type=survey_type,
                     run_id=run_id,
