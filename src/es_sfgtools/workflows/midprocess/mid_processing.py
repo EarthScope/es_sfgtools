@@ -2,8 +2,12 @@
 This module defines the DataPostProcessor class, which is responsible for post-processing of data.
 """
 import json
+import os
 import shutil
 from typing import List, Optional
+from pathlib import Path
+from boto3.s3.transfer import S3Transfer
+from boto3 import client
 
 from es_sfgtools.data_mgmt.directorymgmt.schemas import StationDir
 import pandas as pd
@@ -40,7 +44,7 @@ from es_sfgtools.tiledb_tools.tiledb_schemas import (
     TDBKinPositionArray,
     TDBShotDataArray,
 )
-from es_sfgtools.config.loadconfigs import get_survey_filter_config,get_garpos_site_config,GarposSiteConfig,FilterConfig
+from es_sfgtools.config.loadconfigs import get_survey_filter_config,get_garpos_site_config,GarposSiteConfig,FilterConfig, load_s3_sync_bucket
 
 from es_sfgtools.workflows.utils.protocols import WorkflowABC,validate_network_station_campaign
 from es_sfgtools.utils.model_update import validate_and_merge_config
@@ -204,6 +208,7 @@ class IntermediateDataProcessor(WorkflowABC):
 
         self.directory_handler.save()
 
+    @validate_network_station_campaign
     def prepare_shotdata_garpos(
         self,
         campaign_id: Optional[str] = None,
@@ -248,7 +253,7 @@ class IntermediateDataProcessor(WorkflowABC):
                 custom_filters=custom_filters,
                 overwrite=overwrite
             )
-
+    @validate_network_station_campaign
     def prepare_single_garpos_survey(
         self,
         survey: Survey,
@@ -376,3 +381,86 @@ class IntermediateDataProcessor(WorkflowABC):
             garpos_input_configured.to_datafile(garposDir.default_obsfile)
 
         self.directory_handler.save()
+
+    @validate_network_station_campaign
+    def midprocess_sync_s3(self):
+        """Uploads the current station directory to S3 for synchronization.
+
+        
+        SFGMain/cascadia-gorda/NCC1/2025_A_1126 -->
+        s3://<bucket_name>/cascadia-gorda/NCC1/2025_A_1126
+
+        """
+        try:
+            s3_bucket = load_s3_sync_bucket()
+        except ValueError as e:
+            logger.logwarn(f"S3 synchronization skipped: {e}")
+            return
+
+        s3_client = client("s3")
+        transfer = S3Transfer(s3_client)
+
+        to_transfer_station = ['tiledb_directory','site_metadata']
+        to_transfer_campaign = ['svp_file','log_directory']
+
+        station_dir_location = self.current_station_dir.location
+        s3_destination_dir_prefix = f"{s3_bucket}/{station_dir_location.name}"
+
+        # Sync station-level directories and files
+        for item in to_transfer_station:
+            source_object = getattr(self.current_station_dir, item)
+            if hasattr(source_object, 'location'):
+                s3_source_path = source_object.location
+            else:
+                s3_source_path = source_object
+
+            if not isinstance(s3_source_path, Path) or not s3_source_path.exists():
+                logger.logwarn(f"Skipping {item} as it is not a valid path.")
+                continue
+
+            # Determine S3 destination path
+            relative_path = str(s3_source_path.relative_to(station_dir_location))
+            s3_destination_path = f"{s3_destination_dir_prefix}/{relative_path}"
+            logger.loginfo(f"Syncing {s3_source_path} to {s3_destination_path}")
+
+            # Use Boto3 S3Transfer to sync
+            if s3_source_path.is_dir():
+                for root, dirs, files in os.walk(s3_source_path):
+                    for file in files:
+                        local_file_path = os.path.join(root, file)
+                        relative_file_path = os.path.relpath(local_file_path, station_dir_location)
+                        s3_file_path = f"{s3_destination_dir_prefix}/{relative_file_path}"
+                        transfer.upload_file(local_file_path, s3_bucket, s3_file_path)
+
+
+        for campaign_dir in self.current_station_dir.campaigns:
+            campaign_dir_location = campaign_dir.location
+            s3_campaign_dir_prefix = f"{s3_destination_dir_prefix}/{campaign_dir_location.name}"
+
+            for item in to_transfer_campaign:
+                source_object = getattr(campaign_dir, item)
+                if hasattr(source_object, 'location'):
+                    s3_source_path = source_object.location
+                else:
+                    s3_source_path = source_object
+
+                if not isinstance(s3_source_path, Path) or not s3_source_path.exists():
+                    logger.logwarn(f"Skipping {item} as it is not a valid path.")
+                    continue
+
+                # Determine S3 destination path
+                relative_path = str(s3_source_path.relative_to(campaign_dir_location))
+                s3_destination_path = f"{s3_campaign_dir_prefix}/{relative_path}"
+                logger.loginfo(f"Syncing {s3_source_path} to {s3_destination_path}")
+
+                # Use Boto3 S3Transfer to sync
+                if s3_source_path.is_dir():
+                    for root, dirs, files in os.walk(s3_source_path):
+                        for file in files:
+                            local_file_path = os.path.join(root, file)
+                            relative_file_path = os.path.relpath(local_file_path, station_dir_location)
+                            s3_file_path = f"{s3_destination_dir_prefix}/{relative_file_path}"
+                            transfer.upload_file(local_file_path, s3_bucket, s3_file_path)
+
+
+            
