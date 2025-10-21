@@ -7,7 +7,7 @@ from typing import (
 )
 
 
-from es_sfgtools.data_mgmt.config import DEFAULT_FILE_TYPES_TO_DOWNLOAD
+from es_sfgtools.config.file_config import DEFAULT_FILE_TYPES_TO_DOWNLOAD
 
 
 from es_sfgtools.data_mgmt.assetcatalog.schemas import AssetEntry, AssetType
@@ -473,7 +473,7 @@ class WorkflowHandler(WorkflowABC):
         self.midprocess_get_sitemeta(site_metadata=site_metadata)
 
         dataPostProcessor = IntermediateDataProcessor(
-            site=self.current_station_metadata,
+            station_metadata=self.current_station_metadata,
             directory_handler=self.data_handler.directory_handler,
         )
         dataPostProcessor.set_network(network_id=self.current_network_name)

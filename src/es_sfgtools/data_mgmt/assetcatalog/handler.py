@@ -6,7 +6,7 @@ import pandas as pd
 import sqlalchemy as sa
 
 from .schemas import AssetEntry
-from ...config.enums import AssetType
+from es_sfgtools.config.file_config import AssetType
 
 from es_sfgtools.logging import ProcessLogger as logger
 

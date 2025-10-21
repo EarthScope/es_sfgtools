@@ -19,7 +19,7 @@ from tqdm.auto import tqdm
 import json
 
 from es_sfgtools.data_mgmt.assetcatalog.handler import PreProcessCatalogHandler
-from es_sfgtools.config.enums import (
+from es_sfgtools.config.file_config import (
     REMOTE_TYPE,
     DEFAULT_FILE_TYPES_TO_DOWNLOAD,
     AssetType,

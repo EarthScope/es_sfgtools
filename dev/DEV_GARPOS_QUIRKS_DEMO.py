@@ -66,18 +66,34 @@ def main():
     override_survey_parsing = False
     override_garpos_parsing = False
 
-    station = "NCC1"
-    run_id = "NCC1_Test1"
-    raw_dir_ncc1 = main_dir / network / station / campaign / "raw"
-    wfh.set_network_station_campaign(network_id=network, station_id=station, campaign_id=campaign)
+    # station = "NCC1"
+    # run_id = "NCC1_Test1"
+    # raw_dir_ncc1 = main_dir / network / station / campaign / "raw"
+    # wfh.set_network_station_campaign(network_id=network, station_id=station, campaign_id=campaign)
     # wfh.ingest_add_local_data(directory_path=raw_dir_ncc1)
     # wfh.preprocess_run_pipeline_sv3(primary_config=global_config,secondary_config=ncc1_config)
     os.environ["S3_SYNC_BUCKET"] = (
-        "s3://seafloor-public-bucket-bucket83908e77-gprctmuztrim/"
+        "seafloor-public-bucket-bucket83908e77-gprctmuztrim"
     )
-    wfh.midprocess_get_sitemeta()
+    # wfh.midprocess_get_sitemeta()
+    # mid_processer = wfh.midprocess_get_processor()
+    # mid_processer.midprocess_sync_s3()
+
+    # station = 'NBR1'
+    # wfh.set_network_station_campaign(network_id=network, station_id=station, campaign_id=campaign)
+    # mid_processer = wfh.midprocess_get_processor()
+    # mid_processer.midprocess_sync_s3()
+
+    # station = 'GCC1'
+    # wfh.set_network_station_campaign(network_id=network, station_id=station, campaign_id=campaign)
+    # mid_processer = wfh.midprocess_get_processor()
+    # mid_processer.midprocess_sync_s3()
+
+    station = 'NTH1'
+    wfh.set_network_station_campaign(network_id=network, station_id=station, campaign_id=campaign)
     mid_processer = wfh.midprocess_get_processor()
     mid_processer.midprocess_sync_s3()
+
     # wfh.midprocess_parse_surveys(override=override_survey_parsing,write_intermediate=True)
     # wfh.midprocess_prep_garpos(override=override_garpos_parsing,custom_filters=filter_config,survey_id="2025_A_1126_1")
     # wfh.midprocess_prep_garpos()

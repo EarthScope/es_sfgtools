@@ -16,8 +16,9 @@ import datetime
 import json
 from pathlib import Path
 from typing import Optional
-
+import cloudpathlib
 from pydantic import BaseModel, Field, PrivateAttr
+from copy import deepcopy
 
 from .schemas import (
     _Base,NetworkDir,StationDir,CampaignDir,SurveyDir,TileDBDir,GARPOSSurveyDir
@@ -49,7 +50,6 @@ class DirectoryHandler(_Base):
         with open(self.filepath, "w") as file:
             json_dict = json.loads(self.model_dump_json())
             json.dump(json_dict, file, indent=4)
-    
 
     @classmethod
     def load(cls, path: str | Path) -> "DirectoryHandler":
@@ -158,7 +158,7 @@ class DirectoryHandler(_Base):
         if survey_name and not campaign_name:
             print("Survey name provided without campaign name.")
             return None, None, None, None
-        
+
         networkDir: NetworkDir = None
         stationDir: StationDir = None
         campaignDir: CampaignDir = None
@@ -166,17 +166,59 @@ class DirectoryHandler(_Base):
 
         if not (networkDir:= self.networks.get(network_name)):
             networkDir: NetworkDir = self.add_network(name=network_name)
-        
+
         if station_name:
             if not (stationDir := networkDir.stations.get(station_name)):
                 stationDir: StationDir = networkDir.add_station(name=station_name)
-            
+
             if campaign_name:
                 if not (campaignDir := stationDir.campaigns.get(campaign_name)):
                     campaignDir:CampaignDir = stationDir.add_campaign(name=campaign_name)
-                
+
                 if survey_name:
                     if not (surveyDir := campaignDir.surveys.get(survey_name)):
                         surveyDir:SurveyDir = campaignDir.add_survey(name=survey_name)
 
         return networkDir, stationDir, campaignDir, surveyDir
+
+    def point_to_s3(self,bucket_path: str) -> "DirectoryHandler":
+        """Points the directory handler to an S3 bucket using cloudpathlib.
+
+        1. Create model copy of current directory handler.
+            >> new_handler = self.model_copy()
+
+        2. Update location to CloudPath of S3 bucket.
+            >> new_handler.location = "/Volumes/ThisVolume/Project/SeafloorGeodesy/SFGMain"
+            >> local_location = new_handler.location
+            >> new_handler.location = cloudpathlib.CloudPath("s3://my-bucket/path")
+
+        3. Change all path attributes in the model to CloudPath objects, replacing local_location with new_handler.location.
+
+        Parameters
+        ----------
+        bucket_path : str
+            The S3 bucket path (e.g., "s3://my-bucket/path").
+        """
+        if not bucket_path.startswith("s3://"):
+            bucket_path = "s3://" + bucket_path
+        new_handler = deepcopy(self)
+        local_location = new_handler.location
+        new_handler.location = cloudpathlib.S3Path(bucket_path)
+
+        # recursively update all Path attributes to CloudPath
+        def update_paths(model: _Base, old_root_prefix: Path, new_root_prefix: cloudpathlib.S3Path):
+            for field_name, field_value in model.model_fields.items():
+                attr = getattr(model, field_name)
+                if isinstance(attr, Path): 
+                    relative_path = attr.relative_to(old_root_prefix)
+                    new_path = new_root_prefix / relative_path
+                    setattr(model, field_name, cloudpathlib.CloudPath(new_path))
+                elif isinstance(attr, _Base):
+                    update_paths(attr, old_root_prefix, new_root_prefix)
+                elif isinstance(attr, dict):
+                    for key, value in attr.items():
+                        if isinstance(value, _Base):
+                            update_paths(value, old_root_prefix, new_root_prefix)
+        
+        update_paths(new_handler, local_location, new_handler.location)
+        return new_handler

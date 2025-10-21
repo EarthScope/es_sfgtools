@@ -369,7 +369,6 @@ class TBDArray:
         fig.suptitle(f"Found {self.name} Dates For {network} {station}")
         plt.show()
 
-
 class TDBAcousticArray(TBDArray):
     dataframe_schema = AcousticDataFrame
     array_schema = AcousticArraySchema

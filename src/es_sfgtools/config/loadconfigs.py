@@ -98,6 +98,18 @@ def load_s3_sync_bucket() -> Optional[str]:
             f"Environment variable {S3_SYNC_BUCKET_KEY} is not set."
         )
     else:
+        # Clean bucket name to ensure it meets S3 naming requirements
+        s3_bucket_str = s3_bucket_str.strip().rstrip('/')
+        
+        # Validate bucket name format
+        import re
+        if not re.match(r'^[a-z0-9.\-]{3,63}$', s3_bucket_str):
+            raise ValueError(
+                f"Invalid S3 bucket name: '{s3_bucket_str}'. "
+                f"Bucket names must be 3-63 characters, contain only lowercase "
+                f"letters, numbers, hyphens, and periods, and not end with slashes."
+            )
+        
         S3_SYNC_BUCKET = s3_bucket_str
 
     return S3_SYNC_BUCKET

@@ -383,7 +383,7 @@ class IntermediateDataProcessor(WorkflowABC):
         self.directory_handler.save()
 
     @validate_network_station_campaign
-    def midprocess_sync_s3(self):
+    def midprocess_sync_s3(self,overwrite: bool = False):
         """Uploads the current station directory to S3 for synchronization.
 
         
@@ -397,70 +397,102 @@ class IntermediateDataProcessor(WorkflowABC):
             logger.logwarn(f"S3 synchronization skipped: {e}")
             return
 
-        s3_client = client("s3")
-        transfer = S3Transfer(s3_client)
+        s3_directory_handler = self.directory_handler.point_to_s3(s3_bucket)
+        s3_station_dir = s3_directory_handler.networks[self.current_network_name].stations[self.current_station_name]
 
-        to_transfer_station = ['tiledb_directory','site_metadata']
-        to_transfer_campaign = ['svp_file','log_directory']
+        # map the current station directory to s3
+        local_tdb = self.current_station_dir.tiledb_directory
+        s3_tdb = s3_station_dir.tiledb_directory
 
-        station_dir_location = self.current_station_dir.location
-        s3_destination_dir_prefix = f"{s3_bucket}/{station_dir_location.name}"
+        tdb_arrays = [
+            "shot_data",
+            "kin_position_data",
+            "imu_position_data",
+            "gnss_obs_data",
+        ]
 
-        # Sync station-level directories and files
-        for item in to_transfer_station:
-            source_object = getattr(self.current_station_dir, item)
-            if hasattr(source_object, 'location'):
-                s3_source_path = source_object.location
-            else:
-                s3_source_path = source_object
+        for tdb_array in tdb_arrays:
+            local_tdb_array = getattr(local_tdb, tdb_array)
+            s3_tdb_array = getattr(s3_tdb, tdb_array)
+       
+            for tdb_file in local_tdb_array.rglob('*'):
+                relative_path = tdb_file.relative_to(local_tdb_array)
+                s3_file_path = s3_tdb_array / relative_path
+                try:
+                    if not s3_file_path.exists() or overwrite:
+                        s3_file_path.upload_from(tdb_file, force_overwrite_to_cloud=overwrite)
+                except Exception as e:
+                    logger.logerr(f"Failed to upload {tdb_file} to S3: {e}")
+    
+        local_station_metadata = self.current_station_dir.metadata_directory
+        s3_station_metadata = s3_station_dir.metadata_directory
 
-            if not isinstance(s3_source_path, Path) or not s3_source_path.exists():
-                logger.logwarn(f"Skipping {item} as it is not a valid path.")
-                continue
+        for meta_file in local_station_metadata.rglob('*'):
+            relative_path = meta_file.relative_to(local_station_metadata)
+            s3_file_path = s3_station_metadata / relative_path
+            try:
+                if not s3_file_path.exists() or overwrite:
+                    s3_file_path.upload_from(meta_file, force_overwrite_to_cloud=overwrite)
+            except Exception as e:
+                logger.logerr(f"Failed to upload {meta_file} to S3: {e}")
 
-            # Determine S3 destination path
-            relative_path = str(s3_source_path.relative_to(station_dir_location))
-            s3_destination_path = f"{s3_destination_dir_prefix}/{relative_path}"
-            logger.loginfo(f"Syncing {s3_source_path} to {s3_destination_path}")
+        for s3_campaign_dir,local_campaign_dir in zip(s3_station_dir.campaigns.values(),self.current_station_dir.campaigns.values()):
+            # upload svp file
+            local_svp = local_campaign_dir.svp_file
+            s3_svp = s3_campaign_dir.svp_file
+            try:
+                if local_svp.exists() and not s3_svp.exists():
+                    s3_svp.upload_from(local_svp, force_overwrite_to_cloud=overwrite)
+            except Exception as e:
+                logger.logerr(f"Failed to upload {local_svp} to S3: {e}")
 
-            # Use Boto3 S3Transfer to sync
-            if s3_source_path.is_dir():
-                for root, dirs, files in os.walk(s3_source_path):
-                    for file in files:
-                        local_file_path = os.path.join(root, file)
-                        relative_file_path = os.path.relpath(local_file_path, station_dir_location)
-                        s3_file_path = f"{s3_destination_dir_prefix}/{relative_file_path}"
-                        transfer.upload_file(local_file_path, s3_bucket, s3_file_path)
+            # upload log directory files 
+            local_log_dir = local_campaign_dir.log_directory
+            s3_log_dir = s3_campaign_dir.log_directory
+            if local_log_dir.exists():
+                for log_file in local_log_dir.rglob("*"):
+                    if log_file.is_file():
+                        relative_path = log_file.relative_to(local_log_dir)
+                        s3_log_file = s3_log_dir / relative_path
+                        try:
+                            s3_log_file.upload_from(log_file, force_overwrite_to_cloud=overwrite)
+                        except Exception as e:
+                            logger.logerr(f"Failed to upload {log_file} to S3: {e}")
 
+           
 
-        for campaign_dir in self.current_station_dir.campaigns:
-            campaign_dir_location = campaign_dir.location
-            s3_campaign_dir_prefix = f"{s3_destination_dir_prefix}/{campaign_dir_location.name}"
+        # s3_directory_handler = self.directory_handler.model_copy()
 
-            for item in to_transfer_campaign:
-                source_object = getattr(campaign_dir, item)
-                if hasattr(source_object, 'location'):
-                    s3_source_path = source_object.location
-                else:
-                    s3_source_path = source_object
+        # station_dir_location = self.current_network_dir.location
+        # s3_destination_dir_prefix = station_dir_location.name
 
-                if not isinstance(s3_source_path, Path) or not s3_source_path.exists():
-                    logger.logwarn(f"Skipping {item} as it is not a valid path.")
-                    continue
+        # paths_to_upload = []
 
-                # Determine S3 destination path
-                relative_path = str(s3_source_path.relative_to(campaign_dir_location))
-                s3_destination_path = f"{s3_campaign_dir_prefix}/{relative_path}"
-                logger.loginfo(f"Syncing {s3_source_path} to {s3_destination_path}")
+        # # List all paths within the station's TileDB directory
+        # tiledb_files = list(self.current_station_dir.tiledb_directory.location.rglob('*'))
+        # # remove 'shotdata_pre' files
+        # tiledb_files = [f for f in tiledb_files if 'shotdata_pre' not in f.name]
+        # paths_to_upload.extend(tiledb_files)
+        # # List all paths within the station's site metadata directory
+        # paths_to_upload.extend(list(self.current_station_dir.site_metadata.parent.rglob("*")))
 
-                # Use Boto3 S3Transfer to sync
-                if s3_source_path.is_dir():
-                    for root, dirs, files in os.walk(s3_source_path):
-                        for file in files:
-                            local_file_path = os.path.join(root, file)
-                            relative_file_path = os.path.relpath(local_file_path, station_dir_location)
-                            s3_file_path = f"{s3_destination_dir_prefix}/{relative_file_path}"
-                            transfer.upload_file(local_file_path, s3_bucket, s3_file_path)
+        # # upload log directory files,svp file,and campaign metadata
+        # for campaign_dir in self.current_station_dir.campaigns.values():
+        #     paths_to_upload.append(campaign_dir.svp_file)
+        #     paths_to_upload.extend(list(campaign_dir.log_directory.rglob("*")))
+        #     paths_to_upload.extend(list(campaign_dir.metadata_directory.rglob("*")))
 
+        # for path in paths_to_upload:
+        #     if path.is_dir() or not path.exists():
+        #         continue
+        #     relative_path = str(path.relative_to(station_dir_location))
+        #     s3_file_path = f"{s3_destination_dir_prefix}/{relative_path}"
+        #     try:
+        #         if s3_client.head_object(Bucket=clean_bucket_name, Key=s3_file_path) and not overwrite:
+        #             continue
+        #     except s3_client.exceptions.ClientError as e:
+        #         if e.response['Error']['Code'] == '404':
+        #             # File does not exist
+        #             pass
 
-            
+        #     transfer.upload_file(str(path), clean_bucket_name, s3_file_path)
