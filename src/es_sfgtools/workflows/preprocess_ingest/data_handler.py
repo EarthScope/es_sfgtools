@@ -729,72 +729,168 @@ class DataHandler(WorkflowABC):
         return site
 
     def geolab_get_s3(self, overwrite: bool = False):
-
-        assert Environment.working_environment() == WorkingEnvironment.GEOLAB, "S3 sync is only available in the GEOLAB environment."
+        """
+        Synchronize seafloor geodesy data from S3 storage to local GeoLab environment.
+        
+        This method downloads and synchronizes data files from AWS S3 to the local
+        GeoLab environment for the currently selected network and station. It handles
+        both metadata files and campaign data, creating the necessary local directory
+        structure and maintaining catalog consistency.
+        
+        The synchronization process:
+        1. Validates GeoLab environment and S3 bucket configuration
+        2. Loads or creates an S3 directory catalog
+        3. Downloads station metadata files from S3 to local storage
+        4. Downloads campaign data files from S3 to local storage
+        5. Updates local and remote directory catalogs
+        
+        Args:
+            overwrite (bool, optional): If True, re-downloads files even if they 
+                already exist locally. If False, only downloads missing files.
+                Defaults to False.
+        
+        Raises:
+            AssertionError: If not running in GEOLAB environment
+            ValueError: If S3 bucket configuration is missing or invalid
+            
+        Note:
+            - Only processes data for the currently set network and station context
+            - Requires valid AWS credentials and S3 bucket access
+            - Creates local directory structure to match S3 organization
+            - Maintains both local and remote directory catalogs for consistency
+        """
+        
+        # =================================================================
+        # ENVIRONMENT AND CONFIGURATION VALIDATION
+        # =================================================================
+        
+        # Ensure we're running in the correct environment for S3 operations
+        assert Environment.working_environment() == WorkingEnvironment.GEOLAB, \
+            "S3 sync is only available in the GEOLAB environment."
+        
+        # Get the configured S3 bucket for data synchronization
         try:
             s3_bucket = Environment.s3_sync_bucket()
         except ValueError as e:
+            # S3 bucket not configured - skip synchronization
             logger.logwarn(f"S3 synchronization skipped: {e}")
             return
+        
+        # =================================================================
+        # S3 DIRECTORY CATALOG MANAGEMENT
+        # =================================================================
+        
+        # Check if we have a cached remote catalog file
         if (
             self.directory_handler.remote_catalog_filepath is not None
             and self.directory_handler.remote_catalog_filepath.exists()
         ):
+            # Use existing cached catalog path
             s3_catalog = str(self.directory_handler.remote_catalog_filepath)
         else:
+            # No cached catalog available - will need to fetch from S3
             s3_catalog = None
 
+        # Load or create S3 directory handler based on catalog availability
         if s3_catalog is not None and not overwrite:
+            # Use cached catalog if available and not forcing refresh
             s3_directory_handler = DirectoryHandler.load(s3_catalog)
         else:
+            # Load directory structure directly from S3 (slower but authoritative)
             s3_directory_handler = self.directory_handler.load_from_s3(s3_bucket)
+            # Set the catalog file path for future caching
             s3_directory_handler.filepath = (
                 self.directory_handler.remote_catalog_filepath
             )
 
+        # =================================================================
+        # DATA SYNCHRONIZATION PROCESS
+        # =================================================================
+        
+        # Iterate through all networks in the S3 directory structure
         for network_name, network_dir in s3_directory_handler.networks.items():
+            # Only process the currently selected network (skip others)
             if network_name != self.current_network_name:
                 continue
-            local_network_dir = self.directory_handler.add_network(
-                network_name
-            )  # sync with the local directory handler
+            
+            # Create or get the corresponding local network directory
+            local_network_dir = self.directory_handler.add_network(network_name)
 
+            # Process all stations within the current network
             for station_name, remote_station_dir in network_dir.stations.items():
+                # Only process the currently selected station (skip others)
                 if station_name != self.current_station_name:
                     continue
-                local_station_dir = local_network_dir.add_station(
-                    station_name
-                )  # sync with the local directory handler
+                
+                # Create or get the corresponding local station directory
+                local_station_dir = local_network_dir.add_station(station_name)
+                
+                # Synchronize TileDB directory reference (array storage location)
                 local_station_dir.tiledb_directory = remote_station_dir.tiledb_directory
+                
+                # =================================================================
+                # STATION METADATA SYNCHRONIZATION
+                # =================================================================
+                
+                # Download all metadata files for this station from S3
                 for s3_file in remote_station_dir.metadata_directory.rglob("*"):
+                    # Calculate the relative path within the metadata directory
                     relative_path = s3_file.relative_to(
                         remote_station_dir.metadata_directory
                     )
+                    # Construct the corresponding local file path
                     local_file_path = (
                         local_station_dir.metadata_directory / relative_path
                     )
+                    
                     try:
+                        # Download file if it doesn't exist locally or if overwriting
                         if not local_file_path.exists() or overwrite:
+                            # Ensure local directory structure exists
                             local_file_path.parent.mkdir(parents=True, exist_ok=True)
+                            # Download the file from S3 to local storage
                             s3_file.download_to(local_file_path)
                     except Exception as e:
-                        logger.logerr(f"Failed to download {s3_file} to local: {e}")
+                        # Log download failures but continue with other files
+                        logger.logerr(f"Failed to download metadata {s3_file} to local: {e}")
 
-                for (
-                    campaign_id,
-                    remote_campaign_dir,
-                ) in remote_station_dir.campaigns.items():
+                # =================================================================
+                # CAMPAIGN DATA SYNCHRONIZATION
+                # =================================================================
+                
+                # Process all campaigns within the current station
+                for campaign_id, remote_campaign_dir in remote_station_dir.campaigns.items():
+                    # Create or get the corresponding local campaign directory
                     local_campaign_dir = local_station_dir.add_campaign(campaign_id)
+                    
+                    # Download all files within this campaign from S3
                     for file in remote_campaign_dir.location.rglob("*"):
+                        # Calculate the relative path within the campaign directory
                         relative_path = file.relative_to(remote_campaign_dir.location)
+                        # Construct the corresponding local file path
                         local_file_path = local_campaign_dir.location / relative_path
+                        
                         try:
+                            # Download file if it doesn't exist locally or if overwriting
                             if not local_file_path.exists() or overwrite:
+                                # Ensure local directory structure exists
                                 local_file_path.parent.mkdir(
                                     parents=True, exist_ok=True
                                 )
+                                # Download the file from S3 to local storage
                                 file.download_to(local_file_path)
                         except Exception as e:
-                            logger.logerr(f"Failed to download {file} to local: {e}")
+                            # Log download failures but continue with other files
+                            logger.logerr(f"Failed to download campaign file {file} to local: {e}")
+        
+        # =================================================================
+        # CATALOG PERSISTENCE
+        # =================================================================
+        
+        # Save the updated local directory catalog to disk
+        # This ensures the local catalog reflects all downloaded files
         self.directory_handler.save()
+        
+        # Save the S3 directory catalog for future caching
+        # This avoids re-scanning S3 on subsequent synchronizations
         s3_directory_handler.save()
