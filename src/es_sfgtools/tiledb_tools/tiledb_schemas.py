@@ -269,6 +269,9 @@ class TBDArray:
     name = "TBD Array"
 
     def __init__(self, uri: Path | S3Path | str):
+      
+        if "s3" in str(uri) and "s3://" not in str(uri):
+            uri = str(uri).replace("s3:/", "s3://") # temp fix
         self.uri = uri
         if not tiledb.array_exists(uri=str(uri), ctx=ctx):
             tiledb.Array.create(uri=str(uri), schema=self.array_schema, ctx=ctx)

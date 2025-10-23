@@ -55,6 +55,7 @@ from es_sfgtools.data_mgmt.ingestion.archive_pull import (
 )
 from es_sfgtools.workflows.utils.protocols import WorkflowABC,validate_network_station_campaign
 
+from es_sfgtools.config import Environment, WorkingEnvironment
 
 
 class DataHandler(WorkflowABC):
@@ -144,13 +145,13 @@ class DataHandler(WorkflowABC):
         self._ensure_tiledb_array('kin_position_tdb', TDBKinPositionArray, tiledb_dir.kin_position_data)
         self._ensure_tiledb_array('imu_position_tdb', TDBIMUPositionArray, tiledb_dir.imu_position_data)
         self._ensure_tiledb_array('shotdata_tdb', TDBShotDataArray, tiledb_dir.shot_data)
-        
+
         # Use a pre-array for dfo processing, self.shotdata_tdb is where we store the updated version
         self._ensure_tiledb_array('shotdata_tdb_pre', TDBShotDataArray, tiledb_dir.shot_data_pre)
-        
+
         # Primary GNSS observables (10hz NOV770 collected on USB3 for SV3, 5hz bcnovatel for SV2)
         self._ensure_tiledb_array('gnss_obs_tdb', TDBGNSSObsArray, tiledb_dir.gnss_obs_data)
-        
+
         # Secondary GNSS observables (5hz NOV000 collected on USB2 for SV3)
         self._ensure_tiledb_array('gnss_obs_secondary_tdb', TDBGNSSObsArray, tiledb_dir.gnss_obs_data_secondary)
 
@@ -164,7 +165,6 @@ class DataHandler(WorkflowABC):
         self.gnss_obs_tdb.consolidate()
         self.gnss_obs_secondary_tdb.consolidate()
 
-  
     def set_network_station_campaign(
         self,
         network_id: str,
@@ -193,7 +193,9 @@ class DataHandler(WorkflowABC):
         log_dir = self.current_campaign_dir.log_directory
         change_all_logger_dirs(log_dir)
         os.environ["LOG_FILE_PATH"] = str(log_dir)
-        self._build_tileDB_arrays()
+
+        if Environment.working_environment() == WorkingEnvironment.LOCAL:
+            self._build_tileDB_arrays()
 
         logger.loginfo(f"Changed working station to {network_id} {station_id} {campaign_id}")
 
@@ -223,7 +225,7 @@ class DataHandler(WorkflowABC):
         """
         # First set the context
         self.set_network_station_campaign(network_id, station_id, campaign_id)
-        
+
         # Then load metadata if provided or if none exists
         if site_metadata is not None or self.current_station_metadata is None:
             self.current_station_metadata = self.get_site_metadata(
@@ -726,3 +728,73 @@ class DataHandler(WorkflowABC):
 
         return site
 
+    def geolab_get_s3(self, overwrite: bool = False):
+
+        assert Environment.working_environment() == WorkingEnvironment.GEOLAB, "S3 sync is only available in the GEOLAB environment."
+        try:
+            s3_bucket = Environment.s3_sync_bucket()
+        except ValueError as e:
+            logger.logwarn(f"S3 synchronization skipped: {e}")
+            return
+        if (
+            self.directory_handler.remote_catalog_filepath is not None
+            and self.directory_handler.remote_catalog_filepath.exists()
+        ):
+            s3_catalog = str(self.directory_handler.remote_catalog_filepath)
+        else:
+            s3_catalog = None
+
+        if s3_catalog is not None and not overwrite:
+            s3_directory_handler = DirectoryHandler.load(s3_catalog)
+        else:
+            s3_directory_handler = self.directory_handler.load_from_s3(s3_bucket)
+            s3_directory_handler.filepath = (
+                self.directory_handler.remote_catalog_filepath
+            )
+
+        for network_name, network_dir in s3_directory_handler.networks.items():
+            if network_name != self.current_network_name:
+                continue
+            local_network_dir = self.directory_handler.add_network(
+                network_name
+            )  # sync with the local directory handler
+
+            for station_name, remote_station_dir in network_dir.stations.items():
+                if station_name != self.current_station_name:
+                    continue
+                local_station_dir = local_network_dir.add_station(
+                    station_name
+                )  # sync with the local directory handler
+                local_station_dir.tiledb_directory = remote_station_dir.tiledb_directory
+                for s3_file in remote_station_dir.metadata_directory.rglob("*"):
+                    relative_path = s3_file.relative_to(
+                        remote_station_dir.metadata_directory
+                    )
+                    local_file_path = (
+                        local_station_dir.metadata_directory / relative_path
+                    )
+                    try:
+                        if not local_file_path.exists() or overwrite:
+                            local_file_path.parent.mkdir(parents=True, exist_ok=True)
+                            s3_file.download_to(local_file_path)
+                    except Exception as e:
+                        logger.logerr(f"Failed to download {s3_file} to local: {e}")
+
+                for (
+                    campaign_id,
+                    remote_campaign_dir,
+                ) in remote_station_dir.campaigns.items():
+                    local_campaign_dir = local_station_dir.add_campaign(campaign_id)
+                    for file in remote_campaign_dir.location.rglob("*"):
+                        relative_path = file.relative_to(remote_campaign_dir.location)
+                        local_file_path = local_campaign_dir.location / relative_path
+                        try:
+                            if not local_file_path.exists() or overwrite:
+                                local_file_path.parent.mkdir(
+                                    parents=True, exist_ok=True
+                                )
+                                file.download_to(local_file_path)
+                        except Exception as e:
+                            logger.logerr(f"Failed to download {file} to local: {e}")
+        self.directory_handler.save()
+        s3_directory_handler.save()

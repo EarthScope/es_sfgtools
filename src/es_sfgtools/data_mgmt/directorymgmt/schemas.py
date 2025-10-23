@@ -2,7 +2,7 @@ import datetime
 import json
 from pathlib import Path
 from typing import Optional, Union
-
+from es_sfgtools.config.env_config import Environment,WorkingEnvironment
 from cloudpathlib import S3Path
 from pydantic import BaseModel, Field, PrivateAttr
 
@@ -144,10 +144,12 @@ class TileDBDir(_Base):
     station: Union[Path, S3Path] = Field(..., description="The station directory path")
 
     def build(self):
+            
         """Creates the directory structure for the TileDB arrays."""
         if not self.location:
             self.location = self.station / TILEDB_DIR
-            self.location.mkdir(parents=True, exist_ok=True)
+            if Environment.working_environment() == WorkingEnvironment.LOCAL:
+                self.location.mkdir(parents=True, exist_ok=True)
         if not self.shot_data:
             self.shot_data = self.location / SHOTDATA_TDB
         if not self.shot_data_pre:
@@ -208,14 +210,14 @@ class SurveyDir(_Base):
         """Creates the directory structure for the survey."""
         if not self.location:
             self.location = self.campaign / self.name
-            self.location.mkdir(parents=True, exist_ok=True)
+        self.location.mkdir(parents=True, exist_ok=True)
 
         if not self.metadata:
             self.metadata = self.location / SURVEY_METADATA_FILE
 
         if not self.garpos:
             self.garpos = GARPOSSurveyDir(survey_dir=self.location)
-            self.garpos.build()
+        self.garpos.build()
 
 
 class CampaignDir(_Base):
@@ -263,39 +265,42 @@ class CampaignDir(_Base):
         """Creates the directory structure for the campaign."""
         if not self.location:
             self.location = self.station / self.name
+            self.location.mkdir(parents=True, exist_ok=True)
 
         if not self.metadata_directory:
             self.metadata_directory = self.location / "metadata"
+            self.metadata_directory.mkdir(parents=True, exist_ok=True)
 
         if not self.campaign_metadata:
             self.campaign_metadata = self.metadata_directory / CAMPAIGN_METADATA_FILE
 
         if not self.raw:
             self.raw = self.location / RAW_DATA_DIR
+            if Environment.working_environment() == WorkingEnvironment.LOCAL:
+                self.raw.mkdir(parents=True, exist_ok=True)
 
         if not self.processed:
             self.processed = self.location / PROCESSED_DATA_DIR
+            self.processed.mkdir(parents=True, exist_ok=True) 
+
         if not self.intermediate:
             self.intermediate = self.location / INTERMEDIATE_DATA_DIR
+            if Environment.working_environment() == WorkingEnvironment.LOCAL:
+                self.intermediate.mkdir(parents=True, exist_ok=True)
 
         if not self.log_directory:
             self.log_directory = self.location / LOGS_DIR
+            if Environment.working_environment() == WorkingEnvironment.LOCAL:
+                self.log_directory.mkdir(parents=True, exist_ok=True)
+
         if not self.qc:
             self.qc = self.location / QC_DIR
+            if Environment.working_environment() == WorkingEnvironment.LOCAL:
+                self.qc.mkdir(parents=True, exist_ok=True)
+
         if not self.svp_file:
             self.svp_file = self.processed / SVP_FILE_NAME
 
-        # Create subdirectories
-        for subdir in [
-            self.location,
-            self.raw,
-            self.processed,
-            self.intermediate,
-            self.log_directory,
-            self.qc,
-            self.metadata_directory,
-        ]:
-            subdir.mkdir(parents=True, exist_ok=True)
 
     def add_survey(self, name: str) -> SurveyDir:
         """Adds a new survey to the campaign.

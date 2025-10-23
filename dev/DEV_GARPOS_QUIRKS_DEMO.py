@@ -12,7 +12,14 @@ from es_sfgtools.workflows.workflow_handler import WorkflowHandler
 
 
 def main():
-    main_dir = Path("/Volumes/DunbarSSD/Project/SeafloorGeodesy/GeoHubDemo")
+    os.environ["WORKING_ENVIRONMENT"] = "GEOLAB"
+    os.environ["MAIN_DIRECTORY_GEOLAB"] = "/Volumes/DunbarSSD/Project/SeafloorGeodesy/GEOLABDemo"
+    os.environ["S3_SYNC_BUCKET"] = (
+        "seafloor-public-bucket-bucket83908e77-gprctmuztrim"
+    )
+    from es_sfgtools.config import Environment, WorkingEnvironment
+    Environment.load_working_environment()
+    main_dir = Path("/Volumes/DunbarSSD/Project/SeafloorGeodesy/GEOLABDemo")
     wfh = WorkflowHandler(main_dir)
 
     network = "cascadia-gorda"
@@ -72,9 +79,7 @@ def main():
     # wfh.set_network_station_campaign(network_id=network, station_id=station, campaign_id=campaign)
     # wfh.ingest_add_local_data(directory_path=raw_dir_ncc1)
     # wfh.preprocess_run_pipeline_sv3(primary_config=global_config,secondary_config=ncc1_config)
-    os.environ["S3_SYNC_BUCKET"] = (
-        "seafloor-public-bucket-bucket83908e77-gprctmuztrim"
-    )
+
     # wfh.midprocess_get_sitemeta()
     # mid_processer = wfh.midprocess_get_processor()
     # mid_processer.midprocess_sync_s3()
@@ -89,13 +94,13 @@ def main():
     # mid_processer = wfh.midprocess_get_processor()
     # mid_processer.midprocess_sync_s3()
 
-    station = 'NTH1'
-    wfh.set_network_station_campaign(network_id=network, station_id=station, campaign_id=campaign)
-    mid_processer = wfh.midprocess_get_processor()
-    #mid_processer.midprocess_sync_s3()
-    mid_processer.midprocess_get_s3(True)
-    mid_processer.parse_surveys()
-    mid_processer.prepare_shotdata_garpos()
+
+    stations = ['NTH1','NCC1','NBR1','GCC1']
+    for station in stations:
+        wfh.set_network_station_campaign(network_id=network, station_id=station, campaign_id=campaign)
+        wfh.midprocess_parse_surveys(override=override_survey_parsing,write_intermediate=True)
+        mid_processer = wfh.midprocess_get_processor()
+        mid_processer.prepare_shotdata_garpos()
 
     # wfh.midprocess_parse_surveys(override=override_survey_parsing,write_intermediate=True)
     # wfh.midprocess_prep_garpos(override=override_garpos_parsing,custom_filters=filter_config,survey_id="2025_A_1126_1")

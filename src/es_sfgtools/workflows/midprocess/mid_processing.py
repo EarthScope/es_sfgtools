@@ -29,6 +29,8 @@ from es_sfgtools.modeling.garpos_tools.data_prep import (
     prepare_shotdata_for_garpos,
     apply_survey_config
 )
+from es_sfgtools.config import Environment
+
 from es_sfgtools.config.garpos_config import (
     DEFAULT_SITE_CONFIG,
 )
@@ -303,8 +305,8 @@ class IntermediateDataProcessor(WorkflowABC):
             )
             if custom_filters is not None:
                 filter_config = validate_and_merge_config(
-                    base_model=filter_config,
-                    update_dict=custom_filters,
+                    base_class=filter_config,
+                    override_config=custom_filters,
                 )
             shot_data_filtered = filter_shotdata(
                 survey_type=survey.type,
@@ -458,56 +460,6 @@ class IntermediateDataProcessor(WorkflowABC):
                         except Exception as e:
                             logger.logerr(f"Failed to upload {log_file} to S3: {e}")
 
-    def midprocess_get_s3(self,overwrite: bool = False):
-        try:
-            s3_bucket = load_s3_sync_bucket()
-        except ValueError as e:
-            logger.logwarn(f"S3 synchronization skipped: {e}")
-            return
-        if self.directory_handler.remote_catalog_filepath is not None and self.directory_handler.remote_catalog_filepath.exists():
-            s3_catalog = str(self.directory_handler.remote_catalog_filepath)
-        else:
-            s3_catalog = None
-
-        if s3_catalog is not None and not overwrite:
-            s3_directory_handler = DirectoryHandler.load(s3_catalog)
-        else:
-            s3_directory_handler = self.directory_handler.load_from_s3(s3_bucket)
-            s3_directory_handler.filepath = self.directory_handler.remote_catalog_filepath
- 
-        for network_name, network_dir in s3_directory_handler.networks.items():
-            if network_name != self.current_network_name:
-                continue
-            local_network_dir = self.directory_handler.add_network(network_name) # sync with the local directory handler
-
-            for station_name, remote_station_dir in network_dir.stations.items():
-                if station_name != self.current_station_name:
-                    continue
-                local_station_dir = local_network_dir.add_station(station_name) # sync with the local directory handler
-                local_station_dir.tiledb_directory = remote_station_dir.tiledb_directory
-                for s3_file in remote_station_dir.metadata_directory.rglob('*'):
-                    relative_path = s3_file.relative_to(remote_station_dir.metadata_directory)
-                    local_file_path = local_station_dir.metadata_directory / relative_path
-                    try:
-                        if not local_file_path.exists() or overwrite:
-                            local_file_path.parent.mkdir(parents=True, exist_ok=True)
-                            s3_file.download_to(local_file_path)
-                    except Exception as e:
-                        logger.logerr(f"Failed to download {s3_file} to local: {e}")
-               
-                for campaign_id, remote_campaign_dir in remote_station_dir.campaigns.items():
-                    local_campaign_dir = local_station_dir.add_campaign(campaign_id)
-                    for file in remote_campaign_dir.location.rglob('*'):
-                        relative_path = file.relative_to(remote_campaign_dir.location)
-                        local_file_path = local_campaign_dir.location / relative_path
-                        try:
-                            if not local_file_path.exists() or overwrite:
-                                local_file_path.parent.mkdir(parents=True, exist_ok=True)
-                                file.download_to(local_file_path)
-                        except Exception as e:
-                            logger.logerr(f"Failed to download {file} to local: {e}")
-        self.directory_handler.save()
-        s3_directory_handler.save()
 
         # s3_directory_handler = self.directory_handler.model_copy()
 

@@ -54,7 +54,7 @@ def filter_shotdata(
     new_shot_data_df = shot_data.copy()
     if custom_filters:
         filter_config = validate_and_merge_config(
-            base_model=filter_config, custom_config=custom_filters
+            base_class=filter_config, override_config=custom_filters
         )
         logger.loginfo(f"Using custom filter configuration: {filter_config}")
 

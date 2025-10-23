@@ -36,7 +36,7 @@ from es_sfgtools.utils.model_update import validate_and_merge_config
 
 from es_sfgtools.workflows.utils.protocols import WorkflowABC, validate_network_station_campaign
 from es_sfgtools.workflows.preprocess_ingest.data_handler import DataHandler
-
+from es_sfgtools.config.env_config import ( Environment, WorkingEnvironment)
 
 pipeline_jobs = [
     "all",
@@ -61,7 +61,7 @@ class WorkflowHandler(WorkflowABC):
 
     def __init__(
         self,
-        directory: Path | str,
+        directory: Path | str = None,
     ) -> None:
         """Initializes the WorkflowHandler with directory structure and handlers.
 
@@ -73,6 +73,11 @@ class WorkflowHandler(WorkflowABC):
         directory : Path | str
             The root directory for data storage and operations.
         """
+        Environment.load_working_environment()
+        if directory is None:
+            assert Environment.working_environment() == WorkingEnvironment.GEOLAB, "Directory must be provided unless in GEOLAB environment"
+            directory = Environment.main_directory_GEOLAB()
+
         # Initialize parent WorkflowABC with directory
         super().__init__(directory=directory)
 
@@ -84,8 +89,8 @@ class WorkflowHandler(WorkflowABC):
     ):
         """Sets the current network, station, and campaign.
 
-        Overrides the parent method to add WorkflowHandler-specific setup
-        including DataHandler context switching.
+        Delegates to DataHandler which handles both its own setup and parent
+        context switching. Then syncs WorkflowHandler-specific state.
 
         Parameters
         ----------
@@ -96,13 +101,14 @@ class WorkflowHandler(WorkflowABC):
         campaign_id : str
             The ID of the campaign to set.
         """
-        # Update DataHandler context to match
+        # DataHandler handles both its setup AND parent context switching
         self.data_handler.set_network_station_campaign(network_id, station_id, campaign_id)
 
-        # Call parent method to handle context switching
-        super().set_network_station_campaign(network_id, station_id, campaign_id)
-
-        self.current_station_metadata = self.data_handler.current_station_metadata
+        # Sync WorkflowHandler state from DataHandler
+        for key,value in self.data_handler.__dict__.items():
+            if value is not None and hasattr(self,key):
+                setattr(self,key,value)
+                logger.loginfo(f"WorkflowHandler state updated: {key} = {value}")
 
         if self.current_station_metadata is None:
             message = f"No site metadata found for {network_id} {station_id}. Some processing steps may fail."
@@ -445,6 +451,10 @@ class WorkflowHandler(WorkflowABC):
         ValueError
             If site metadata cannot be loaded or is not provided.
         """
+        if self.data_handler.current_station_metadata is not None:
+            self.current_station_metadata = self.data_handler.current_station_metadata
+            return self.current_station_metadata
+        
         siteMeta: Union[Site, None] = self.data_handler.get_site_metadata(
             site_metadata=site_metadata
         )
@@ -508,6 +518,13 @@ class WorkflowHandler(WorkflowABC):
         ValueError
             If site metadata is not loaded.
         """
+        if Environment.working_environment() == WorkingEnvironment.GEOLAB:
+            self.data_handler.geolab_get_s3(overwrite=override)
+            for key,value in self.data_handler.__dict__.items():
+                if value is not None and hasattr(self,key):
+                    setattr(self,key,value)
+                    logger.loginfo(f"WorkflowHandler state updated: {key} = {value}")
+
         dataPostProcessor: IntermediateDataProcessor = self.midprocess_get_processor(site_metadata=site_metadata)
         dataPostProcessor.parse_surveys(
             survey_id=survey_id,
@@ -557,6 +574,18 @@ class WorkflowHandler(WorkflowABC):
             custom_filters=custom_filters,
             overwrite=override,
         )
+
+    @validate_network_station_campaign
+    def midprocess_upload_s3(self,overwrite: bool = False) -> None:
+        """Uploads intermediate processed data to S3 for the current station.
+
+        Raises
+        ------
+        ValueError
+            If site metadata is not loaded.
+        """
+        dataPostProcessor: IntermediateDataProcessor = self.midprocess_get_processor(self.current_station_metadata)
+        dataPostProcessor.midprocess_sync_s3(overwrite=overwrite)
 
     @validate_network_station_campaign
     def modeling_get_garpos_handler(self) -> GarposHandler:

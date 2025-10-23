@@ -3,6 +3,7 @@ from functools import wraps
 from abc import ABC
 from pathlib import Path
 
+from es_sfgtools.config import Environment, WorkingEnvironment
 from es_sfgtools.data_mgmt.directorymgmt.handler import DirectoryHandler, CampaignDir, StationDir, SurveyDir, NetworkDir, TileDBDir
 from es_sfgtools.data_mgmt.assetcatalog.handler import PreProcessCatalogHandler
 from es_sfgtools.data_models.metadata import Site,Campaign,Survey
@@ -165,7 +166,10 @@ class WorkflowABC(ABC):
             directory_handler.build()
 
         if asset_catalog is None:
-            asset_catalog = PreProcessCatalogHandler(db_path=directory_handler.asset_catalog_db_path)
+            if Environment.working_environment() == WorkingEnvironment.LOCAL:
+                asset_catalog = PreProcessCatalogHandler(db_path=directory_handler.asset_catalog_db_path)
+            else:
+                asset_catalog = None
         if directory is None:
             directory = directory_handler.location
 
@@ -191,6 +195,7 @@ class WorkflowABC(ABC):
         self.current_survey_name: Optional[str] = None
         self.current_survey_dir: Optional[SurveyDir] = None
         self.current_survey_metadata: Optional[Survey] = None
+
 
     def _reset_survey(self) -> None:
         """
@@ -452,7 +457,7 @@ class WorkflowABC(ABC):
         set_network_station_campaign : Convenience method to set multiple contexts
         Site.from_json : Used internally to load station metadata
         """
-
+    
         self._reset_station()
 
         self.current_station_name = station_id
@@ -467,13 +472,17 @@ class WorkflowABC(ABC):
             )
         
         self.current_station_dir = current_station_dir
+        self.current_station_dir.build()
 
-        if self.mid_process_workflow:
-            # Load site metadata for mid-process workflows
-            assert self.current_station_dir.site_metadata.exists(), f"Site metadata file not found for station {station_id}, cannot proceed with mid-process workflow."
+        if self.current_station_dir.site_metadata.exists():
             self.current_station_metadata = Site.from_json(
                 self.current_station_dir.site_metadata
             )
+
+        if self.mid_process_workflow:
+            # Load site metadata for mid-process workflows
+            assert self.current_station_metadata is not None, f"Site metadata file not found for station {station_id}, cannot proceed with mid-process workflow."
+        
 
     def set_campaign(self, campaign_id: str):
         """
@@ -532,6 +541,7 @@ class WorkflowABC(ABC):
         set_network_station_campaign : Convenience method to set multiple contexts
         Campaign : Campaign metadata model used for validation and loading
         """
+
         self._reset_campaign()
 
         # Set current campaign attributes
@@ -554,6 +564,7 @@ class WorkflowABC(ABC):
                 name=campaign_id
             )
         self.current_campaign_dir = current_campaign_dir
+        self.current_campaign_dir.build()
 
     def set_network_station_campaign(
         self, network_id: str, station_id: str, campaign_id: str
@@ -615,9 +626,12 @@ class WorkflowABC(ABC):
         assert isinstance(station_id, str), "station_id must be a string"
         assert isinstance(campaign_id, str), "campaign_id must be a string"
 
-        self.set_network(network_id=network_id)
-        self.set_station(station_id=station_id)
-        self.set_campaign(campaign_id=campaign_id)
+        if network_id != self.current_network_name:
+            self.set_network(network_id=network_id)
+        if station_id != self.current_station_name:
+            self.set_station(station_id=station_id)
+        if campaign_id != self.current_campaign_name:
+            self.set_campaign(campaign_id=campaign_id)
 
     @validate_network_station_campaign
     def set_survey(self, survey_id: str):
@@ -695,3 +709,4 @@ class WorkflowABC(ABC):
         ) is None:
             current_survey_dir = self.current_campaign_dir.add_survey(name=survey_id)
         self.current_survey_dir = current_survey_dir
+        self.current_survey_dir.build()

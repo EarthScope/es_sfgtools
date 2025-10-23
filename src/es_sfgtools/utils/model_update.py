@@ -98,6 +98,16 @@ def validate_and_merge_config(
 
     if isinstance(override_config, BaseModel):
         override_config = override_config.model_dump()
+    # Drop 'description' keys if present
+    def drop_description(d):
+        if not isinstance(d, dict):
+            return d
+        return {
+            k: drop_description(v)
+            for k, v in d.items()
+            if k != "description"
+        }
+    override_config = drop_description(override_config)
     # Check for typos and validate keys
     errors = validate_keys_recursively(override_config, base_class)
     if errors:

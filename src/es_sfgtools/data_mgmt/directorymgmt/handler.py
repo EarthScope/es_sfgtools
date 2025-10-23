@@ -27,6 +27,7 @@ from .config import (
     ASSET_CATALOG,
     PRIDE_DIR,
 )
+from es_sfgtools.config.env_config import Environment,WorkingEnvironment
 
 class DirectoryHandler(_Base):
     """
@@ -126,13 +127,16 @@ class DirectoryHandler(_Base):
 
         if not self.pride_directory:
             self.pride_directory = self.location / PRIDE_DIR
-            self.pride_directory.mkdir(parents=True, exist_ok=True)
+            if Environment.working_environment() == WorkingEnvironment.LOCAL:
+                self.pride_directory.mkdir(parents=True, exist_ok=True)
 
         if not self.asset_catalog_db_path:
             self.asset_catalog_db_path = self.location / ASSET_CATALOG
             if not self.asset_catalog_db_path.exists():
-                self.asset_catalog_db_path.touch()
-        
+                if Environment.working_environment() == WorkingEnvironment.LOCAL:
+                    self.asset_catalog_db_path.touch()
+
+                
         if not self.remote_catalog_filepath:
             self.remote_catalog_filepath = self.location / f"s3_{self._filepath}"
 
