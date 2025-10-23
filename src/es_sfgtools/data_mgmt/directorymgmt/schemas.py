@@ -1,8 +1,9 @@
 import datetime
 import json
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
+from cloudpathlib import S3Path
 from pydantic import BaseModel, Field, PrivateAttr
 
 from .config import (
@@ -115,32 +116,32 @@ class TileDBDir(_Base):
     """
 
     # Optional directory paths, if not provided, will be auto-generated
-    location: Optional[Path] = Field(
+    location: Optional[Union[Path, S3Path]] = Field(
         default=None, description="The TileDB directory path"
     )
-    shot_data: Optional[Path] = Field(
+    shot_data: Optional[Union[Path, S3Path]] = Field(
         default=None, description="The shotdata TileDB path"
     )
-    shot_data_pre: Optional[Path] = Field(
+    shot_data_pre: Optional[Union[Path, S3Path]] = Field(
         default=None, description="The preprocessed shotdata TileDB path"
     )
-    kin_position_data: Optional[Path] = Field(
+    kin_position_data: Optional[Union[Path, S3Path]] = Field(
         default=None, description="The kinematic position TileDB path"
     )
-    gnss_obs_data: Optional[Path] = Field(
+    gnss_obs_data: Optional[Union[Path, S3Path]] = Field(
         default=None, description="The GNSS observation TileDB path"
     )
-    gnss_obs_data_secondary: Optional[Path] = Field(
+    gnss_obs_data_secondary: Optional[Union[Path, S3Path]] = Field(
         default=None, description="The secondary GNSS observation TileDB path"
     )
-    imu_position_data: Optional[Path] = Field(
+    imu_position_data: Optional[Union[Path, S3Path]] = Field(
         default=None, description="The IMU position TileDB path"
     )
-    acoustic_data: Optional[Path] = Field(
+    acoustic_data: Optional[Union[Path, S3Path]] = Field(
         default=None, description="The acoustic TileDB path"
     )
 
-    station: Path = Field(..., description="The station directory path")
+    station: Union[Path, S3Path] = Field(..., description="The station directory path")
 
     def build(self):
         """Creates the directory structure for the TileDB arrays."""
@@ -161,6 +162,21 @@ class TileDBDir(_Base):
             self.imu_position_data = self.location / IMU_POSITION_TDB
         if not self.acoustic_data:
             self.acoustic_data = self.location / ACOUSTIC_TDB
+
+    def to_s3(self) -> None:
+        # Convert all Path attributes to S3Path
+        for field_name, field_value in self.__dict__.items():
+            if isinstance(field_value, Path):
+                field_value = str(field_value)
+                if 's3:/' in field_value and 's3://' not in field_value:
+                    new_path = field_value.replace("s3:/", "s3://")
+                    s3_path = S3Path(new_path)
+                elif 's3://' in str(field_value):
+                    s3_path = S3Path(field_value)
+                else:
+                    s3_path = S3Path(f"s3://{str(field_value)}")
+
+                setattr(self, field_name, s3_path)
 
 
 class SurveyDir(_Base):
@@ -208,39 +224,39 @@ class CampaignDir(_Base):
     """
 
     # Optional directory paths, if not provided, will be auto-generated
-    location: Optional[Path] = Field(
+    location: Optional[Union[Path, S3Path]] = Field(
         default=None, description="The campaign directory path"
     )
-    raw: Optional[Path] = Field(default=None, description="Raw data directory path")
-    processed: Optional[Path] = Field(
+    raw: Optional[Union[Path, S3Path]] = Field(default=None, description="Raw data directory path")
+    processed: Optional[Union[Path, S3Path]] = Field(
         default=None, description="Processed data directory path"
     )
-    intermediate: Optional[Path] = Field(
+    intermediate: Optional[Union[Path, S3Path]] = Field(
         default=None, description="Intermediate data directory path"
     )
     surveys: Optional[dict[str, SurveyDir]] = Field(
         default={}, description="Surveys in the campaign"
     )
-    log_directory: Optional[Path] = Field(
+    log_directory: Optional[Union[Path, S3Path]] = Field(
         default=None, description="Logs directory path"
     )
-    qc: Optional[Path] = Field(
+    qc: Optional[Union[Path, S3Path]] = Field(
         default=None, description="Quality control directory path"
     )
-    metadata_directory: Optional[Path] = Field(
+    metadata_directory: Optional[Union[Path, S3Path]] = Field(
         default=None, description="Metadata directory path"
     )
-    campaign_metadata: Optional[Path] = Field(
+    campaign_metadata: Optional[Union[Path, S3Path]] = Field(
         default=None, description="The campaign metadata file path"
     )
-    rinex_metadata: Optional[Path] = Field(
+    rinex_metadata: Optional[Union[Path, S3Path]] = Field(
         default=None, description="The RINEX metadata file path"
     )
-    svp_file: Optional[Path] = Field(
+    svp_file: Optional[Union[Path, S3Path]] = Field(
         default=None, description="The sound velocity profile file path"
     )
     # Fields needed to auto-generate paths
-    station: Path
+    station: Union[Path, S3Path] = Field(..., description="The station directory path")
     name: str
 
     def build(self):
@@ -312,21 +328,21 @@ class StationDir(_Base):
     campaigns: Optional[dict[str, CampaignDir]] = Field(
         default={}, description="Campaigns in the station"
     )
-    location: Optional[Path] = Field(
+    location: Optional[Union[Path, S3Path]] = Field(
         default=None, description="The station directory path"
     )
     tiledb_directory: Optional[TileDBDir] = Field(
         default=None, description="The TileDB directory path"
     )
-    metadata_directory: Optional[Path] = Field(
+    metadata_directory: Optional[Union[Path, S3Path]] = Field(
         default=None, description="The metadata directory path"
     )
-    site_metadata: Optional[Path] = Field(
+    site_metadata: Optional[Union[Path, S3Path]] = Field(
         default=None, description="The site metadata file path"
     )
     # Fields needed to auto-generate paths
     name: str = Field(..., description="The station name")
-    network: Path = Field(..., description="The network directory path")
+    network: Union[Path, S3Path] = Field(..., description="The network directory path")
 
     def build(self):
         """Creates the directory structure for the station."""
@@ -399,12 +415,12 @@ class NetworkDir(_Base):
     stations: Optional[dict[str, StationDir]] = Field(
         default={}, description="Stations in the network"
     )
-    location: Optional[Path] = Field(
+    location: Optional[Union[Path, S3Path]] = Field(
         default=None, description="The network directory path"
     )
 
     name: str = Field(..., description="The network name")
-    main_directory: Path = Field(..., description="The main directory path")
+    main_directory: Union[Path, S3Path] = Field(..., description="The main directory path")
 
     def build(self):
         """Creates the directory structure for the network."""

@@ -12,7 +12,7 @@ from es_sfgtools.workflows.workflow_handler import WorkflowHandler
 
 
 def main():
-    main_dir = Path("/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain")
+    main_dir = Path("/Volumes/DunbarSSD/Project/SeafloorGeodesy/GeoHubDemo")
     wfh = WorkflowHandler(main_dir)
 
     network = "cascadia-gorda"
@@ -92,7 +92,10 @@ def main():
     station = 'NTH1'
     wfh.set_network_station_campaign(network_id=network, station_id=station, campaign_id=campaign)
     mid_processer = wfh.midprocess_get_processor()
-    mid_processer.midprocess_sync_s3()
+    #mid_processer.midprocess_sync_s3()
+    mid_processer.midprocess_get_s3(True)
+    mid_processer.parse_surveys()
+    mid_processer.prepare_shotdata_garpos()
 
     # wfh.midprocess_parse_surveys(override=override_survey_parsing,write_intermediate=True)
     # wfh.midprocess_prep_garpos(override=override_garpos_parsing,custom_filters=filter_config,survey_id="2025_A_1126_1")

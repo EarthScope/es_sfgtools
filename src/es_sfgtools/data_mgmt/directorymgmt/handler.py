@@ -15,11 +15,11 @@ and branching into networks, stations, campaigns, and various data and results d
 import datetime
 import json
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 import cloudpathlib
 from pydantic import BaseModel, Field, PrivateAttr
 from copy import deepcopy
-
+from cloudpathlib import S3Path
 from .schemas import (
     _Base,NetworkDir,StationDir,CampaignDir,SurveyDir,TileDBDir,GARPOSSurveyDir
 )
@@ -41,8 +41,11 @@ class DirectoryHandler(_Base):
     networks: Optional[dict[str, NetworkDir]] = {}
     pride_directory: Optional[Path] = Field(default=None, description="The PRIDE PPPAR binary directory path")
 
-    location: Path = Field(
+    location: Union[Path, S3Path] = Field(
      description="The main directory path"
+    )
+    remote_catalog_filepath: Optional[Path] = Field(
+        default=None, description="Path to the remote directory structure JSON file"
     )
 
     def save(self):
@@ -69,6 +72,7 @@ class DirectoryHandler(_Base):
             raw_data = file.read()
         directory_handler = cls.model_validate_json(raw_data)
         directory_handler.filepath = path
+        directory_handler.build()
         return directory_handler
 
     def add_network(self, name: str) -> NetworkDir:
@@ -128,6 +132,9 @@ class DirectoryHandler(_Base):
             self.asset_catalog_db_path = self.location / ASSET_CATALOG
             if not self.asset_catalog_db_path.exists():
                 self.asset_catalog_db_path.touch()
+        
+        if not self.remote_catalog_filepath:
+            self.remote_catalog_filepath = self.location / f"s3_{self._filepath}"
 
     def build_station_directory(self,network_name:str,station_name:str=None,campaign_name:str=None,survey_name:str=None) -> Optional[tuple[NetworkDir,StationDir,CampaignDir,SurveyDir]]:
         """Builds a station directory, and optionally a campaign directory.
@@ -181,7 +188,7 @@ class DirectoryHandler(_Base):
 
         return networkDir, stationDir, campaignDir, surveyDir
 
-    def point_to_s3(self,bucket_path: str) -> "DirectoryHandler":
+    def point_to_s3(self,bucket_path: str|S3Path) -> "DirectoryHandler":
         """Points the directory handler to an S3 bucket using cloudpathlib.
 
         1. Create model copy of current directory handler.
@@ -199,11 +206,14 @@ class DirectoryHandler(_Base):
         bucket_path : str
             The S3 bucket path (e.g., "s3://my-bucket/path").
         """
-        if not bucket_path.startswith("s3://"):
-            bucket_path = "s3://" + bucket_path
+        if not isinstance(bucket_path, cloudpathlib.S3Path):
+            if not bucket_path.startswith("s3://"):
+                bucket_path = "s3://" + bucket_path
+            bucket_path = cloudpathlib.S3Path(bucket_path)
+
         new_handler = deepcopy(self)
         local_location = new_handler.location
-        new_handler.location = cloudpathlib.S3Path(bucket_path)
+        new_handler.location = bucket_path
 
         # recursively update all Path attributes to CloudPath
         def update_paths(model: _Base, old_root_prefix: Path, new_root_prefix: cloudpathlib.S3Path):
@@ -222,3 +232,43 @@ class DirectoryHandler(_Base):
         
         update_paths(new_handler, local_location, new_handler.location)
         return new_handler
+
+    @classmethod
+    def load_from_s3(cls, bucket_path: str) -> "DirectoryHandler":
+        """Searches the s3 bucket for existing data.
+
+        Parameters
+        ----------
+        bucket_path : str
+            The S3 bucket path (e.g., "s3://my-bucket/path").
+
+        Returns
+        -------
+        DirectoryHandler
+            A DirectoryHandler object.
+        """
+        if not bucket_path.startswith("s3://"):
+            bucket_path = "s3://" + bucket_path
+        s3_path = cloudpathlib.S3Path(bucket_path)
+        s3_dir_handler = cls(location=s3_path).point_to_s3( bucket_path=s3_path)
+
+        # Iterate over directories in the bucket
+        for directory in s3_dir_handler.location.iterdir():
+            network_dir = s3_dir_handler.add_network(directory.name)
+            for station_directory_s3 in directory.iterdir():
+                station_dir:StationDir = network_dir.add_station(station_directory_s3.name)
+                for campaign_directory in station_directory_s3.iterdir():
+                    match campaign_directory:
+                        case station_dir.tiledb_directory.location:
+                            continue
+                        case station_dir.metadata_directory:
+                            continue
+                        case _:
+                            campaign_dir = station_dir.add_campaign(campaign_directory.name)
+
+        return s3_dir_handler
+
+
+    #     # recursively check for existing directory structure
+
+    #     return s3_dir_handler

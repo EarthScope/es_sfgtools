@@ -53,5 +53,6 @@ dependencies:
     - gnatss
     - regex
     - scikit-sparse
+    - cloudpathlib[s3]
 variables:
   CGO_ENABLED: 1

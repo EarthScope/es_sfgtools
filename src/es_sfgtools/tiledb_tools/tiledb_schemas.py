@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import tiledb
+from cloudpathlib import S3Path
 
 from ..data_models.observables import (
     AcousticDataFrame,
@@ -267,7 +268,7 @@ class TBDArray:
     array_schema = None
     name = "TBD Array"
 
-    def __init__(self, uri: Path | str):
+    def __init__(self, uri: Path | S3Path | str):
         self.uri = uri
         if not tiledb.array_exists(uri=str(uri), ctx=ctx):
             tiledb.Array.create(uri=str(uri), schema=self.array_schema, ctx=ctx)
@@ -373,7 +374,7 @@ class TDBAcousticArray(TBDArray):
     dataframe_schema = AcousticDataFrame
     array_schema = AcousticArraySchema
 
-    def __init__(self, uri: Path | str):
+    def __init__(self, uri: Path | S3Path | str):
         super().__init__(uri)
 
     def get_unique_dates(self, field="triggerTime") -> np.ndarray:
@@ -399,7 +400,7 @@ class TDBKinPositionArray(TBDArray):
     array_schema = KinPositionArraySchema
     name = "Kin Position Data"
 
-    def __init__(self, uri: Path | str):
+    def __init__(self, uri: Path | S3Path | str):
         super().__init__(uri)
 
     def get_unique_dates(self, field="time") -> np.ndarray:
@@ -410,7 +411,7 @@ class TDBIMUPositionArray(TBDArray):
     dataframe_schema = IMUPositionDataFrame
     array_schema = IMUPositionArraySchema
 
-    def __init__(self, uri: Path | str):
+    def __init__(self, uri: Path | S3Path | str):
         super().__init__(uri)
 
     def get_unique_dates(self, field="time") -> np.ndarray:
@@ -422,7 +423,7 @@ class TDBShotDataArray(TBDArray):
     array_schema = ShotDataArraySchema
     name = "Shot Data"
 
-    def __init__(self, uri: Path | str):
+    def __init__(self, uri: Path | S3Path | str):
         super().__init__(uri)
 
     def get_unique_dates(self, field="pingTime") -> np.ndarray:
@@ -496,7 +497,7 @@ class TDBShotDataArray(TBDArray):
 class TDBGNSSObsArray(TBDArray):
     array_schema = GNSSObsSchema
 
-    def __init__(self, uri: Path | str):
+    def __init__(self, uri: Path | S3Path | str):
         super().__init__(uri)
 
     def get_unique_dates(self, field: str = "time") -> np.ndarray:

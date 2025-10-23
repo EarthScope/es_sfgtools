@@ -136,6 +136,8 @@ class DataHandler(WorkflowABC):
         logger.loginfo(f"Creating TileDB arrays for {self.current_station_name}")
 
         tiledb_dir = self.current_station_dir.tiledb_directory
+        if 's3:/' in str(tiledb_dir.location):
+            tiledb_dir.to_s3()
 
         # Use standardized pattern for all TileDB arrays
         self._ensure_tiledb_array('acoustic_tdb', TDBAcousticArray, tiledb_dir.acoustic_data)

@@ -47,6 +47,7 @@ dependencies:
     - sphinx_pyproject
     - gnatss
     - regex
+    - cloudpathlib[s3]
     
 variables:
   CGO_ENABLED: 1
