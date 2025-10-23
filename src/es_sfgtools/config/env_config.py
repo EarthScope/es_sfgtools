@@ -1,5 +1,6 @@
 from enum import Enum
 import os
+import warnings
 
 class WorkingEnvironment(Enum):
     LOCAL = "LOCAL"
@@ -34,11 +35,14 @@ class Environment:
     
     @classmethod
     def load_working_environment(cls) -> None:
-       
-        env_str = os.environ.get("WORKING_ENVIRONMENT", "").upper()
-       
+
+        env_str = os.environ.get("WORKING_ENVIRONMENT", None)
+        if isinstance(env_str, str):
+            env_str = env_str.upper()
         match env_str:
-            case ("LOCAL", ""):
+            case None:
+                cls._working_environment = WorkingEnvironment.LOCAL
+            case "LOCAL":
                 cls._working_environment = WorkingEnvironment.LOCAL
             case "GEOLAB":
                 cls._working_environment = WorkingEnvironment.GEOLAB
@@ -58,7 +62,7 @@ class Environment:
 
         s3_sync_bucket_str = os.environ.get(S3_SYNC_BUCKET_KEY, None)
         if s3_sync_bucket_str is None:
-            raise ValueError(
+            warnings.warn(
                 f"Environment variable {S3_SYNC_BUCKET_KEY} is not set."
             )
         else:
