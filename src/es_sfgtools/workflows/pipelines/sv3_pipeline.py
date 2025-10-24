@@ -564,7 +564,7 @@ class SV3Pipeline(WorkflowABC):
         parent_ids = f"N-{self.current_network_name}|ST-{self.current_station_name}|SV-{self.current_campaign_name}|TDB-{gnss_obs_data_dest}|YEAR-{year}"
         merge_signature = {
             "parent_type": AssetType.GNSSOBSTDB.value,
-            "child_type": AssetType.RINEX.value,
+            "child_type": AssetType.RINEX2.value,
             "parent_ids": [parent_ids],
         }
 
@@ -607,7 +607,7 @@ class SV3Pipeline(WorkflowABC):
                         campaign=self.current_campaign_name,
                         timestamp_data_start=rinex_time_start,
                         timestamp_data_end=rinex_time_end,
-                        type=AssetType.RINEX,
+                        type=AssetType.RINEX2,
                         timestamp_created=datetime.datetime.now()
                     )
                     rinex_entries.append(rinex_entry)
@@ -632,7 +632,7 @@ class SV3Pipeline(WorkflowABC):
 
         else:
             rinex_entries = self.asset_catalog.get_local_assets(
-                self.current_network_name, self.current_station_name, self.current_campaign_name, AssetType.RINEX
+                self.current_network_name, self.current_station_name, self.current_campaign_name, AssetType.RINEX2
             )
             num_rinex_entries = len(rinex_entries)
             ProcessLogger.logdebug(
@@ -666,7 +666,7 @@ class SV3Pipeline(WorkflowABC):
                 network=self.current_network_name,
                 station=self.current_station_name,
                 campaign=self.current_campaign_name,
-                parent_type=AssetType.RINEX,
+                parent_type=AssetType.RINEX2,
                 child_type=AssetType.KIN,
                 override=self.config.pride_config.override,
             )

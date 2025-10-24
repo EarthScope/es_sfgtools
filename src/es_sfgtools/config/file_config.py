@@ -21,7 +21,7 @@ class FILE_TYPE(Enum):
     SONARDYNE = "sonardyne"
     NOVATEL = "novatel"
     KIN = "kin"
-    RINEX = "rinex"
+    RINEX2= "rinex2"
     MASTER = "master"
     LEVERARM = "leverarm"
     SEABIRD = "svpavg"
@@ -45,9 +45,10 @@ ALIAS_MAP = ALIAS_MAP | {x: x for x in FILE_TYPES}
 
 
 class DOWNLOAD_TYPES(Enum):
-    """Enumeration for file types that are eligible for download."""
+    """Enumeration for file types that are defaulted for download."""
 
     SONARDYNE = "sonardyne"
+    NOVATEL = "novatel"
     NOVATEL000 = "novatel000"
     NOVATEL770 = "novatel770"
     DFPO00 = "dfop00"
@@ -63,24 +64,24 @@ class DOWNLOAD_TYPES(Enum):
 DEFAULT_FILE_TYPES_TO_DOWNLOAD = [x for x in DOWNLOAD_TYPES]
 
 
-class DATA_TYPE(Enum):
-    """Enumeration for processed data types stored in TileDB arrays."""
+# class DATA_TYPE(Enum):
+#     """Enumeration for processed data types stored in TileDB arrays."""
 
-    KINPOSITION = "kinposition"
-    ACOUSTIC = "acoustic"
-    SITECONFIG = "siteconfig"
-    ATDOFFSET = "atdoffset"
-    SVP = "svp"
-    SHOTDATA = "shotdata"
-    IMUPOSITION = "imuposition"
+#     KINPOSITION = "kinposition"
+#     ACOUSTIC = "acoustic"
+#     SITECONFIG = "siteconfig"
+#     ATDOFFSET = "atdoffset"
+#     SVP = "svp"
+#     SHOTDATA = "shotdata"
+#     IMUPOSITION = "imuposition"
 
-    @classmethod
-    def to_schema(cls):
-        """Returns a list of all enum member names."""
-        return [x.name for x in cls]
+#     @classmethod
+#     def to_schema(cls):
+#         """Returns a list of all enum member names."""
+#         return [x.name for x in cls]
 
 
-DATA_TYPES = [x.value for x in DATA_TYPE]
+# DATA_TYPES = [x.value for x in DATA_TYPE]
 
 
 class AssetType(Enum):
@@ -91,7 +92,7 @@ class AssetType(Enum):
     NOVATEL000 = "novatel000"
     DFOP00 = "dfop00"
     SONARDYNE = "sonardyne"
-    RINEX = "rinex"
+    RINEX2 = "rinex2"
     KIN = "kin"
     SEABIRD = "seabird"
     CTD = "ctd"  # 2 column data

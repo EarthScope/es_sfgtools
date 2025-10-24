@@ -74,7 +74,7 @@ NOT YET IMPLEMENTED
 
 #         merge_signature = {
 #             "parent_type": AssetType.NOVATEL.value,
-#             "child_type": AssetType.RINEX.value,
+#             "child_type": AssetType.RINEX2.value,
 #             "parent_ids": [x.id for x in novatel_entries],
 #         }
 #         if self.config.novatel_config.override or not self.catalog.is_merge_complete(

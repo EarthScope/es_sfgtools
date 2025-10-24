@@ -1,5 +1,5 @@
 """
-This module defines the DataPostProcessor class, which is responsible for post-processing of data.
+This module defines the IntermediateDataProcessor class, which is responsible for post-processing of data.
 """
 import json
 import os

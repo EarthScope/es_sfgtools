@@ -45,7 +45,7 @@ def _rinex_get_meta(data: AssetEntry) -> AssetEntry:
     AssetType
         The RINEX asset entry with metadata.
     """
-    assert data.type == AssetType.RINEX, f"Expected RINEX file, got {data.type}"
+    assert data.type == AssetType.RINEX2, f"Expected RINEX2 file, got {data.type}"
     with open(data.local_path) as f:
         files = f.readlines()
         for line in files:
