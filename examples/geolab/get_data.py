@@ -4,64 +4,24 @@ Seafloor Geodesy Data Processing Demo - GeoLab Environment
 This demo shows the steps to get pre-processed data for modeling in the geolab environment.
 
 """
-
-import os
-from pathlib import Path
-from typing import  Dict, Any
-
 # =============================================================================
 # CONFIGURATION
+# NOTE: Ensure that the correct environment variables are set for GeoLab processing (via dockerfile or manually)
 # =============================================================================
 
 DEFAULT_CONFIG = {
     # GeoLab environment settings
-    'WORKING_ENVIRONMENT': 'GEOLAB',
-    'MAIN_DIRECTORY_GEOLAB': '/Volumes/DunbarSSD/Project/SeafloorGeodesy/GEOLABDemo',
-    'S3_SYNC_BUCKET': 'seafloor-public-bucket-bucket83908e77-gprctmuztrim',
+    "WORKING_ENVIRONMENT": "GEOLAB",
+    "MAIN_DIRECTORY_GEOLAB": "/Volumes/DunbarSSD/Project/SeafloorGeodesy/GEOLABDemo",
+    "S3_SYNC_BUCKET": "seafloor-public-bucket-bucket83908e77-gprctmuztrim",
 }
-
-# =============================================================================
-# UTILITY FUNCTIONS
-# =============================================================================
-
-
-def setup_geolab_environment(config: Dict[str, Any]) -> None:
-    """
-    Configure environment variables for GeoLab processing.
+import os
+for key, value in DEFAULT_CONFIG.items():
+    os.environ[key] = value
     
-    This function sets up all required environment variables for seafloor
-    geodesy processing in the GeoLab environment.
-    
-    Args:
-        main_directory: Path to the main GeoLab data directory
-        s3_bucket: S3 bucket name for data synchronization
-        
-    Raises:
-        ValueError: If required directories don't exist
-    """
-
-    # Validate main directory exists
-    main_path = Path(config['MAIN_DIRECTORY_GEOLAB'])
-    if not main_path.exists():
-        raise ValueError(f"Main directory does not exist: {config['MAIN_DIRECTORY_GEOLAB']}")
-
-    # Configure dynamic library path for conda environment
-    conda_prefix = os.environ.get("CONDA_PREFIX", "")
-    if conda_prefix:
-        current_dyld = os.environ.get("DYLD_LIBRARY_PATH", "")
-        os.environ["DYLD_LIBRARY_PATH"] = f"{conda_prefix}/lib:{current_dyld}"
-    
-
-    
-    for var_name, var_value in config.items():
-        os.environ[var_name] = var_value
-
-
-# =============================================================================
-# MAIN PROCESSING FUNCTIONS
-# =============================================================================
-
-setup_geolab_environment(DEFAULT_CONFIG)
+from es_sfgtools.config.env_config import Environment
+# This will read the environment variables set above
+Environment.load_working_environment()
 
 from es_sfgtools.workflows.workflow_handler import WorkflowHandler
 
@@ -101,5 +61,4 @@ for station in STATIONS:
         station_id=station,
         campaign_id=CAMPAIGN,
     )
-    workflow.midprocess_parse_surveys()
-    workflow.midprocess_prep_garpos(custom_filters=FILTER_CONFIG)
+    workflow.midprocess_prep_garpos(custom_filters=FILTER_CONFIG,override=False,write_intermediate=False)
