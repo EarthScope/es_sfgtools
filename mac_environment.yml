@@ -41,8 +41,10 @@ dependencies:
   - pip:
     - -e .
     - garpos @ git+https://github.com/EarthScope/garpos.git
-    - earthscope-sdk==1.0.0b1
+    #- earthscope-sdk==1.0.0b1
     - earthscope-cli==1.0.0b1
+    - earthscope-sdk==1.1.0
+    #- earthscope-cli==1.0.1
     # - multipledispatch
     # - multiprocessing_logging
     - sphinx_pyproject
