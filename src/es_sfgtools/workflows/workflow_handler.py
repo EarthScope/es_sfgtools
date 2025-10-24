@@ -110,10 +110,6 @@ class WorkflowHandler(WorkflowABC):
                 setattr(self,key,value)
                 logger.loginfo(f"WorkflowHandler state updated: {key} = {value}")
 
-        if self.current_station_metadata is None:
-            message = f"No site metadata found for {network_id} {station_id}. Some processing steps may fail."
-            logger.logwarn(message)
-
     @validate_network_station_campaign
     def ingest_add_local_data(self, directory_path: Path) -> None:
         """Scans a directory for data files and adds them to the catalog.
@@ -436,6 +432,10 @@ class WorkflowHandler(WorkflowABC):
     ) -> Site:
         """Loads and returns the site metadata for the current station. Sets the current_station_metadata attribute.
 
+        1. If site_metadata is None, attempts to load from data_handler's current_station_metadata.
+        2. If site_metadata is a string or Path, loads the site metadata from the file.
+        3. If site_metadata is already a Site instance, uses it directly.
+
         Parameters
         ----------
         site_metadata : Optional[Union[Site, str]], optional
@@ -451,16 +451,26 @@ class WorkflowHandler(WorkflowABC):
         ValueError
             If site metadata cannot be loaded or is not provided.
         """
-        if self.data_handler.current_station_metadata is not None:
-            self.current_station_metadata = self.data_handler.current_station_metadata
-            return self.current_station_metadata
+        if site_metadata is None:
+            if self.data_handler.current_station_metadata is not None:
+                site_metadata = self.data_handler.current_station_metadata
+            else:
+                site_metadata: Union[Site, None] = self.data_handler.get_site_metadata(
+                    site_metadata=site_metadata
+                )
+
+
+        elif isinstance(site_metadata, (str, Path)):
+            site_metadata = Site.from_json(site_metadata)
+
+        else:
+            assert isinstance(site_metadata, Site), "site_metadata must be of type Site if not a str or Path"   
         
-        siteMeta: Union[Site, None] = self.data_handler.get_site_metadata(
-            site_metadata=site_metadata
-        )
-        if siteMeta is None:
+
+        if site_metadata is None:
             raise ValueError("Site metadata not loaded or provided, cannot proceed")
-        self.current_station_metadata = siteMeta
+        
+        self.current_station_metadata = site_metadata
         return self.current_station_metadata
 
     @validate_network_station_campaign
