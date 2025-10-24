@@ -14,7 +14,7 @@ class FilterLevel(str, Enum):
 
 class AcousticFilterConfig(BaseModel):
     enabled: bool = Field(
-        True, description="Whether to enable acoustic diagnostics filtering"
+        False, description="Whether to enable acoustic diagnostics filtering"
     )
     level: FilterLevel = Field(
         FilterLevel.OK,
@@ -27,15 +27,15 @@ class AcousticFilterConfig(BaseModel):
 
 
 class PingRepliesFilterConfig(BaseModel):
-    enabled: bool = Field(True, description="Whether to enable ping replies filtering")
+    enabled: bool = Field(False, description="Whether to enable ping replies filtering")
     min_replies: int = Field(
-        2, description="Minimum number of replies required to keep a shot"
+        3, description="Minimum number of replies required to keep a shot"
     )
 
 
 class MaxDistFromCenterConfig(BaseModel):
     enabled: bool = Field(
-        True, description="Whether to enable max distance from center filtering"
+        False, description="Whether to enable max distance from center filtering"
     )
     max_distance_m: float = Field(
         150.0,
@@ -45,10 +45,10 @@ class MaxDistFromCenterConfig(BaseModel):
 
 class PrideResidualsConfig(BaseModel):
     enabled: bool = Field(
-        True, description="Whether to enable PRIDE residuals filtering"
+        False, description="Whether to enable PRIDE residuals filtering"
     )
     max_residual_mm: float = Field(
-        5.0, description="Maximum PRIDE residual in millimeters to keep a shot"
+        8.0, description="Maximum PRIDE residual in millimeters to keep a shot"
     )
 
 
