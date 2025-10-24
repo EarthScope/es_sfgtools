@@ -12,7 +12,7 @@ from .manifest import PipelineManifest
 from .utils import display_pipelinemanifest
 
 
-def def run_manifest(manifest_object: PipelineManifest):
+def run_manifest(manifest_object: PipelineManifest):
     """
     Executes a series of data ingestion, download, and processing jobs
     based on the provided PipelineManifest object.

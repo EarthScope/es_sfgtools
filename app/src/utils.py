@@ -9,7 +9,7 @@ from rich.table import Table
 from .manifest import PipelineManifest
 
 
-def def display_pipelinemanifest(pipeline_manifest: PipelineManifest):
+def display_pipelinemanifest(pipeline_manifest: PipelineManifest):
     """
     Displays a rich table of jobs organized by network, station, and campaign.
 
