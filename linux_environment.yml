@@ -42,6 +42,7 @@ dependencies:
   - myst-parser
   - sphinxcontrib-apidoc
   - bc
+  - scikit-sparse
   - pip:
     - -e .
     - garpos @ git+https://github.com/EarthScope/garpos.git
@@ -52,7 +53,6 @@ dependencies:
     - sphinx_pyproject
     - gnatss
     - regex
-    - scikit-sparse
     - cloudpathlib[s3]
 variables:
   CGO_ENABLED: 1

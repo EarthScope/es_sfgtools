@@ -176,23 +176,27 @@ class SFGDTSFSite(BaseModel):
     ]  # Antenna to transponder offset [m] with [forward,rightward,downward]
 
     @classmethod
-    def from_site_vessel(cls, site: Site, vessel: Vessel) -> "SFGDTSFSite":
+    def from_site_vessel(cls, site: Site, vessel: Vessel, campaign_id:str) -> "SFGDTSFSite":
         """
         Create a SFGDTSFSite object from internal Site and Vessel objects.
 
-        Note:
+        Parameters
+        ----------
+        site : Site
+            The Site object containing site metadata.
+        vessel : Vessel
+            The Vessel object containing vessel metadata.
+        campaign_id : str
+            The campaign identifier to select the appropriate campaign data.
+
+        Notes
+        -----
             This constructor makes several assumptions:
             - The first name in `site.names` is the primary site name.
-            - The first campaign in `site.campaigns` is the primary one.
+            - The campaign matching campaign_id is used.
             - The first reference frame is used.
             - The first ATD offset from the vessel is used.
 
-        Args:
-            site: The internal Site object.
-            vessel: The internal Vessel object.
-
-        Returns:
-            A new SFGDTSFSite object.
         """
         mt_app_pos = {}
         for benchmark in site.benchmarks:
@@ -203,9 +207,18 @@ class SFGDTSFSite(BaseModel):
             )
             mt_app_pos[benchmark.benchmarkID] = [east, north, up]
 
+        found_campaign = None
+        for camp in site.campaigns:
+            if camp.name == campaign_id:
+                found_campaign = camp
+                break
+
+        if found_campaign is None:
+            raise ValueError(f"Campaign ID {campaign_id} not found in site campaigns.")
+        
         return cls(
             Site_name=site.names[0],
-            Campaign=site.campaigns[0].name,
+            Campaign=found_campaign.name,
             TimeOrigin=site.timeOrigin,
             RefFrame=(site.referenceFrames[0].name if site.referenceFrames else "ITRF"),
             MTlist=[b.benchmarkID for b in site.benchmarks],
