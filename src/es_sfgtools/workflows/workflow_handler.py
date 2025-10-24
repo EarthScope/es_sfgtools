@@ -509,7 +509,7 @@ class WorkflowHandler(WorkflowABC):
         override: bool = False,
         write_intermediate: bool = False,
         survey_id: Optional[str] = None,
-    ) -> None:
+    ) -> IntermediateDataProcessor:
         """Parses survey data for the current station.
 
         Parameters
@@ -541,6 +541,7 @@ class WorkflowHandler(WorkflowABC):
             override=override,
             write_intermediate=write_intermediate,
         )
+        return dataPostProcessor
 
     @validate_network_station_campaign
     def midprocess_prep_garpos(
@@ -549,6 +550,7 @@ class WorkflowHandler(WorkflowABC):
         survey_id: Optional[str] = None,
         custom_filters: Optional[dict] = None,
         override: bool = False,
+        override_survey_parsing: bool = False,
         write_intermediate: bool = False,
     ) -> None:
         """Prepares data for GARPOS processing.
@@ -571,13 +573,11 @@ class WorkflowHandler(WorkflowABC):
         ValueError
             If site metadata is not loaded.
         """
-        dataPostProcessor: IntermediateDataProcessor = self.midprocess_get_processor(
-            site_metadata=site_metadata
-        )
-
-        dataPostProcessor.parse_surveys(
-            override=override,
+        dataPostProcessor: IntermediateDataProcessor = self.midprocess_parse_surveys(
+            site_metadata=site_metadata,
+            override=override_survey_parsing,
             write_intermediate=write_intermediate,
+            survey_id=survey_id,
         )
         dataPostProcessor.prepare_shotdata_garpos(
             survey_id=survey_id,
