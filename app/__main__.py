@@ -1,5 +1,8 @@
 """
-This module is the entry point for the application.
+This module is the command-line entry point for the application.
+
+It uses Typer to create a CLI for running and preprocessing data pipelines
+based on manifest files.
 """
 import os
 import sys
@@ -7,13 +10,16 @@ from pathlib import Path
 from typing import List
 
 import typer
+from es_sfgtools.logging import ProcessLogger
 
+# This is a temporary workaround for the import system.
+# A better long-term solution is to install the package in editable mode.
 sys.path.append(str(Path(__file__).parent))
 from src.commands import run_manifest, run_preprocessing
 from src.manifest import PipelineManifest
 
-from es_sfgtools.logging import ProcessLogger
-
+# This adds the PRIDE binary path to the system's PATH.
+# A better long-term solution is for the user to configure this in their shell.
 pride_path = Path.home() / ".PRIDE_PPPAR_BIN"
 os.environ["PATH"] += os.pathsep + str(pride_path)
 
@@ -24,17 +30,16 @@ app = typer.Typer()
 
 @app.command()
 def run(file: Path):
-    """Runs the pipeline from a manifest file.
+    """
+    Runs the entire pipeline from a specified manifest file.
 
-    Parameters
-    ----------
-    file : Path
-        The path to the manifest file.
+    The file format (JSON or YAML) is determined by the file extension.
 
-    Raises
-    ------
-    ValueError
-        If the file type is not supported.
+    Args:
+        file: The path to the manifest file.
+
+    Raises:
+        ValueError: If the file extension is not .json, .yaml, or .yml.
     """
     match file.suffix:
         case ".json":
@@ -53,7 +58,15 @@ def preprocess(
     campaign: str = typer.Option(..., help="Campaign ID"),
     stations: List[str] = typer.Option(..., help="List of station IDs"),
 ):
-    """Runs the preprocessing pipeline for a given network, campaign, and stations."""
+    """
+    Runs the preprocessing pipeline for a given network, campaign, and stations.
+
+    Args:
+        main_dir: The main directory where data and results will be stored.
+        network: The identifier for the network.
+        campaign: The identifier for the campaign.
+        stations: A list of station identifiers to be processed.
+    """
     run_preprocessing(
         network_id=network,
         campaign_id=campaign,
@@ -63,5 +76,4 @@ def preprocess(
 
 
 if __name__ == "__main__":
-
     app()
