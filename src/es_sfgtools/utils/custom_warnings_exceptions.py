@@ -1,5 +1,3 @@
-import warnings
-import os 
 # Warning to reduce sample frequency of PRIDE-PPP
 class PrideSampleFrequencyWarning(Warning):
     """Warning for when the PRIDE-PPP sample frequency should be reduced."""

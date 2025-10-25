@@ -1,8 +1,8 @@
-from pydantic import BaseModel, Field, field_validator
-from typing import Dict, List
 from datetime import datetime
 from pathlib import Path
+from typing import Dict, List,Optional
 
+from pydantic import BaseModel, Field, field_validator
 
 pride_default_satellites: Dict[str, int] = {
     "G01": 1, "G02": 1, "G03": 1, "G04": 1, "G05": 1, "G06": 1,
@@ -42,13 +42,13 @@ class ObservationConfig(BaseModel):
 
 
 class SatelliteProducts(BaseModel):
-    product_directory: str  = Field(default="Default", description="Directory for satellite products")
-    satellite_orbit: str = Field(default= "Default",pattern=r".*\.SP3", description="File name of SP3 file")
-    satellite_clock: str = Field(default= "Default",pattern=r".*\.CLK", description="File name of CLK file")
-    erp: str = Field(default= "Default",pattern=r".*\.ERP", description="File name of ERP file")
-    quaternions: str = Field(default= "Default",pattern=r".*\.OBX", description="File name of quaternions file")
-    code_phase_bias: str = Field(default= "Default",pattern=r".*\.BIA", description="File name of code/phase bias file")
-    leo_quaternions: str = "Default"
+    product_directory: Optional[str]  = Field(default="Default", description="Directory for satellite products")
+    satellite_orbit: Optional[str] = Field(default= "Default",pattern=r".*\.SP3", description="File name of SP3 file")
+    satellite_clock: Optional[str] = Field(default= "Default",pattern=r".*\.CLK", description="File name of CLK file")
+    erp: Optional[str] = Field(default= "Default",pattern=r".*\.ERP", description="File name of ERP file")
+    quaternions: Optional[str] = Field(default= "Default",pattern=r".*\.OBX", description="File name of quaternions file")
+    code_phase_bias: Optional[str] = Field(default= "Default",pattern=r".*\.BIA", description="File name of code/phase bias file")
+    leo_quaternions: Optional[str] = Field(default="Default", description="File name of LEO quaternions file")
 
     @field_validator("satellite_orbit", "satellite_clock", "erp", "quaternions", "code_phase_bias",mode='before')
     def override_patternmatch(cls, value: str, field: Field) -> str:
@@ -141,8 +141,12 @@ class PRIDEPPPFileConfig(BaseModel):
 
 
     def write_config_file(self, filepath: str|Path):
-        """
-        Write the PRIDE PPP configuration to a file.
+        """Write the PRIDE PPP configuration to a file.
+
+        Parameters
+        ----------
+        filepath : str | Path
+            The path to the file.
         """
         if isinstance(filepath, str):
             filepath = Path(filepath)
@@ -275,8 +279,12 @@ class PRIDEPPPFileConfig(BaseModel):
 
     @classmethod
     def read_config_file(cls, file_path: str) -> "PRIDEPPPFileConfig":
-        """
-        Reads a PRIDE PPP configuration file and returns a PRIDEPPPConfig instance.
+        """Reads a PRIDE PPP configuration file.
+
+        Returns
+        -------
+        PRIDEPPPFileConfig
+            A PRIDEPPPConfig instance.
         """
         with open(file_path, "r") as file:
             text = file.read()
@@ -431,8 +439,12 @@ class PRIDEPPPFileConfig(BaseModel):
 
     @classmethod
     def load_default(cls) -> "PRIDEPPPFileConfig":
-        """
-        Loads a default PRIDE PPP configuration with predefined values.
+        """Loads a default PRIDE PPP configuration with predefined values.
+
+        Returns
+        -------
+        PRIDEPPPFileConfig
+            A PRIDEPPPFileConfig instance.
         """
         pdp_home = Path.home() / ".PRIDE_PPPAR_BIN"
         if not pdp_home.exists():

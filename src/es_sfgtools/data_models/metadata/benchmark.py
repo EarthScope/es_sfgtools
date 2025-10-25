@@ -1,13 +1,14 @@
-from typing import Any, Dict, List, Optional, Union
 from datetime import datetime
+from typing import List, Optional
+
 from pydantic import BaseModel, Field, field_validator
 
 from .utils import (
     AttributeUpdater,
     Location,
+    check_dates,
     check_fields_for_empty_strings,
     parse_datetime,
-    check_dates,
 )
 
 
@@ -33,8 +34,8 @@ class BatteryVoltage(AttributeUpdater, BaseModel):
 class TAT(AttributeUpdater, BaseModel):
     # Required
     value: float = Field(..., description="Turn around time (TAT) in ms", ge=0, le=1000)
-    start: datetime = Field(
-        ..., description="The start date of the TAT", gt=datetime(1901, 1, 1)
+    start: Optional[datetime] = Field(
+        None, description="The start date of the TAT", gt=datetime(1901, 1, 1)
     )
 
     # Optional
@@ -54,8 +55,8 @@ class Transponder(AttributeUpdater, BaseModel):
     tat: List[TAT] = Field(
         ..., description="The turn around time (TAT) of the transponder"
     )
-    start: datetime = Field(
-        ..., description="The start date of the transponder", gt=datetime(1901, 1, 1)
+    start: Optional[datetime] = Field(
+        default=None, description="The start date of the transponder", gt=datetime(1901, 1, 1)
     )
 
     # Optional
@@ -92,6 +93,19 @@ class Transponder(AttributeUpdater, BaseModel):
     _check_dates = field_validator("end")(check_dates)
 
     def get_tat_by_datetime(self, dt: datetime) -> Optional[float]:
+        """Get the turn around time (TAT) for a given datetime.
+
+        Parameters
+        ----------
+        dt : datetime
+            The datetime to get the TAT for.
+
+        Returns
+        -------
+        Optional[float]
+            The TAT value, or None if no TAT is found for the given
+            datetime.
+        """
         # If there is only 1 TAT available, return that TAT
         if len(self.tat) == 1:
             return self.tat[0].value
@@ -133,6 +147,19 @@ class Benchmark(AttributeUpdater, BaseModel):
     _check_dates = field_validator("end")(check_dates)
 
     def get_transponder_by_datetime(self, dt: datetime) -> Optional[Transponder]:
+        """Get the transponder for a given datetime.
+
+        Parameters
+        ----------
+        dt : datetime
+            The datetime to get the transponder for.
+
+        Returns
+        -------
+        Optional[Transponder]
+            The transponder, or None if no transponder is found for the
+            given datetime.
+        """
         # If there is only 1 transponder available, return that transponder
         if len(self.transponders) == 1:
             return self.transponders[0]

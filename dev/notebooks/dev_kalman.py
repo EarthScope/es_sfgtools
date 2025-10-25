@@ -1,25 +1,23 @@
 import os
 from pathlib import Path
+
 import pandas as pd
 
 from es_sfgtools.data_mgmt.data_handler import DataHandler
+
 pride_path = Path.home() / ".PRIDE_PPPAR_BIN"
 os.environ["PATH"] += os.pathsep + str(pride_path)
-import matplotlib.pyplot as plt
-
-from nptyping import NDArray
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk
 
 import sys
-sys.path.append("/Users/franklyndunbar/Project/SeaFloorGeodesy/gnatss/src")
-import gnatss
-from gnatss.ops.kalman import run_filter_simulation
-import gnatss.constants as constants
-import datetime
-import pymap3d
 
+import numpy as np
+
+sys.path.append("/Users/franklyndunbar/Project/SeaFloorGeodesy/gnatss/src")
+import datetime
+
+import gnatss.constants as constants
+import pymap3d
+from gnatss.ops.kalman import run_filter_simulation
 
 GPS_EPOCH = datetime.datetime(1980, 1, 6, 0, 0, 0)
 J200_EPOCH = datetime.datetime(2000, 1, 1, 12, 0, 0)
@@ -27,8 +25,17 @@ J200_EPOCH = datetime.datetime(2000, 1, 1, 12, 0, 0)
 COLUMN_ORDER = ['time', 'east', 'north', 'up','ant_x', 'ant_y', 'ant_z','ant_sigx', 'ant_sigy', 'ant_sigz','rho_xy', 'rho_xz', 'rho_yz','east_sig', 'north_sig', 'up_sig','v_sden', 'v_sdeu', 'v_sdnu']
 
 def time_to_gpsweek_seconds(time: datetime.datetime) -> tuple[int, float]:
-    """
-    Convert a datetime object to GPS week and seconds of week.
+    """Convert a datetime object to GPS week and seconds of week.
+
+    Parameters
+    ----------
+    time : datetime.datetime
+        The datetime object to convert.
+
+    Returns
+    -------
+    tuple[int, float]
+        A tuple containing the GPS week and seconds of week.
     """
 
     # Calculate the difference in time
@@ -45,8 +52,17 @@ def time_to_gpsweek_seconds(time: datetime.datetime) -> tuple[int, float]:
 
 
 def time_to_j200(time: datetime.datetime) -> float:
-    """
-    Convert a datetime object to Julian Date (JD) and then to J2000.
+    """Convert a datetime object to J2000.
+
+    Parameters
+    ----------
+    time : datetime.datetime
+        The datetime object to convert.
+
+    Returns
+    -------
+    float
+        The J2000 date.
     """
     # Calculate the difference in time
     delta = time - J200_EPOCH
@@ -57,6 +73,18 @@ def time_to_j200(time: datetime.datetime) -> float:
     return total_seconds
 
 def shotData_to_positiondf(shotdata:pd.DataFrame) -> pd.DataFrame:
+    """Converts shotdata to a position DataFrame.
+
+    Parameters
+    ----------
+    shotdata : pd.DataFrame
+        The shotdata DataFrame.
+
+    Returns
+    -------
+    pd.DataFrame
+        The position DataFrame.
+    """
     position_df_0 = shotdata[["pingTime", "east0", "north0", "up0","head0","pitch0","roll0","east_std0","north_std0","up_std0"]]
     position_df_1 = shotdata[["returnTime", "east1", "north1", "up1","head1","pitch1","roll1","east_std1","north_std1","up_std1"]]
 
@@ -103,6 +131,18 @@ def shotData_to_positiondf(shotdata:pd.DataFrame) -> pd.DataFrame:
     return position_df
 
 def gpsData_to_positiondf(gpsdata:pd.DataFrame) -> pd.DataFrame:
+    """Converts GPS data to a position DataFrame.
+
+    Parameters
+    ----------
+    gpsdata : pd.DataFrame
+        The GPS data DataFrame.
+
+    Returns
+    -------
+    pd.DataFrame
+        The position DataFrame.
+    """
     gps_df = gpsdata.copy()
     gps_df.time = gps_df.time.apply(lambda x: x.timestamp())
     east_velocity = (gps_df.east.diff() / gps_df.time.diff()).abs()
@@ -137,6 +177,18 @@ def gpsData_to_positiondf(gpsdata:pd.DataFrame) -> pd.DataFrame:
     return gps_df
 
 def runFilter(df_all:pd.DataFrame) -> pd.DataFrame:
+    """Runs the Kalman filter.
+
+    Parameters
+    ----------
+    df_all : pd.DataFrame
+        The combined data.
+
+    Returns
+    -------
+    pd.DataFrame
+        The smoothed results.
+    """
 
     df_numpy = df_all[COLUMN_ORDER].to_numpy()
     x, P, _, _ = run_filter_simulation(
@@ -174,6 +226,20 @@ def runFilter(df_all:pd.DataFrame) -> pd.DataFrame:
 def kalman_update(
     positions_data: pd.DataFrame, kin_positions: pd.DataFrame
 ) -> pd.DataFrame:
+    """Updates the Kalman filter.
+
+    Parameters
+    ----------
+    positions_data : pd.DataFrame
+        The IMU positions data.
+    kin_positions : pd.DataFrame
+        The kinematic GPS data.
+
+    Returns
+    -------
+    tuple[pd.DataFrame, pd.DataFrame]
+        A tuple containing the smoothed results and the merged positions.
+    """
     positions_data_copy = positions_data.copy()
     e, n, u = pymap3d.geodetic2ecef(
         lat=positions_data_copy.latitude,

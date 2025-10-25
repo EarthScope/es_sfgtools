@@ -4,10 +4,11 @@ Date: 2024-09-25
 Email: franklyn.dunbar@earthscope.org
 """
 # External imports
+from typing import Optional
+
 import pandas as pd
 import pandera as pa
 from pandera.typing import Series
-from typing import Optional
 
 # Local imports
 from .constants import (
@@ -294,6 +295,7 @@ class ShotDataFrame(AcousticDataFrame):
     class Config:
         add_missing_columns = True
         coerce = True
+        drop_invalid_rows = True
         
 
 class SoundVelocityDataFrame(pa.DataFrameModel):

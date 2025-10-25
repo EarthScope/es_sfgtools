@@ -1,9 +1,11 @@
-from enum import Enum
 import json
 from datetime import datetime
-from typing import Any, ClassVar, Optional, Union, Dict, List
+from enum import Enum
+from typing import Any, ClassVar, Dict, List, Optional
 
-from .benchmark import TAT, Benchmark, Transponder
+from pydantic import BaseModel, Field, ValidationError, field_validator
+
+from .benchmark import Benchmark, Transponder
 from .campaign import Campaign, Survey
 from .utils import (
     AttributeUpdater,
@@ -12,7 +14,6 @@ from .utils import (
     only_one_is_true,
     parse_datetime,
 )
-from pydantic import BaseModel, Field, ValidationError, field_validator
 
 
 class TopLevelSiteGroups(str, Enum):
@@ -94,7 +95,9 @@ class Site(BaseModel):
 
     def export_site(self, filepath: str):
         with open(filepath, "w") as file:
-            file.write(self.model_dump_json(indent=2))
+            json_dict = json.loads(self.model_dump_json())
+            json.dump(json_dict, file, indent=4)
+     
 
     @classmethod
     def from_json(cls, filepath: str) -> "Site":
@@ -368,7 +371,7 @@ class Site(BaseModel):
 
                     component.transponders.append(new_transponder)
                     print(new_transponder.model_dump_json(indent=2))
-                    print(f"New transponder added successfully.")
+                    print("New transponder added successfully.")
                     return
 
                 elif sub_component_type == SubLevelSiteGroups.SURVEYS:
@@ -395,7 +398,7 @@ class Site(BaseModel):
                         return
                     component.surveys.append(new_survey)
                     print(new_survey.model_dump_json(indent=2))
-                    print(f"New survey added successfully.")
+                    print("New survey added successfully.")
                     return
 
         print(f"ERROR: {component_type} {component_name} not found..")
@@ -476,6 +479,9 @@ class Site(BaseModel):
                             equipment.surveys.remove(survey)
                             print(f"Deleted survey {sub_component_name}.")
 
+    class Config:
+        validate_assignment = True
+        json_encoders = {datetime: lambda v: v.isoformat()}
 
 if __name__ == "__main__":
     example_json_filepath = "json_schemas/site_example.json"

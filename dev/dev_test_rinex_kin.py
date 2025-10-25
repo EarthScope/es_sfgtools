@@ -1,9 +1,15 @@
-from es_sfgtools.data_mgmt.data_handler import DataHandler
-from es_sfgtools.processing.operations.gnss_ops import rinex_to_kin,PrideCLIConfig,get_nav_file,get_gnss_products
-from pathlib import Path
 import os
+from pathlib import Path
+
+from es_sfgtools.processing.operations.gnss_ops import (
+    PrideCLIConfig,
+    get_gnss_products,
+    get_nav_file,
+    rinex_to_kin,
+)
 from es_sfgtools.utils.loggers import BaseLogger
 
+from es_sfgtools.data_mgmt.data_handler import DataHandler
 
 pride_path = Path.home() / ".PRIDE_PPPAR_BIN"
 os.environ["PATH"] += os.pathsep + str(pride_path)
@@ -34,6 +40,6 @@ if __name__ == "__main__":
     kin, res = rinex_to_kin(failed_rinex_path,
                            writedir=dh.inter_dir,
                            pridedir=dh.pride_dir,
-                           site=dh.station,
+                           site=dh.current_station,
                            pride_config=pride_config
                            )

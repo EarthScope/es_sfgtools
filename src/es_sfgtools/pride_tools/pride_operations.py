@@ -1,16 +1,15 @@
+import datetime
 import shutil
 import subprocess
-from datetime import datetime
-from pathlib import Path
-from typing import Union, Tuple
-import re
 from collections import namedtuple
+from pathlib import Path
+from typing import Tuple
 
-from .gnss_product_operations import get_gnss_products
-from .pride_cli_config import PrideCLIConfig
-from .rinex_utils import rinex_get_time_range
 from ..logging import PRIDELogger as logger
 from ..utils.command_line_utils import parse_cli_logs
+from .pride_cli_config import PrideCLIConfig
+from .rinex_utils import rinex_get_time_range
+from .kin_file_operations import validate_kin_file
 
 # make output of subprocess.Popen identical to  subprocess.run
 result = namedtuple("result", ["stdout", "stderr"])
@@ -22,55 +21,66 @@ def rinex_to_kin(
     site="SIT1",
     pride_cli_config: PrideCLIConfig = None,
 ) -> Tuple[Path, Path]:
-    """
-    This function is a wrapper for the PRIDE-PPP processing tool (pdp3) to generate kinematic and residual files from a RINEX file.
+    """Generate kinematic and residual files from a RINEX file.
 
-    Args:
-        source (Union[AssetEntry,str,Path]): The source RINEX file to convert.
-        writedir (Path): The directory to write the converted kin file.
-        pridedir (Path): The directory where PRIDE-PPP observables are stored.
-        site (str, optional): The site name. Defaults to "SITE1".
-        pride_cli_config (PrideCLIConfig, optional): The configuration for PRIDE-PPP processing. If None, uses default settings.
+    This function is a wrapper for the PRIDE-PPP processing tool (pdp3).
 
-    Returns:
-        Tuple[Path, Path]: The generated kin and result files as Path objects.
+    Parameters
+    ----------
+    source : str
+        The source RINEX file to convert.
+    writedir : Path
+        The directory to write the converted kin file.
+    pridedir : Path
+        The directory where PRIDE-PPP observables are stored.
+    site : str, optional
+        The site name, by default "SIT1".
+    pride_cli_config : PrideCLIConfig, optional
+        The configuration for PRIDE-PPP processing. If None, uses default
+        settings.
 
-    Raises:
-        FileNotFoundError: If the PRIDE-PPP binary is not found in the system path.
-        FileNotFoundError: If the source RINEX file does not exist.
+    Returns
+    -------
+    Tuple[Path, Path]
+        The generated kin and result files as Path objects.
 
-    Notes:
+    Raises
+    ------
+    FileNotFoundError
+        If the PRIDE-PPP binary is not found in the system path.
+    FileNotFoundError
+        If the source RINEX file does not exist.
 
-    Examples:
-        >>> source = Path("/path/to/NCB12450.24o") # Example RINEX file path
-        >>> writedir = Path("/writedir") # Directory to write the kin file
-        >>> pridedir = Path("/pridedir") # Directory where PRIDE-PPP observables are stored
-        # Get the PRIDE configuration file path
-        >>> pride_configfile_path = get_gnss_products(
-            rinex_path=source,
-            pride_dir=pridedir,
-            override=False,
-            source="all"
-        )
-        # Create a PrideCLIConfig instance with the configuration file path
-        >>> pride_config = PrideCLIConfig(
-            sample_frequency=1,
-            override=False,
-            pride_configfile_path=pride_configfile_path,
-        )
-        # Run PRIDE-PPP to generate kin and res files
-        >>> kin_file, res_file = rinex_to_kin(
-            source=source,
-            writedir=writedir,
-            pridedir=pridedir,
-            site="NCB1",
-            pride_config=pride_config,
-        )
-        >>> kin_file
-        Path("writedir/kin_2024126_ncb1.kin")
-        >>> res_file
-        Path("writedir/res_2024126_ncb1.res")
-
+    Examples
+    --------
+    >>> source = Path("/path/to/NCB12450.24o") # Example RINEX file path
+    >>> writedir = Path("/writedir") # Directory to write the kin file
+    >>> pridedir = Path("/pridedir") # Directory where PRIDE-PPP observables are stored
+    # Get the PRIDE configuration file path
+    >>> pride_configfile_path = get_gnss_products(
+    ...     rinex_path=source,
+    ...     pride_dir=pridedir,
+    ...     override=False,
+    ...     source="all"
+    ... )
+    # Create a PrideCLIConfig instance with the configuration file path
+    >>> pride_config = PrideCLIConfig(
+    ...     sample_frequency=1,
+    ...     override=False,
+    ...     pride_configfile_path=pride_configfile_path,
+    ... )
+    # Run PRIDE-PPP to generate kin and res files
+    >>> kin_file, res_file = rinex_to_kin(
+    ...     source=source,
+    ...     writedir=writedir,
+    ...     pridedir=pridedir,
+    ...     site="NCB1",
+    ...     pride_config=pride_config,
+    ... )
+    >>> kin_file
+    Path("writedir/kin_2024126_ncb1.kin")
+    >>> res_file
+    Path("writedir/res_2024126_ncb1.res")
     """
 
     # Check if the pride binary is in the path
@@ -81,18 +91,68 @@ def rinex_to_kin(
     if isinstance(source, str):
         source = Path(source)
 
-    logger.loginfo(f"Converting RINEX file {source} to kin file")
-
     if not source.exists():
         logger.logerr(f"RINEX file {source} not found")
         raise FileNotFoundError(f"RINEX file {source} not found")
-
-    timestamp_data_start, _ = rinex_get_time_range(source)
 
     # If PridePdpConfig is not provided, use the default configuration
     if pride_cli_config is None:
         pride_cli_config = PrideCLIConfig()
 
+    '''
+    Step 1: Determine the year and day of year from the RINEX file to construct the expected output file paths.
+    '''
+    timestamps: Tuple[datetime.datetime, datetime.datetime] = rinex_get_time_range(source)
+
+    year, doy = (
+        timestamps[0].year,
+        timestamps[0].timetuple().tm_yday,
+    )
+    file_dir = Path(pridedir) / str(year) / str(doy)
+
+    kin_file_path = file_dir / f"kin_{str(year)}{str(doy)}_{site.lower()}" # Expected kin file path after running pdp3
+    res_file_path = file_dir / f"res_{str(year)}{str(doy)}_{site.lower()}" # Expected res file path after running pdp3
+    kin_file_new = writedir / (kin_file_path.name + ".kin") # Where the kin file will be moved
+    res_file_new = writedir / (res_file_path.name + ".res") # Where the res file will be moved
+    kin_file = None
+    res_file = None
+
+    '''
+    Step 2: Determine if processing is needed based on the existence of output files and the override flag.
+
+    Case 1: If the kin file already exists in the writedir and override is False, skip processing.
+    Case 2: If the kin file exists in the pridedir and override is False, move it to writedir and skip processing.
+    Case 3: run pdp3 to generate the kin and res files.
+    '''
+    logger.loginfo(f"Determining if processing is needed for RINEX file {source}")
+
+    # Case 1
+    if validate_kin_file(kin_file_new) and not pride_cli_config.override:
+        logger.loginfo(f"Kin file {kin_file_new} already exists, skipping processing")
+            # continue to process the file
+        kin_file = kin_file_new
+        if res_file_new.exists():
+            logger.loginfo(f"Res file {res_file_new} already exists, skipping processing")
+            res_file = res_file_new
+        else:
+            logger.logwarn(f"Res file {res_file_new} not found")
+
+        return kin_file, res_file
+    
+    # Case 2
+    if validate_kin_file(kin_file_path) and not pride_cli_config.override:
+        shutil.move(src=kin_file_path, dst=kin_file_new)
+        kin_file = kin_file_new
+        logger.loginfo(f"Kin file {kin_file} already exists, moved to {kin_file_new}")
+        if res_file_path.exists():
+            shutil.move(src=res_file_path, dst=res_file_new)
+            res_file = res_file_new
+            logger.loginfo(f"Res file {res_file} already exists, moved to {res_file_new}")
+        else:
+            logger.logwarn(f"Res file {res_file_path} not found")
+        return kin_file, res_file
+
+    # Case 3
     pdp_command = pride_cli_config.generate_pdp_command(
         site=site,
         local_file_path=source,
@@ -112,17 +172,6 @@ def rinex_to_kin(
     stdout, stderr = process.communicate()
     _results = result(stdout=stdout, stderr=stderr)
     parse_cli_logs(result=_results, logger=logger)
-
-    year, doy = (
-        timestamp_data_start.year,
-        timestamp_data_start.timetuple().tm_yday,
-    )
-    file_dir = Path(pridedir) / str(year) / str(doy)
-
-    kin_file_path = file_dir / f"kin_{str(year)}{str(doy)}_{site.lower()}"
-    res_file_path = file_dir / f"res_{str(year)}{str(doy)}_{site.lower()}"
-    kin_file = None
-    res_file = None
 
     if kin_file_path.exists():
         kin_file_new = writedir / (kin_file_path.name + ".kin")

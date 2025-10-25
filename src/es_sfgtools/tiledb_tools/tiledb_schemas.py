@@ -1,21 +1,30 @@
-import tiledb
-import numpy as np
-from pathlib import Path
+"""
+This module defines the TileDB array schemas and provides a set of classes
+for interacting with those arrays.
+
+The schemas are defined for various types of seafloor geodesy data, including
+kinematic position data, IMU data, acoustic data, and raw shot data.
+
+The TBDArray class and its subclasses provide a high-level interface for
+creating, writing to, and reading from these TileDB arrays, handling both
+local and S3 storage.
+"""
 import datetime
-import pandas as pd
-from pandera import check_types
-from pandera.typing import DataFrame
-from functools import wraps
-from typing import Optional, Dict, Literal
+from pathlib import Path
+from typing import Dict
+
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import tiledb
+from cloudpathlib import S3Path
 
 from ..data_models.observables import (
     AcousticDataFrame,
-    KinPositionDataFrame,
     IMUPositionDataFrame,
-    ShotDataFrame
+    KinPositionDataFrame,
+    ShotDataFrame,
 )
-
 from ..logging import ProcessLogger as logger
 
 filters = tiledb.FilterList([tiledb.ZstdFilter(7)])
@@ -47,16 +56,22 @@ attribute_dict: Dict[str, tiledb.Attr] = {
     "northVelocity": tiledb.Attr(name="northVelocity", dtype=np.float64),
     "eastVelocity": tiledb.Attr(name="eastVelocity", dtype=np.float64),
     "upVelocity": tiledb.Attr(name="upVelocity", dtype=np.float64),
-    "northVelocity_std": tiledb.Attr(name="northVelocity_std", dtype=np.float64, nullable=True),
-    "eastVelocity_std": tiledb.Attr(name="eastVelocity_std", dtype=np.float64, nullable=True),
-    "upVelocity_std": tiledb.Attr(name="upVelocity_std", dtype=np.float64, nullable=True),
+    "northVelocity_std": tiledb.Attr(
+        name="northVelocity_std", dtype=np.float64, nullable=True
+    ),
+    "eastVelocity_std": tiledb.Attr(
+        name="eastVelocity_std", dtype=np.float64, nullable=True
+    ),
+    "upVelocity_std": tiledb.Attr(
+        name="upVelocity_std", dtype=np.float64, nullable=True
+    ),
     "roll": tiledb.Attr(name="roll", dtype=np.float64),
     "pitch": tiledb.Attr(name="pitch", dtype=np.float64),
     "azimuth": tiledb.Attr(name="azimuth", dtype=np.float64),
     "roll_std": tiledb.Attr(name="roll_std", dtype=np.float64, nullable=True),
     "pitch_std": tiledb.Attr(name="pitch_std", dtype=np.float64, nullable=True),
     "azimuth_std": tiledb.Attr(name="azimuth_std", dtype=np.float64, nullable=True),
-    #"status": tiledb.Attr(name="status", dtype=str, nullable=True),
+    # "status": tiledb.Attr(name="status", dtype=str, nullable=True),
 }
 
 KinPositionAttributes = [
@@ -102,7 +117,7 @@ IMUPositionAttributes = [
     attribute_dict["roll_std"],
     attribute_dict["pitch_std"],
     attribute_dict["azimuth_std"],
-    #attribute_dict["status"],
+    # attribute_dict["status"],
 ]
 IMUPositionArraySchema = tiledb.ArraySchema(
     sparse=True,
@@ -266,22 +281,50 @@ for roll_period, tile_value in roll_periods.items():
 
 
 class TBDArray:
+    """
+    A base class for interacting with a TileDB array.
+
+    This class provides common functionality for creating, reading, and writing
+    pandas DataFrames to and from a TileDB array. It is intended to be subclassed
+    for specific data types and schemas.
+
+    Attributes:
+        dataframe_schema: A pandera schema for validating DataFrames.
+        array_schema: A tiledb.ArraySchema for creating the array.
+        name (str): A human-readable name for the array type.
+        uri (str): The URI of the TileDB array.
+    """
+
     dataframe_schema = None
     array_schema = None
     name = "TBD Array"
 
-    def __init__(self, uri: Path | str):
+    def __init__(self, uri: Path | S3Path | str):
+        """
+        Initializes the TBDArray object and creates the TileDB array if it
+        does not already exist.
+
+        Args:
+            uri (Path | S3Path | str): The URI of the TileDB array. Can be a
+                local path or an S3 path.
+        """
+        if "s3" in str(uri) and "s3://" not in str(uri):
+            uri = str(uri).replace("s3:/", "s3://")  # temp fix
         self.uri = uri
         if not tiledb.array_exists(uri=str(uri), ctx=ctx):
             tiledb.Array.create(uri=str(uri), schema=self.array_schema, ctx=ctx)
 
     def write_df(self, df: pd.DataFrame, validate: bool = True):
         """
-        Write a dataframe to the array
+        Write a pandas DataFrame to the array.
+
+        The DataFrame is validated against the class's `dataframe_schema`
+        before being written.
 
         Args:
-            df (pd.DataFrame): The dataframe to write
-            validate (bool, optional): Whether to validate the dataframe. Defaults to True.
+            df (pd.DataFrame): The DataFrame to write.
+            validate (bool, optional): Whether to validate the DataFrame.
+                Defaults to True.
         """
         logger.logdebug(f" Writing dataframe to {self.uri}")
         if validate:
@@ -296,15 +339,21 @@ class TBDArray:
         **kwargs,
     ) -> pd.DataFrame:
         """
-        Read a dataframe from the array between the start and end dates
+        Read a DataFrame from the array between a start and end date.
 
         Args:
-            start (datetime.datetime): The start date
-            end (datetime.datetime, optional): The end date. Defaults to None.
-            validate (bool, optional): Whether to validate the dataframe. Defaults to True.
+            start (datetime.datetime | np.datetime64): The start date for the
+                data slice.
+            end (datetime.datetime | np.datetime64, optional): The end date for
+                the data slice. If None, defaults to one day after start.
+                Defaults to None.
+            validate (bool, optional): Whether to validate the returned
+                DataFrame. Defaults to True.
 
         Returns:
-            pd.DataFrame: dataframe
+            pd.DataFrame: A DataFrame containing the data for the specified
+            date range. Returns an empty DataFrame if no data is found or
+            on error.
         """
         if isinstance(start, np.datetime64):
             start = start.astype(datetime.datetime)
@@ -325,15 +374,24 @@ class TBDArray:
                 df = array.df[slice(np.datetime64(start), np.datetime64(end))]
             except IndexError as e:
                 logger.logerr(e)
-                return None
+                return pd.DataFrame()  # Return empty df on error
         if df.empty:
             logger.logwarn("Dataframe is empty")
-            return None
+            return pd.DataFrame()
         if validate:
             df = self.dataframe_schema.validate(df, lazy=True)
         return df
 
     def get_unique_dates(self, field: str) -> np.ndarray:
+        """
+        Gets the unique dates from a specified datetime field in the array.
+
+        Args:
+            field (str): The name of the datetime field to query.
+
+        Returns:
+            np.ndarray: An array of unique dates, or None if an error occurs.
+        """
         with tiledb.open(str(self.uri), mode="r") as array:
             values = array[:][field]
             try:
@@ -344,6 +402,9 @@ class TBDArray:
                 return None
 
     def consolidate(self):
+        """
+        Consolidates and vacuums the TileDB array to improve performance.
+        """
         ctx = tiledb.Ctx()
         config = tiledb.Config()
         config["sm.consolidation.steps"] = 3
@@ -352,8 +413,20 @@ class TBDArray:
         tiledb.vacuum(str(self.uri))
 
     def view(self, network: str = "", station: str = ""):
+        """
+        Generates a plot showing the dates for which data is available.
+
+        Args:
+            network (str, optional): Network name to display in the title.
+                Defaults to "".
+            station (str, optional): Station name to display in the title.
+                Defaults to "".
+
+        Raises:
+            ValueError: If no data is found in the array.
+        """
         dates = self.get_unique_dates()
-        if dates.shape[0] == 0:
+        if dates is None or dates.shape[0] == 0:
             raise ValueError("No dates found in the array")
         # Plot the values, with a marker seperating the dates
         fig, ax = plt.subplots()
@@ -374,20 +447,25 @@ class TBDArray:
 
 
 class TDBAcousticArray(TBDArray):
+    """Handles TileDB storage for acoustic ranging data."""
+
     dataframe_schema = AcousticDataFrame
     array_schema = AcousticArraySchema
 
-    def __init__(self, uri: Path | str):
+    def __init__(self, uri: Path | S3Path | str):
         super().__init__(uri)
 
     def get_unique_dates(self, field="triggerTime") -> np.ndarray:
+        """Gets unique dates from the 'triggerTime' field."""
         return super().get_unique_dates(field)
 
     def write_df(self, df: pd.DataFrame):
+        """Writes an acoustic data DataFrame to the array."""
         df = self.dataframe_schema.validate(df, lazy=True)
         tiledb.from_pandas(str(self.uri), df, mode="append")
 
     def read_df(self, start: datetime, end: datetime = None, **kwargs) -> pd.DataFrame:
+        """Reads acoustic data for a given time range."""
         if isinstance(start, datetime.date):
             start = datetime.datetime.combine(start, datetime.datetime.min.time())
         if end is None:
@@ -399,49 +477,58 @@ class TDBAcousticArray(TBDArray):
 
 
 class TDBKinPositionArray(TBDArray):
+    """Handles TileDB storage for kinematic GNSS position data."""
+
     dataframe_schema = KinPositionDataFrame
     array_schema = KinPositionArraySchema
     name = "Kin Position Data"
 
-    def __init__(self, uri: Path | str):
+    def __init__(self, uri: Path | S3Path | str):
         super().__init__(uri)
 
     def get_unique_dates(self, field="time") -> np.ndarray:
+        """Gets unique dates from the 'time' field."""
         return super().get_unique_dates(field)
 
 
 class TDBIMUPositionArray(TBDArray):
+    """Handles TileDB storage for IMU position and orientation data."""
+
     dataframe_schema = IMUPositionDataFrame
     array_schema = IMUPositionArraySchema
 
-    def __init__(self, uri: Path | str):
+    def __init__(self, uri: Path | S3Path | str):
         super().__init__(uri)
 
     def get_unique_dates(self, field="time") -> np.ndarray:
+        """Gets unique dates from the 'time' field."""
         return super().get_unique_dates(field)
 
 
 class TDBShotDataArray(TBDArray):
+    """Handles TileDB storage for processed shot data."""
+
     dataframe_schema = ShotDataFrame
     array_schema = ShotDataArraySchema
     name = "Shot Data"
 
-    def __init__(self, uri: Path | str):
+    def __init__(self, uri: Path | S3Path | str):
         super().__init__(uri)
 
     def get_unique_dates(self, field="pingTime") -> np.ndarray:
+        """Gets unique dates from the 'pingTime' field."""
         return super().get_unique_dates(field)
 
     def read_df(self, start: datetime, end: datetime = None, **kwargs) -> pd.DataFrame:
         """
-        Read a dataframe from the array between the start and end dates
+        Read a DataFrame from the array between the start and end dates.
 
         Args:
-            start (datetime.datetime): The start date
+            start (datetime.datetime): The start date.
             end (datetime.datetime, optional): The end date. Defaults to None.
 
         Returns:
-            pd.DataFrame: dataframe
+            pd.DataFrame: A DataFrame of shot data, or None on error.
         """
         if isinstance(start, datetime.date):
             start = datetime.datetime.combine(start, datetime.datetime.min.time())
@@ -449,7 +536,9 @@ class TDBShotDataArray(TBDArray):
         logger.logdebug(f" Reading dataframe from {self.uri} for {start} to {end}")
         # TODO slice array by start and end and return the dataframe
         if end is None:
-            end = start + datetime.timedelta(hours=23, minutes=59, seconds=59, milliseconds=999)
+            end = start + datetime.timedelta(
+                hours=23, minutes=59, seconds=59, milliseconds=999
+            )
         with tiledb.open(str(self.uri), mode="r") as array:
             try:
                 df = array.df[slice(np.datetime64(start), np.datetime64(end)), :]
@@ -460,20 +549,24 @@ class TDBShotDataArray(TBDArray):
                 return None
         df.pingTime = df.pingTime.apply(lambda x: x.timestamp())
         df.returnTime = df.returnTime.apply(lambda x: x.timestamp())
-        df = self.dataframe_schema.validate(df)
+        df = self.dataframe_schema.validate(df, lazy=True)
         return df
 
     def write_df(self, df: pd.DataFrame, validate: bool = True):
         """
-        Write a dataframe to the array
+        Write a shot data DataFrame to the array.
+
+        Handles conversion of timestamp columns from float or datetime objects
+        to the required nanosecond-precision numpy datetime64 format.
 
         Args:
-            df (pd.DataFrame): The dataframe to write
-            validate (bool, optional): Whether to validate the dataframe. Defaults to True.
+            df (pd.DataFrame): The dataframe to write.
+            validate (bool, optional): Whether to validate the dataframe.
+                Defaults to True.
         """
         logger.logdebug(f" Writing dataframe to {self.uri}")
         if validate:
-            df_val = self.dataframe_schema.validate(df)
+            df_val = self.dataframe_schema.validate(df, lazy=True)
         else:
             df_val = df
         if df_val.empty:
@@ -498,12 +591,24 @@ class TDBShotDataArray(TBDArray):
 
 
 class TDBGNSSObsArray(TBDArray):
+    """Handles TileDB storage for GNSS observation data."""
+
     array_schema = GNSSObsSchema
 
-    def __init__(self, uri: Path | str):
+    def __init__(self, uri: Path | S3Path | str):
         super().__init__(uri)
 
     def get_unique_dates(self, field: str = "time") -> np.ndarray:
+        """
+        Gets unique dates from a specified datetime field in the array.
+
+        Args:
+            field (str, optional): The name of the datetime field to query.
+                Defaults to "time".
+
+        Returns:
+            np.ndarray: An array of unique dates, or None if an error occurs.
+        """
         with tiledb.open(str(self.uri), mode="r") as array:
             values = array[:][field]
             try:

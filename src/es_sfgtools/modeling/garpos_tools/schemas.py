@@ -1,23 +1,28 @@
-import pandera as pa
-from pandera.typing import Series, DataFrame
-from pandera.errors import SchemaErrors
-from enum import Enum
-from typing import List, Optional,Union
-from pydantic import BaseModel, Field, model_validator,field_serializer,field_validator,ValidationError,AliasChoices
-from pathlib import Path
-import numpy as np
-import pandas as pd
-from datetime import datetime
 from configparser import ConfigParser
-from ...data_models.observables import SoundVelocityDataFrame
-from ...logging import GarposLogger as logger
+from datetime import datetime
+from enum import Enum
+from pathlib import Path
+from typing import List, Optional
+
 import julian
+import numpy as np
+import pandera as pa
+from pandera.typing import Series
+from pydantic import (
+    AliasChoices,
+    BaseModel,
+    Field,
+    field_serializer,
+    model_validator,
+)
+
+from es_sfgtools.logging import GarposLogger as logger
 from .load_utils import load_lib
 
 try:
     LIB_DIRECTORY,LIB_RAYTRACE = load_lib()
-except Exception as e:
-    from garpos import LIB_DIRECTORY,LIB_RAYTRACE
+except Exception:
+    from garpos import LIB_DIRECTORY, LIB_RAYTRACE
 
 
 class GPPositionLLH(BaseModel):
@@ -60,7 +65,7 @@ class GPTransponder(BaseModel):
     delta_center_position: Optional[GPPositionENU] = None
 
     class Config:
-        allow_population_by_field_name = True
+        populate_by_name = True
 
 
 class GPATDOffset(BaseModel):
@@ -297,7 +302,7 @@ class InversionParams(BaseModel):
         default=1.0e-4,
         description="Typical measurement error for travel time (= 1.e-4 sec is recommended in 10 kHz carrier)",
     )
-    maxloop: int = Field(default=100, description="Maximum loop for iteration")
+    maxloop: int = Field(default=50, description="Maximum loop for iteration")
     convcriteria: float = Field(
         default=5.0e-3, description="Convergence criteria for model parameters"
     )
@@ -399,7 +404,7 @@ class GarposFixed(BaseModel):
     #  0: solve only positions
     #  1: solve only gammas (sound speed variation)
     #  2: solve both positions and gammas
-    inversiontype = {self.inversion_params.inversiontype}
+    inversiontype = {self.inversion_params.inversiontype.value}
 
     # Typical measurement error for travel time.
     # (= 1.e-4 sec is recommended in 10 kHz carrier)
@@ -417,6 +422,34 @@ class GarposFixed(BaseModel):
 
         with open(path, "w") as f:
             f.write(fixed_str)
+    
+    @classmethod
+    def from_datafile(cls,path:Path) -> "GarposFixed":
+        config = ConfigParser()
+        config.read(path)
+        inv_section = config["Inv-parameter"]
+        hyper_section = config["HyperParameters"]
+        inv_params = InversionParams(
+            log_lambda=[float(x) for x in hyper_section["log_lambda0"].split()],
+            log_gradlambda=float(hyper_section["log_gradlambda"]),
+            mu_t=[float(x) for x in hyper_section["mu_t"].split()],
+            mu_mt=[float(x) for x in hyper_section["mu_mt"].split()],
+            knotint0=int(inv_section["knotint0"]),
+            knotint1=int(inv_section["knotint1"]),
+            knotint2=int(inv_section["knotint2"]),
+            rejectcriteria=float(inv_section["rejectcriteria"]),
+            inversiontype=InversionType(int(inv_section["inversiontype"])),
+            traveltimescale=float(inv_section["traveltimescale"]),
+            maxloop=int(inv_section["maxloop"]),
+            convcriteria=float(inv_section["convcriteria"]),
+            deltap=float(inv_section["deltap"]),
+            deltab=float(inv_section["deltab"]),
+        )
+        return GarposFixed(
+            lib_directory=inv_section["lib_directory"],
+            lib_raytrace=inv_section["lib_raytrace"],
+            inversion_params=inv_params,
+        )
 
 class GarposInput(BaseModel):
     site_name: str

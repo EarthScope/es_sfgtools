@@ -1,22 +1,17 @@
-
-import os
-from pathlib import Path
-import pandas as pd
-import numpy as np
-import pymap3d
-import datetime
 import sys
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import pymap3d
 from scipy.stats import zscore
 from sklearn.neighbors import RadiusNeighborsRegressor
-import matplotlib.pyplot as plt
 
 from es_sfgtools.data_mgmt.data_handler import DataHandler
 
 sys.path.append("/Users/franklyndunbar/Project/SeaFloorGeodesy/gnatss/src")
-import gnatss
-from gnatss.ops.kalman import run_filter_simulation
 import gnatss.constants as constants
-
+from gnatss.ops.kalman import run_filter_simulation
 
 MEDIAN_EAST_POSITION = 0
 MEDIAN_NORTH_POSITION = 0
@@ -26,6 +21,21 @@ MEDIAN_UP_POSITION = 0
 def load_data(dh: DataHandler, start_date, end_date):
     """
     Loads kinematic positions, shot data, and IMU positions.
+    
+    Parameters
+    ----------
+    dh : DataHandler
+        The data handler.
+    start_date : datetime
+        The start date.
+    end_date : datetime
+        The end date.
+
+    Returns
+    -------
+    tuple
+        A tuple of DataFrames containing the kinematic positions, shot data,
+        and IMU positions.
     """
     kin_positions = dh.kin_position_tdb.read_df(start_date, end_date)
     shotdata = dh.shotdata_tdb_pre.read_df(start_date, end_date)
@@ -43,6 +53,16 @@ def load_data(dh: DataHandler, start_date, end_date):
 def prepare_positions_data(positions_data):
     """
     Prepares the IMU positions data for Kalman filtering.
+    
+    Parameters
+    ----------
+    positions_data : pd.DataFrame
+        The IMU positions data.
+
+    Returns
+    -------
+    pd.DataFrame
+        The prepared IMU positions data.
     """
     global MEDIAN_EAST_POSITION, MEDIAN_NORTH_POSITION, MEDIAN_UP_POSITION
     e, n, u = pymap3d.geodetic2ecef(lat=positions_data.latitude, lon=positions_data.longitude, alt=positions_data.height)
@@ -76,7 +96,21 @@ def prepare_positions_data(positions_data):
 
 def prepare_kinematic_data(kin_positions,max_speed=2):
     """
-    Prepares the kinematic GPS data for Kalman filtering, without velocity.
+    Prepares the kinematic GPS data for Kalman filtering.
+
+    This is done without velocity.
+
+    Parameters
+    ----------
+    kin_positions : pd.DataFrame
+        The kinematic GPS data.
+    max_speed : int, optional
+        The maximum speed, by default 2.
+
+    Returns
+    -------
+    pd.DataFrame
+        The prepared kinematic GPS data.
     """
     gps_df = kin_positions.copy()
 
@@ -140,6 +174,18 @@ def prepare_kinematic_data(kin_positions,max_speed=2):
 def combine_data(positions_data, gps_data):
     """
     Combines IMU and kinematic data.
+
+    Parameters
+    ----------
+    positions_data : pd.DataFrame
+        The IMU positions data.
+    gps_data : pd.DataFrame
+        The kinematic GPS data.
+
+    Returns
+    -------
+    pd.DataFrame
+        The combined data.
     """
     column_order = [
         'time', 'east', 'north', 'up', 'ant_x', 'ant_y', 'ant_z',
@@ -157,6 +203,24 @@ def combine_data(positions_data, gps_data):
 def run_kalman_filter_and_smooth(df_all, start_dt, gnss_pos_psd, vel_psd, cov_err):
     """
     Runs the Kalman filter simulation and processes the results.
+
+    Parameters
+    ----------
+    df_all : pd.DataFrame
+        The combined data.
+    start_dt : float
+        The start time delta.
+    gnss_pos_psd : float
+        The GNSS position process spectral density.
+    vel_psd : float
+        The velocity process spectral density.
+    cov_err : float
+        The covariance error.
+
+    Returns
+    -------
+    pd.DataFrame
+        The smoothed results.
     """
     # Drop rows with NaN values which are from the first row of kinematic velocity calculation
     df_all = df_all.dropna()
@@ -194,7 +258,14 @@ def run_kalman_filter_and_smooth(df_all, start_dt, gnss_pos_psd, vel_psd, cov_er
 
 def analyze_offsets(merged_positions):
     """
-    Analyzes the offsets between smoothed and original positions and prints a summary.
+    Analyzes the offsets between smoothed and original positions.
+
+    This function prints a summary of the offsets.
+
+    Parameters
+    ----------
+    merged_positions : pd.DataFrame
+        The merged positions data.
     """
     if merged_positions.empty:
         print("No merged positions to analyze.")
@@ -215,6 +286,18 @@ def analyze_offsets(merged_positions):
 def update_shotdata_with_smoothed_positions(shotdata, smoothed_results):
     """
     Interpolates smoothed positions onto shotdata ping and return times.
+
+    Parameters
+    ----------
+    shotdata : pd.DataFrame
+        The shotdata.
+    smoothed_results : pd.DataFrame
+        The smoothed results.
+
+    Returns
+    -------
+    pd.DataFrame
+        The updated shotdata.
     """
     if smoothed_results.empty:
         print("No smoothed results to interpolate from.")
@@ -248,6 +331,21 @@ def update_shotdata_with_smoothed_positions(shotdata, smoothed_results):
     return shotdata
 
 def filter_spatial_outliers(df, radius=5000):
+    """
+    Filters spatial outliers from a DataFrame.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        The DataFrame to filter.
+    radius : int, optional
+        The radius to filter by, by default 5000.
+
+    Returns
+    -------
+    pd.DataFrame
+        The filtered DataFrame.
+    """
     original_len = len(df)
     position_filters = (
         (df.ant_x.between(MEDIAN_EAST_POSITION - radius, MEDIAN_EAST_POSITION + radius)) &

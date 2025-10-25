@@ -1,14 +1,13 @@
-from pydantic import BaseModel, Field, field_serializer
-from typing import Dict,Optional
+import json
 from enum import Enum
 from pathlib import Path
-import json
-from collections import UserDict
-from pathlib import Path
-import pandas as pd
+from typing import Dict, Optional
+
+from pydantic import BaseModel, Field, field_serializer
 
 from .site import Site
 from .vessel import Vessel
+
 
 class CatalogType(Enum):
     Data = "Data"
@@ -51,6 +50,22 @@ class MetaDataCatalog(BaseModel):
 
     @classmethod
     def load_data(cls, path: str | Path | dict, name=None, info=None) -> "MetaDataCatalog":
+        """Load a data catalog from a path or dictionary.
+
+        Parameters
+        ----------
+        path : str | Path | dict
+            The path to the data file or a dictionary containing the data.
+        name : str, optional
+            The name of the catalog, by default None.
+        info : str, optional
+            Information about the catalog, by default None.
+
+        Returns
+        -------
+        MetaDataCatalog
+            The loaded data catalog.
+        """
 
         if not isinstance(path, dict):
             with open(path, "r") as file:
@@ -81,6 +96,22 @@ class MetaDataCatalog(BaseModel):
 
     @classmethod
     def load_metadata(cls, data_path:Path, name=None, info=None) -> 'MetaDataCatalog':
+        """Load a metadata catalog from a path.
+
+        Parameters
+        ----------
+        data_path : Path
+            The path to the data directory.
+        name : str, optional
+            The name of the catalog, by default None.
+        info : str, optional
+            Information about the catalog, by default None.
+
+        Returns
+        -------
+        MetaDataCatalog
+            The loaded metadata catalog.
+        """
         # load vessels
         vessels = {}
         for vessel in (data_path/"vessels").iterdir():
@@ -128,44 +159,50 @@ class MetaDataCatalog(BaseModel):
         )
 
     def show(self):
-        """
-        Displays an abridged structured representation of the catalog data in JSON format.
+        """Displays an abridged structured representation of the catalog data.
 
-        The method organizes the data into a nested dictionary structure. The output format
-        depends on the catalog type:
-        - For "Meta-Data", it includes networks, stations, campaigns, and surveys.
+        This is displayed in JSON format.
+
+        The method organizes the data into a nested dictionary structure. The
+        output format depends on the catalog type:
+        - For "Meta-Data", it includes networks, stations, campaigns, and
+          surveys.
         - For "Data", it includes networks, stations, and their shotdata.
 
-        The resulting dictionary is serialized into a JSON string and printed with indentation
-        for readability.
+        The resulting dictionary is serialized into a JSON string and printed
+        with indentation for readability.
 
-        Raises:
-        AttributeError: If the object structure does not match the expected attributes.
-        Example:
-            >>> catalog_dir = Path("/path/to/catalog/directory")
-            >>> DATA = Catalog.load_metadata(data_path,name="sfg metadata",info="metadata for sfg")
-            {
-            "alaska-shumagins": {
-                "IVB1": {
-                "name": "2022_A_1049",
+        Raises
+        ------
+        AttributeError
+            If the object structure does not match the expected attributes.
+
+        Examples
+        --------
+        >>> catalog_dir = Path("/path/to/catalog/directory")
+        >>> DATA = Catalog.load_metadata(data_path,name="sfg metadata",info="metadata for sfg")
+        {
+        "alaska-shumagins": {
+            "IVB1": {
+            "name": "2022_A_1049",
+            "start": "2022-07-17T13:42:19.870000",
+            "end": "2022-07-24T11:18:33.870000",
+            "surveys": [
+                {
+                "survey_id": "2022_A_1049_1",
                 "start": "2022-07-17T13:42:19.870000",
-                "end": "2022-07-24T11:18:33.870000",
-                "surveys": [
-                    {
-                    "survey_id": "2022_A_1049_1",
-                    "start": "2022-07-17T13:42:19.870000",
-                    "end": "2022-07-18T11:33:33.870000"
-                    },
-                    {
-                    "survey_id": "2022_A_1049_2",
-                    "start": "2022-07-18T13:42:19.870000",
-                    "end": "2022-07-21T11:18:33.870000"
-                    }
-                ]
+                "end": "2022-07-18T11:33:33.870000"
                 },
-            }
-            >>>
-            # Outputs the JSON representation of the catalog data to the console.
+                {
+                "survey_id": "2022_A_1049_2",
+                "start": "2022-07-18T13:42:19.870000",
+                "end": "2022-07-21T11:18:33.870000"
+                }
+            ]
+            },
+        }
+        >>>
+        # Outputs the JSON representation of the catalog data to the console.
         """
         to_show = {}
         if self.type == CatalogType.MetaData:

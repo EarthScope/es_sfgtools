@@ -1,11 +1,25 @@
 # Description: Utility functions for metadata classes.
 from datetime import datetime
-from typing import Optional, Union, Dict, Any
+from typing import Any, Dict, Optional, Union
 
 from pydantic import BaseModel, Field, field_validator
 
 
 def parse_datetime(cls, value):
+    """Parse a datetime string.
+
+    Parameters
+    ----------
+    cls : class
+        The class.
+    value : str
+        The datetime string.
+
+    Returns
+    -------
+    datetime
+        The parsed datetime.
+    """
     # Check that the date is a string and convert it to a datetime object
     if not value:
         # If an empty string, ignore it
@@ -22,6 +36,22 @@ def parse_datetime(cls, value):
 
 
 def check_dates(cls, end, values):
+    """Check that the end date is after the start date.
+
+    Parameters
+    ----------
+    cls : class
+        The class.
+    end : datetime
+        The end date.
+    values : dict
+        The values.
+
+    Returns
+    -------
+    datetime
+        The end date.
+    """
     start = values.data["start"]
 
     # Check that the end date is a string and convert it to a datetime object
@@ -36,6 +66,20 @@ def check_dates(cls, end, values):
 
 
 def if_zero_than_none(cls, value):
+    """If the value is 0, return None.
+
+    Parameters
+    ----------
+    cls : class
+        The class.
+    value : int
+        The value.
+
+    Returns
+    -------
+    int | None
+        The value or None.
+    """
     # Check if the field is the number 0 and replace it with None
     if value == 0:
         return None
@@ -43,6 +87,20 @@ def if_zero_than_none(cls, value):
 
 
 def check_fields_for_empty_strings(cls, value):
+    """Check if the field is an empty string and replace it with None.
+
+    Parameters
+    ----------
+    cls : class
+        The class.
+    value : str
+        The value.
+
+    Returns
+    -------
+    str | None
+        The value or None.
+    """
     # Check if the field is the string but is empty and replace it with None
     if isinstance(value, str) and not value:
         return None
@@ -51,13 +109,18 @@ def check_fields_for_empty_strings(cls, value):
 
 class AttributeUpdater:
     def update_attributes(self, additional_data: Dict[str, Any]):
-        """
-        Update the class attributes based on the provided dictionary. Handles nested objects with the AttributeUpdater (e.g Location) class.
-        This class is helpful for the notebook where the user will be passing empty strings if they don't want to update a field. This
-        function will only reset the value if not empty. If other keys are provided in the dictionary, it will print a warning.
+        """Update the class attributes based on the provided dictionary.
 
-        Args:
-            additional_data (Dict[str, Any]): A dictionary of additional attributes to update.
+        This handles nested objects with the AttributeUpdater (e.g Location)
+        class. This class is helpful for the notebook where the user will be
+        passing empty strings if they don't want to update a field. This
+        function will only reset the value if not empty. If other keys are
+        provided in the dictionary, it will print a warning.
+
+        Parameters
+        ----------
+        additional_data : Dict[str, Any]
+            A dictionary of additional attributes to update.
         """
         for key, value in additional_data.items():
             if value:
@@ -72,7 +135,17 @@ class AttributeUpdater:
                     print(f"Unknown attribute '{key}' provided in additional data")
 
     def set_value(self, key, value):
-        """Set the value of an attribute and update the class instance. Also validates the updated instance."""
+        """Set the value of an attribute and update the class instance.
+
+        This also validates the updated instance.
+
+        Parameters
+        ----------
+        key : str
+            The key.
+        value : Any
+            The value.
+        """
         updated_data = self.model_dump()  # Get current data
         updated_data[key] = value  # Update the field
         new_instance = self.model_validate(updated_data)  # Validate
@@ -80,24 +153,38 @@ class AttributeUpdater:
 
 
 def only_one_is_true(*args):
-    """
-    Check that only one of the arguments is True.
+    """Check that only one of the arguments is True.
+
+    Parameters
+    ----------
+    *args
+        The arguments to check.
+
+    Returns
+    -------
+    bool
+        True if only one of the arguments is True, False otherwise.
     """
     return sum(args) == 1
 
 
 def convert_to_datetime(date_str: Union[str, datetime]) -> datetime:
-    """
-    Convert ISO string format to datetime if a string is provided.
+    """Convert ISO string format to datetime if a string is provided.
 
-    Args:
-        date_str (Union[str, datetime]): The date string or datetime object to convert.
+    Parameters
+    ----------
+    date_str : Union[str, datetime]
+        The date string or datetime object to convert.
 
-    Returns:
-        datetime: The converted datetime object.
+    Returns
+    -------
+    datetime
+        The converted datetime object.
 
-    Raises:
-        ValueError: If the date string is not in a valid ISO format.
+    Raises
+    ------
+    ValueError
+        If the date string is not in a valid ISO format.
     """
     if isinstance(date_str, str):
         try:
@@ -111,14 +198,18 @@ def convert_to_datetime(date_str: Union[str, datetime]) -> datetime:
 
 
 def convert_custom_objects_to_dict(d: dict) -> dict:
-    """
-    Recursively convert custom objects in the dictionary to their dictionary representations.
+    """Recursively convert custom objects in a dictionary to dictionaries.
 
-    Args:
-        d (dict): The dictionary to update.
+    Parameters
+    ----------
+    d : dict
+        The dictionary to update.
 
-    Returns:
-        dict: The updated dictionary with custom objects converted to dictionaries.
+    Returns
+    -------
+    dict
+        The updated dictionary with custom objects converted to
+        dictionaries.
     """
     for key, value in d.items():
         if isinstance(value, BaseModel):

@@ -1,8 +1,9 @@
 from datetime import datetime
-from typing import Optional, List,Tuple
 from pathlib import Path
+from typing import Tuple
 
 from ..logging import PRIDELogger as logger
+
 
 def _header_get_time(line):
     time_values = line.split("GPS")[0].strip().split()
@@ -67,7 +68,7 @@ def rinex_get_time_range(source: str|Path) -> Tuple[datetime, datetime]:
                         if current_date and current_date > timestamp_data_start:
                             timestamp_data_end = current_date
                             pass
-                    except Exception as e:
+                    except Exception:
                         pass
     if (
         timestamp_data_start is not None

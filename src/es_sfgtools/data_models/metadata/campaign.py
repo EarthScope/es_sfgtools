@@ -1,5 +1,9 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional,Union
+from enum import Enum
+from pydantic import BaseModel, Field, field_validator,field_serializer,PrivateAttr
+from regex import match
+
 from .utils import (
     AttributeUpdater,
     check_dates,
@@ -7,20 +11,30 @@ from .utils import (
     parse_datetime,
 )
 from .vessel import Vessel
-from pydantic import BaseModel, Field, field_validator,model_serializer
 
 
 def campaign_checks(campaign_year, campaign_interval, vessel_code):
-    """Check the campaign year, interval and vessel code
+    """Checks the campaign year, interval, and vessel code for validity.
 
-    Args:
-        campaign_year (str): The campaign year.
-        campaign_interval (str): The campaign interval.
-        vessel_code (str): The vessel code.
+    Parameters
+    ----------
+    campaign_year : str
+        The campaign year (e.g., "2023").
+    campaign_interval : str
+        The campaign interval (e.g., "A").
+    vessel_code : str
+        The 4-character vessel code.
 
-    Returns:
-        str: The campaign name.
-        str: The vessel code.
+    Returns
+    -------
+    Tuple[str, str]
+        A tuple containing the formatted campaign name and the uppercase
+        vessel code.
+
+    Raises
+    ------
+    ValueError
+        If the campaign year, interval, or vessel code are invalid.
     """
     if not campaign_year.isnumeric() or not len(campaign_year) == 4:
         raise ValueError("Campaign year must be a 4 digit year")
@@ -36,13 +50,58 @@ def campaign_checks(campaign_year, campaign_interval, vessel_code):
     print("Campaign name: " + campaign_name)
     return campaign_name, vessel_code.upper()
 
+class SurveyType(str, Enum):
+    CIRCLE = "circledrive"
+    FIXED_POINT = "fixedpoint"
+    MIXED = "mixed"
+    CENTER = "center"
+    GARPOS = "garpos"
+    MOVEAROUND = "movearound"
+    OTHER = "other"
+
+def classify_survey_type(survey_type: str) -> SurveyType:
+    """Classifies the survey type based on the provided string.
+
+    Parameters
+    ----------
+    survey_type : str
+        The survey type as a string.
+
+    Returns
+    -------
+    SurveyType
+        The classified SurveyType.
+
+    Raises
+    ------
+    ValueError
+        If the survey type is not recognized.
+    """
+    survey_type = survey_type.lower()
+    if match(r"^(circle|circledrive|circle drive)$", survey_type):
+        return SurveyType.CIRCLE
+    elif match(r"^(fixed point|fixedpoint)$", survey_type):
+        return SurveyType.FIXED_POINT
+    elif match(r"^(mixed)$", survey_type):
+        return SurveyType.MIXED
+    elif match(r"^(center)$", survey_type):
+        return SurveyType.CENTER
+    elif match(r"^(garpos)$", survey_type):
+        return SurveyType.GARPOS
+    elif match(r"^(movearound|move around)$", survey_type):
+        return SurveyType.MOVEAROUND
+    else:
+        return SurveyType.OTHER
 
 class Survey(AttributeUpdater, BaseModel):
+    """
+    Represents a single survey within a campaign.
+    """
     # Required
     id: str = Field(
         ..., description="The unique ID of the survey"
-    )  # Todo generate this
-    type: str = Field(
+    )  
+    type: Union[str,SurveyType] = Field(
         ..., description="The type of the survey (e.g. circle | fixed point | mixed)"
     )
     benchmarkIDs: List[str] = Field(
@@ -66,9 +125,30 @@ class Survey(AttributeUpdater, BaseModel):
     _check_for_empty_strings = field_validator("notes", "commands")(
         check_fields_for_empty_strings
     )
+    _type_input : Optional[str] = PrivateAttr(default=None)
 
+    """
+    Gracefully convert survey type from string to SurveyType enum and vice versa for serialization.
+    """
+    @field_validator("type", mode="before")
+    def _validate_survey_type(type:Union[str,SurveyType]) -> SurveyType:
+        if isinstance(type, str):
+            type = classify_survey_type(type)
+        elif not isinstance(type, SurveyType):
+            raise ValueError("Survey type must be a string or SurveyType enum")
+        return type
+   
+    @field_serializer("type")
+    def _serialize_survey_type(self,type:SurveyType,_info) -> str:
+        if self._type_input is None:
+            return type.value
+
+        return self._type_input
 
 class Campaign(AttributeUpdater, BaseModel):
+    """
+    Represents a campaign, which is a collection of surveys.
+    """
     # Required
     name: str = Field(
         ..., description="The name of the campaign in the format YYYY_A_VVVV"
@@ -111,7 +191,13 @@ class Campaign(AttributeUpdater, BaseModel):
     )(check_fields_for_empty_strings)
 
     def check_survey_times(self):
-        """Check that survey times do not overlap with each other"""
+        """Checks that survey times within the campaign do not overlap.
+
+        Raises
+        ------
+        ValueError
+            If any survey times overlap.
+        """
         # TODO test this
 
         # Sort surveys by start time
@@ -129,13 +215,29 @@ class Campaign(AttributeUpdater, BaseModel):
 
         print("No overlapping survey times found.")
 
-    @model_serializer
-    def _serialize(self):
-        to_omit = ["vessel"]
-        return {k:v for k,v in self if k not in to_omit}
+    # @model_serializer
+    # def _serialize(self):
+    #     to_omit = ["vessel"]
+    #     return {k:v for k,v in self if k not in to_omit}
 
     def get_survey_by_datetime(self, dt: datetime) -> Survey:
-        """Return the survey that contains the given datetime"""
+        """Returns the survey that encompasses the given datetime.
+
+        Parameters
+        ----------
+        dt : datetime
+            The datetime to check against surveys.
+
+        Returns
+        -------
+        Survey
+            The Survey object that contains the given datetime.
+
+        Raises
+        ------
+        ValueError
+            If no survey is found for the given datetime.
+        """
         for survey in self.surveys:
             if survey.start <= dt <= survey.end:
                 return survey

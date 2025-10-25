@@ -1,18 +1,84 @@
 {
-  "projectDir": "/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain",
+  "projectDir": "/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain",
   "operations": [
     {
       "network": "cascadia-gorda",
       "station": "NCC1",
+      "campaign": "2022_A_1065",
+      "jobs": [{"type":"ingestion","directory":"/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain/cascadia-gorda/NCC1/2022_A_1065"}, {"type": "preprocessing" }]
+    }, 
+    {
+      "network": "cascadia-gorda",
+      "station": "NCC1",
       "campaign": "2023_A_1063",
-      "jobs": [{"type":"download"}, {"type": "preprocessing" }]
+      "jobs": [{ "type": "ingestion","directory":"/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain/cascadia-gorda/NCC1/2023_A_1063" }, { "type": "preprocessing" }]
     },
-      {
-        "network": "cascadia-gorda",
-        "station": "NCC1",
-        "campaign": "2024_A_1126",
-        "jobs": [{ "type": "download" }, { "type": "preprocessing" }]
-      }
+    {
+      "network": "cascadia-gorda",
+      "station": "NCC1",
+      "campaign": "2024_A_1126",
+      "jobs": [{ "type": "ingestion","directory":"/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain/cascadia-gorda/NCC1/2024_A_1126" }, { "type": "preprocessing" }]
+    },
+    {
+      "network": "cascadia-gorda",
+      "station": "NCC1",
+      "campaign": "2025_A_1126",
+      "jobs": [{ "type": "ingestion","directory":"/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain/cascadia-gorda/NCC1/2025_A_1126" }, { "type": "preprocessing" }]
+    },
+    {
+      "network": "cascadia-gorda",
+      "station": "NBR1",
+      "campaign": "2023_A_1063",
+      "jobs": [{ "type": "ingestion","directory":"/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain/cascadia-gorda/NBR1/2023_A_1063" }, { "type": "preprocessing" }]
+    },
+    {
+      "network": "cascadia-gorda",
+      "station": "NBR1",
+      "campaign": "2025_A_1126",
+      "jobs": [{ "type": "ingestion","directory":"/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain/cascadia-gorda/NBR1/2025_A_1126" }, { "type": "preprocessing" }]
+    },
+    {
+      "network": "cascadia-gorda",
+      "station": "GCC1",
+      "campaign": "2022_A_1065",
+      "jobs": [{ "type": "ingestion","directory":"/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain/cascadia-gorda/GCC1/2022_A_1065" }, { "type": "preprocessing" }]
+    },
+    {
+      "network": "cascadia-gorda",
+      "station": "GCC1",
+      "campaign": "2023_A_1063",
+      "jobs": [{ "type": "ingestion","directory":"/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain/cascadia-gorda/GCC1/2023_A_1063" }, { "type": "preprocessing" }]
+    },
+    {
+      "network": "cascadia-gorda",
+      "station": "GCC1",
+      "campaign": "2024_A_1126",
+      "jobs": [{ "type": "ingestion","directory":"/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain/cascadia-gorda/GCC1/2024_A_1126" }, { "type": "preprocessing" }]
+    },
+    {
+      "network": "cascadia-gorda",
+      "station": "GCC1",
+      "campaign": "2025_A_1126",
+      "jobs": [{ "type": "ingestion","directory":"/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain/cascadia-gorda/GCC1/2025_A_1126" }, { "type": "preprocessing" }]
+    },
+    {
+      "network": "cascadia-gorda",
+      "station": "NCL1",
+      "campaign": "2023_A_1063",
+      "jobs": [{ "type": "ingestion","directory":"/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain/cascadia-gorda/NCL1/2023_A_1063" }, { "type": "preprocessing" }]
+    },
+    {
+      "network": "cascadia-gorda",
+      "station": "NDP1",
+      "campaign": "2023_A_1063",
+      "jobs": [{ "type": "ingestion","directory":"/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain/cascadia-gorda/NDP1/2023_A_1063" }, { "type": "preprocessing" }]
+    },
+    {
+      "network": "cascadia-gorda",
+      "station": "NTH1",
+      "campaign": "2025_A_1126",
+      "jobs": [{ "type": "ingestion","directory":"/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain/cascadia-gorda/NTH1/2025_A_1126" }, { "type": "preprocessing" }]
+    }
   ],
 
   "garposConfig": {
@@ -52,14 +118,14 @@
 
   "globalConfig": {
     "dfop00_config": {
-      "override": true
+      "override": false
     },
     "novatel_config": {
       "n_processes": 14,
       "override": false
     },
     "position_update_config": {
-      "override": true,
+      "override": false,
       "lengthscale": 0.1,
       "plot": false
     },

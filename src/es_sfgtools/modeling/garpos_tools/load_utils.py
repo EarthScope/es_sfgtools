@@ -1,11 +1,11 @@
-from pathlib import Path
-import os
-from typing import Callable,Tuple
-import sys
-from ...logging import GarposLogger as logger
 import importlib.util
-from types import ModuleType
-from typing import Callable
+import os
+import sys
+from pathlib import Path
+from typing import Callable, Tuple
+
+from ...logging import GarposLogger as logger
+
 
 def load_lib() -> Tuple[str,str]:
 
@@ -93,7 +93,7 @@ def load_drive_garpos() -> Callable:
             break
 
     if not garpos_main:
-        raise FileNotFoundError(f"Garpos main module not found")
+        raise FileNotFoundError("Garpos main module not found")
 
     # Setup module
     module_name = str(garpos_main.parent.stem)

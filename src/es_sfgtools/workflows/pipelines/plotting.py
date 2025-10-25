@@ -1,15 +1,27 @@
-import matplotlib.pyplot as plt
-from collections import defaultdict
-import numpy as np
 import datetime
+from collections import defaultdict
 from typing import List
 
-from ..processing.assets.tiledb import TDBKinPositionArray   
-from ..data_mgmt.file_schemas import AssetEntry
-from ..data_mgmt.catalog import PreProcessCatalog
+import matplotlib.pyplot as plt
+import numpy as np
+
+from es_sfgtools.data_mgmt.assetcatalog import AssetEntry
+from es_sfgtools.tiledb_tools.tiledb_schemas import TDBKinPositionArray
 
 UNIX_EPOCH = np.datetime64("1970-01-01T00:00:00Z")
 def to_timestamp(time:np.datetime64 | datetime.datetime) -> float:
+    """Converts a numpy.datetime64 or datetime.datetime object to a UNIX timestamp.
+
+    Parameters
+    ----------
+    time : np.datetime64 | datetime.datetime
+        The time to convert.
+
+    Returns
+    -------
+    float
+        The UNIX timestamp.
+    """
     if isinstance(time,int):
         time = datetime.datetime.fromtimestamp(time/1e9)
     if isinstance(time,datetime.datetime) or isinstance(time,datetime.date):
@@ -18,6 +30,18 @@ def to_timestamp(time:np.datetime64 | datetime.datetime) -> float:
     return (time - UNIX_EPOCH) / np.timedelta64(1, 's')
 
 def get_rinex_timelast(rinex_asset:AssetEntry) -> datetime.datetime:
+    """Gets the last timestamp from a RINEX file.
+
+    Parameters
+    ----------
+    rinex_asset : AssetEntry
+        The RINEX asset entry.
+
+    Returns
+    -------
+    datetime.datetime
+        The last timestamp in the RINEX file.
+    """
     year = str(rinex_asset.timestamp_data_start.year)[2:]
     ref_date = datetime.datetime(1970, 1, 1, 0, 0, 0)
     with open(rinex_asset.local_path) as f:
@@ -36,14 +60,16 @@ def get_rinex_timelast(rinex_asset:AssetEntry) -> datetime.datetime:
                     )
                     if current_date > ref_date:
                         ref_date = current_date
-                except Exception as e:
+                except Exception:
                     pass
     return ref_date
 
 def plot_kin_position_data(kin_position_data:TDBKinPositionArray,rinex_entries:List[AssetEntry] = []) -> None:
+    """Plots KinPosition data over time.
 
-    """
-    Plots KinPosition data over time, with each subplot representing a unique month of data.
+    This function plots KinPosition data over time, with each subplot
+    representing a unique month of data.
+
     The function performs the following steps:
     1. Extracts unique dates from the KinPosition data.
     2. Organizes the dates by year and month.
@@ -51,15 +77,18 @@ def plot_kin_position_data(kin_position_data:TDBKinPositionArray,rinex_entries:L
     4. Reads the KinPosition data for the date range of each month.
     5. Plots the KinPosition data points as scatter plots.
     6. Adds vertical lines to indicate daily and hourly markers.
-    7. Formats the x-axis with hourly ticks and rotates the labels for better readability.
+    7. Formats the x-axis with hourly ticks and rotates the labels for better
+       readability.
     8. Sets the title for each subplot to indicate the date range of the data.
     9. Adjusts the layout and displays the plot.
 
-    Args:
-        kin_position_data (TDBKinPositionArray): An object containing KinPosition data with methods to retrieve unique dates and read data frames.
-    
-    Returns:
-        None: The function displays the plot
+    Parameters
+    ----------
+    kin_position_data : TDBKinPositionArray
+        An object containing KinPosition data with methods to retrieve unique
+        dates and read data frames.
+    rinex_entries : List[AssetEntry], optional
+        A list of RINEX asset entries, by default [].
     """
 
     kin_position_dates = kin_position_data.get_unique_dates().tolist()

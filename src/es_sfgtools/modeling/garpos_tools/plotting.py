@@ -1,20 +1,17 @@
-import matplotlib.pyplot as plt
-import matplotlib
-import numpy as np
-import pandas as pd
+import datetime
+import json
 from pathlib import Path
 from typing import List
-import datetime
+
+import matplotlib.pyplot as plt
+import pandas as pd
 import seaborn as sns
-import json
-from collections import defaultdict
 from matplotlib.colors import Normalize
-from matplotlib.ticker import FuncFormatter
 
 sns.set_theme()
 
-from es_sfgtools.modeling.garpos_tools.model_io import GPPositionENU, GPTransponder
-from es_sfgtools.processing.assets.siteconfig import GPSiteConfig, Site
+from .schemas import GPPositionENU, GPTransponder
+
 
 class DOYResult:
     def __init__(self, year: int, doy: int, df_path: Path, results_path: Path):

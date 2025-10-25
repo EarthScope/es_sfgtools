@@ -1,36 +1,44 @@
 # External imports
-from pathlib import Path
 import json
-from pandera.typing import DataFrame
+from datetime import datetime
+from pathlib import Path
+
 import pandas as pd
 import pymap3d as pm
-from datetime import datetime
+from pandera.typing import DataFrame
+
+from ..data_models.community_standards import SFGDSTFSeafloorAcousticData, SFGDTSFSite
+from ..data_models.constants import LEAP_SECONDS, TRIGGER_DELAY_SV3
+
 # Local imports
 from ..data_models.log_models import SV3InterrogationData, SV3ReplyData
-from ..data_models.sv3_models import NovatelRangeEvent,NovatelInterrogationEvent
 from ..data_models.observables import ShotDataFrame
-from ..data_models.constants import LEAP_SECONDS,TRIGGER_DELAY_SV3
-from ..data_models.community_standards import SFGDTSFSite,SFGDSTFSeafloorAcousticData
+from ..data_models.sv3_models import NovatelInterrogationEvent, NovatelRangeEvent
 from ..logging import ProcessLogger as logger
 
 
 def novatelInterrogation_to_garpos_interrogation(
         novatel_interrogation: NovatelInterrogationEvent
 ) -> SV3InterrogationData:
+    """Converts a NovatelInterrogationEvent to an SV3InterrogationData object.
 
-    """
-    Converts a NovatelInterrogationEvent object to an SV3InterrogationData object.
+    This function extracts GNSS and AHRS observation data from the input
+    NovatelInterrogationEvent, transforms geodetic coordinates (latitude,
+    longitude, height above ellipsoid) to ECEF coordinates, and populates an
+    SV3InterrogationData instance with the relevant positional, orientation,
+    and standard deviation values. The ping time is adjusted by subtracting
+    LEAP_SECONDS.
 
-    This function extracts GNSS and AHRS observation data from the input NovatelInterrogationEvent,
-    transforms geodetic coordinates (latitude, longitude, height above ellipsoid) to ECEF coordinates,
-    and populates an SV3InterrogationData instance with the relevant positional, orientation, and
-    standard deviation values. The ping time is adjusted by subtracting LEAP_SECONDS.
+    Parameters
+    ----------
+    novatel_interrogation : NovatelInterrogationEvent
+        The interrogation event containing GNSS and AHRS data.
 
-    Args:
-        novatel_interrogation (NovatelInterrogationEvent): The interrogation event containing GNSS and AHRS data.
-
-    Returns:
-        SV3InterrogationData: The converted interrogation data with ECEF coordinates and associated metadata.
+    Returns
+    -------
+    SV3InterrogationData
+        The converted interrogation data with ECEF coordinates and associated
+        metadata.
     """
     east_ecef, north_ecef, up_ecef = pm.geodetic2ecef(
         float(novatel_interrogation.observations.GNSS.latitude), float(novatel_interrogation.observations.GNSS.longitude), float(novatel_interrogation.observations.GNSS.hae)
@@ -52,17 +60,24 @@ def novatelInterrogation_to_garpos_interrogation(
 def novatelReply_to_garpos_reply(
         novatel_reply: NovatelRangeEvent
 ) -> SV3ReplyData:
+    """Converts a NovatelRangeEvent object to an SV3ReplyData object.
 
-    """
-    Converts a NovatelRangeEvent object to an SV3ReplyData object.
-    This function extracts GNSS and AHRS observation data from the NovatelRangeEvent,
-    converts geodetic coordinates (latitude, longitude, height above ellipsoid) to ECEF coordinates,
-    calculates the travel time, and populates an SV3ReplyData object with the relevant fields.
-    Args:
-        novatel_reply (NovatelRangeEvent): The input event containing GNSS, AHRS, and range data.
-    Returns:
-        SV3ReplyData: The converted reply data containing transponder ID, orientation, position,
-                      standard deviations, range, diagnostics, return time, and travel time.
+    This function extracts GNSS and AHRS observation data from the
+    NovatelRangeEvent, converts geodetic coordinates (latitude, longitude,
+    height above ellipsoid) to ECEF coordinates, calculates the travel time,
+    and populates an SV3ReplyData object with the relevant fields.
+
+    Parameters
+    ----------
+    novatel_reply : NovatelRangeEvent
+        The input event containing GNSS, AHRS, and range data.
+
+    Returns
+    -------
+    SV3ReplyData
+        The converted reply data containing transponder ID, orientation,
+        position, standard deviations, range, diagnostics, return time,
+        and travel time.
     """
     east_ecef, north_ecef, up_ecef = pm.geodetic2ecef(
         float(novatel_reply.observations.GNSS.latitude), float(novatel_reply.observations.GNSS.longitude), float(novatel_reply.observations.GNSS.hae)
@@ -93,21 +108,31 @@ def merge_interrogation_reply(
     interrogation: SV3InterrogationData,
     reply: SV3ReplyData,
 ) -> dict | None:
+    """Merges interrogation and reply data from SV3 devices.
 
-    """
-    Merges interrogation and reply data from SV3 devices into a single dictionary.
-    Validates that the sum of pingTime, tt (two-way travel time), tat (turn-around time),
-    and any trigger delay matches the reported returnTime in the reply data. If the
-    calculated return time does not match the reply's returnTime within a small tolerance,
-    an AssertionError is raised.
-    Args:
-        interrogation (SV3InterrogationData): The interrogation data object containing pingTime.
-        reply (SV3ReplyData): The reply data object containing tt, tat, and returnTime.
-    Returns:
-        dict | None: A merged dictionary containing all fields from both interrogation and reply data.
-                     Returns None if either input is None.
-    Raises:
-        AssertionError: If the calculated return time does not match the reply's returnTime.
+    This is merged into a single dictionary. Validates that the sum of
+    pingTime, tt (two-way travel time), tat (turn-around time), and any
+    trigger delay matches the reported returnTime in the reply data. If the
+    calculated return time does not match the reply's returnTime within a
+    small tolerance, an AssertionError is raised.
+
+    Parameters
+    ----------
+    interrogation : SV3InterrogationData
+        The interrogation data object containing pingTime.
+    reply : SV3ReplyData
+        The reply data object containing tt, tat, and returnTime.
+
+    Returns
+    -------
+    dict | None
+        A merged dictionary containing all fields from both interrogation and
+        reply data. Returns None if either input is None.
+
+    Raises
+    ------
+    AssertionError
+        If the calculated return time does not match the reply's returnTime.
     """
     #validate that tt > 0 (we actually got a range value in the reply)
     range = float(reply.tt) + float(reply.tat) + TRIGGER_DELAY_SV3
@@ -130,22 +155,23 @@ def merge_interrogation_reply(
 
 
 def dfop00_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
-    """
-    Parses a DFOP00-format file containing Sonardyne event data and converts it into a ShotDataFrame.
+    """Parses a DFOP00-format file and converts it into a ShotDataFrame.
 
-    The function reads the specified file line by line, expecting each line to be a JSON object
-    representing either an "interrogation" or "range" event. It processes and merges interrogation
-    and range events, transforming them into a unified format suitable for geodetic analysis.
+    The function reads the specified file line by line, expecting each line
+    to be a JSON object representing either an "interrogation" or "range"
+    event. It processes and merges interrogation and range events,
+    transforming them into a unified format suitable for geodetic analysis.
 
-    Args:
-        source (str | Path): Path to the DFOP00-format file containing event data.
+    Parameters
+    ----------
+    source : str | Path
+        Path to the DFOP00-format file containing event data.
 
-    Returns:
-        ShotDataFrame | None: A ShotDataFrame containing processed and merged event data,
-        or None if no valid data was found or an error occurred during file reading.
-
-    Raises:
-        None explicitly, but logs errors for file access issues and data processing problems.
+    Returns
+    -------
+    ShotDataFrame | None
+        A ShotDataFrame containing processed and merged event data, or None
+        if no valid data was found or an error occurred during file reading.
     """
 
 
@@ -168,7 +194,7 @@ def dfop00_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
                 interrogation = NovatelInterrogationEvent(**data)
                 interrogation_parsed = novatelInterrogation_to_garpos_interrogation(interrogation)
                 #logger.loginfo(f"Interrogation: pingTime: {interrogation_parsed.pingTime}")
-            except Exception as e:
+            except Exception:
                 interrogation_parsed = None
 
         if data.get("event") == "range":
@@ -177,7 +203,7 @@ def dfop00_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
                 reply_data_parsed = novatelReply_to_garpos_reply(reply_data)
                 #logger.loginfo(f"Reply: \n  returnTime: {reply_data_parsed.returnTime}\n  tt: {reply_data_parsed.tt}")
 
-            except Exception as e:
+            except Exception:
                 reply_data_parsed = None
 
             if reply_data_parsed is not None and interrogation_parsed is not None:
@@ -200,26 +226,30 @@ def dfop00_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
         return None
     df = pd.DataFrame(processed)
     df["isUpdated"] = False
-    return ShotDataFrame(df)
+    return ShotDataFrame.validate(df,lazy=True)
 
 
 def dfop00_to_SFGDSTFSeafloorAcousticData(source: str | Path,siteData:SFGDTSFSite) -> SFGDSTFSeafloorAcousticData | None:
-    """
-    Parses a DFOP00-format file containing Sonardyne event data and converts it into a SFGDSTFSeafloorAcousticData.
+    """Parses a DFOP00-format file and converts it to SFGDSTFSeafloorAcousticData.
 
-    The function reads the specified file line by line, expecting each line to be a JSON object
-    representing either an "interrogation" or "range" event. It processes and merges interrogation
-    and range events, transforming them into a unified format suitable for geodetic analysis.
+    The function reads the specified file line by line, expecting each line
+    to be a JSON object representing either an "interrogation" or "range"
+    event. It processes and merges interrogation and range events,
+    transforming them into a unified format suitable for geodetic analysis.
 
-    Args:
-        source (str | Path): Path to the DFOP00-format file containing event data.
+    Parameters
+    ----------
+    source : str | Path
+        Path to the DFOP00-format file containing event data.
+    siteData : SFGDTSFSite
+        The site data.
 
-    Returns:
-        SFGDSTFSeafloorAcousticData | None: A SFGDSTFSeafloorAcousticData containing processed and merged event data,
-        or None if no valid data was found or an error occurred during file reading.
-
-    Raises:
-        None explicitly, but logs errors for file access issues and data processing problems.
+    Returns
+    -------
+    SFGDSTFSeafloorAcousticData | None
+        A SFGDSTFSeafloorAcousticData containing processed and merged event
+        data, or None if no valid data was found or an error occurred during
+        file reading.
     """
 
     shotdata = dfop00_to_shotdata(source)

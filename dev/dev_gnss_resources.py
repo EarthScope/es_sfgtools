@@ -1,7 +1,8 @@
-from pathlib import Path
+import datetime
 import logging
 import sys
-import datetime
+from pathlib import Path
+
 root = logging.getLogger()
 filemode = logging.FileHandler('dev_gnss_resources.log',mode='w')
 root.setLevel(logging.DEBUG)
@@ -9,8 +10,14 @@ handler = logging.StreamHandler(sys.stdout)
 handler.setLevel(logging.DEBUG)
 root.addHandler(handler)
 root.addHandler(filemode)
-from es_sfgtools.pride_tools.pride_utils import get_nav_file,get_gnss_products,download,update_source
-from es_sfgtools.pride_tools.gnss_product_schemas import WuhanIGS,CLSIGS,GSSC
+from es_sfgtools.pride_tools.pride_utils import (
+    download,
+    get_gnss_products,
+    get_nav_file,
+    update_source,
+)
+
+from es_sfgtools.pride_tools.gnss_product_schemas import WuhanIGS
 
 pride_dir = Path(
     "/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/Cascadia2023/NFL1/Pride"

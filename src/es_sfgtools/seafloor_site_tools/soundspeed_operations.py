@@ -1,10 +1,14 @@
+"""
+Functions for processing sound velocity profile (SVP) data from various sources.
+"""
 # External imports
 import re
+from pathlib import Path
+
+import numpy as np
 import pandas as pd
 import pandera as pa
-import numpy as np
 from pandera.typing import DataFrame
-from pathlib import Path
 
 # Local imports
 from ..data_models.observables import SoundVelocityDataFrame
@@ -12,50 +16,31 @@ from ..logging import ProcessLogger as logger
 
 
 @pa.check_types(lazy=True)
-def ctd_to_soundvelocity(
-    source: str | Path,
-) -> DataFrame[SoundVelocityDataFrame]:
-
-
-    df = pd.read_csv(
-        source,
-        sep=" ",
-        header=None,
-        float_precision="round_trip",
-        dtype=np.float64,
-        skiprows=1,
-    )
-    df = df.rename(columns={0: "depth", 1: "speed"})
-    df["depth"] *= -1
-    for row in df.itertuples():
-        df.at[row.Index, "speed"] += row.Index / 1000
-        df.at[row.Index, "speed"] += np.random.randint(0, 1000) / 100000
-
-    return SoundVelocityDataFrame(df, lazy=True)
-
-
-@pa.check_types(lazy=True)
 def seabird_to_soundvelocity(
     source: str | Path,
 ) -> DataFrame[SoundVelocityDataFrame]:
     """
-    Read the sound velocity profile from a file
-    fmt = [ Depth [m], Latitude [deg],Longitude [deg],Temperatures [deg C], Salinity [PSU] ,Speed [m/s]]
+    Reads sound velocity profile data from a Seabird-formatted file.
 
-        *END*
-        3.000   54.34259 -158.42674     6.4264    32.2921    1473.07 0.0000e+00
-        4.000   54.34268 -158.42679     6.5241    32.2461    1473.41 0.0000e+00
-        5.000   54.34266 -158.42679     6.5006    32.2566    1473.35 0.0000e+00
-        6.000   54.34266 -158.42680     6.5028    32.2570    1473.38 0.0000e+00
-        7.000   54.34266 -158.42680     6.4974    32.2562    1473.37 0.0000e+00
-        8.000   54.34268 -158.42680     6.4987    32.2564    1473.39 0.0000e+00
-        9.000   54.34268 -158.42680     6.4986    32.2575    1473.41 0.0000e+00
-        10.000   54.34268 -158.42680     6.4905    32.2679    1473.41 0.0000e+00
-        11.000   54.34268 -158.42680     6.4714    32.2786    1473.36 0.0000e+00
-        12.000   54.34268 -158.42680     6.4070    32.3043    1473.16 0.0000e+00
-        13.000   54.34268 -158.42680     6.2915    32.3382    1472.76 0.0000e+00
-        14.000   54.34268 -158.42683     6.2515    32.3469    1472.63 0.0000e+00
-    ...
+    The function expects a file where data starts after a line containing "*END*".
+    It extracts depth and speed values to create a SoundVelocityDataFrame.
+
+    Parameters
+    ----------
+    source : str or Path
+        The path to the Seabird data file.
+
+    Returns
+    -------
+    DataFrame[SoundVelocityDataFrame]
+        A DataFrame containing 'depth' and 'speed' columns.
+
+    Raises
+    ------
+    FileNotFoundError
+        If the source file does not exist.
+    ValueError
+        If no data is found in the file after the "*END*" marker.
     """
  
     with open(source, "r") as f:
@@ -92,11 +77,84 @@ def seabird_to_soundvelocity(
 
 
 @pa.check_types(lazy=True)
-def CTDfile_to_svp(
+def CTD_to_svp_v1(
     source: str | Path,
 ) -> DataFrame[SoundVelocityDataFrame]:
+    """
+    Converts CTD data from a specified source file into a sound velocity profile DataFrame (version 1).
 
-    df = pd.read_csv(source, usecols=[0, 1], names=["depth", "speed"], sep="\s+")
-    df.depth = df.depth * -1
+    This function reads a CSV file, expecting two columns (depth and speed), and negates the depth values.
 
+    Parameters
+    ----------
+    source : str or Path
+        The path to the CTD data file.
+
+    Returns
+    -------
+    DataFrame[SoundVelocityDataFrame]
+        A DataFrame containing 'depth' and 'speed' columns.
+    """
+    df = pd.read_csv(source, names=["depth", "speed"])
+    df["depth"] = -df["depth"]
+    df = interpolate_svp(df, additional_depth=200.0)
     return SoundVelocityDataFrame(df, lazy=True)
+
+
+@pa.check_types(lazy=True)
+def CTD_to_svp_v2(
+    source: str | Path,
+) -> DataFrame[SoundVelocityDataFrame]:
+    """
+    Converts CTD data from a specified source file into a sound velocity profile DataFrame (version 2).
+
+    This function reads a space-separated file, renames columns to 'depth' and 'speed',
+    negates depth values, and applies a small random adjustment to speed values.
+
+    Parameters
+    ----------
+    source : str or Path
+        The path to the CTD data file.
+
+    Returns
+    -------
+    DataFrame[SoundVelocityDataFrame]
+        A DataFrame containing 'depth' and 'speed' columns.
+    """
+    df = pd.read_csv(source, sep="\s+", names=["depth", "speed"])
+    df["depth"] = -df["depth"]
+    df["speed"] = df["speed"] + np.random.randn(len(df)) * 1e-6
+    df = interpolate_svp(df, additional_depth=200.0)
+    return SoundVelocityDataFrame(df, lazy=True)
+
+
+def interpolate_svp(
+        svp:pd.DataFrame,
+        additional_depth:float=200.0,
+) -> pd.DataFrame:
+    """
+    Interpolates a sound velocity profile (SVP) DataFrame to ensure coverage down to a specified additional depth.
+
+    This function checks the maximum depth in the provided SVP DataFrame and, if necessary,
+    extends the profile by adding interpolated values down to the specified additional depth.
+
+    Parameters
+    ----------
+    svp : pd.DataFrame
+        A DataFrame containing 'depth' and 'speed' columns.
+    additional_depth : float, default 200.0
+        The additional depth (in meters) to extend the SVP profile.
+
+    Returns
+    -------
+    pd.DataFrame
+        A DataFrame with the interpolated SVP data.
+    """
+    max_depth = svp['depth'].max()
+
+    new_depths = np.arange(max_depth + 1, max_depth + additional_depth)
+    new_speeds = np.interp(new_depths, svp['depth'].to_numpy(), svp['speed'].to_numpy())
+    new_svp = pd.DataFrame({'depth': new_depths, 'speed': new_speeds})
+    svp = pd.concat([svp, new_svp], ignore_index=True)
+    logger.loginfo(f"Extended SVP to {additional_depth} m depth with interpolation.")
+    return svp

@@ -2,24 +2,25 @@
 Author: Franklyn Dunbar
 Date: 2024-03-07
 Email: franklyn.dunbar@earthscope.org
+
+This module defines Pydantic models for representing SV3 acoustic data logs.
+
+These models are used to parse and validate the data from SV3 interrogations
+and replies. The use of `Decimal` ensures high precision for all numeric fields.
 """
 
-import pandas as pd
-from pydantic import BaseModel, Field
-from typing import List, Union, Optional
-from datetime import datetime, timedelta
-import pymap3d as pm
-import numpy as np
-
-from ..logging import ProcessLogger as logger
 from decimal import Decimal, getcontext
+from typing import Optional
+
+from pydantic import BaseModel
 
 # Set precision for Decimal operations
 getcontext().prec = 10
 
 
-
 class SV3InterrogationData(BaseModel):
+    """Data model for the interrogation phase of an SV3 acoustic ping."""
+
     head0: Decimal
     pitch0: Decimal
     roll0: Decimal
@@ -31,7 +32,10 @@ class SV3InterrogationData(BaseModel):
     up_std0: Optional[Decimal] = None
     pingTime: Decimal
 
+
 class SV3ReplyData(BaseModel):
+    """Data model for the reply phase of an SV3 acoustic ping."""
+
     head1: Decimal
     pitch1: Decimal
     roll1: Decimal

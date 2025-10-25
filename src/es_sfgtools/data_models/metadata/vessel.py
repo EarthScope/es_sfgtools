@@ -1,15 +1,16 @@
+import json
 from datetime import datetime
 from enum import Enum
-import json
 from typing import Any, ClassVar, Dict, List, Optional
+
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from .utils import (
     AttributeUpdater,
+    check_dates,
     check_fields_for_empty_strings,
     only_one_is_true,
     parse_datetime,
-    check_dates,
 )
 
 
@@ -196,15 +197,37 @@ class Vessel(AttributeUpdater, BaseModel):
         return value
 
     def export_vessel(self, filepath: str):
+        """Export vessel data to a JSON file.
+
+        Parameters
+        ----------
+        filepath : str
+            The path to the JSON file.
+        """
         with open(filepath, "w") as file:
-            file.write(self.model_dump_json(indent=2))
+            json_dict = json.loads(self.model_dump_json())
+            json.dump(json_dict, file, indent=4)
+     
 
     @classmethod
     def from_json(cls, filepath: str) -> "Vessel":
+        """Import vessel data from a JSON file.
+
+        Parameters
+        ----------
+        filepath : str
+            The path to the JSON file.
+
+        Returns
+        -------
+        Vessel
+            The vessel object.
+        """
         with open(filepath, "r") as file:
             return cls(**json.load(file))
 
     def print_json(self):
+        """Print the vessel data as a JSON string."""
         print(self.model_dump_json(indent=2))
 
     def run_equipment(
@@ -216,6 +239,23 @@ class Vessel(AttributeUpdater, BaseModel):
         update: bool = False,
         delete: bool = False,
     ):
+        """Add, update, or delete a survey vessel equipment.
+
+        Parameters
+        ----------
+        serial_number : str
+            The serial number of the equipment.
+        equipment_type : EquipmentType
+            The type of the equipment.
+        equipment_metadata : dict
+            The metadata of the equipment.
+        add_new : bool, optional
+            Whether to add a new equipment, by default False.
+        update : bool, optional
+            Whether to update an existing equipment, by default False.
+        delete : bool, optional
+            Whether to delete an existing equipment, by default False.
+        """
 
         if not only_one_is_true(add_new, update, delete):
             print("ERROR: Please select only one action to perform.")
@@ -238,7 +278,17 @@ class Vessel(AttributeUpdater, BaseModel):
         equipment_type: EquipmentType,
         equipment_metadata: dict,
     ):
-        """Add a new survey vessel equipment."""
+        """Add a new survey vessel equipment.
+
+        Parameters
+        ----------
+        serial_number : str
+            The serial number of the equipment.
+        equipment_type : EquipmentType
+            The type of the equipment.
+        equipment_metadata : dict
+            The metadata of the equipment.
+        """
 
         print(f"Adding new {equipment_type}..")
 
@@ -274,7 +324,17 @@ class Vessel(AttributeUpdater, BaseModel):
         equipment_type: EquipmentType,
         equipment_metadata: dict,
     ):
-        """Update the attributes of a survey vessel equipment."""
+        """Update the attributes of a survey vessel equipment.
+
+        Parameters
+        ----------
+        serial_number : str
+            The serial number of the equipment.
+        equipment_type : EquipmentType
+            The type of the equipment.
+        equipment_metadata : dict
+            The metadata of the equipment.
+        """
 
         print(f"Updating {equipment_type} with serial number {serial_number}..")
 
@@ -298,7 +358,15 @@ class Vessel(AttributeUpdater, BaseModel):
         print(f"ERROR: {equipment_type} with serial number {serial_number} not found.")
 
     def _delete_equipment(self, serial_number: str, equipment_type: EquipmentType):
-        """Delete a survey vessel equipment."""
+        """Delete a survey vessel equipment.
+
+        Parameters
+        ----------
+        serial_number : str
+            The serial number of the equipment.
+        equipment_type : EquipmentType
+            The type of the equipment.
+        """
 
         print(f"Deleting {equipment_type} with serial number {serial_number}..")
 
@@ -321,7 +389,18 @@ class Vessel(AttributeUpdater, BaseModel):
 
 
 def import_vessel(filepath: str) -> Vessel:
-    """Import vessel data from a JSON file."""
+    """Import vessel data from a JSON file.
+
+    Parameters
+    ----------
+    filepath : str
+        The path to the JSON file.
+
+    Returns
+    -------
+    Vessel
+        The vessel object.
+    """
     with open(filepath, "r") as file:
         return Vessel(**json.load(file))
 

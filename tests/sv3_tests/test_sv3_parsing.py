@@ -1,8 +1,11 @@
 import json
 from pathlib import Path
+
 from es_sfgtools.data_models.sv3_models import (
     NovatelInterrogationEvent,
-    NovatelRangeEvent)
+    NovatelRangeEvent,
+)
+
 RESOURCES = Path(__file__).parent.parent / "resources"
 SAMPLE_DFO = RESOURCES / "sv3/dfo_ncc1_2022_A_1065_329653_002_20220501_021315_00082_DFOP00_sample.json"
 
