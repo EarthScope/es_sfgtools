@@ -29,6 +29,29 @@ from .config import (
 )
 from es_sfgtools.config.env_config import Environment,WorkingEnvironment
 
+
+def get_s3_client() -> Optional[cloudpathlib.S3Client]:
+    """Gets an S3 client using cloudpathlib."""
+    aws_access_key, aws_secret_key, aws_session_token = load_credentials()
+    try:
+        s3_client = cloudpathlib.S3Client(
+            aws_access_key_id=aws_access_key,
+            aws_secret_access_key=aws_secret_key,
+            aws_session_token=aws_session_token,
+        )
+    except Exception as e:
+        s3_client = None
+    return s3_client
+
+def load_credentials() -> tuple[Optional[str], Optional[str], Optional[str]]:
+    """Loads credentials for accessing remote resources."""
+    try:
+        return Environment.load_aws_credentials()
+    except Exception as e:
+        print(f"Error loading AWS credentials: {e}")
+        return None, None, None
+
+
 class DirectoryHandler(_Base):
     """
     The main class for managing the directory structure.
@@ -49,10 +72,12 @@ class DirectoryHandler(_Base):
         default=None, description="Path to the remote directory structure JSON file"
     )
 
-    def save(self):
+
+    
+    def save(cls):
         """Saves the directory structure to a JSON file."""
-        with open(self.filepath, "w") as file:
-            json_dict = json.loads(self.model_dump_json())
+        with open(cls.filepath, "w") as file:
+            json_dict = json.loads(cls.model_dump_json())
             json.dump(json_dict, file, indent=4)
 
     @classmethod
@@ -210,10 +235,11 @@ class DirectoryHandler(_Base):
         bucket_path : str
             The S3 bucket path (e.g., "s3://my-bucket/path").
         """
+        s3_client = get_s3_client()
         if not isinstance(bucket_path, cloudpathlib.S3Path):
             if not bucket_path.startswith("s3://"):
                 bucket_path = "s3://" + bucket_path
-            bucket_path = cloudpathlib.S3Path(bucket_path)
+            bucket_path = cloudpathlib.S3Path(bucket_path, client=s3_client)
 
         new_handler = deepcopy(self)
         local_location = new_handler.location
@@ -253,7 +279,8 @@ class DirectoryHandler(_Base):
         """
         if not bucket_path.startswith("s3://"):
             bucket_path = "s3://" + bucket_path
-        s3_path = cloudpathlib.S3Path(bucket_path)
+        s3_client = get_s3_client()
+        s3_path = cloudpathlib.S3Path(bucket_path, client=s3_client)
         s3_dir_handler = cls(location=s3_path).point_to_s3( bucket_path=s3_path)
 
         # Iterate over directories in the bucket
