@@ -85,6 +85,7 @@ class DataHandler(WorkflowABC):
         self.shotdata_tdb_pre: Optional[TDBShotDataArray] = None
         self.gnss_obs_tdb: Optional[TDBGNSSObsArray] = None
         self.gnss_obs_secondary_tdb: Optional[TDBGNSSObsArray] = None
+        self.s3_directory_handler: Optional[DirectoryHandler] = None
 
     def _build_station_dir_structure(self, network_id: str, station_id: str, campaign_id: str):
         """
@@ -781,34 +782,17 @@ class DataHandler(WorkflowABC):
         # =================================================================
         
         # Check if we have a cached remote catalog file
-        if (
-            self.directory_handler.remote_catalog_filepath is not None
-            and self.directory_handler.remote_catalog_filepath.exists()
-        ):
-            # Use existing cached catalog path
-            s3_catalog = str(self.directory_handler.remote_catalog_filepath)
-        else:
-            # No cached catalog available - will need to fetch from S3
-            s3_catalog = None
-
-        # Load or create S3 directory handler based on catalog availability
-        if s3_catalog is not None and not overwrite:
-            # Use cached catalog if available and not forcing refresh
-            s3_directory_handler = DirectoryHandler.load(s3_catalog)
-        else:
-            # Load directory structure directly from S3 (slower but authoritative)
-            s3_directory_handler = self.directory_handler.load_from_s3(s3_bucket)
-            # Set the catalog file path for future caching
-            s3_directory_handler.filepath = (
-                self.directory_handler.remote_catalog_filepath
-            )
+        if self.s3_directory_handler is None or overwrite:
+            self.s3_directory_handler = DirectoryHandler.load_from_path(s3_bucket)
+        if self.s3_directory_handler is None:
+            raise ValueError(f"Failed to load or create S3 directory catalog from bucket: {s3_bucket}")
 
         # =================================================================
         # DATA SYNCHRONIZATION PROCESS
         # =================================================================
         
         # Iterate through all networks in the S3 directory structure
-        for network_name, network_dir in s3_directory_handler.networks.items():
+        for network_name, network_dir in self.s3_directory_handler.networks.items():
             # Only process the currently selected network (skip others)
             if network_name != self.current_network_name:
                 continue
@@ -890,7 +874,3 @@ class DataHandler(WorkflowABC):
         # Save the updated local directory catalog to disk
         # This ensures the local catalog reflects all downloaded files
         self.directory_handler.save()
-        
-        # Save the S3 directory catalog for future caching
-        # This avoids re-scanning S3 on subsequent synchronizations
-        s3_directory_handler.save()

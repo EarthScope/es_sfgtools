@@ -12,16 +12,16 @@ and branching into networks, stations, campaigns, and various data and results d
 :class GARPOSCampaignDir: Manages GARPOS-specific data and results.
 :class GARPOSSurveyDir: Represents a single GARPOS survey.
 """
-import datetime
+
 import json
 from pathlib import Path
 from typing import Optional, Union
 import cloudpathlib
-from pydantic import BaseModel, Field, PrivateAttr
+from pydantic import Field, PrivateAttr
 from copy import deepcopy
 from cloudpathlib import S3Path
 from .schemas import (
-    _Base,NetworkDir,StationDir,CampaignDir,SurveyDir,TileDBDir,GARPOSSurveyDir
+    _Base,NetworkDir,StationDir,CampaignDir,SurveyDir,
 )
 from .config import (
     ASSET_CATALOG,
@@ -68,38 +68,15 @@ class DirectoryHandler(_Base):
     location: Union[Path, S3Path] = Field(
      description="The main directory path"
     )
-    remote_catalog_filepath: Optional[Path] = Field(
-        default=None, description="Path to the remote directory structure JSON file"
-    )
-
 
     
-    def save(cls):
+    def save(self):
         """Saves the directory structure to a JSON file."""
-        with open(cls.filepath, "w") as file:
-            json_dict = json.loads(cls.model_dump_json())
+        if not self.filepath:
+            self.filepath = self.location / self._filepath
+        with open(self.filepath, "w") as file:
+            json_dict = json.loads(self.model_dump_json())
             json.dump(json_dict, file, indent=4)
-
-    @classmethod
-    def load(cls, path: str | Path) -> "DirectoryHandler":
-        """Loads the directory structure from a JSON file.
-
-        Parameters
-        ----------
-        path : Union[str, Path]
-            The path to the JSON file.
-
-        Returns
-        -------
-        DirectoryHandler
-            A DirectoryHandler object.
-        """
-        with open(path, "r") as file:
-            raw_data = file.read()
-        directory_handler = cls.model_validate_json(raw_data)
-        directory_handler.filepath = path
-        directory_handler.build()
-        return directory_handler
 
     def add_network(self, name: str) -> NetworkDir:
         """Adds a new network to the directory structure.
@@ -143,12 +120,14 @@ class DirectoryHandler(_Base):
 
     def build(self):
         """Creates the main directory structure."""
+
+        loaded = DirectoryHandler.load_from_path(self.location)
+        if loaded is not None:
+            for attr, value in loaded.__dict__.items():
+                setattr(self, attr, value)
+
         if not self.filepath:
             self.filepath = self.location / self._filepath
-            if self.filepath.exists():
-                loaded = DirectoryHandler.load(self.filepath)
-                for key, value in loaded.__dict__.items():
-                    setattr(self, key, value)
 
         if not self.pride_directory:
             self.pride_directory = self.location / PRIDE_DIR
@@ -161,9 +140,7 @@ class DirectoryHandler(_Base):
                 if Environment.working_environment() == WorkingEnvironment.LOCAL:
                     self.asset_catalog_db_path.touch()
 
-                
-        if not self.remote_catalog_filepath:
-            self.remote_catalog_filepath = self.location / f"s3_{self._filepath}"
+
 
     def build_station_directory(self,network_name:str,station_name:str=None,campaign_name:str=None,survey_name:str=None) -> Optional[tuple[NetworkDir,StationDir,CampaignDir,SurveyDir]]:
         """Builds a station directory, and optionally a campaign directory.
@@ -281,25 +258,45 @@ class DirectoryHandler(_Base):
             bucket_path = "s3://" + bucket_path
         s3_client = get_s3_client()
         s3_path = cloudpathlib.S3Path(bucket_path, client=s3_client)
-        s3_dir_handler = cls(location=s3_path).point_to_s3( bucket_path=s3_path)
-
-        # Iterate over directories in the bucket
-        for directory in s3_dir_handler.location.iterdir():
-            network_dir = s3_dir_handler.add_network(directory.name)
-            for station_directory_s3 in directory.iterdir():
-                station_dir:StationDir = network_dir.add_station(station_directory_s3.name)
-                for campaign_directory in station_directory_s3.iterdir():
-                    match campaign_directory:
-                        case station_dir.tiledb_directory.location:
-                            continue
-                        case station_dir.metadata_directory:
-                            continue
-                        case _:
-                            campaign_dir = station_dir.add_campaign(campaign_directory.name)
+        s3_dir_handler = cls.load_from_path(s3_path)
 
         return s3_dir_handler
 
 
-    #     # recursively check for existing directory structure
+    @classmethod
+    def load_from_path(cls, path: str|Path|S3Path) -> "DirectoryHandler":
+        """Searches the local or S3 path for existing data.
 
-    #     return s3_dir_handler
+        Parameters
+        ----------
+        path : str | Path | S3Path
+            The local or S3 directory path.
+
+        Returns
+        -------
+        DirectoryHandler
+            A DirectoryHandler object.
+        """
+        if isinstance(path, str):
+            if "s3" in path:
+                path = S3Path(path)
+            else:
+                path = Path(path)
+
+        local_dir_handler = cls(location=path)
+
+        # Iterate over directories in the local path
+        pride_dir = local_dir_handler.location / PRIDE_DIR
+        if pride_dir.exists():
+            local_dir_handler.pride_directory = pride_dir
+
+        asset_catalog_db_path = local_dir_handler.location / ASSET_CATALOG
+        if asset_catalog_db_path.exists():
+            local_dir_handler.asset_catalog_db_path = asset_catalog_db_path
+        
+        for sub_dir in local_dir_handler.location.iterdir():
+            if NetworkDir.is_network_directory(sub_dir):
+               network_dir = NetworkDir.load_from_path(path=sub_dir)
+               local_dir_handler.networks[network_dir.name] = network_dir
+
+        return local_dir_handler

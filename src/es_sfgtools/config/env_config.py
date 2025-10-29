@@ -41,7 +41,7 @@ class Environment:
     @classmethod
     def s3_sync_bucket(cls) -> str | None:
         """Returns the S3 sync bucket name, if configured."""
-        return cls._s3_sync_bucket
+        return "s3://" + cls._s3_sync_bucket
 
     @classmethod
     def main_directory_GEOLAB(cls) -> str | None:
