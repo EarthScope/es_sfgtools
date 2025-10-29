@@ -18,14 +18,8 @@ from matplotlib.collections import LineCollection
 from matplotlib.colors import Normalize
 sns.set_theme(style="whitegrid")
 
-from es_sfgtools.data_mgmt.directorymgmt.handler import (
-    CampaignDir,
-    DirectoryHandler,
-    GARPOSSurveyDir,
-    NetworkDir,
-    SurveyDir,
-)
-from es_sfgtools.data_models.metadata.campaign import Campaign, Survey
+from es_sfgtools.data_mgmt.directorymgmt import DirectoryHandler, GARPOSSurveyDir
+
 from es_sfgtools.data_models.metadata.site import Site
 from es_sfgtools.modeling.garpos_tools.schemas import (
     GarposFixed,
@@ -107,8 +101,6 @@ class GarposHandler(WorkflowABC):
 
         self.garpos_fixed = GarposFixed()
 
-        self.garpos_results_processor: GarposResultsProcessor = None
-
         self.current_garpos_survey_dir: GARPOSSurveyDir = None
 
     def set_network(self, network_id: str):
@@ -125,7 +117,7 @@ class GarposHandler(WorkflowABC):
             If the network is not found in the site metadata.
         """
         super().set_network(network_id=network_id)
-        self.garpos_results_processor = None
+     
         self.current_garpos_survey_dir = None
 
     def set_station(self, station_id: str):
@@ -143,8 +135,7 @@ class GarposHandler(WorkflowABC):
         """
 
         super().set_station(station_id=station_id)
-        self.garpos_results_processor = None
-
+     
     def set_campaign(self, campaign_id: str):
         """Sets the current campaign.
 
@@ -159,7 +150,6 @@ class GarposHandler(WorkflowABC):
             If the campaign is not found in the site metadata.
         """
         super().set_campaign(campaign_id=campaign_id)
-        self.garpos_results_processor = GarposResultsProcessor(self.current_campaign_dir)
 
     def set_survey(self, survey_id: str):
         """Sets the current survey.
