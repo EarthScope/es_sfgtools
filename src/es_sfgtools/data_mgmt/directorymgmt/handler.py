@@ -121,7 +121,10 @@ class DirectoryHandler(_Base):
     def build(self):
         """Creates the main directory structure."""
 
-        self = DirectoryHandler.load_from_path(self.location)
+        loaded = DirectoryHandler.load_from_path(self.location)
+        if loaded is not None:
+            for attr, value in loaded.__dict__.items():
+                setattr(self, attr, value)
 
         if not self.filepath:
             self.filepath = self.location / self._filepath
