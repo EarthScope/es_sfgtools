@@ -109,6 +109,74 @@ class GARPOSSurveyDir(_Base):
         ]:
             path.mkdir(parents=True, exist_ok=True)
 
+    @classmethod
+    def is_garpos_directory(cls,path: Path| S3Path) -> bool:
+        """Check if the given path is a valid GARPOS survey directory.
+
+        A valid GARPOS survey directory contains GARPOS default files.
+
+        Parameters
+        ----------
+        path : Path | S3Path
+            The path to check.
+
+        Returns
+        -------
+        bool
+            True if the path is a valid GARPOS survey directory, False otherwise.
+        """
+        test_dir = cls(survey_dir=path.parent)
+        test_dir.location = path
+
+        test_default_obsfile = test_dir.location / GARPOS_DEFAULT_OBS_FILE
+        test_default_settings = test_dir.location / GARPOS_DEFAULT_SETTINGS_FILE
+
+        if test_default_obsfile.exists() and test_default_settings.exists():
+            return True
+            
+        return False
+    
+    @classmethod
+    def load_from_path(cls, path: Path | S3Path) -> "GARPOSSurveyDir":
+        """Load a GARPOSSurveyDir instance from an existing directory path.
+
+        Parameters
+        ----------
+        path : Path | S3Path
+            The path to the GARPOS survey directory.
+
+        Returns
+        -------
+        GARPOSSurveyDir
+            The loaded GARPOSSurveyDir instance.
+        """
+        if not cls.is_garpos_directory(path):
+            raise ValueError(f"The path {path} is not a valid GARPOS survey directory.")
+
+        survey_dir = cls(survey_dir=path.parent)
+        survey_dir.location = path
+
+        default_obsfile_path = path / GARPOS_DEFAULT_OBS_FILE
+        if default_obsfile_path.exists():
+            survey_dir.default_obsfile = default_obsfile_path
+
+        default_settings_path = path / GARPOS_DEFAULT_SETTINGS_FILE
+        if default_settings_path.exists():
+            survey_dir.default_settings = default_settings_path
+
+        log_directory_path = path / "logs"
+        if log_directory_path.exists():
+            survey_dir.log_directory = log_directory_path
+
+        results_dir_path = path / GARPOS_RESULTS_DIR
+        if results_dir_path.exists():
+            survey_dir.results_dir = results_dir_path
+
+        svp_file_path = path / SVP_FILE_NAME
+        if svp_file_path.exists():
+            survey_dir.svp_file = svp_file_path
+
+        return survey_dir
 
 class TileDBDir(_Base):
     """
@@ -180,6 +248,55 @@ class TileDBDir(_Base):
 
                 setattr(self, field_name, s3_path)
 
+    @classmethod
+    def load_from_path(cls, path: Path | S3Path) -> "TileDBDir":
+        """Load a TileDBDir instance from an existing directory path.
+
+        Parameters
+        ----------
+        path : Path | S3Path
+            The path to the TileDB directory.
+
+        Returns
+        -------
+        TileDBDir
+            The loaded TileDBDir instance.
+        """
+        name = str(path.name)
+        station = path.parent
+
+        tiledb_dir = cls(station=station)
+        tiledb_dir.location = path
+
+        shot_data_path = path / SHOTDATA_TDB
+        if shot_data_path.exists():
+            tiledb_dir.shot_data = shot_data_path
+
+        shot_data_pre_path = path / SHOTDATA_PRE_TDB
+        if shot_data_pre_path.exists():
+            tiledb_dir.shot_data_pre = shot_data_pre_path
+
+        kin_position_data_path = path / KIN_TDB
+        if kin_position_data_path.exists():
+            tiledb_dir.kin_position_data = kin_position_data_path
+
+        gnss_obs_data_path = path / GNSS_OBS_TDB
+        if gnss_obs_data_path.exists():
+            tiledb_dir.gnss_obs_data = gnss_obs_data_path
+
+        gnss_obs_data_secondary_path = path / GNSS_OBS_SECONDARY_TDB
+        if gnss_obs_data_secondary_path.exists():
+            tiledb_dir.gnss_obs_data_secondary = gnss_obs_data_secondary_path
+
+        imu_position_data_path = path / IMU_POSITION_TDB
+        if imu_position_data_path.exists():
+            tiledb_dir.imu_position_data = imu_position_data_path
+
+        acoustic_data_path = path / ACOUSTIC_TDB
+        if acoustic_data_path.exists():
+            tiledb_dir.acoustic_data = acoustic_data_path
+
+        return tiledb_dir
 
 class SurveyDir(_Base):
     """
@@ -219,6 +336,70 @@ class SurveyDir(_Base):
             self.garpos = GARPOSSurveyDir(survey_dir=self.location)
         self.garpos.build()
 
+    @classmethod
+    def is_survey_directory(cls,path: Path| S3Path) -> bool:
+        """Check if the given path is a valid survey directory.
+
+        A valid survey directory contains a GARPOS subdirectory.
+
+        Parameters
+        ----------
+        path : Path | S3Path
+            The path to check.
+
+        Returns
+        -------
+        bool
+            True if the path is a valid survey directory, False otherwise.
+        """
+        test_dir = cls(name=str(path.name),campaign=path.parent)
+        test_dir.location = path
+        test_garpos_dir = test_dir.location / "GARPOS"
+        shotdata_files = list(test_dir.location.glob("*.csv"))
+
+        if test_garpos_dir.exists() or len(shotdata_files) > 0:
+            return True
+            
+        return False
+
+    @classmethod
+    def load_from_path(cls, path: Path | S3Path) -> "SurveyDir":
+        """Load a SurveyDir instance from an existing directory path.
+
+        Parameters
+        ----------
+        path : Path | S3Path
+            The path to the survey directory.
+
+        Returns
+        -------
+        SurveyDir
+            The loaded SurveyDir instance.
+        """
+        if not cls.is_survey_directory(path):
+            raise ValueError(f"The path {path} is not a valid survey directory.")
+
+        name = str(path.name)
+        campaign = path.parent
+
+        survey_dir = cls(name=name, campaign=campaign)
+        survey_dir.location = path
+
+        metadata_path = path / SURVEY_METADATA_FILE
+        if metadata_path.exists():
+            survey_dir.metadata = metadata_path
+
+        garpos_dir = path / "GARPOS"
+        if garpos_dir.exists():
+            survey_dir.garpos = GARPOSSurveyDir.load_from_path(garpos_dir)
+
+        shotdata_files = list(path.glob("*.csv"))
+        for shotdata_file in shotdata_files:
+            if "shotdata" in shotdata_file.name.lower() and "filtered" not in shotdata_file.name.lower():
+                survey_dir.shotdata = shotdata_file
+  
+
+        return survey_dir
 
 class CampaignDir(_Base):
     """
@@ -323,6 +504,90 @@ class CampaignDir(_Base):
         self.surveys[name] = new_survey
         return self.surveys[name]
 
+    @classmethod
+    def is_campaign_directory(cls,path: Path| S3Path) -> bool:
+        """Check if the given path is a valid campaign directory.
+
+        A valid campaign directory contains subdirectories for surveys.
+
+        Parameters
+        ----------
+        path : Path | S3Path
+            The path to check.
+
+        Returns
+        -------
+        bool
+            True if the path is a valid campaign directory, False otherwise.
+        """
+        test_dir = cls(name=str(path.name),station=path.parent)
+        test_dir.location = path
+        test_raw_dir = test_dir.location / RAW_DATA_DIR
+        test_processed_dir = test_dir.location / PROCESSED_DATA_DIR
+        test_intermediate_dir = test_dir.location / INTERMEDIATE_DATA_DIR
+        test_logs_dir = test_dir.location / LOGS_DIR
+        test_qc_dir = test_dir.location / QC_DIR
+
+        if any(dir.exists() for dir in [
+            test_raw_dir,test_processed_dir,test_intermediate_dir,test_logs_dir,test_qc_dir]) is True:
+            return True
+        return False
+    
+    @classmethod
+    def load_from_path(cls, path: Path | S3Path) -> "CampaignDir":
+        """Load a CampaignDir instance from an existing directory path.
+
+        Parameters
+        ----------
+        path : Path | S3Path
+            The path to the campaign directory.
+
+        Returns
+        -------
+        CampaignDir
+            The loaded CampaignDir instance.
+        """
+        if not cls.is_campaign_directory(path):
+            raise ValueError(f"The path {path} is not a valid campaign directory.")
+
+        name = str(path.name)
+        station = path.parent
+
+        campaign_dir = cls(name=name, station=station)
+        campaign_dir.location = path
+
+        raw_path = path / RAW_DATA_DIR
+        if raw_path.exists():
+            campaign_dir.raw = raw_path
+
+        processed_path = path / PROCESSED_DATA_DIR
+        if processed_path.exists():
+            campaign_dir.processed = processed_path
+
+        intermediate_path = path / INTERMEDIATE_DATA_DIR
+        if intermediate_path.exists():
+            campaign_dir.intermediate = intermediate_path
+
+        log_directory_path = path / LOGS_DIR
+        if log_directory_path.exists():
+            campaign_dir.log_directory = log_directory_path
+
+        qc_path = path / QC_DIR
+        if qc_path.exists():
+            campaign_dir.qc = qc_path
+
+        svp_file_path = path / PROCESSED_DATA_DIR / SVP_FILE_NAME
+        if svp_file_path.exists():
+            campaign_dir.svp_file = svp_file_path
+        
+        # Load surveys
+        for campaign_subdir in path.iterdir():
+            if SurveyDir.is_survey_directory(campaign_subdir):
+                survey_dir = SurveyDir.load_from_path(campaign_subdir)
+                campaign_dir.surveys[survey_dir.name] = survey_dir
+
+        return campaign_dir
+
 
 class StationDir(_Base):
     """
@@ -409,6 +674,75 @@ class StationDir(_Base):
         new_campaign.build()
         self.campaigns[name] = new_campaign
         return self.campaigns[name]
+    
+    @classmethod
+    def is_station_directory(cls,path: Path| S3Path) -> bool:
+        """Check if the given path is a valid station directory.
+
+        A valid station directory contains subdirectories for campaigns.
+
+        Parameters
+        ----------
+        path : Path | S3Path
+            The path to check.
+
+        Returns
+        -------
+        bool
+            True if the path is a valid station directory, False otherwise.
+        """
+        name = str(path.name)
+        if len(name) != 4 or not name.isupper():
+            return False
+        test_dir = cls(name=name,network=path.parent)
+        test_dir.location = path
+        test_tdb_dir = test_dir.location / TILEDB_DIR
+        if not test_tdb_dir.exists():
+            return False
+        return True
+    
+    @classmethod
+    def load_from_path(cls, path: Path | S3Path) -> "StationDir":
+        """Load a StationDir instance from an existing directory path.
+
+        Parameters
+        ----------
+        path : Path | S3Path
+            The path to the station directory.
+
+        Returns
+        -------
+        StationDir
+            The loaded StationDir instance.
+        """
+        if not cls.is_station_directory(path):
+            raise ValueError(f"The path {path} is not a valid station directory.")
+
+        name = str(path.name)
+        network = path.parent
+
+        station_dir = cls(name=name, network=network)
+        station_dir.location = path
+
+        tiledb_dir_path = path / TILEDB_DIR
+        if tiledb_dir_path.exists():
+            station_dir.tiledb_directory = TileDBDir.load_from_path(tiledb_dir_path)
+
+        metadata_directory_path = path / "metadata"
+        if metadata_directory_path.exists():
+            station_dir.metadata_directory = metadata_directory_path
+
+        site_metadata_path = metadata_directory_path / "site_metadata.json"
+        if site_metadata_path.exists():
+            station_dir.site_metadata = site_metadata_path
+        
+        # Load campaigns
+        for station_subdir in path.iterdir():
+            if CampaignDir.is_campaign_directory(station_subdir):
+                campaign_dir = CampaignDir.load_from_path(station_subdir)
+                station_dir.campaigns[campaign_dir.name] = campaign_dir
+
+        return station_dir
 
 
 class NetworkDir(_Base):
@@ -477,3 +811,57 @@ class NetworkDir(_Base):
         new_station.build()
         self.stations[name] = new_station
         return self.stations[name]
+
+    @classmethod
+    def is_network_directory(cls,path: Path| S3Path) -> bool:
+        """Check if the given path is a valid network directory.
+
+        A valid network directory contains subdirectories for stations.
+
+        Parameters
+        ----------
+        path : Path | S3Path
+            The path to check.
+
+        Returns
+        -------
+        bool
+            True if the path is a valid network directory, False otherwise.
+        """
+        test_dir = cls(name=str(path.name),main_directory=path.parent)
+        test_dir.location = path
+        station_dirs = test_dir.location.glob("[A-Z][A-Z][A-Z][0-9]")
+        if any(StationDir.is_station_directory(d) for d in station_dirs):
+            return True
+        return False
+
+    @classmethod
+    def load_from_path(cls, path: Path | S3Path) -> "NetworkDir":
+        """Load a NetworkDir instance from an existing directory path.  
+
+        Parameters
+        ----------
+        path : Path | S3Path
+            The path to the network directory.
+
+        Returns
+        -------
+        NetworkDir
+            The loaded NetworkDir instance.
+        """
+        if not cls.is_network_directory(path):
+            raise ValueError(f"The path {path} is not a valid network directory.")
+
+        name = str(path.name)
+        main_directory = path.parent
+
+        network_dir = cls(name=name, main_directory=main_directory)
+        network_dir.location = path
+
+        # Load station directories
+        for station_subdir in path.iterdir():
+            if StationDir.is_station_directory(station_subdir):
+                station_dir = StationDir.load_from_path(station_subdir)
+                network_dir.stations[station_dir.name] = station_dir
+
+        return network_dir

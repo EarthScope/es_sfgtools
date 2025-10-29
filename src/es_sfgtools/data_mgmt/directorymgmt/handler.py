@@ -300,6 +300,35 @@ class DirectoryHandler(_Base):
         return s3_dir_handler
 
 
-    #     # recursively check for existing directory structure
+    @classmethod
+    def load_from_path(cls, path: str|Path) -> "DirectoryHandler":
+        """Searches the local path for existing data.
 
-    #     return s3_dir_handler
+        Parameters
+        ----------
+        path : str | Path
+            The local directory path.
+
+        Returns
+        -------
+        DirectoryHandler
+            A DirectoryHandler object.
+        """
+        local_path = Path(path)
+        local_dir_handler = cls(location=local_path)
+
+        # Iterate over directories in the local path
+        pride_dir = local_dir_handler.location / PRIDE_DIR
+        if pride_dir.exists():
+            local_dir_handler.pride_directory = pride_dir
+
+        asset_catalog_db_path = local_dir_handler.location / ASSET_CATALOG
+        if asset_catalog_db_path.exists():
+            local_dir_handler.asset_catalog_db_path = asset_catalog_db_path
+        
+        for sub_dir in local_dir_handler.location.iterdir():
+            if NetworkDir.is_network_directory(sub_dir):
+               network_dir = NetworkDir.load_from_path(path=sub_dir)
+               local_dir_handler.networks[network_dir.name] = network_dir
+
+        return local_dir_handler
