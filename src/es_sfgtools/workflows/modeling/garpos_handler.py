@@ -78,8 +78,7 @@ class GarposHandler(WorkflowABC):
         Fixed parameters for the GARPOS model.
     sound_speed_path : Path
         Path to the sound speed profile file.
-    garpos_results_processor : GarposResultsProcessor
-        Processes and plots GARPOS results.
+
     """
     mid_process_workflow = True
 
