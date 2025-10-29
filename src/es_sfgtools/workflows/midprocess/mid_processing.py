@@ -5,21 +5,16 @@ import json
 import os
 import shutil
 from typing import List, Optional
-from pathlib import Path
-from boto3.s3.transfer import S3Transfer
-from boto3 import client
 
-from es_sfgtools.data_mgmt.directorymgmt.schemas import StationDir
+
 import pandas as pd
 
-from es_sfgtools.data_mgmt.directorymgmt.handler import (
-    CampaignDir,
+from es_sfgtools.data_mgmt.directorymgmt import (
     DirectoryHandler,
-    GARPOSSurveyDir,
-    NetworkDir,
-    SurveyDir,
+    GARPOSSurveyDir
 )
-from es_sfgtools.data_models.metadata.campaign import Campaign, Survey,SurveyType
+
+from es_sfgtools.data_models.metadata.campaign import  Survey
 from es_sfgtools.data_models.metadata.site import Site
 from es_sfgtools.logging import GarposLogger as logger
 from es_sfgtools.modeling.garpos_tools.data_prep import (
@@ -29,11 +24,7 @@ from es_sfgtools.modeling.garpos_tools.data_prep import (
     prepare_shotdata_for_garpos,
     apply_survey_config
 )
-from es_sfgtools.config import Environment
 
-from es_sfgtools.config.garpos_config import (
-    DEFAULT_SITE_CONFIG,
-)
 from es_sfgtools.prefiltering import filter_shotdata
 
 from es_sfgtools.modeling.garpos_tools.functions import (
@@ -460,39 +451,3 @@ class IntermediateDataProcessor(WorkflowABC):
                         except Exception as e:
                             logger.logerr(f"Failed to upload {log_file} to S3: {e}")
 
-
-        # s3_directory_handler = self.directory_handler.model_copy()
-
-        # station_dir_location = self.current_network_dir.location
-        # s3_destination_dir_prefix = station_dir_location.name
-
-        # paths_to_upload = []
-
-        # # List all paths within the station's TileDB directory
-        # tiledb_files = list(self.current_station_dir.tiledb_directory.location.rglob('*'))
-        # # remove 'shotdata_pre' files
-        # tiledb_files = [f for f in tiledb_files if 'shotdata_pre' not in f.name]
-        # paths_to_upload.extend(tiledb_files)
-        # # List all paths within the station's site metadata directory
-        # paths_to_upload.extend(list(self.current_station_dir.site_metadata.parent.rglob("*")))
-
-        # # upload log directory files,svp file,and campaign metadata
-        # for campaign_dir in self.current_station_dir.campaigns.values():
-        #     paths_to_upload.append(campaign_dir.svp_file)
-        #     paths_to_upload.extend(list(campaign_dir.log_directory.rglob("*")))
-        #     paths_to_upload.extend(list(campaign_dir.metadata_directory.rglob("*")))
-
-        # for path in paths_to_upload:
-        #     if path.is_dir() or not path.exists():
-        #         continue
-        #     relative_path = str(path.relative_to(station_dir_location))
-        #     s3_file_path = f"{s3_destination_dir_prefix}/{relative_path}"
-        #     try:
-        #         if s3_client.head_object(Bucket=clean_bucket_name, Key=s3_file_path) and not overwrite:
-        #             continue
-        #     except s3_client.exceptions.ClientError as e:
-        #         if e.response['Error']['Code'] == '404':
-        #             # File does not exist
-        #             pass
-
-        #     transfer.upload_file(str(path), clean_bucket_name, s3_file_path)
