@@ -4,6 +4,8 @@ from .schemas import (
     GARPOSSurveyDir,
     NetworkDir,
     SurveyDir,
+    StationDir,
+    TileDBDir,
 )
 __all__ = [
     "DirectoryHandler",
@@ -11,4 +13,6 @@ __all__ = [
     "CampaignDir",
     "SurveyDir",
     "GARPOSSurveyDir",
+    "StationDir",
+    "TileDBDir",
 ]
