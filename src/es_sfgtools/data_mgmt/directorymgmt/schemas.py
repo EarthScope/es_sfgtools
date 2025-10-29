@@ -277,7 +277,6 @@ class TileDBDir(_Base):
         TileDBDir
             The loaded TileDBDir instance.
         """
-        name = str(path.name)
         station = path.parent
 
         tiledb_dir = cls(station=station)
