@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Optional, Union
 from es_sfgtools.config.env_config import Environment,WorkingEnvironment
 from cloudpathlib import S3Path
-from pydantic import BaseModel, Field, PrivateAttr
+from pydantic import BaseModel, Field, PrivateAttr,model_serializer
 
 from .config import (
     ACOUSTIC_TDB,
@@ -37,10 +37,25 @@ class _Base(BaseModel):
     It sets up a custom JSON encoder for Path objects and allows arbitrary
     types.
     """
+    @model_serializer
+    def serialize(self) -> dict[str, any]:
+        """Custom serializer to include private attributes."""
+        raw = self.__dict__
+        output = {}
+        for key, value in raw.items():
+            if isinstance(value, (Path, S3Path)):
+                if value.exists():
+                    output[key] = str(value)
+                else:
+                    output[key] = None
+            else:
+                output[key] = value
+        return output
 
     model_config = {
         "json_encoders": {
             Path: lambda v: str(v),
+            S3Path: lambda v: str(v),
             datetime.datetime: lambda v: v.isoformat(),
         },
         "arbitrary_types_allowed": True,
@@ -696,9 +711,10 @@ class StationDir(_Base):
             return False
         test_dir = cls(name=name,network=path.parent)
         test_dir.location = path
-        test_tdb_dir = test_dir.location / TILEDB_DIR
-        if not test_tdb_dir.exists():
-            return False
+        if Environment.working_environment() == WorkingEnvironment.LOCAL:
+            test_tdb_dir = test_dir.location / TILEDB_DIR
+            if not test_tdb_dir.exists():
+                return False
         return True
     
     @classmethod
