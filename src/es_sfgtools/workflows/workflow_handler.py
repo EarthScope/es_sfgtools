@@ -108,7 +108,6 @@ class WorkflowHandler(WorkflowABC):
         for key,value in self.data_handler.__dict__.items():
             if value is not None and hasattr(self,key):
                 setattr(self,key,value)
-                logger.loginfo(f"WorkflowHandler state updated: {key} = {value}")
 
     @validate_network_station_campaign
     def ingest_add_local_data(self, directory_path: Path) -> None:
