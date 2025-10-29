@@ -1,7 +1,7 @@
 import datetime
 import json
 from pathlib import Path
-from typing import Optional, Union
+from typing import Any, Optional, Union
 from es_sfgtools.config.env_config import Environment,WorkingEnvironment
 from cloudpathlib import S3Path
 from pydantic import BaseModel, Field, PrivateAttr,model_serializer
@@ -38,7 +38,7 @@ class _Base(BaseModel):
     types.
     """
     @model_serializer
-    def serialize(self) -> dict[str, any]:
+    def serialize(self) -> dict[str, Any]:
         """Custom serializer to include private attributes."""
         raw = self.__dict__
         output = {}
