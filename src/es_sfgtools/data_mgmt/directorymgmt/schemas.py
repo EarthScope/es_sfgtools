@@ -543,10 +543,8 @@ class CampaignDir(_Base):
         test_logs_dir = test_dir.location / LOGS_DIR
         test_qc_dir = test_dir.location / QC_DIR
 
-        if any(dir.exists() for dir in [
-            test_raw_dir,test_processed_dir,test_intermediate_dir,test_logs_dir,test_qc_dir]) is True:
-            return True
-        return False
+        return any(dir.exists() for dir in [
+            test_raw_dir, test_processed_dir, test_intermediate_dir, test_logs_dir, test_qc_dir])
     
     @classmethod
     def load_from_path(cls, path: Path | S3Path) -> "CampaignDir":
