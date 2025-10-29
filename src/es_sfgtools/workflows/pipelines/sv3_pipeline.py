@@ -13,7 +13,7 @@ from tqdm.auto import tqdm
 # Local imports
 from es_sfgtools.data_mgmt.assetcatalog.handler import PreProcessCatalogHandler
 from es_sfgtools.data_mgmt.assetcatalog.schemas import AssetEntry, AssetType
-from es_sfgtools.data_mgmt.directorymgmt.handler import (
+from es_sfgtools.data_mgmt.directorymgmt import (
     CampaignDir,
     DirectoryHandler,
     NetworkDir,
