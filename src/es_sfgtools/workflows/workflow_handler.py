@@ -619,9 +619,9 @@ class WorkflowHandler(WorkflowABC):
             station_metadata=self.current_station_metadata,
         )
         gp_handler.set_network_station_campaign(
-            network=self.current_network_name,
-            station=self.current_station_name,
-            campaign=self.current_campaign_name,
+            network_id=self.current_network_name,
+            station_id=self.current_station_name,
+            campaign_id=self.current_campaign_name,
         )
         return gp_handler
 
