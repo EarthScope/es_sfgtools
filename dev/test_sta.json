@@ -1,8 +1,0 @@
-{
-  "wave_height": { "SWH": 0.7050241255974846, "WH_RMS": 0.49789839378353434 },
-  "disk_status": {
-    "os": { "available": "19.6G", "used": "2.0G" },
-    "raid": { "available": "74.6G", "used": "40.0G" }
-  },
-  "temp": "41.0"
-}
