@@ -12,16 +12,16 @@ and branching into networks, stations, campaigns, and various data and results d
 :class GARPOSCampaignDir: Manages GARPOS-specific data and results.
 :class GARPOSSurveyDir: Represents a single GARPOS survey.
 """
-import datetime
+
 import json
 from pathlib import Path
 from typing import Optional, Union
 import cloudpathlib
-from pydantic import BaseModel, Field, PrivateAttr
+from pydantic import Field, PrivateAttr
 from copy import deepcopy
 from cloudpathlib import S3Path
 from .schemas import (
-    _Base,NetworkDir,StationDir,CampaignDir,SurveyDir,TileDBDir,GARPOSSurveyDir
+    _Base,NetworkDir,StationDir,CampaignDir,SurveyDir,
 )
 from .config import (
     ASSET_CATALOG,
@@ -122,7 +122,7 @@ class DirectoryHandler(_Base):
         """Creates the main directory structure."""
 
         self = DirectoryHandler.load_from_path(self.location)
-        
+
         if not self.filepath:
             self.filepath = self.location / self._filepath
 
@@ -261,13 +261,13 @@ class DirectoryHandler(_Base):
 
 
     @classmethod
-    def load_from_path(cls, path: str|Path) -> "DirectoryHandler":
-        """Searches the local path for existing data.
+    def load_from_path(cls, path: str|Path|S3Path) -> "DirectoryHandler":
+        """Searches the local or S3 path for existing data.
 
         Parameters
         ----------
-        path : str | Path
-            The local directory path.
+        path : str | Path | S3Path
+            The local or S3 directory path.
 
         Returns
         -------
