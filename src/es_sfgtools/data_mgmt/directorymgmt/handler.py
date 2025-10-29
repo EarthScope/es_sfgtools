@@ -314,8 +314,13 @@ class DirectoryHandler(_Base):
         DirectoryHandler
             A DirectoryHandler object.
         """
-        local_path = Path(path)
-        local_dir_handler = cls(location=local_path)
+        if isinstance(path, str):
+            if "s3" in path:
+                path = S3Path(path)
+            else:
+                path = Path(path)
+
+        local_dir_handler = cls(location=path)
 
         # Iterate over directories in the local path
         pride_dir = local_dir_handler.location / PRIDE_DIR

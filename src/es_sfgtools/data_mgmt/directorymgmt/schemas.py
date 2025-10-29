@@ -303,17 +303,17 @@ class SurveyDir(_Base):
     Represents a survey directory structure.
     """
 
-    location: Optional[Path] = Field(
+    location: Optional[Path|S3Path] = Field(
         default=None, description="The survey directory path"
     )
-    shotdata: Optional[Path] = Field(default=None, description="The shotdata file path")
-    kinpositiondata: Optional[Path] = Field(
+    shotdata: Optional[Path|S3Path] = Field(default=None, description="The shotdata file path")
+    kinpositiondata: Optional[Path|S3Path] = Field(
         default=None, description="The kinematic position file path"
     )
-    imupositiondata: Optional[Path] = Field(
+    imupositiondata: Optional[Path|S3Path] = Field(
         default=None, description="The IMU position file path"
     )
-    metadata: Optional[Path] = Field(
+    metadata: Optional[Path|S3Path] = Field(
         default=None, description="The survey metadata file path"
     )
     garpos: Optional[GARPOSSurveyDir] = Field(
@@ -321,7 +321,7 @@ class SurveyDir(_Base):
     )
 
     name: str = Field(..., description="The survey name")
-    campaign: Path = Field(..., description="The campaign directory path")
+    campaign: Path|S3Path = Field(..., description="The campaign directory path")
 
     def build(self):
         """Creates the directory structure for the survey."""
