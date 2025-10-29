@@ -108,7 +108,7 @@ class WorkflowHandler(WorkflowABC):
         for key,value in self.data_handler.__dict__.items():
             if value is not None and hasattr(self,key):
                 setattr(self,key,value)
-                logger.loginfo(f"WorkflowHandler state updated: {key} = {value}")
+                logger.logdebug(f"WorkflowHandler state updated: {key} = {value}")
 
     @validate_network_station_campaign
     def ingest_add_local_data(self, directory_path: Path) -> None:
@@ -533,7 +533,7 @@ class WorkflowHandler(WorkflowABC):
             for key,value in self.data_handler.__dict__.items():
                 if value is not None and hasattr(self,key):
                     setattr(self,key,value)
-                    logger.loginfo(f"WorkflowHandler state updated: {key} = {value}")
+                    logger.logdebug(f"WorkflowHandler state updated: {key} = {value}")
 
         dataPostProcessor: IntermediateDataProcessor = self.midprocess_get_processor(site_metadata=site_metadata)
         dataPostProcessor.parse_surveys(
@@ -616,7 +616,7 @@ class WorkflowHandler(WorkflowABC):
 
         gp_handler = GarposHandler(
             directory_handler=self.data_handler.directory_handler,
-            site=self.current_station_metadata,
+            station_metadata=self.current_station_metadata,
         )
         gp_handler.set_network_station_campaign(
             network=self.current_network_name,
