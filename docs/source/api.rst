@@ -13,10 +13,9 @@ helpers).
 
 .. toctree::
    :glob:
-   :maxdepth: 2
+   :maxdepth: 1
 
    api/es_sfgtools.workflows.*
-   api/es_sfgtools.workflows.pipelines.*
 
 Modeling
 --------
@@ -25,11 +24,9 @@ Includes modules used for numerical modeling and GARPOS-specific utilities.
 
 .. toctree::
    :glob:
-   :maxdepth: 2
+   :maxdepth: 1
 
    api/es_sfgtools.modeling.*
-
-
 
 Data management
 ---------------
@@ -38,7 +35,7 @@ Catalogs, ingestion, and directory management utilities.
 
 .. toctree::
    :glob:
-   :maxdepth: 2
+   :maxdepth: 1
 
    api/es_sfgtools.data_mgmt.*
    api/es_sfgtools.data_mgmt.assetcatalog.*
@@ -50,7 +47,7 @@ Pydantic models and schemas used across the project.
 
 .. toctree::
    :glob:
-   :maxdepth: 2
+   :maxdepth: 1
 
    api/es_sfgtools.data_models.*
 
@@ -61,7 +58,7 @@ Utilities and wrappers for PRIDE processing and GNSS product handling.
 
 .. toctree::
    :glob:
-   :maxdepth: 2
+   :maxdepth: 1
 
    api/es_sfgtools.pride_tools.*
 
@@ -72,7 +69,7 @@ Driver and processing helpers for NovAtel and Sonardyne devices.
 
 .. toctree::
    :glob:
-   :maxdepth: 2
+   :maxdepth: 1
 
    api/es_sfgtools.novatel_tools.*
    api/es_sfgtools.sonardyne_tools.*
@@ -84,7 +81,7 @@ TileDB schema and operations helpers.
 
 .. toctree::
    :glob:
-   :maxdepth: 2
+   :maxdepth: 1
 
    api/es_sfgtools.tiledb_tools.*
 
@@ -95,7 +92,7 @@ Seafloor site and sound-speed related utilities.
 
 .. toctree::
    :glob:
-   :maxdepth: 2
+   :maxdepth: 1
 
    api/es_sfgtools.seafloor_site_tools.*
 
@@ -106,7 +103,7 @@ Small prefiltering utilities and schemas.
 
 .. toctree::
    :glob:
-   :maxdepth: 2
+   :maxdepth: 1
 
    api/es_sfgtools.prefiltering.*
 
@@ -117,7 +114,7 @@ General utilities, configuration loaders, and logging helpers.
 
 .. toctree::
    :glob:
-   :maxdepth: 2
+   :maxdepth: 1
 
    api/es_sfgtools.utils.*
    api/es_sfgtools.config.*

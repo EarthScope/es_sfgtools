@@ -13,6 +13,10 @@ Subpackages
    :maxdepth: 4
 
    es_sfgtools.workflows.midprocess
+   es_sfgtools.workflows.modeling
+   es_sfgtools.workflows.pipelines
+   es_sfgtools.workflows.preprocess_ingest
+   es_sfgtools.workflows.utils
 
 Submodules
 ----------
