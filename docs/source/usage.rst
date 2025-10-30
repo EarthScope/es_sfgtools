@@ -43,7 +43,6 @@ The package requires several external tools for complete functionality:
 - **AWS CLI**: For cloud data access (configure credentials)
 - **TileDB**: Array storage (installed automatically with package)
 
-.. _:
 
 Environment Setup
 -----------------
@@ -68,12 +67,12 @@ Build the macOS environment:
 
 
 Examples and Workflows
----------------------
+----------------------
 
 The package includes comprehensive examples demonstrating different aspects of seafloor geodesy processing:
 
 Data Organization
-~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~
 
 es_sfgtools follows a hierarchical data organization to manage data from multiple seafloor networks, stations, and campaigns. The workflow module assumes a directory structure as follows:
 
@@ -90,7 +89,7 @@ es_sfgtools follows a hierarchical data organization to manage data from multipl
 
 
 GeoLab Data Processing
-~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
 
 The GeoLab example (``examples/geolab/get_data.py``) demonstrates mid-process data preparation for acoustic modeling:
 
@@ -149,7 +148,7 @@ The GeoLab example (``examples/geolab/get_data.py``) demonstrates mid-process da
        workflow.modeling_run_garpos()
 
 Complete Preprocessing Pipeline
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The preprocessing example (``examples/preprocessing/preprocessing.py``) shows the full SV3 data processing pipeline:
 
@@ -223,7 +222,7 @@ The preprocessing example (``examples/preprocessing/preprocessing.py``) shows th
 
 
 Basic Workflow Pattern
-~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
 
 Most processing follows this general pattern:
 
@@ -260,7 +259,7 @@ Most processing follows this general pattern:
    workflow.modeling_plot_garpos_results()
 
 Configuration Management
-~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 Customize processing with configuration dictionaries:
 
@@ -286,7 +285,7 @@ Customize processing with configuration dictionaries:
    }
 
 Getting Help
------------
+------------
 
 **Documentation**
 - :doc:`api` - Complete API reference
