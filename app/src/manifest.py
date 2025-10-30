@@ -13,7 +13,8 @@ from typing import List, Optional
 
 import yaml
 from es_sfgtools.modeling.garpos_tools.schemas import InversionParams
-from es_sfgtools.pipelines.sv3_pipeline import SV3PipelineConfig
+from es_sfgtools.workflows.pipelines import SV3PipelineConfig
+from es_sfgtools.utils.model_update import validate_and_merge_config
 from pydantic import BaseModel, Field, field_serializer, field_validator
 
 
@@ -26,12 +27,28 @@ class PipelineJobType(str, Enum):
     GARPOS = "garpos"
 
 
+class PreprocessJobType(str, Enum):
+    """Enumeration for the different types of preprocessing jobs."""
+
+    ALL = "all"
+    RINEX = "build_rinex"
+    PRIDE = "run_rinex_ppp"
+    KINEMATIC = "process_kinematic"
+    SVP = "process_svp"
+    REFINE_SHOTDATA = "refine_shotdata"
+    DFOP00 = "process_dfop00"
+    NOVATEL = "process_novatel"
+
+
 class PipelinePreprocessJob(BaseModel):
     """Defines a job for the preprocessing pipeline."""
 
     network: str = Field(..., title="Network Name")
     station: str = Field(..., title="Station Name")
     campaign: str = Field(..., title="Campaign Name")
+    job_type: PreprocessJobType = Field(
+        PreprocessJobType.ALL, title="Preprocessing Job Type"
+    )
     config: Optional[SV3PipelineConfig] = Field(..., title="Pipeline Configuration")
 
 
@@ -71,6 +88,11 @@ class GARPOSConfig(BaseModel):
 
     garpos_path: Optional[Path] = Field(
         default=None, title="GARPOS Path", description="Path to GARPOS repository"
+    )
+    iterations: Optional[int] = Field(
+        2,
+        title="Number of Iterations",
+        description="Number of GARPOS inversion iterations to perform",
     )
     run_id: Optional[str] = Field(
         None,
@@ -135,7 +157,7 @@ class PipelineManifest(BaseModel):
     The main Pydantic model for parsing and validating the pipeline manifest file.
     """
 
-    main_dir: Path = Field(..., title="Main Directory")
+    main_directory: Path = Field(..., title="Main Directory")
 
     ingestion_jobs: List[PipelineIngestJob] = Field(
         default_factory=list, title="List of Pipeline Ingestion Jobs"

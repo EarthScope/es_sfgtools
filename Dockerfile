@@ -29,7 +29,7 @@ RUN make
 WORKDIR /home
 RUN git clone --depth 1 https://github.com/PrideLab/PRIDE-PPPAR.git
 
-ENV WORK_DIR /home/PRIDE-PPPAR
+ENV WORK_DIR=/home/PRIDE-PPPAR
 # Install the software
 RUN cd $WORK_DIR &&\
     chmod +x install.sh &&\

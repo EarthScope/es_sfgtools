@@ -54,8 +54,9 @@ def run_manifest(manifest_object: PipelineManifest):
             network_id=job.network, station_id=job.station, campaign_id=job.campaign
         )
         wfh.preprocess_run_pipeline_sv3(
-            job="all",
-            primary_config=job.config,
+            job=job.job_type,
+            primary_config=manifest_object.global_config,
+            secondary_config=job.config,
         )
 
     for job in manifest_object.garpos_jobs:
@@ -63,18 +64,19 @@ def run_manifest(manifest_object: PipelineManifest):
             network_id=job.network, station_id=job.station, campaign_id=job.campaign
         )
         wfh.midprocess_parse_surveys(override=False)
-        garpos_handler = wfh.modeling_get_garpos_handler()
+        
 
         surveys = (
             job.surveys
             if job.surveys
-            else [x.id for x in garpos_handler.current_campaign.surveys]
+            else [None]
         )
+
         for survey_id in surveys:
-            garpos_handler.run_garpos(
+            wfh.modeling_run_garpos(
+                iterations=job.config.iterations,
                 run_id=job.config.run_id,
                 override=job.config.override,
-                campaign_id=job.campaign,
                 survey_id=survey_id,
                 custom_settings=job.config,
             )
