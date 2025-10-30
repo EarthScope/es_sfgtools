@@ -21,7 +21,7 @@ config = SphinxConfig("../../pyproject.toml", globalns=globals())
 project = 'es-sfgtools'
 copyright = '2024, EarthScope'
 author = 'EarthScope'
-release = '0.0.1'
+release = '0.1.0'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
