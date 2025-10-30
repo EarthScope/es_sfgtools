@@ -159,7 +159,8 @@ class MetaDataCatalog(BaseModel):
         )
 
     def show(self):
-        """Displays an abridged structured representation of the catalog data.
+        """
+        Displays an abridged structured representation of the catalog data.
 
         This is displayed in JSON format.
 
@@ -202,7 +203,7 @@ class MetaDataCatalog(BaseModel):
             },
         }
         >>>
-        # Outputs the JSON representation of the catalog data to the console.
+        Outputs the JSON representation of the catalog data to the console.
         """
         to_show = {}
         if self.type == CatalogType.MetaData:
