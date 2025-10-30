@@ -186,30 +186,34 @@ def get_gnss_common_products_urls(date: datetime.date) -> Dict[str, Dict[str, Pa
         date (datetime.date): The date for which to retrieve the GNSS products.
     Returns:
         Dict[str, Dict[str, Path]]: A dictionary containing the GNSS products
-        categorized by product type and source. The structure of the dictionary is:
-            {   "sp3": {
+        categorized by product type and source. Example structure::
+
+            {
+                "sp3": {
                     "wuhan": Path to WuhanIGS sp3 product,
                     "cligs": Path to CLSIGS sp3 product,
-                    }.
+                },
                 "clk": {
                     "wuhan": Path to WuhanIGS clk product,
                     "cligs": Path to CLSIGS clk product,
-                    },
+                },
                 "bias": {
                     "wuhan": Path to WuhanIGS bias product,
                     "cligs": Path to CLSIGS bias product,
-                    },
+                },
                 "obx": {
                     "wuhan": Path to WuhanIGS obx product,
                     "cligs": Path to CLSIGS obx product,
-                    },
+                },
                 "erp": {
                     "wuhan": Path to WuhanIGS erp product,
                     "cligs": Path to CLSIGS erp product,
-                    }
+                },
             }
+
     Note:
-        Until the remote resorces are updated with 'update_source', the file_name attribute will be None.
+        Until the remote resources are updated with ``update_source``, the
+        `file_name` attribute will be ``None``.
     """
 
     urls = {

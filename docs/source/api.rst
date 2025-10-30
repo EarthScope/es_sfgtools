@@ -38,7 +38,6 @@ Catalogs, ingestion, and directory management utilities.
    :maxdepth: 1
 
    api/es_sfgtools.data_mgmt.*
-   api/es_sfgtools.data_mgmt.assetcatalog.*
 
 Data models
 -----------
