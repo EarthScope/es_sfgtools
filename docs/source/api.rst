@@ -123,11 +123,27 @@ Data models
 
 Pydantic models and schemas used across the project.
 
+Metadata Models
+~~~~~~~~~~~~~~~~
+
 .. toctree::
    :glob:
    :maxdepth: 1
 
-   api/es_sfgtools.data_models.*
+   api/es_sfgtools.data_models.metadata.*
+
+Other Data Models
+~~~~~~~~~~~~~~~~~
+
+.. toctree::
+   :glob:
+   :maxdepth: 1
+
+   api/es_sfgtools.data_models.community_standards
+   api/es_sfgtools.data_models.constants
+   api/es_sfgtools.data_models.log_models
+   api/es_sfgtools.data_models.observables
+   api/es_sfgtools.data_models.sv3_models
 
 ----
 
