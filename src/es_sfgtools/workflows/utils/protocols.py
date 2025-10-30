@@ -4,7 +4,7 @@ from abc import ABC
 from pathlib import Path
 
 from es_sfgtools.config import Environment, WorkingEnvironment
-from es_sfgtools.data_mgmt.directorymgmt import DirectoryHandler, CampaignDir, SurveyDir, NetworkDir, TileDBDir,StationDir
+from es_sfgtools.data_mgmt.directorymgmt import DirectoryHandler, CampaignDir, SurveyDir, NetworkDir, TileDBDir, StationDir
 from es_sfgtools.data_mgmt.assetcatalog.handler import PreProcessCatalogHandler
 from es_sfgtools.data_models.metadata import Site,Campaign,Survey
 
