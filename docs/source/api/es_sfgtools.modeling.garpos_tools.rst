@@ -12,7 +12,8 @@ Submodules
 .. toctree::
    :maxdepth: 4
 
+   es_sfgtools.modeling.garpos_tools.data_prep
    es_sfgtools.modeling.garpos_tools.functions
-   es_sfgtools.modeling.garpos_tools.garpos_handler
+   es_sfgtools.modeling.garpos_tools.load_utils
    es_sfgtools.modeling.garpos_tools.plotting
    es_sfgtools.modeling.garpos_tools.schemas
