@@ -227,8 +227,8 @@ class GarposHandler(WorkflowABC):
         """
         garpos_fixed_params = self.garpos_fixed.model_copy()
         if custom_settings is not None:
-            garpos_fixed_params = validate_and_merge_config(
-                base_class=garpos_fixed_params,
+            garpos_fixed_params.inversion_params = validate_and_merge_config(
+                base_class=garpos_fixed_params.inversion_params,
                 override_config=custom_settings
             )
 
