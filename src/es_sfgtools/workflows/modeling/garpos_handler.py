@@ -202,7 +202,7 @@ class GarposHandler(WorkflowABC):
         self,
         obsfile_path: Path,
         results_dir: Path,
-        custom_settings: Optional[dict] = None,
+        custom_settings: Optional[dict | InversionParams] = None,
         run_id: int | str = 0,
         override: bool = False) -> Path:
         """Runs the GARPOS model.
@@ -213,7 +213,7 @@ class GarposHandler(WorkflowABC):
             The path to the observation file.
         results_dir : Path
             The path to the results directory.
-        custom_settings : Optional[dict], optional
+        custom_settings : Optional[dict | InversionParams], optional
             Custom GARPOS settings to apply, by default None.
         run_id : int | str, optional
             The run ID, by default 0.
@@ -258,7 +258,7 @@ class GarposHandler(WorkflowABC):
     def _run_garpos_survey(
         self,
         survey_id: str,
-        custom_settings: Optional[dict] = None,
+        custom_settings: Optional[dict | InversionParams] = None,
         run_id: int | str = 0,
         iterations: int = 1,
         override: bool = False,
@@ -337,7 +337,7 @@ class GarposHandler(WorkflowABC):
         run_id: int | str = 0,
         iterations: int = 1,
         override: bool = False,
-        custom_settings: Optional[dict] = None, 
+        custom_settings: Optional[dict | InversionParams] = None, 
     ) -> None:
         """Run the GARPOS model for a specific date or for all dates.
 
@@ -351,7 +351,7 @@ class GarposHandler(WorkflowABC):
             The number of iterations to run, by default 1.
         override : bool, optional
             If True, override existing results, by default False.
-        custom_settings : dict, optional
+        custom_settings : dict | InversionParams, optional
             Custom GARPOS settings to apply, by default None.
         """
 
