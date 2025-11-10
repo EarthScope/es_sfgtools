@@ -28,7 +28,7 @@ dependencies:
   # - folium
   - sqlalchemy
   - sqlite=3.49.1
-  - go
+  - go>=1.24
   - go-cgo 
   - gcc
   - make
