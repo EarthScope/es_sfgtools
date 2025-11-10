@@ -23,7 +23,7 @@ RUN apt-get update && \
 # Stage 2: build golang binaries
 SHELL ["conda", "run", "-n", "seafloor_geodesy_linux", "/bin/bash", "-c"]
 WORKDIR /home/es_sfgtools/src/golangtools/
-RUN make  
+RUN go mod tidy && make  
 
 # Stage 3: install pride
 WORKDIR /home
