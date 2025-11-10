@@ -32,6 +32,7 @@ GO = $(CONDA_PREFIX)/bin/go
 
 # Build all commands
 # -buildvcs=false was added 8-21-25 to fix an issue building on AMD64 architecture
+# -buildvs flag removed on 11/10/25 
 build: $(COMMANDS)
 	@mkdir -p $(BUILD_DIR)
 	@for cmd in $(COMMANDS); do \
@@ -39,7 +40,7 @@ build: $(COMMANDS)
 		echo "Command Name: $$CMD_NAME"; \
 		BINARY_NAME=$${CMD_NAME}_$(OS)_$(ARCH); \
 		echo "Building $$BINARY_NAME for $(OS)/$(ARCH)..."; \
-		env CGO_ENABLED=1 GOOS=$(OS) GOARCH=$(ARCH) CGO_CFLAGS="$(CGO_CFLAGS)" CGO_LDFLAGS="$(CGO_LDFLAGS)" DYLD_LIBRARY_PATH=$(DYLD_LIBRARY_PATH) LD_LIBRARY_PATH=$(LD_LIBRARY_PATH) go build -o $(BUILD_DIR)/$$BINARY_NAME -buildvcs=false ./cmd/$$CMD_NAME; \
+		env CGO_ENABLED=1 GOOS=$(OS) GOARCH=$(ARCH) CGO_CFLAGS="$(CGO_CFLAGS)" CGO_LDFLAGS="$(CGO_LDFLAGS)" DYLD_LIBRARY_PATH=$(DYLD_LIBRARY_PATH) LD_LIBRARY_PATH=$(LD_LIBRARY_PATH) go build -o $(BUILD_DIR)/$$BINARY_NAME ./cmd/$$CMD_NAME; \
 	done
 
 debug:
