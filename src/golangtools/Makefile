@@ -27,6 +27,9 @@ CLANG_PATH = $(CONDA_PREFIX)/bin/clang
 PSEUDO_PATH = $(CLANG_PATH)
 CC = clang
 
+# Go executable
+GO = $(CONDA_PREFIX)/bin/go
+
 # Build all commands
 # -buildvcs=false was added 8-21-25 to fix an issue building on AMD64 architecture
 build: $(COMMANDS)
