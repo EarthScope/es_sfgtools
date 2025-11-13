@@ -477,6 +477,13 @@ class WorkflowHandler(WorkflowABC):
     ) -> IntermediateDataProcessor:
         """Returns an instance of the IntermediateDataProcessor for the current station.
 
+        Parameters
+        ----------
+        site_metadata : Optional[Union[Site, str]], optional
+            Optional site metadata or path to metadata file. If not provided, it will be loaded if available.
+        override_metadata_require : bool, optional
+            If True, bypasses the requirement for loaded site metadata, by default False.
+
         Returns
         -------
         IntermediateDataProcessor
@@ -590,6 +597,12 @@ class WorkflowHandler(WorkflowABC):
         self, overwrite: bool = False, override_metadata_require: bool = False
     ) -> None:
         """Uploads intermediate processed data to S3 for the current station.
+        Parameters
+        ----------
+        overwrite : bool, optional
+            If True, overwrites existing data on S3, by default False.
+        override_metadata_require : bool, optional
+            If True, bypasses the requirement for loaded site metadata, by default False.
 
         Raises
         ------
