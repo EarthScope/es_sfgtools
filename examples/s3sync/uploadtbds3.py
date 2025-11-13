@@ -29,7 +29,7 @@ from es_sfgtools.workflows.workflow_handler import WorkflowHandler
 NETWORK = "cascadia-gorda"
 CAMPAIGN = "2025_A_1126" # Note: The specific campaign does not matter as its station centric.
 STATIONS = ["NTH1", "NCC1", "NBR1", "GCC1","NCL1","NDP1"]
-HOME_DIR = "/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain"
+HOME_DIR = "/path/to/SeafloorGeodesy/SFGMain"
 workflow = WorkflowHandler(directory=HOME_DIR)
 
 for station in STATIONS:
