@@ -1,7 +1,7 @@
 """
-Seafloor Geodesy Data Processing Demo - GeoLab Environment
+Seafloor Geodesy Data Processing Demo - Upload TileDB Arrays to S3
 
-This demo shows the steps to sync tileDB arrays with preprocessed data to an S3 bucket.
+This demo shows the steps to sync TileDB arrays with preprocessed data to an S3 bucket.
 
 """
 # =============================================================================
