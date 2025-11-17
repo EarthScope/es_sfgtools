@@ -57,7 +57,7 @@ def display_pipelinemanifest(pipeline_manifest: PipelineManifest):
     metatable = Table(title="Pipeline Metadata", show_lines=True, width=CONSOLE_WIDTH)
     metatable.add_column("Field", style="cyan", no_wrap=True)
     metatable.add_column("Value", style="magenta", no_wrap=True)
-    metatable.add_row("Main Directory", str(pipeline_manifest.main_dir))
+    metatable.add_row("Main Directory", str(pipeline_manifest.main_directory))
 
     # Print the entry message
     console.print(entry_message)

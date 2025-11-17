@@ -94,7 +94,7 @@ class GARPOSConfig(BaseModel):
         description="Number of GARPOS inversion iterations to perform",
     )
     run_id: Optional[str] = Field(
-        None,
+        "0",
         title="Run ID",
         description="Optional run ID for GARPOS processing",
         coerce_numbers_to_str=True,
@@ -172,6 +172,10 @@ class PipelineManifest(BaseModel):
     )
     global_config: SV3PipelineConfig = Field(..., title="Global Config")
 
+    env: Optional[dict] = Field(
+        default_factory=dict, title="Environment Variables", description="Environment variables"
+    )
+
     class Config:
         arbitrary_types_allowed = True
 
@@ -190,8 +194,19 @@ class PipelineManifest(BaseModel):
         Returns:
             An instance of the PipelineManifest.
         """
-        global_config = SV3PipelineConfig(**data.get("globalConfig", {}))
-        garpos_config = GARPOSConfig(**data.get("garposConfig", {}))
+        if (global_config_data := data.get("globalConfig")) is not None:
+            global_config = SV3PipelineConfig(**global_config_data)
+        else:
+            global_config = SV3PipelineConfig()
+        
+        if (garpos_config_data := data.get("garposConfig")) is not None:
+            garpos_config = GARPOSConfig(**garpos_config_data)
+        else:
+            garpos_config = GARPOSConfig()
+
+        if (env_data := data.get("env")) is not None:
+            for key, value in env_data.items():
+                os.environ[key] = str(value)
 
         # Set GARPOS_PATH if provided
         if hasattr(garpos_config, "garpos_path"):

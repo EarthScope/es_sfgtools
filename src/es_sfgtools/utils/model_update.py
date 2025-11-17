@@ -38,7 +38,7 @@ def validate_keys_recursively(config_dict: dict, model_class: BaseModel, path: s
                 suggestion_text = "No similar keys found."
 
             errors.append(
-                f"Invalid key '{current_path}' in {model_class.__name__}. {suggestion_text}"
+                f"Invalid key '{current_path}' in {model_class.__repr_name__()}. {suggestion_text}"
             )
 
         # If the value is a dict and the field exists, check nested structure
@@ -93,8 +93,8 @@ def validate_and_merge_config(
     # Check if the base class is a Pydantic model
     if not isinstance(base_class, BaseModel):
         raise TypeError("base_class must be an instance of a Pydantic BaseModel")
-    if not isinstance(override_config, dict):
-        raise TypeError("override_config must be a dictionary")
+    if not isinstance(override_config, (dict, BaseModel)):
+        raise TypeError("override_config must be a dictionary or BaseModel instance")
 
     if isinstance(override_config, BaseModel):
         override_config = override_config.model_dump()
