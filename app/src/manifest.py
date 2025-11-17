@@ -94,7 +94,7 @@ class GARPOSConfig(BaseModel):
         description="Number of GARPOS inversion iterations to perform",
     )
     run_id: Optional[str] = Field(
-        None,
+        "0",
         title="Run ID",
         description="Optional run ID for GARPOS processing",
         coerce_numbers_to_str=True,
@@ -207,7 +207,7 @@ class PipelineManifest(BaseModel):
         if not (env_data := data.get("env")) is None:
             for key, value in env_data.items():
                 os.environ[key] = str(value)
-                
+
         # Set GARPOS_PATH if provided
         if hasattr(garpos_config, "garpos_path"):
             os.environ["GARPOS_PATH"] = str(garpos_config.garpos_path)
