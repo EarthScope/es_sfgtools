@@ -609,7 +609,7 @@ class WorkflowHandler(WorkflowABC):
         Raises
         ------
         ValueError
-            If site metadata is not loaded.
+            If site metadata is not loaded and ``override_metadata_require`` is False.
         """
         dataPostProcessor: IntermediateDataProcessor = self.midprocess_get_processor(self.current_station_metadata, override_metadata_require=override_metadata_require)
         dataPostProcessor.midprocess_sync_s3(overwrite=overwrite)
