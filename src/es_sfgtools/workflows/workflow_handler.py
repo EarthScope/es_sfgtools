@@ -498,6 +498,8 @@ class WorkflowHandler(WorkflowABC):
             # Ensure site metadata is loaded
             self.midprocess_get_sitemeta(site_metadata=site_metadata)
 
+        if self.current_station_metadata is None:
+            raise ValueError("Station metadata must be loaded before initializing IntermediateDataProcessor.")
         dataPostProcessor = IntermediateDataProcessor(
             station_metadata=self.current_station_metadata,
             directory_handler=self.data_handler.directory_handler,
