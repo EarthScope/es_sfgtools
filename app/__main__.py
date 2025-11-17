@@ -8,11 +8,16 @@ import os
 import sys
 from pathlib import Path
 from typing import List
-
 import typer
+import multiprocessing
+try:
+    multiprocessing.set_start_method("spawn", force=True)
+except RuntimeError:
+    # This will fail if the context has already been set, which is fine.
+    pass
+
 from es_sfgtools.logging import ProcessLogger
 from es_sfgtools.config.env_config import Environment
-
 Environment.load_working_environment()
 
 
