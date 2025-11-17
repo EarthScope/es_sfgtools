@@ -14,7 +14,7 @@ from es_sfgtools.logging import ProcessLogger
 from es_sfgtools.config.env_config import Environment
 
 Environment.load_working_environment()
-Environment.load_aws_credentials()
+
 
 # This is a temporary workaround for the import system.
 # A better long-term solution is to install the package in editable mode.
@@ -52,6 +52,7 @@ def run(file: Path):
             manifest_object = PipelineManifest.from_yaml(file)
         case _:
             raise ValueError(f"Unsupported file type: {file.suffix}")
+    Environment.load_aws_credentials()
     run_manifest(manifest_object)
 
 
