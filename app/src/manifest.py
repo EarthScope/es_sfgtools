@@ -194,17 +194,17 @@ class PipelineManifest(BaseModel):
         Returns:
             An instance of the PipelineManifest.
         """
-        if not (global_config_data := data.get("globalConfig")) is None:
+        if (global_config_data := data.get("globalConfig")) is not None:
             global_config = SV3PipelineConfig(**global_config_data)
         else:
             global_config = SV3PipelineConfig()
         
-        if not (garpos_config_data := data.get("garposConfig")) is None:
+        if (garpos_config_data := data.get("garposConfig")) is not None:
             garpos_config = GARPOSConfig(**garpos_config_data)
         else:
             garpos_config = GARPOSConfig()
 
-        if not (env_data := data.get("env")) is None:
+        if (env_data := data.get("env")) is not None:
             for key, value in env_data.items():
                 os.environ[key] = str(value)
 
