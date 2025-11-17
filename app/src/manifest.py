@@ -268,7 +268,7 @@ class PipelineManifest(BaseModel):
 
         # Instantiate the PipelineManifest
         return cls(
-            main_dir=Path(data["projectDir"]),
+            main_directory=Path(data["projectDir"]),
             ingestion_jobs=ingestion_jobs,
             process_jobs=process_jobs,
             download_jobs=download_jobs,
