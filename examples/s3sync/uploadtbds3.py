@@ -39,4 +39,4 @@ for station in STATIONS:
         campaign_id=CAMPAIGN,
     )
     # Sync TileDB arrays to S3
-    workflow.midprocess_upload_s3(overwrite=False,override_metadata_require=True)
+    workflow.midprocess_upload_s3(overwrite=False, override_metadata_require=True)
