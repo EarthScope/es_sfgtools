@@ -492,7 +492,7 @@ class WorkflowHandler(WorkflowABC):
         Raises
         ------
         ValueError
-            If site metadata is not loaded.
+            If site metadata is not loaded and override_metadata_require is False.
         """
         if not override_metadata_require:
             # Ensure site metadata is loaded
