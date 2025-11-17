@@ -190,8 +190,15 @@ class PipelineManifest(BaseModel):
         Returns:
             An instance of the PipelineManifest.
         """
-        global_config = SV3PipelineConfig(**data.get("globalConfig", {}))
-        garpos_config = GARPOSConfig(**data.get("garposConfig", {}))
+        if not (global_config_data := data.get("globalConfig")) is None:
+            global_config = SV3PipelineConfig(**global_config_data)
+        else:
+            global_config = SV3PipelineConfig()
+        
+        if not (garpos_config_data := data.get("garposConfig")) is None:
+            garpos_config = GARPOSConfig(**garpos_config_data)
+        else:
+            garpos_config = GARPOSConfig()
 
         # Set GARPOS_PATH if provided
         if hasattr(garpos_config, "garpos_path"):
