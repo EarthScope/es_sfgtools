@@ -137,8 +137,8 @@ class GARPOSSurveyDir(_Base):
         """
         shotdata_files = list(self.location.glob("*_rectified.csv"))
         if shotdata_files:
-            self.shotdata_rectified = shotdata_files[0]
-            return self.shotdata_rectified
+            return shotdata_files[0]
+        
         return None
     @classmethod
     def is_garpos_directory(cls,path: Path| S3Path) -> bool:
