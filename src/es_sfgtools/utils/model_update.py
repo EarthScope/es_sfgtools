@@ -94,7 +94,7 @@ def validate_and_merge_config(
     if not isinstance(base_class, BaseModel):
         raise TypeError("base_class must be an instance of a Pydantic BaseModel")
     if not isinstance(override_config, (dict, BaseModel)):
-        raise TypeError("override_config must be a dictionary")
+        raise TypeError("override_config must be a dictionary or BaseModel instance")
 
     if isinstance(override_config, BaseModel):
         override_config = override_config.model_dump()
