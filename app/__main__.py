@@ -11,6 +11,10 @@ from typing import List
 
 import typer
 from es_sfgtools.logging import ProcessLogger
+from es_sfgtools.config.env_config import Environment
+
+Environment.load_working_environment()
+Environment.load_aws_credentials()
 
 # This is a temporary workaround for the import system.
 # A better long-term solution is to install the package in editable mode.
