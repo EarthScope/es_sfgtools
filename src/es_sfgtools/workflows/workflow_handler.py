@@ -459,25 +459,30 @@ class WorkflowHandler(WorkflowABC):
                     site_metadata=site_metadata
                 )
 
-
         elif isinstance(site_metadata, (str, Path)):
             site_metadata = Site.from_json(site_metadata)
 
         else:
             assert isinstance(site_metadata, Site), "site_metadata must be of type Site if not a str or Path"   
-        
 
         if site_metadata is None:
             raise ValueError("Site metadata not loaded or provided, cannot proceed")
-        
+
         self.current_station_metadata = site_metadata
         return self.current_station_metadata
 
     @validate_network_station_campaign
     def midprocess_get_processor(
-        self, site_metadata: Optional[Union[Site, str]] = None
+        self, site_metadata: Optional[Union[Site, str]] = None, override_metadata_require: bool = False
     ) -> IntermediateDataProcessor:
         """Returns an instance of the IntermediateDataProcessor for the current station.
+
+        Parameters
+        ----------
+        site_metadata : Optional[Union[Site, str]], optional
+            Optional site metadata or path to metadata file. If not provided, it will be loaded if available.
+        override_metadata_require : bool, optional
+            If True, bypasses the requirement for loaded site metadata, by default False.
 
         Returns
         -------
@@ -487,15 +492,19 @@ class WorkflowHandler(WorkflowABC):
         Raises
         ------
         ValueError
-            If site metadata is not loaded.
+            If site metadata is not loaded and override_metadata_require is False.
         """
-        # Ensure site metadata is loaded
-        self.midprocess_get_sitemeta(site_metadata=site_metadata)
+        if not override_metadata_require:
+            # Ensure site metadata is loaded
+            self.midprocess_get_sitemeta(site_metadata=site_metadata)
 
+        if self.current_station_metadata is None:
+            raise ValueError("Station metadata must be loaded before initializing IntermediateDataProcessor.")
         dataPostProcessor = IntermediateDataProcessor(
             station_metadata=self.current_station_metadata,
             directory_handler=self.data_handler.directory_handler,
         )
+        dataPostProcessor.mid_process_workflow = not override_metadata_require
         dataPostProcessor.set_network(network_id=self.current_network_name)
         dataPostProcessor.set_station(station_id=self.current_station_name)
         dataPostProcessor.set_campaign(campaign_id=self.current_campaign_name)
@@ -586,15 +595,23 @@ class WorkflowHandler(WorkflowABC):
         )
 
     @validate_network_station_campaign
-    def midprocess_upload_s3(self,overwrite: bool = False) -> None:
+    def midprocess_upload_s3(
+        self, overwrite: bool = False, override_metadata_require: bool = False
+    ) -> None:
         """Uploads intermediate processed data to S3 for the current station.
+        Parameters
+        ----------
+        overwrite : bool, optional
+            If True, overwrites existing data on S3, by default False.
+        override_metadata_require : bool, optional
+            If True, bypasses the requirement for loaded site metadata, by default False.
 
         Raises
         ------
         ValueError
-            If site metadata is not loaded.
+            If site metadata is not loaded and ``override_metadata_require`` is False.
         """
-        dataPostProcessor: IntermediateDataProcessor = self.midprocess_get_processor(self.current_station_metadata)
+        dataPostProcessor: IntermediateDataProcessor = self.midprocess_get_processor(self.current_station_metadata, override_metadata_require=override_metadata_require)
         dataPostProcessor.midprocess_sync_s3(overwrite=overwrite)
 
     @validate_network_station_campaign
