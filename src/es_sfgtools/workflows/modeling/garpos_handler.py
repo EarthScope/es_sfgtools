@@ -225,6 +225,10 @@ class GarposHandler(WorkflowABC):
         Path
             The path to the results file.
         """
+        # Edge case: if run_id is None, set to 0
+        if run_id is None:
+            run_id = 0
+
         garpos_fixed_params = self.garpos_fixed.model_copy()
         if custom_settings is not None:
             garpos_fixed_params.inversion_params = validate_and_merge_config(
