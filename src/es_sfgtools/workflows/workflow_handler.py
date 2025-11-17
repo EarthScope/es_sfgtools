@@ -83,7 +83,7 @@ class WorkflowHandler(WorkflowABC):
 
         # Create DataHandler instance for data operations
         self.data_handler = DataHandler(directory=directory)
-
+  
     def set_network_station_campaign(
         self, network_id: str, station_id: str, campaign_id: str
     ):
@@ -109,6 +109,8 @@ class WorkflowHandler(WorkflowABC):
             if value is not None and hasattr(self,key):
                 setattr(self,key,value)
                 logger.logdebug(f"WorkflowHandler state updated: {key} = {value}")
+        
+        self._geolab_s3_synced = False
 
     @validate_network_station_campaign
     def ingest_add_local_data(self, directory_path: Path) -> None:
@@ -539,10 +541,11 @@ class WorkflowHandler(WorkflowABC):
         """
         if Environment.working_environment() == WorkingEnvironment.GEOLAB:
             self.data_handler.geolab_get_s3(overwrite=override)
-            for key,value in self.data_handler.__dict__.items():
-                if value is not None and hasattr(self,key):
-                    setattr(self,key,value)
+            for key, value in self.data_handler.__dict__.items():
+                if value is not None and hasattr(self, key):
+                    setattr(self, key, value)
                     logger.logdebug(f"WorkflowHandler state updated: {key} = {value}")
+            
 
         dataPostProcessor: IntermediateDataProcessor = self.midprocess_get_processor(site_metadata=site_metadata)
         dataPostProcessor.parse_surveys(

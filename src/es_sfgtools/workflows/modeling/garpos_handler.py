@@ -227,8 +227,8 @@ class GarposHandler(WorkflowABC):
         """
         garpos_fixed_params = self.garpos_fixed.model_copy()
         if custom_settings is not None:
-            garpos_fixed_params = validate_and_merge_config(
-                base_class=garpos_fixed_params,
+            garpos_fixed_params.inversion_params = validate_and_merge_config(
+                base_class=garpos_fixed_params.inversion_params,
                 override_config=custom_settings
             )
 
@@ -363,7 +363,7 @@ class GarposHandler(WorkflowABC):
                 f"Running GARPOS model for survey {survey_id}. Run ID: {run_id}"
             )
             self._run_garpos_survey(
-                survey_id=survey_id, run_id=run_id, override=override, iterations=iterations, custom_settings=custom_settings
+                survey_id=survey_id, run_id=run_id, override=override, iterations=iterations, custom_settings=dict(custom_settings).get("inversion_params") if custom_settings else None
             )
 
     def plot_ts_results(

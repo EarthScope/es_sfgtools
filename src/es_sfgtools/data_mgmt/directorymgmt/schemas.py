@@ -1,7 +1,7 @@
 import datetime
 import json
 from pathlib import Path
-from typing import Optional, Union
+from typing import Any, Optional, Union
 from es_sfgtools.config.env_config import Environment,WorkingEnvironment
 from cloudpathlib import S3Path
 from pydantic import BaseModel, Field, PrivateAttr,model_serializer
@@ -38,7 +38,7 @@ class _Base(BaseModel):
     types.
     """
     @model_serializer
-    def serialize(self) -> dict[str, any]:
+    def serialize(self) -> dict[str, Any]:
         """Custom serializer to include private attributes."""
         raw = self.__dict__
         output = {}
@@ -116,6 +116,9 @@ class GARPOSSurveyDir(_Base):
         if not self.svp_file:
             self.svp_file = self.location / SVP_FILE_NAME
 
+        if not self.shotdata_rectified:
+            self.shotdata_rectified = self.find_rectified_shotdata()
+
         # Create directories if they don't exist
         for path in [
             self.location,
@@ -124,6 +127,19 @@ class GARPOSSurveyDir(_Base):
         ]:
             path.mkdir(parents=True, exist_ok=True)
 
+    def find_rectified_shotdata(self) -> Optional[Path]:
+        """Find the rectified shotdata file in the GARPOS directory.
+
+        Returns
+        -------
+        Optional[Path]
+            The path to the rectified shotdata file if found, else None.
+        """
+        shotdata_files = list(self.location.glob("*_rectified.csv"))
+        if shotdata_files:
+            self.shotdata_rectified = shotdata_files[0]
+            return self.shotdata_rectified
+        return None
     @classmethod
     def is_garpos_directory(cls,path: Path| S3Path) -> bool:
         """Check if the given path is a valid GARPOS survey directory.
