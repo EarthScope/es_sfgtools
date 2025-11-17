@@ -172,6 +172,10 @@ class PipelineManifest(BaseModel):
     )
     global_config: SV3PipelineConfig = Field(..., title="Global Config")
 
+    env: Optional[dict] = Field(
+        default_factory=dict, title="Environment Variables", description="Environment variables"
+    )
+
     class Config:
         arbitrary_types_allowed = True
 
@@ -200,6 +204,10 @@ class PipelineManifest(BaseModel):
         else:
             garpos_config = GARPOSConfig()
 
+        if not (env_data := data.get("env")) is None:
+            for key, value in env_data.items():
+                os.environ[key] = str(value)
+                
         # Set GARPOS_PATH if provided
         if hasattr(garpos_config, "garpos_path"):
             os.environ["GARPOS_PATH"] = str(garpos_config.garpos_path)
