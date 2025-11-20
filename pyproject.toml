@@ -1,28 +1,49 @@
+# Build system configuration and define tools required to build the package
 [build-system]
-requires = ["setuptools>=62.6", "wheel"]
+requires = [
+    "setuptools>=62.6",
+    "setuptools_scm[toml]>=6.2",
+    "wheel"
+]
 build-backend = "setuptools.build_meta"
 
+# Project metadata (basic information about the package)
 [project]
 name = "es_sfgtools"
-version ="0.0.2"
-authors = [
-  { name="Mike Gottlieb", email="mike.gottlieb@earthscope.org" },
-  { name="Franklyn Dunbar",email="franklyn.dunbar@earthscope.org"},
-  { name="Rachel Terry", email="rachel.terry@earthscope.org"}
-]
 description = "Utilities for translating and processing Seafloor Geodesy data"
 readme = "README.md"
-license = { file="LICENSE" }
+license = { file = "LICENSE" }
 requires-python = ">= 3.10"
+
+# Authors
+authors = [
+  { name = "Mike Gottlieb", email = "mike.gottlieb@earthscope.org" },
+  { name = "Franklyn Dunbar", email = "franklyn.dunbar@earthscope.org" },
+  { name = "Rachel Akie", email = "rachel.akie@earthscope.org" }
+]
+
+# Classifiers help users find your project
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
 ]
-dynamic = ["dependencies", "optional-dependencies"]
 
-[tool.setuptools.dynamic]
-dependencies = {file = ["requirements.txt"]}
-optional-dependencies = {dev = { file = ["requirements-dev.txt"] }}
+# Dynamic fields are determined at build time
+# 'version' comes from setuptools_scm (git tags)
+# 'dependencies' come from requirements.txt files
+dynamic = ["version", "dependencies", "optional-dependencies"]
 
+# Project URLs
 [project.urls]
-"Homepage" = "https://gitlab.com/earthscope/public/seafloor-geodesy"
+"Homepage" = "https://github.com/EarthScope/es_sfgtools"
+"ReadTheDocs" = "https://es-sfgtools.readthedocs.io/en/latest/"
+
+# Configuration for setuptools_scm (manages the versioning automatically using git tags)
+[tool.setuptools_scm]
+write_to = "src/es_sfgtools/_version.py"
+
+# Configuration for dynamic dependencies
+# Tells setuptools where to find the requirements files
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
+optional-dependencies = { dev = { file = ["requirements-dev.txt"] } }

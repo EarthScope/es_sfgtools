@@ -1,22 +1,22 @@
-# boto3
-# botocore
-# numpy
-# pandas
-# scipy
-# julian
-# pyarrow
-# pandera
-# pydantic
-# pyproj
-# pymap3d
-# tqdm
-# earthscope-sdk
-# earthscope-cli
-# ipywidgets
-# matplotlib
-# seaborn
-# folium
-# scikit-learn
-# sqlalchemy
-# tiledb
-# garpos @ git+https://github.com/EarthScope/garpos.git
+numpy
+scipy
+pandas
+matplotlib
+scikit-learn
+julian
+pandera==0.20.3
+pyarrow
+pydantic
+pyproj
+pymap3d
+boto3
+botocore
+tqdm
+seaborn
+sqlalchemy
+tiledb
+python-dotenv
+scikit-sparse
+earthscope-sdk==1.1.0
+earthscope-cli==1.0.1
+garpos @ git+https://github.com/EarthScope/garpos.git
