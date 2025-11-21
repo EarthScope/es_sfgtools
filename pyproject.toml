@@ -43,7 +43,6 @@ dynamic = ["version", "dependencies", "optional-dependencies"]
 write_to = "src/es_sfgtools/_version.py"
 
 # Configuration for dynamic dependencies
-# Tells setuptools where to find the requirements files
 [tool.setuptools.dynamic]
-dependencies = { file = ["requirements.txt"] }
+dependencies = { file = ["pip_requirements.txt"] }
 optional-dependencies = { dev = { file = ["requirements-dev.txt"] } }

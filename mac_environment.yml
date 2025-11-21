@@ -1,53 +1,15 @@
+# macOS-specific environment
+# Includes base dependencies and adds macOS-specific packages
+
 name: seafloor_geodesy_mac
 channels:
   - defaults
   - conda-forge
-dependencies: 
-  - python=3.11
-  - pip
-  - numpy
-  - scipy
-  - pandas
-  - matplotlib
-  - scikit-learn
+
+dependencies:
+  # Include base shared dependencies
+  - base_environment.yml
+  
+  # macOS-specific packages
   - gfortran
-  - julian
-  - pandera=0.20.3
-  - pyarrow
-  - pydantic
-  # - libtiff
-  - pyproj
-  - pymap3d
-  - boto3
-  - botocore
-  - tqdm
-  - ipykernel
-  # - ipywidgets
-  - seaborn
-  - sqlalchemy
-  - go
-  - go-cgo 
-  - make
-  - tiledb=2.28
-  - tiledb-py
   - clang
-  - scikit-sparse
-  - sphinx
-  - sphinx-rtd-theme
-  - myst-parser
-  - sphinxcontrib-apidoc
-  - python-dotenv
-  - pip:
-    - -e .
-    - garpos @ git+https://github.com/EarthScope/garpos.git
-    - earthscope-sdk==1.1.0
-    - earthscope-cli==1.0.1
-    # - multipledispatch
-    # - multiprocessing_logging
-    - sphinx_pyproject
-    - gnatss
-    - regex
-    - cloudpathlib[s3]
-    
-variables:
-  CGO_ENABLED: 1
