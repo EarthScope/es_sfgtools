@@ -28,10 +28,54 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 
-# Dynamic fields are determined at build time
-# 'version' comes from setuptools_scm (git tags)
-# 'dependencies' come from requirements.txt files
-dynamic = ["version", "dependencies", "optional-dependencies"]
+# Dynamic fields are determined at build time -- 'version' comes from setuptools_scm (git tags)
+dynamic = ["version"]
+
+# --- Runtime dependencies (Python packages your code actually imports) ---
+dependencies = [
+  "numpy",
+  "scipy",
+  "pandas",
+  "matplotlib",
+  "scikit-learn",
+  "julian",
+  "pandera==0.20.3",
+  "pyarrow",
+  "pydantic",
+  "pyproj",
+  "pymap3d",
+  "boto3",
+  "botocore",
+  "tqdm",
+  "sqlalchemy",
+  "python-dotenv",
+  "tiledb",
+  "seaborn",
+  # "scikit-sparse",
+  # "tiledb-py",
+  "earthscope-sdk==1.1.0",
+  "earthscope-cli==1.0.1",
+  # "garpos @ git+https://github.com/EarthScope/garpos.git",
+  "gnatss",
+  "regex",
+  "cloudpathlib[s3]",
+]
+
+[project.optional-dependencies]
+# Everything you only need for dev / docs / notebooks
+dev = [
+  "sphinx",
+  "sphinx-rtd-theme",
+  "myst-parser",
+  "sphinxcontrib-apidoc",
+  "sphinx_pyproject",
+]
+notebook = [
+  "ipykernel",
+]
+garpos = [
+  "garpos @ git+https://github.com/EarthScope/garpos.git",
+]
 
 # Project URLs
 [project.urls]
@@ -42,7 +86,9 @@ dynamic = ["version", "dependencies", "optional-dependencies"]
 [tool.setuptools_scm]
 write_to = "src/es_sfgtools/_version.py"
 
-# Configuration for dynamic dependencies
-[tool.setuptools.dynamic]
-dependencies = { file = ["pip_requirements.txt"] }
-optional-dependencies = { dev = { file = ["requirements-dev.txt"] } }
+# Tell setuptools you're using 'src/' layout
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
