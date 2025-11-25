@@ -3,43 +3,51 @@ channels:
   - defaults
   - conda-forge
 dependencies: 
+ # Python version & pip
   - python=3.11
   - pip
-  - numpy
-  - scipy
-  - pandas
-  - matplotlib
-  - scikit-learn
-  - gfortran
+
+  # Code dependencies
+  - bc # in linux but not mac?
+  - boto3
+  - botocore
+  - ipykernel
   - julian
+  - matplotlib
+  - numpy
   - pandera=0.20.3
+  - pandas
   - pyarrow
   - pydantic
   - pyproj
   - pymap3d
-  - boto3
-  - botocore
-  - tqdm
-  - nodejs
-  - ipykernel
+  - python-dotenv
+  - scipy
+  - scikit-learn
+  - scikit-sparse
   - seaborn
   - sqlalchemy
-  - sqlite=3.49.1
-  - go
-  - go-cgo 
-  - gcc
-  - make
+  - sqlite=3.49.1 # in linux but not mac?
   - tiledb=2.28
   - tiledb-py
-  - libstdcxx-ng
+  - tqdm
+
+  # Build / compiler dependencies
   - clang
-  - python-dotenv
-  - scikit-sparse
-  - sphinx
-  - sphinx-rtd-theme
+  - gcc
+  - gfortran
+  - go
+  - go-cgo 
+  - libstdcxx-ng
+  - make
+  - nodejs
+
+  # Documentation dependencies (Optional)
   - myst-parser
+  - sphinx
   - sphinxcontrib-apidoc
-  - bc
+  - sphinx-rtd-theme
+
   - pip:
     # - -e .
     - es_sfgtools
