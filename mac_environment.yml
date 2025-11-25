@@ -1,4 +1,4 @@
-name: test_seafloor_geodesy_mac
+name: seafloor_geodesy_mac
 channels:
   - defaults
   - conda-forge
@@ -44,8 +44,9 @@ dependencies:
   - sphinx-rtd-theme
 
   - pip:
-    # - -e .
-    - es_sfgtools
+    # - .
+    # - es_sfgtools
+    - es-sfgtools==0.1.1a1.dev1
     - garpos @ git+https://github.com/EarthScope/garpos.git
     - earthscope-sdk==1.1.0
     - earthscope-cli==1.0.1
