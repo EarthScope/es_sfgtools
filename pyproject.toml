@@ -51,11 +51,8 @@ dependencies = [
   "python-dotenv",
   "tiledb",
   "seaborn",
-  # "scikit-sparse",
-  # "tiledb-py",
   "earthscope-sdk==1.1.0",
   "earthscope-cli==1.0.1",
-  # "garpos @ git+https://github.com/EarthScope/garpos.git",
   "gnatss",
   "regex",
   "cloudpathlib[s3]",
@@ -73,9 +70,9 @@ dev = [
 notebook = [
   "ipykernel",
 ]
-garpos = [
-  "garpos @ git+https://github.com/EarthScope/garpos.git",
-]
+# garpos = [
+#   "garpos @ git+https://github.com/EarthScope/garpos.git",
+# ]
 
 # Project URLs
 [project.urls]
