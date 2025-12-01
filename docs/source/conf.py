@@ -5,12 +5,8 @@ This module contains the configuration for the Sphinx documentation builder.
 import os
 import sys
 
-from sphinx_pyproject import SphinxConfig
-
 # sys.path.insert(0, os.path.abspath('.'))
 sys.path.insert(0, os.path.abspath('../../src/es_sfgtools'))
-
-config = SphinxConfig("../../pyproject.toml", globalns=globals())
 
 # For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
@@ -21,7 +17,15 @@ config = SphinxConfig("../../pyproject.toml", globalns=globals())
 project = 'es-sfgtools'
 copyright = '2024, EarthScope'
 author = 'EarthScope'
-release = '0.0.1'
+
+# Get version from setuptools_scm
+try:
+    from importlib.metadata import version
+    release = version('es-sfgtools')
+except Exception:
+    release = '0.0.0'
+
+version = '.'.join(release.split('.')[:2])  # Short X.Y version
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
