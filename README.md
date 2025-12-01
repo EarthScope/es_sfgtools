@@ -1,48 +1,80 @@
 # EarthScope Seafloor Geodesy Tools
 
-This repo contains a python library `es_sfgtools` designed to enable users to preprocess raw GNSS-A data from Liquid Robotics SV2 and SV3 wavegliders, as well as run GNSS-A processing using [GARPOS](https://github.com/s-watanabe-jhod/garpos)
+`es_sfgtools` is a Python library designed to support preprocessing and GNSS-A processing workflows for Seafloor Geodesy using data from Liquid Robotics SV2/SV3 Wave Gliders.  
+
+The toolkit also integrates with the [**GARPOS**](https://github.com/s-watanabe-jhod/garpos) GNSS-A processing.
 
 Due to a dependency of GARPOS, the library currently is only installable via conda.  Also GARPOS installation requires gfortran, which (if you dont already have it) can be installed on a mac with the command
 > brew install gfortran
 
-### Conda Install Instructions
+## Installation  
 
-clone the library and enter the repo
-> git clone https://github.com/EarthScope/es_sfgtools.git
+1. Clone the repository
 
-> cd es_sfgtools
+    ```bash
+    git clone https://github.com/EarthScope/es_sfgtools.git
+    cd es_sfgtools
+    ```
 
-create and activate conda environment (use the correct environment file for your OS)
-i.e. on mac:
-> conda env create -f environment_mac.yml
+2. Create and activate a Conda environment
 
-> conda activate seafloor_geodesy_mac
+    Choose the environment file appropriate for your operating system.
 
-In order to run parts of the library dependent on TileDB, you may also need to set the following environmental variable (use the correct path to your conda environment lib folder)
+    **macOS**
 
-> export DYLD_LIBRARY_PATH=/Users/gottlieb/miniconda3/envs/seafloor_geodesy/lib
+    ```bash
+    conda env create -f mac_environment.yml
+    conda activate seafloor_geodesy_mac
+    ```
 
+    **linux**
 
-## In development... [ReadTheDocs](https://es-sfgtools.readthedocs.io/en/latest/)
+    ```bash
+    conda env create -f linux_environment.yml
+    conda activate seafloor_geodesy_mac
+    ```
 
-### notes on dependency files
+    These environment files provide all required scientific and compiler dependencies.
 
+    **macOS TileDB Note (DYLD path)**
 
-environment.yml
-- conda dependencies file for linux
+    In order to run parts of the library dependent on TileDB, you may also need to set the following environmental variable (use the correct path to your conda environment lib folder)
 
-environment_mac.yml
-- conda dependencies file for mac
+    `export DYLD_LIBRARY_PATH="/path/to/conda/env/lib"`
 
-pyproject.toml
-- used to pip install this library into the conda environment. 
+    For example:
+    `export DYLD_LIBRARY_PATH="$HOME/miniconda3/envs/seafloor_geodesy_mac/lib"`
 
-requirements.txt
-- not used currently
+## Documentation
 
-requirements-dev.txt
-- dev requirements pointed to by pyproj.toml
+Documentation (in development) is available on ReadTheDocs:
 
-docs/requirements.txt
-- requirements currently pointed to by pyproj.toml.  currently contains sphynx/RTD dependencies only, untested if that works.
+[ReadTheDocs](https://es-sfgtools.readthedocs.io/en/latest/)
 
+## Repository Files & Dependency Notes
+
+* `linux_environment.yml`
+  * Conda environment specification for Linux.
+
+* `mac_environment.yml`
+  * Conda environment specification for macOS.
+  * Includes macOS compiler toolchain (clang, gfortran).
+
+* `pyproject.toml`
+  * Defines Python package metadata for PyPI distribution.
+  * Conda environment installs from this.
+
+* `requirements-dev.txt`
+  * dev requirements pointed to by pyproj.toml
+
+* `docs/requirements.txt`
+  * Documentation build dependencies (Sphinx, RTD theme, myst-parser).
+
+## Versioning
+
+This project uses setuptools_scm for automatic versioning from git tags. Version information is generated at build time.
+
+---
+
+**Maintainers**: Mike Gottlieb, Franklyn Dunbar, Rachel Akie
+**Organization**: [EarthScope](https://www.earthscope.org/)

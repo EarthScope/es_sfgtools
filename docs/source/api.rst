@@ -13,6 +13,14 @@ Workflows & Pipelines
 High-level workflow and pipeline implementations (SV2/SV3 and related pipeline
 helpers).
 
+Workflow Handler
+~~~~~~~~~~~~~~~~
+.. toctree::
+   :glob:
+   :maxdepth: 1
+
+   api/es_sfgtools.workflows.workflow_handler.*
+
 Pre-Processing
 ~~~~~~~~~~~~~~
 

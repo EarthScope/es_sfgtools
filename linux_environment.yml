@@ -3,53 +3,57 @@ channels:
   - defaults
   - conda-forge
 dependencies: 
+ # Python version & pip
   - python=3.11
   - pip
-  - numpy
-  - scipy
-  - pandas
-  - matplotlib
-  - scikit-learn
-  - gfortran
-  - julian
-  - pandera=0.20.3
-  - pyarrow
-  - pydantic
-#  - libtiff
-  - pyproj
-  - pymap3d
+
+  # Code dependencies
+  - bc # in linux but not mac?
   - boto3
   - botocore
-  - tqdm
-  - nodejs
   - ipykernel
-#  - ipywidgets
+  - julian
+  - matplotlib
+  - numpy
+  - pandera=0.20.3
+  - pandas
+  - pyarrow
+  - pydantic
+  - pyproj
+  - pymap3d
+  - python-dotenv
+  - scipy
+  - scikit-learn
+  - scikit-sparse
   - seaborn
-  # - folium
   - sqlalchemy
-  - sqlite=3.49.1
-  - go
-  - go-cgo 
-  - gcc
-  - make
+  - sqlite=3.49.1 # in linux but not mac?
   - tiledb=2.28
   - tiledb-py
-  - libstdcxx-ng
+  - tqdm
+
+  # Build / compiler dependencies
   - clang
-  - python-dotenv
-  - scikit-sparse
-  - sphinx
-  - sphinx-rtd-theme
+  - gcc
+  - gfortran
+  - go
+  - go-cgo 
+  - libstdcxx-ng
+  - make
+  - nodejs
+
+  # Documentation dependencies (Optional)
   - myst-parser
+  - sphinx
   - sphinxcontrib-apidoc
-  - bc
+  - sphinx-rtd-theme
+
   - pip:
-    - -e .
+    # - -e .
+    - es-sfgtools
     - garpos @ git+https://github.com/EarthScope/garpos.git
     - earthscope-sdk==1.1.0
     - earthscope-cli==1.0.1
-   # - multipledispatch
-   # - multiprocessing_logging
     - sphinx_pyproject
     - gnatss
     - regex
