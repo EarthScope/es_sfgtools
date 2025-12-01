@@ -19,7 +19,7 @@ Workflow Handler
    :glob:
    :maxdepth: 1
 
-   api/es_sfgtools.workflows.workflow_handler.*
+   api/es_sfgtools.workflows.workflow_handler
 
 Pre-Processing
 ~~~~~~~~~~~~~~
