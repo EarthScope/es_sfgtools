@@ -50,7 +50,7 @@ dependencies:
 
   - pip:
     # - -e .
-    - es-sfgtools==0.1.1a1.dev1
+    - es-sfgtools
     - garpos @ git+https://github.com/EarthScope/garpos.git
     - earthscope-sdk==1.1.0
     - earthscope-cli==1.0.1
