@@ -1,4 +1,5 @@
 # EarthScope Seafloor Geodesy Tools
+[![Read the Docs](https://readthedocs.org/projects/es-sfgtools/badge/?version=latest)](https://es-sfgtools.readthedocs.io/en/latest/)
 
 `es_sfgtools` is a Python library designed to support preprocessing and GNSS-A processing workflows for Seafloor Geodesy using data from Liquid Robotics SV2/SV3 Wave Gliders.  
 

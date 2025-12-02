@@ -12,7 +12,7 @@ from .custom_warnings_exceptions import (
     WARNINGS_DICT,
 )
 
-GOLANG_BINARY_BUILD_DIR = "src/golangtools/build"
+GOLANG_BINARY_BUILD_DIR = Path("src/golangtools/build")
 SELF_PATH = Path(__file__).resolve()
 # find src
 for parent in SELF_PATH.parents:
@@ -21,7 +21,7 @@ for parent in SELF_PATH.parents:
         break
 
 
-if not any(GOLANG_BINARY_BUILD_DIR.iterdir()):
+if GOLANG_BINARY_BUILD_DIR.exists() and not any(GOLANG_BINARY_BUILD_DIR.iterdir()):
     logger.logwarn(
         f'Golang binaries not built. Navigate to {GOLANG_BINARY_BUILD_DIR.parent} and run "make"'
     )

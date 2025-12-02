@@ -16,5 +16,6 @@ SV3 wavegliders, as well as run GNSS-A processing using
 
    Home <self>
    usage
+   geolab
    api
 

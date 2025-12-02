@@ -1,63 +1,33 @@
-Usage Guide
-===========
+GeoLab Usage Guide
+===================
 
-This guide provides comprehensive instructions for local installation and usage es_sfgtools for seafloor geodesy data processing. The package supports complete workflows from raw data ingestion through acoustic positioning modeling.
-
-.. _installation:
-
-Installation
-------------
-
-The es_sfgtools package provides comprehensive tools for seafloor geodesy data processing, including GNSS-Acoustic positioning workflows, data management, and acoustic modeling.
-
-**PyPI Installation (Recommended)**
-
-The package is available on PyPI and installable as follows:
-
-.. code-block:: bash
-
-   pip install es-sfgtools
-
-**Development Installation**
-
-Clone the `repository <https://github.com/EarthScope/es_sfgtools>`_ and install in editable mode from source:
-
-.. code-block:: bash
-
-   git clone https://github.com/EarthScope/es_sfgtools.git
-   cd es_sfgtools
-   pip install -e .
-
-**Dependencies**
-
-The package requires several external tools for complete functionality:
-
-- **GARPOS**: Acoustic positioning solver (set ``GARPOS_PATH`` environment variable)
-- **PRIDE-PPPAR**: Precise GNSS processing (set ``PATH`` to include Novatel GO translation binaries)
-- **AWS CLI**: For cloud data access (configure credentials)
-- **TileDB**: Array storage (installed automatically with package)
+This guide provides comprehensive instructions for using es_sfgtools within the EarthScope GeoLab environment for seafloor geodesy data processing. 
 
 
-Environment Setup
+Prerequesites
+----------------
+Accessing GeoLab requires an EarthScope account with appropriate permissions. Ensure you have the following:
+
+- An active EarthScope account
+
+- Requested access for the `s3-seafloor` role 
+
+
+Accessing GeoLab
 -----------------
+To access GeoLab, follow these steps:   
 
-es_sfgtools uses conda environments for dependency management. Two main environments are supported,
-Linux and macOS.
+1. Navigate to https://www.earthscope.org/data/geolab/ and click "Lauch GeoLab".
 
-Build the linux environment:
+2. Login with your EarthScope credentials.
 
-.. code-block:: bash
-  
-   conda env create -f linux_environment.yml
-   conda activate es_sfgtools
+3. Select Environment -> Other, and use this custom image URL:
 
-Build the macOS environment:
+   `public.ecr.aws/earthscope/sfg-geolab:latest`
 
-.. code-block:: bash
+4. Select a resource allocation, ie 7GB RAM, 1 CPU.  
 
-   conda env create -f mac_environment.yml
-   conda activate es_sfgtools
-
+5. Once logged in, you will be presented with a Jupyter Notebook interface where you can run es_sfgtools workflows.
 
 Examples and Workflows
 ----------------------
@@ -80,6 +50,65 @@ es_sfgtools follows a hierarchical data organization to manage data from multipl
    │   │   │   ├── logs/       # Processing logs
    │   │   │   └── results/    # Analysis results
 
+
+Sample GeoLab Workflow
+~~~~~~~~~~~~~~~~~~~~~~
+
+The GeoLab example (``examples/geolab/get_data.py``) is a minimal example loading preprocessed data and preparing it for GARPOS modeling:
+
+.. code-block:: python
+
+   #!/usr/bin/env python3
+   """
+   Seafloor Geodesy Data Processing Demo - GeoLab Environment
+   
+   Demonstrates mid-process workflow for preparing data for GARPOS modeling in GEOLAB.
+   """
+   
+   import os
+   from es_sfgtools.workflows.workflow_handler import WorkflowHandler
+   
+   # Configure GeoLab environment
+   DEFAULT_CONFIG = {
+       "WORKING_ENVIRONMENT": "GEOLAB",
+       "MAIN_DIRECTORY_GEOLAB": "/home/jovyan",
+       "S3_SYNC_BUCKET": "seafloor-public-bucket-bucket83908e77-6ial2vrmrawf"
+   }
+   
+   for key, value in DEFAULT_CONFIG.items():
+       os.environ[key] = value
+   
+   # Initialize workflow handler
+   workflow = WorkflowHandler()
+   
+   # Configure GARPOS data filters
+   FILTER_CONFIG = {
+       "acoustic_filters": {
+           "enabled": True,
+           "level": "OK",
+           "description": "Apply standard acoustic data quality filters"
+       }
+   }
+   
+   # Process multiple stations
+   NETWORK = "cascadia-gorda"
+   CAMPAIGN = "2025_A_1126"
+   STATIONS = ["NTH1", "NCC1", "NBR1", "GCC1"]
+   
+   for station in STATIONS:
+       # Set processing context
+       workflow.set_network_station_campaign(
+           network_id=NETWORK,
+           station_id=station,
+           campaign_id=CAMPAIGN,
+       )
+       
+       # Parse survey data
+       workflow.midprocess_parse_surveys()
+       
+       # Prepare GARPOS data with quality filters
+       workflow.midprocess_prep_garpos(custom_filters=FILTER_CONFIG)
+       workflow.modeling_run_garpos()
 
 Complete Preprocessing Pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -172,10 +201,10 @@ Most processing follows this general pattern:
    
    # 3. Add data to the catalog for preprocessing
 
-   # 3.1 Ingest raw data (optional)
+   # 3.1 Ingest raw local data (optional)
    workflow.ingest_add_local_data(raw_data_path)
    
-   # 3.2 Download cloud data (optional)
+   # 3.2 Download raw archive data (optional)
    workflow.ingest_catalog_archive_data()
    workflow.ingest_download_catalog_data()
 
@@ -222,13 +251,18 @@ Getting Help
 ------------
 
 **Documentation**
+
 - :doc:`api` - Complete API reference
+
 - `GitHub Repository <https://github.com/EarthScope/es_sfgtools>`_ - Source code and issues
 
 **Community Support**
 - GitHub Issues for bug reports and feature requests
+
 - EarthScope forums for scientific discussions
+
 - Tutorial workshops and webinars
 
 **Contributing**
+
 Contributions are welcome! See the repository for development guidelines and coding standards. 
