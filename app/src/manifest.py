@@ -14,6 +14,7 @@ from typing import List, Optional
 import yaml
 from es_sfgtools.modeling.garpos_tools.schemas import InversionParams
 from es_sfgtools.workflows.pipelines import SV3PipelineConfig
+from es_sfgtools.utils.model_update import validate_and_merge_config
 from pydantic import BaseModel, Field, field_serializer, field_validator
 
 
@@ -48,7 +49,10 @@ class PipelinePreprocessJob(BaseModel):
     job_type: PreprocessJobType = Field(
         PreprocessJobType.ALL, title="Preprocessing Job Type"
     )
-    config: Optional[SV3PipelineConfig] = Field(..., title="Pipeline Configuration")
+    global_config: Optional[SV3PipelineConfig] = Field(..., title="Pipeline Configuration")
+    secondary_config:Optional[dict] = Field(
+        default_factory=dict, title="Secondary Configuration Overrides"
+    )
 
 
 class PipelineIngestJob(BaseModel):
@@ -141,10 +145,13 @@ class GARPOSProcessJob(BaseModel):
         title="Survey Name",
         description="Optional survey name for GARPOS processing",
     )
-    config: GARPOSConfig = Field(
+    global_config: GARPOSConfig = Field(
         default_factory=GARPOSConfig,
         title="GARPOS Configuration",
         description="Configuration for GARPOS processing",
+    )
+    secondary_config: Optional[dict] = Field(
+        default_factory=dict, title="Secondary Configuration Overrides"
     )
 
     class Config:
@@ -248,16 +255,15 @@ class PipelineManifest(BaseModel):
                     case PipelineJobType.PREPROCESSING:
                         # Merge job-specific config with global config
 
-                        job_config = global_config.model_copy(
-                            update=job.get("config", {})
-                        )
-                        job_config = SV3PipelineConfig(**job_config.model_dump())
+                 
+    
                         process_jobs.append(
                             PipelinePreprocessJob(
                                 network=network,
                                 station=station,
                                 campaign=campaign,
-                                config=job_config,
+                                global_config=global_config,
+                                secondary_config=job.get("config", {}),
                             )
                         )
                     case PipelineJobType.DOWNLOAD:
@@ -267,17 +273,15 @@ class PipelineManifest(BaseModel):
                             )
                         )
                     case PipelineJobType.GARPOS:
-                        config = garpos_config.model_copy(
-                            update=dict(job.get("config", {}))
-                        )
-                        config = GARPOSConfig(**config.model_dump())
+            
                         garpos_jobs.append(
                             GARPOSProcessJob(
                                 network=network,
                                 station=station,
                                 campaign=campaign,
                                 surveys=job.get("surveys", []),
-                                config=config,
+                                global_config=garpos_config,
+                                secondary_config=job.get("config", {}),
                             )
                         )
 

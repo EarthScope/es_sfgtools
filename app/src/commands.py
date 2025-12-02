@@ -6,9 +6,10 @@ parsed manifest file.
 """
 from es_sfgtools.data_mgmt.ingestion.archive_pull import list_campaign_files
 from es_sfgtools.modeling.garpos_tools.load_utils import load_lib
+from es_sfgtools.utils.model_update import validate_and_merge_config
 from es_sfgtools.workflows.workflow_handler import WorkflowHandler
 
-from .manifest import PipelineManifest
+from .manifest import GARPOSConfig, PipelineManifest
 from .utils import display_pipelinemanifest
 
 
@@ -55,8 +56,8 @@ def run_manifest(manifest_object: PipelineManifest):
         )
         wfh.preprocess_run_pipeline_sv3(
             job=job.job_type,
-            primary_config=manifest_object.global_config,
-            secondary_config=job.config,
+            primary_config=job.global_config,
+            secondary_config=job.secondary_config,
         )
 
     for job in manifest_object.garpos_jobs:
@@ -65,7 +66,10 @@ def run_manifest(manifest_object: PipelineManifest):
         )
         wfh.midprocess_parse_surveys(override=False)
         
-
+        config:GARPOSConfig = validate_and_merge_config(
+            base_class=job.global_config,
+            override_config=job.secondary_config,
+        )
         surveys = (
             job.surveys
             if job.surveys
@@ -74,11 +78,11 @@ def run_manifest(manifest_object: PipelineManifest):
 
         for survey_id in surveys:
             wfh.modeling_run_garpos(
-                iterations=job.config.iterations,
-                run_id=job.config.run_id,
-                override=job.config.override,
+                iterations=config.iterations,
+                run_id=config.run_id,
+                override=config.override,
                 survey_id=survey_id,
-                custom_settings=job.config,
+                custom_settings=config.inversion_params,
             )
 
 

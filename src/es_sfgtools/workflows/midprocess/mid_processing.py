@@ -415,18 +415,6 @@ class IntermediateDataProcessor(WorkflowABC):
                         s3_file_path.upload_from(tdb_file, force_overwrite_to_cloud=overwrite)
                 except Exception as e:
                     logger.logerr(f"Failed to upload {tdb_file} to S3: {e}")
-    
-        local_station_metadata = self.current_station_dir.metadata_directory
-        s3_station_metadata = s3_station_dir.metadata_directory
-
-        for meta_file in local_station_metadata.rglob('*'):
-            relative_path = meta_file.relative_to(local_station_metadata)
-            s3_file_path = s3_station_metadata / relative_path
-            try:
-                if not s3_file_path.exists() or overwrite:
-                    s3_file_path.upload_from(meta_file, force_overwrite_to_cloud=overwrite)
-            except Exception as e:
-                logger.logerr(f"Failed to upload {meta_file} to S3: {e}")
 
         for s3_campaign_dir,local_campaign_dir in zip(s3_station_dir.campaigns.values(),self.current_station_dir.campaigns.values()):
             # upload svp file

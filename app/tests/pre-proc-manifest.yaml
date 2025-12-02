@@ -1,11 +1,9 @@
-projectDir: "/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/SFGMain"
+projectDir: "/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain"
 operations:
   - network: "cascadia-gorda"
     station: "NDP1"
-    campaign: "2023_from_john"
+    campaign: "2023_A_1063"
     jobs:
-      - type: "ingestion"
-        directory: "/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/Cascadia2023/NDP1/HR"
       - type: "preprocessing"
         config:
           rinex_config:
@@ -14,24 +12,8 @@ operations:
             
           pride_config:
             sample_frequency: 1
-  - network: "cascadia-gorda"
-    station: "NCC1"
-    campaign: "2024_A_1126"
-    jobs:
-      - type: "preprocessing"
-        config:
-          rinex_config:
-            override: true
-            time_interval: 24
-          
-      - type: "garpos"
-        config:
-          run_id: 1
-          override: true
-          inversion_params:
-            rejectcriteria: 2.5
-            log_lambda:
-              - 0
+
+
 
 garposConfig:
   run_id: 0
