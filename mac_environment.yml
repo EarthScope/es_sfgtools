@@ -17,7 +17,7 @@ dependencies:
   - pandera=0.20.3
   - pandas
   - pyarrow
-  - pydantic
+  - pydantic=2.8.2
   - pymap3d
   - pyproj
   - python-dotenv
@@ -44,8 +44,8 @@ dependencies:
   - sphinx-rtd-theme
 
   - pip:
-    # - .
-    - es-sfgtools
+    - -e .
+    #- es-sfgtools
     - garpos @ git+https://github.com/EarthScope/garpos.git
     - earthscope-sdk==1.1.0
     - earthscope-cli==1.0.1
