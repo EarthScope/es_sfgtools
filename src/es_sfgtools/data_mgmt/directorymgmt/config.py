@@ -23,6 +23,7 @@ SHOTDATA_TDB = "shotdata.tdb"
 SHOTDATA_PRE_TDB = "shotdata_pre.tdb"
 GNSS_OBS_TDB = "gnss_obs.tdb"
 GNSS_OBS_SECONDARY_TDB = "gnss_obs_secondary.tdb"
+SFGDSTF_ACOUSTIC_DATA_TDB = "sfgdstf_acoustic_data.tdb"
 
 # Asset catalog database file name
 ASSET_CATALOG = "catalog.sqlite"

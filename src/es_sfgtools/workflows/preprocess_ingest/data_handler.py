@@ -38,6 +38,10 @@ from es_sfgtools.data_mgmt.directorymgmt.handler import (
 )
 from es_sfgtools.data_mgmt.assetcatalog.schemas import AssetEntry
 
+from es_sfgtools.data_models.metadata.catalogs import (
+    MetadataCatalog,
+    StationMetadata,
+)
 from es_sfgtools.data_models.metadata.site import Site
 from es_sfgtools.logging import ProcessLogger as logger
 from es_sfgtools.logging import change_all_logger_dirs
@@ -86,6 +90,9 @@ class DataHandler(WorkflowABC):
         self.gnss_obs_tdb: Optional[TDBGNSSObsArray] = None
         self.gnss_obs_secondary_tdb: Optional[TDBGNSSObsArray] = None
         self.s3_directory_handler: Optional[DirectoryHandler] = None
+        self.metadata_catalog: MetadataCatalog = MetadataCatalog.load(
+            self.directory_handler.location / "metadata_catalog.json"
+        )
 
     def _build_station_dir_structure(self, network_id: str, station_id: str, campaign_id: str):
         """
@@ -655,6 +662,12 @@ class DataHandler(WorkflowABC):
         Site or None
             The loaded site metadata, or None if not found.
         """
+        # Check if metadata is already in the catalog
+        station_metadata = self.metadata_catalog.get_station(
+            self.current_network_name, self.current_station_name
+        )
+        if station_metadata:
+            return station_metadata.site
 
         site_meta_write_dest = self.current_station_dir.site_metadata
         site_meta_read_dest = None
@@ -721,6 +734,16 @@ class DataHandler(WorkflowABC):
                 with open(site_meta_write_dest, "w") as f:
                     json.dump(site.model_dump(), f, indent=4)
                 logger.loginfo(f"Wrote site metadata to {site_meta_write_dest}")
+            
+            # Add to catalog
+            station_metadata = StationMetadata(site=site)
+            self.metadata_catalog.add_station(
+                self.current_network_name, self.current_station_name, station_metadata
+            )
+            self.metadata_catalog.save(
+                self.directory_handler.location / "metadata_catalog.json"
+            )
+
 
         else:
             response = f"Warning: No site metadata found for {self.current_network_name} {self.current_station_name}. Some functionality may be limited."

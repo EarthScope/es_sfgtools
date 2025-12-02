@@ -1,6 +1,6 @@
 import math
 import sys
-from typing import List, Tuple
+from typing import List, Tuple, Optional, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -21,6 +21,8 @@ from es_sfgtools.modeling.garpos_tools.schemas import (
     GPPositionLLH,
     GPTransponder,
     ObservationData,
+    GarposFixed,
+    InversionParams,
 )
 
 from ...logging import GarposLogger as logger
@@ -504,3 +506,64 @@ def rectify_shotdata(coord_transformer: CoordTransformer, shot_data: pd.DataFram
     ]
 
     return ObservationData.validate(shot_data, lazy=True).sort_values("ST")
+
+def _run_garpos(
+    obsfile_path: "Path",
+    results_dir: "Path",
+    garpos_fixed: "GarposFixed",
+    custom_settings: Optional[Union[dict, "InversionParams"]] = None,
+    run_id: int | str = 0,
+    override: bool = False,
+) -> "Path":
+    """Runs the GARPOS model.
+
+    Parameters
+    ----------
+    obsfile_path : Path
+        The path to the observation file.
+    results_dir : Path
+        The path to the results directory.
+    garpos_fixed : GarposFixed
+        The fixed parameters for GARPOS.
+    custom_settings : Optional[dict | InversionParams], optional
+        Custom GARPOS settings to apply, by default None.
+    run_id : int | str, optional
+        The run ID, by default 0.
+    override : bool, optional
+        If True, override existing results, by default False.
+
+    Returns
+    -------
+    Path
+        The path to the results file.
+    """
+
+    garpos_fixed_params = garpos_fixed.model_copy()
+    if custom_settings is not None:
+        garpos_fixed_params.inversion_params = validate_and_merge_config(
+            base_class=garpos_fixed_params.inversion_params,
+            override_config=custom_settings,
+        )
+
+    garpos_input = GarposInput.from_datafile(obsfile_path)
+    results_path = results_dir / f"_{run_id}_results.json"
+
+    if results_path.exists() and not override:
+        print(f"Results already exist for {str(results_path)}")
+        return None
+    logger.loginfo(
+        f"Running GARPOS model for {garpos_input.site_name}, {garpos_input.survey_id}. Run ID: {run_id}"
+    )
+    input_path = results_dir / f"_{run_id}_observation.ini"
+    fixed_path = results_dir / f"_{run_id}_settings.ini"
+    garpos_fixed_params._to_datafile(fixed_path)
+    garpos_input.to_datafile(input_path)
+
+    rf = drive_garpos(
+        str(input_path),
+        str(fixed_path),
+        str(results_dir) + "/",
+        f"{garpos_input.survey_id}_{run_id}",
+        13,
+    )
+    return rf

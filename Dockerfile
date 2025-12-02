@@ -33,7 +33,7 @@ ENV WORK_DIR=/home/PRIDE-PPPAR
 # Install the software
 RUN cd $WORK_DIR &&\
     chmod +x install.sh &&\
-    echo "Y" | HOME=/home ./install.sh 
+    echo "N" | HOME=/home ./install.sh 
 
 WORKDIR /home/es_sfgtools
 SHELL ["conda", "run", "-n", "seafloor_geodesy_linux", "/bin/bash", "-c"]

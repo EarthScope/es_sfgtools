@@ -27,7 +27,8 @@ from .config import (
     SVP_FILE_NAME,
     TILEDB_DIR,
     SURVEY_METADATA_FILE,
-    INTERMEDIATE_DATA_DIR
+    INTERMEDIATE_DATA_DIR,
+    SFGDSTF_ACOUSTIC_DATA_TDB,
 )
 
 class _Base(BaseModel):
@@ -239,6 +240,9 @@ class TileDBDir(_Base):
     acoustic_data: Optional[Union[Path, S3Path]] = Field(
         default=None, description="The acoustic TileDB path"
     )
+    sfgdstf_acoustic_data: Optional[Union[Path, S3Path]] = Field(
+        default=None, description="The SFGDSTF acoustic data TileDB path"
+    )
 
     station: Union[Path, S3Path] = Field(..., description="The station directory path")
 
@@ -263,6 +267,8 @@ class TileDBDir(_Base):
             self.imu_position_data = self.location / IMU_POSITION_TDB
         if not self.acoustic_data:
             self.acoustic_data = self.location / ACOUSTIC_TDB
+        if not self.sfgdstf_acoustic_data:
+            self.sfgdstf_acoustic_data = self.location / SFGDSTF_ACOUSTIC_DATA_TDB
 
     def to_s3(self) -> None:
         # Convert all Path attributes to S3Path
@@ -325,6 +331,10 @@ class TileDBDir(_Base):
         acoustic_data_path = path / ACOUSTIC_TDB
         if acoustic_data_path.exists():
             tiledb_dir.acoustic_data = acoustic_data_path
+
+        sfgdstf_acoustic_data_path = path / SFGDSTF_ACOUSTIC_DATA_TDB
+        if sfgdstf_acoustic_data_path.exists():
+            tiledb_dir.sfgdstf_acoustic_data = sfgdstf_acoustic_data_path
 
         return tiledb_dir
 
@@ -471,6 +481,9 @@ class CampaignDir(_Base):
     # Fields needed to auto-generate paths
     station: Union[Path, S3Path] = Field(..., description="The station directory path")
     name: str
+    vessel_name: Optional[str] = Field(
+        default=None, description="The vessel name for the campaign"
+    )
 
     def build(self):
         """Creates the directory structure for the campaign."""
@@ -484,6 +497,18 @@ class CampaignDir(_Base):
 
         if not self.campaign_metadata:
             self.campaign_metadata = self.metadata_directory / CAMPAIGN_METADATA_FILE
+
+        metadata = {}
+        if self.campaign_metadata.exists():
+            try:
+                with open(self.campaign_metadata, "r") as f:
+                    metadata = json.load(f)
+                if not isinstance(metadata, dict):
+                    metadata = {}
+            except json.JSONDecodeError:
+                # Handle cases where the JSON file is empty or malformed
+                metadata = {}
+        self.vessel_name = metadata.get("vessel")
 
         if not self.raw:
             self.raw = self.location / RAW_DATA_DIR

@@ -34,7 +34,7 @@ except ImportError:
     pass
 from es_sfgtools.modeling.garpos_tools.schemas import GarposInput, ObservationData
 from es_sfgtools.logging import GarposLogger as logger
-from es_sfgtools.modeling.garpos_tools.functions import process_garpos_results
+from es_sfgtools.modeling.garpos_tools.functions import process_garpos_results, _run_garpos, _run_garpos
 
 from es_sfgtools.utils.model_update import validate_and_merge_config
 from ..utils.protocols import WorkflowABC
@@ -198,63 +198,7 @@ class GarposHandler(WorkflowABC):
             override_config=parameters
         )
 
-    def _run_garpos(
-        self,
-        obsfile_path: Path,
-        results_dir: Path,
-        custom_settings: Optional[dict | InversionParams] = None,
-        run_id: int | str = 0,
-        override: bool = False) -> Path:
-        """Runs the GARPOS model.
 
-        Parameters
-        ----------
-        obsfile_path : Path
-            The path to the observation file.
-        results_dir : Path
-            The path to the results directory.
-        custom_settings : Optional[dict | InversionParams], optional
-            Custom GARPOS settings to apply, by default None.
-        run_id : int | str, optional
-            The run ID, by default 0.
-        override : bool, optional
-            If True, override existing results, by default False.
-
-        Returns
-        -------
-        Path
-            The path to the results file.
-        """
-
-        garpos_fixed_params = self.garpos_fixed.model_copy()
-        if custom_settings is not None:
-            garpos_fixed_params.inversion_params = validate_and_merge_config(
-                base_class=garpos_fixed_params.inversion_params,
-                override_config=custom_settings
-            )
-
-        garpos_input = GarposInput.from_datafile(obsfile_path)
-        results_path = results_dir / f"_{run_id}_results.json"
-
-        if results_path.exists() and not override:
-            print(f"Results already exist for {str(results_path)}")
-            return None
-        logger.loginfo(
-            f"Running GARPOS model for {garpos_input.site_name}, {garpos_input.survey_id}. Run ID: {run_id}"
-        )
-        input_path = results_dir / f"_{run_id}_observation.ini"
-        fixed_path = results_dir / f"_{run_id}_settings.ini"
-        garpos_fixed_params._to_datafile(fixed_path)
-        garpos_input.to_datafile(input_path)
-
-        rf = drive_garpos(
-            str(input_path),
-            str(fixed_path),
-            str(results_dir) + "/",
-            f"{garpos_input.survey_id}_{run_id}",
-            13,
-        )
-        return rf 
 
     def _run_garpos_survey(
         self,
@@ -309,12 +253,13 @@ class GarposHandler(WorkflowABC):
         for i in range(iterations):
             logger.loginfo(f"Iteration {i+1} of {iterations} for survey {survey_id}")
 
-            obsfile_path = self._run_garpos(
+            obsfile_path = _run_garpos(
                 custom_settings=custom_settings,
                 obsfile_path=obsfile_path,
                 results_dir=results_dir,
                 run_id=f"{i}",
                 override=override,
+                garpos_fixed=self.garpos_fixed,
             )
             if iterations > 1 and i < iterations - 1:
                 iterationInput = GarposInput.from_datafile(obsfile_path)

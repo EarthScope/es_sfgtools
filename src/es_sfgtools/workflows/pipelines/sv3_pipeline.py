@@ -20,7 +20,7 @@ from es_sfgtools.data_mgmt.directorymgmt import (
     StationDir,
 )
 from es_sfgtools.data_mgmt.utils import (
-    get_merge_signature_shotdata,
+    get_merge_signature_sfgdstf,
 )
 from es_sfgtools.logging import ProcessLogger, change_all_logger_dirs
 from es_sfgtools.novatel_tools import novatel_binary_operations as novb_ops
@@ -43,10 +43,15 @@ from es_sfgtools.tiledb_tools.tiledb_operations import tile2rinex
 from es_sfgtools.tiledb_tools.tiledb_schemas import (
     TDBIMUPositionArray,
     TDBKinPositionArray,
-    TDBShotDataArray,
 )
+from es_sfgtools.tiledb_tools.community_schemas import (
+    TDBSFGDSTFSeafloorAcousticDataArray,
+)
+from es_sfgtools.data_models.community_standards import SFGDTSFSite
+from es_sfgtools.data_models.metadata.site import import_site
+from es_sfgtools.data_models.metadata.vessel import import_vessel
 from .config import SV3PipelineConfig
-from .shotdata_gnss_refinement import merge_shotdata_kinposition
+from .shotdata_gnss_refinement import merge_shotdata_kinposition_sfgdstf
 from .exceptions import NoRinexFound, NoNovatelFound,NoRinexBuilt,NoKinFound,NoDFOP00Found,NoSVPFound,NoLocalData
 from ..utils.protocols import WorkflowABC,validate_network_station_campaign
 
@@ -284,10 +289,9 @@ class SV3Pipeline(WorkflowABC):
 
         # Initialize TileDB array objects to None
         # These will be created when set_network_station_campaign() is called
-        self.shotDataPreTDB: TDBShotDataArray = None  # Preliminary shotdata (before refinement)
         self.kinPositionTDB: TDBKinPositionArray = None  # High-precision kinematic positions
         self.imuPositionTDB: TDBIMUPositionArray = None  # IMU positions from Novatel 000
-        self.shotDataFinalTDB: TDBShotDataArray = None  # Final shotdata (after refinement)
+        self.sfgdstf_acoustic_data_tdb: TDBSFGDSTFSeafloorAcousticDataArray = None
 
     def set_network_station_campaign(
         self,
@@ -320,10 +324,9 @@ class SV3Pipeline(WorkflowABC):
         if (network_id != self.current_network_name or 
             station_id != self.current_station_name or
             campaign_id != self.current_campaign_name):
-            self.shotDataPreTDB = None
             self.kinPositionTDB = None
             self.imuPositionTDB = None
-            self.shotDataFinalTDB = None
+            self.sfgdstf_acoustic_data_tdb = None
 
         # Call parent method with correct parameter names
         super().set_network_station_campaign(network_id, station_id, campaign_id)
@@ -351,14 +354,14 @@ class SV3Pipeline(WorkflowABC):
         """Initialize TileDB arrays for the current station context."""
         tiledb_dir = self.current_station_dir.tiledb_directory
         
-        if self.shotDataPreTDB is None:
-            self.shotDataPreTDB = TDBShotDataArray(tiledb_dir.shot_data_pre)
         if self.kinPositionTDB is None:
             self.kinPositionTDB = TDBKinPositionArray(tiledb_dir.kin_position_data)
         if self.imuPositionTDB is None:
             self.imuPositionTDB = TDBIMUPositionArray(tiledb_dir.imu_position_data)
-        if self.shotDataFinalTDB is None:
-            self.shotDataFinalTDB = TDBShotDataArray(tiledb_dir.shot_data)
+        if self.sfgdstf_acoustic_data_tdb is None:
+            self.sfgdstf_acoustic_data_tdb = TDBSFGDSTFSeafloorAcousticDataArray(
+                tiledb_dir.sfgdstf_acoustic_data
+            )
 
         # Store GNSS URIs for later use
         self.gnssObsTDBURI = tiledb_dir.gnss_obs_data
@@ -862,16 +865,39 @@ class SV3Pipeline(WorkflowABC):
         ProcessLogger.loginfo(response)
         count = 0
 
+        # Load metadata
+        site_meta_path = self.current_station_dir.site_metadata
+        vessel_meta_path = self.current_station_dir.network / f"{self.current_campaign_dir.vessel_name or ''}_meta.json"
+        
+        if not site_meta_path.exists():
+            ProcessLogger.logerr(f"Site metadata not found at {site_meta_path}")
+            return
+        if not vessel_meta_path.exists():
+            ProcessLogger.logerr(f"Vessel metadata not found at {vessel_meta_path}")
+            return
+            
+        site = import_site(site_meta_path)
+        vessel = import_vessel(vessel_meta_path)
+        
+        sfgdstf_site = SFGDTSFSite.from_site_vessel(
+            site=site,
+            vessel=vessel,
+            campaign_id=self.current_campaign_name,
+        )
+
         # 2. Process DFOP00 files to generate shotdata dataframes
         with Pool() as pool:
-            results = pool.imap(sv3_ops.dfop00_to_shotdata, [x.local_path for x in dfop00_entries])
+            results = pool.imap(
+                partial(sv3_ops.dfop00_to_SFGDSTFSeafloorAcousticData, sfgdstf_site),
+                [x.local_path for x in dfop00_entries],
+            )
             for shotdata_df, dfo_entry in tqdm(
                 zip(results, dfop00_entries),
                 total=len(dfop00_entries),
                 desc="Processing DFOP00 Files",
             ):
                 if shotdata_df is not None and not shotdata_df.empty:
-                    self.shotDataPreTDB.write_df(shotdata_df)  # write to pre-shotdata
+                    self.sfgdstf_acoustic_data_tdb.write_df(shotdata_df)
                     count += 1
                     dfo_entry.is_processed = True # mark as processed
                     self.asset_catalog.add_or_update(dfo_entry)
@@ -903,8 +929,8 @@ class SV3Pipeline(WorkflowABC):
 
         # 1. Get the merge signature
         try:
-            merge_signature, dates = get_merge_signature_shotdata(
-                self.shotDataPreTDB, self.kinPositionTDB
+            merge_signature, dates = get_merge_signature_sfgdstf(
+                self.sfgdstf_acoustic_data_tdb, self.kinPositionTDB
             )
         except Exception as e:
             ProcessLogger.logerr(e)
@@ -920,9 +946,9 @@ class SV3Pipeline(WorkflowABC):
             or self.config.position_update_config.override
         ):
             # 3. Merge shotdata with interpolated kinematic positions
-            merge_shotdata_kinposition(
-                shotdata_pre=self.shotDataPreTDB,
-                shotdata=self.shotDataFinalTDB,
+            merge_shotdata_kinposition_sfgdstf(
+                shotdata_pre=self.sfgdstf_acoustic_data_tdb,
+                shotdata=self.sfgdstf_acoustic_data_tdb,
                 kin_position=self.kinPositionTDB,
                 position_data=self.imuPositionTDB,
                 dates=dates,

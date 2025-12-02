@@ -37,6 +37,10 @@ from es_sfgtools.tiledb_tools.tiledb_schemas import (
     TDBKinPositionArray,
     TDBShotDataArray,
 )
+from es_sfgtools.tiledb_tools.community_schemas import (
+    TDBSFGDSTFSeafloorAcousticDataArray,
+)
+from es_sfgtools.modeling.sfgdstf_tools.data_prep import sfgdstf_to_shotdata
 from es_sfgtools.config.loadconfigs import get_survey_filter_config,get_garpos_site_config,GarposSiteConfig,FilterConfig, load_s3_sync_bucket
 
 from es_sfgtools.workflows.utils.protocols import WorkflowABC,validate_network_station_campaign
@@ -87,7 +91,7 @@ class IntermediateDataProcessor(WorkflowABC):
 
         tileDBDir = self.current_station_dir.tiledb_directory
 
-        shotDataTDB = TDBShotDataArray(tileDBDir.shot_data)
+        shotDataTDB = TDBSFGDSTFSeafloorAcousticDataArray(tileDBDir.sfgdstf_acoustic_data)
 
         with open(
             self.current_campaign_dir.campaign_metadata,
@@ -129,7 +133,8 @@ class IntermediateDataProcessor(WorkflowABC):
                     )
                     continue
                 else:
-                    shot_data_queried.to_csv(shotdata_file_dest)
+                    shot_data_converted = sfgdstf_to_shotdata(shot_data_queried)
+                    shot_data_converted.to_csv(shotdata_file_dest)
 
             if write_intermediate:
 

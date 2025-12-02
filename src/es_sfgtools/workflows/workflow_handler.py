@@ -13,6 +13,7 @@ from es_sfgtools.config.file_config import DEFAULT_FILE_TYPES_TO_DOWNLOAD
 from es_sfgtools.data_mgmt.assetcatalog.schemas import AssetEntry, AssetType
 from es_sfgtools.workflows.midprocess.mid_processing import IntermediateDataProcessor
 from es_sfgtools.workflows.modeling.garpos_handler import GarposHandler
+from es_sfgtools.workflows.modeling.sfgdstf_handler import SFGDSTFHandler
 
 from es_sfgtools.data_models.metadata.site import Site
 from es_sfgtools.logging import ProcessLogger as logger
@@ -678,6 +679,72 @@ class WorkflowHandler(WorkflowABC):
         """
         gp_handler = self.modeling_get_garpos_handler()
         gp_handler.run_garpos(
+            survey_id=survey_id,
+            run_id=run_id,
+            iterations=iterations,
+            override=override,
+            custom_settings=custom_settings,
+        )
+
+    @validate_network_station_campaign
+    def modeling_get_sfgdstf_handler(self) -> SFGDSTFHandler:
+        """Returns an instance of the SFGDSTFHandler for the current station.
+
+        Returns
+        -------
+        SFGDSTFHandler
+            An instance of SFGDSTFHandler.
+
+        Raises
+        ------
+        ValueError
+            If site metadata is not loaded.
+        """
+        if self.current_station_metadata is None:
+            raise ValueError("Site metadata not loaded, cannot get SFGDSTFHandler")
+
+        sfgdstf_handler = SFGDSTFHandler(
+            directory_handler=self.data_handler.directory_handler,
+            station_metadata=self.current_station_metadata,
+        )
+        sfgdstf_handler.set_network_station_campaign(
+            network_id=self.current_network_name,
+            station_id=self.current_station_name,
+            campaign_id=self.current_campaign_name,
+        )
+        return sfgdstf_handler
+
+    @validate_network_station_campaign
+    def modeling_run_sfgdstf(
+        self,
+        survey_id: Optional[str] = None,
+        run_id: str = "Test",
+        iterations: int = 1,
+        override: bool = False,
+        custom_settings: Optional[dict] = None,
+    ) -> None:
+        """Runs the SFGDSTF modeling pipeline for the current station.
+
+        Parameters
+        ----------
+        survey_id : Optional[str], optional
+            Optional survey identifier to process. If None, processes all surveys, by default None.
+        run_id : str
+            Identifier for the run.
+        iterations : int, optional
+            Number of iterations to perform, by default 1.
+        override : bool, optional
+            If True, re-runs even if results exist, by default False.
+        custom_settings : Optional[dict], optional
+            Custom settings to override defaults, by default None.
+
+        Raises
+        ------
+        ValueError
+            If site metadata is not loaded.
+        """
+        sfgdstf_handler = self.modeling_get_sfgdstf_handler()
+        sfgdstf_handler.run_modeling(
             survey_id=survey_id,
             run_id=run_id,
             iterations=iterations,
