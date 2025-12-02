@@ -43,6 +43,16 @@ extensions = ['sphinx.ext.napoleon',        # support for numpy-style docstrings
 napoleon_numpy_docstring = True
 myst_enable_extensions = ["colon_fence"]    # Enables the use of ::: for fenced code blocks.
 
+# Autodoc configuration
+autodoc_default_options = {
+    'members': True,
+    'undoc-members': True,
+    'show-inheritance': True,
+}
+
+# Mock imports that might fail during doc builds
+autodoc_mock_imports = ['georinex']
+
 # APIDOC configuration 
 apidoc_module_dir = "../../src/es_sfgtools"
 apidoc_output_dir = "api"
