@@ -19,9 +19,9 @@ if __name__ == "__main__":
     os.environ["PATH"] += os.pathsep + str(pride_path)
 
     manifest_path = Path(
-        "/Users/franklyndunbar/Project/SeaFloorGeodesy/es_sfgtools/dev/NCC1-preproc-manifest.json"
+        "/Users/franklyndunbar/Project/SeaFloorGeodesy/es_sfgtools/app/tests/pre-proc-manifest.yaml"
     )
 
     run_manifest(
-        manifest_object=PipelineManifest.from_json(manifest_path)
+        manifest_object=PipelineManifest.load(manifest_path)
     )

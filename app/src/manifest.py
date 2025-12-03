@@ -12,8 +12,10 @@ from pathlib import Path
 from typing import List, Optional
 
 import yaml
+from es_sfgtools.prefiltering.schemas import FilterConfig
 from es_sfgtools.modeling.garpos_tools.schemas import InversionParams
 from es_sfgtools.workflows.pipelines import SV3PipelineConfig
+from es_sfgtools.utils.model_update import validate_and_merge_config
 from pydantic import BaseModel, Field, field_serializer, field_validator
 
 
@@ -48,7 +50,10 @@ class PipelinePreprocessJob(BaseModel):
     job_type: PreprocessJobType = Field(
         PreprocessJobType.ALL, title="Preprocessing Job Type"
     )
-    config: Optional[SV3PipelineConfig] = Field(..., title="Pipeline Configuration")
+    global_config: Optional[SV3PipelineConfig] = Field(..., title="Pipeline Configuration")
+    secondary_config:Optional[dict] = Field(
+        default_factory=dict, title="Secondary Configuration Overrides"
+    )
 
 
 class PipelineIngestJob(BaseModel):
@@ -109,6 +114,11 @@ class GARPOSConfig(BaseModel):
         title="Inversion Parameters",
         description="Parameters for GARPOS inversion",
     )
+    filter_config: Optional[FilterConfig] = Field(
+        default_factory=FilterConfig,
+        title="Filter Configuration",
+        description="Configuration for prefiltering GARPOS shot data",
+    )
 
     class Config:
         arbitrary_types_allowed = True
@@ -141,10 +151,13 @@ class GARPOSProcessJob(BaseModel):
         title="Survey Name",
         description="Optional survey name for GARPOS processing",
     )
-    config: GARPOSConfig = Field(
+    global_config: GARPOSConfig = Field(
         default_factory=GARPOSConfig,
         title="GARPOS Configuration",
         description="Configuration for GARPOS processing",
+    )
+    secondary_config: Optional[dict] = Field(
+        default_factory=dict, title="Secondary Configuration Overrides"
     )
 
     class Config:
@@ -196,6 +209,7 @@ class PipelineManifest(BaseModel):
         """
         if (global_config_data := data.get("globalConfig")) is not None:
             global_config = SV3PipelineConfig(**global_config_data)
+
         else:
             global_config = SV3PipelineConfig()
         
@@ -248,16 +262,15 @@ class PipelineManifest(BaseModel):
                     case PipelineJobType.PREPROCESSING:
                         # Merge job-specific config with global config
 
-                        job_config = global_config.model_copy(
-                            update=job.get("config", {})
-                        )
-                        job_config = SV3PipelineConfig(**job_config.model_dump())
+                 
+    
                         process_jobs.append(
                             PipelinePreprocessJob(
                                 network=network,
                                 station=station,
                                 campaign=campaign,
-                                config=job_config,
+                                global_config=global_config,
+                                secondary_config=job.get("config", {}),
                             )
                         )
                     case PipelineJobType.DOWNLOAD:
@@ -267,17 +280,15 @@ class PipelineManifest(BaseModel):
                             )
                         )
                     case PipelineJobType.GARPOS:
-                        config = garpos_config.model_copy(
-                            update=dict(job.get("config", {}))
-                        )
-                        config = GARPOSConfig(**config.model_dump())
+            
                         garpos_jobs.append(
                             GARPOSProcessJob(
                                 network=network,
                                 station=station,
                                 campaign=campaign,
                                 surveys=job.get("surveys", []),
-                                config=config,
+                                global_config=garpos_config,
+                                secondary_config=job.get("config", {}),
                             )
                         )
 
@@ -322,3 +333,25 @@ class PipelineManifest(BaseModel):
         with open(yaml_data, "r") as f:
             data = yaml.safe_load(f)
         return cls._load(data)
+
+    @classmethod
+    def load(cls, file_path: Path|str) -> "PipelineManifest":
+        """
+        Instantiates a PipelineManifest object from a JSON or YAML schema.
+
+        Args:
+            file_path: The path to the JSON or YAML file.
+        Returns:
+            An instance of the PipelineManifest class.
+        """
+        if isinstance(file_path, str):
+            file_path = Path(file_path)
+        
+        match file_path.suffix:
+            case ".json":
+                return cls.from_json(file_path)
+            case ".yaml" | ".yml":
+                return cls.from_yaml(file_path)
+            case _:
+                raise ValueError(f"Unsupported file type: {file_path.suffix}")  
+            

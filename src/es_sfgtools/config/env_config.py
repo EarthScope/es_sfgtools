@@ -82,7 +82,7 @@ class Environment:
 
         s3_sync_bucket_str = os.environ.get(S3_SYNC_BUCKET_KEY)
         if s3_sync_bucket_str is None:
-            warnings.warn(f"Environment variable {S3_SYNC_BUCKET_KEY} is not set.")
+            warnings.warn(f"Environment variable {S3_SYNC_BUCKET_KEY} is not set.",stacklevel=2)
         else:
             cls._s3_sync_bucket = s3_sync_bucket_str
 
@@ -95,7 +95,7 @@ class Environment:
         environment variables and sets them for use with AWS SDKs.
 
         Raises:
-            ValueError: If either of the required AWS credentials is not set.
+            Warning: If either of the required AWS credentials is not set.
         """
         
         aws_access_key = os.environ.get("AWS_ACCESS_KEY_ID")
@@ -103,8 +103,8 @@ class Environment:
         aws_session_token = os.environ.get("AWS_SESSION_TOKEN")
 
         if aws_access_key is None or aws_secret_key is None or aws_session_token is None:
-            raise ValueError(
-                "AWS credentials are not fully set in environment variables. "  
-                "Please set AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and AWS_SESSION_TOKEN."
+            warnings.warn(
+                "AWS credentials are not fully set in environment variables. \n Please set AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and AWS_SESSION_TOKEN.",
+                stacklevel=2,
             )
         return aws_access_key, aws_secret_key, aws_session_token

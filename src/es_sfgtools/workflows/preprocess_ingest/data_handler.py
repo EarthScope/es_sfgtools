@@ -813,32 +813,6 @@ class DataHandler(WorkflowABC):
                 local_station_dir.tiledb_directory = remote_station_dir.tiledb_directory
                 
                 # =================================================================
-                # STATION METADATA SYNCHRONIZATION
-                # =================================================================
-                
-                # Download all metadata files for this station from S3
-                for s3_file in remote_station_dir.metadata_directory.rglob("*"):
-                    # Calculate the relative path within the metadata directory
-                    relative_path = s3_file.relative_to(
-                        remote_station_dir.metadata_directory
-                    )
-                    # Construct the corresponding local file path
-                    local_file_path = (
-                        local_station_dir.metadata_directory / relative_path
-                    )
-                    
-                    try:
-                        # Download file if it doesn't exist locally or if overwriting
-                        if not local_file_path.exists() or overwrite:
-                            # Ensure local directory structure exists
-                            local_file_path.parent.mkdir(parents=True, exist_ok=True)
-                            # Download the file from S3 to local storage
-                            s3_file.download_to(local_file_path)
-                    except Exception as e:
-                        # Log download failures but continue with other files
-                        logger.logerr(f"Failed to download metadata {s3_file} to local: {e}")
-
-                # =================================================================
                 # CAMPAIGN DATA SYNCHRONIZATION
                 # =================================================================
                 

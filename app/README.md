@@ -1,34 +1,17 @@
-# Useage
-
-**CLI**
-```bash
-
-$ python3 path/to/es_sfgtools/app/main.py your_config.json
-```
-
-**Python Scripting**
-```python
-
-from es_sfgtools.app.src import run_manifest,PipelineManifest
-
-configPath = '/path/to/your_config.json'
-
-pipelineManifest = PipelineManifest.from_json(configPath)
-
-run_manifest(piplineManifest)
-
-```
+# This tutorial outlines the steps needed to build a configuration file and run it to perform pre-processing and modeling on seafloor gnss acoustic data.
 
 
-# Configuration File Overview
+# 1. Configuration File 
 
-This document provides an overview of the key fields in the configuration file used for the command-line application. The configuration file defines the main working directory and specifies jobs for data ingestion, downloading, and processing.
+The configuration file allows users to schedule jobs specific to a given network,station, and campaign. This section gives an overview of the key fields in the configuration file used for the command-line application.
 
----
+Note: empty fields will be described later.
 
 ## Fields and Their Usage
 
 ### `projectDir`
+Note: this is not required when working in GeoLab.
+
 - **Description**: This is the primary directory where all processing, ingestion, and downloaded data are stored.
 - **Usage**: The application reads and writes data from/to this directory during execution.
 
@@ -38,7 +21,7 @@ This document provides an overview of the key fields in the configuration file u
   ```json
   {
     "projectDir": "/Users/user/Project/SeaFloorGeodesy/Data/SFGMain",
-    "operations": [],
+    "operations": [], 
     "globalConfig": {}
   }
   ```
@@ -174,8 +157,8 @@ There are types of jobs that the pipeline can handle. They are:
 ---
 
 ##### `garpos`
-- **Description**: Defines a GARPOS positional solver job on already processed data
-- **Usage**: Used to solve for changes in array position relative to position
+Note: see [GARPOS config](INDEX.md#garpos-config) for config details
+- **Description**: Defines a GARPOS modeling job
 
 - **Examples**:
 
@@ -266,6 +249,28 @@ There are types of jobs that the pipeline can handle. They are:
               sample_frequency: 1
   globalConfig: {}
   ```
+
+
+# Useage
+
+**CLI**
+```bash
+
+$ python3 path/to/es_sfgtools/app run your_config.json
+```
+
+**Python Scripting**
+```python
+
+from es_sfgtools.app.src import run_manifest,PipelineManifest
+
+configPath = '/path/to/your_config.json'
+
+pipelineManifest = PipelineManifest.from_json(configPath)
+
+run_manifest(piplineManifest)
+
+```
 
 ---
 
