@@ -15,9 +15,10 @@ Accessing GeoLab requires an EarthScope account with appropriate permissions. En
 
 Accessing GeoLab
 -----------------
-To access GeoLab, follow these steps:   
+To access GeoLab and our prebuilt Jupyter notebooks, follow these steps:   
 
-1. Navigate to https://www.earthscope.org/data/geolab/ and click "Lauch GeoLab".
+1. Open `GeoLab with the Seafloor Geodesy Notebooks <https://geolab.earthscope.cloud/hub/user-redirect/git-pull?repo=https%3A%2F%2Fgithub.com%2FEarthScope%2Fseafloor_geodesy_notebooks.git&urlpath=lab%2Ftree%2Fseafloor_geodesy_notebooks.git%2Fnotebooks%2F&branch=main>`_ and click "Lauch GeoLab".  
+    Note this link uses nbgitpuller to automatically clone the `seafloor geodesy notebooks repository <https://github.com/EarthScope/seafloor_geodesy_notebooks>`_ into your GeoLab environment.  
 
 2. Login with your EarthScope credentials.
 
@@ -25,14 +26,13 @@ To access GeoLab, follow these steps:
 
    `public.ecr.aws/earthscope/sfg-geolab:latest`
 
-4. Select a resource allocation, ie 7GB RAM, 1 CPU.  
+4. Select a resource allocation, suggest starting with 7GB RAM, 1 CPU and increasing as needed.
 
-5. Once logged in, you will be presented with a Jupyter Notebook interface where you can run es_sfgtools workflows.
+5. Once logged in, you will be presented with a Jupyter Notebook interface where you can run es_sfgtools workflows.  
 
-Examples and Workflows
-----------------------
+6. Select the `notebooks/run_garpos.ipynb` notebook to get started with GARPOS processing.
 
-The package includes comprehensive examples demonstrating different aspects of seafloor geodesy processing:
+
 
 Data Organization
 ~~~~~~~~~~~~~~~~~
@@ -54,7 +54,10 @@ es_sfgtools follows a hierarchical data organization to manage data from multipl
 Sample GeoLab Workflow
 ~~~~~~~~~~~~~~~~~~~~~~
 
-The GeoLab example (``examples/geolab/get_data.py``) is a minimal example loading preprocessed data and preparing it for GARPOS modeling:
+The following is a minimal example showing the steps for loading preprocessed data and running GARPOS modeling using the default settings.  
+
+The run_garpos.ipynb notebook contains more details about setting custom filters and modeling parameters.
+
 
 .. code-block:: python
 
@@ -65,187 +68,49 @@ The GeoLab example (``examples/geolab/get_data.py``) is a minimal example loadin
    Demonstrates mid-process workflow for preparing data for GARPOS modeling in GEOLAB.
    """
    
-   import os
-   from es_sfgtools.workflows.workflow_handler import WorkflowHandler
-   
-   # Configure GeoLab environment
-   DEFAULT_CONFIG = {
-       "WORKING_ENVIRONMENT": "GEOLAB",
-       "MAIN_DIRECTORY_GEOLAB": "/home/jovyan",
-       "S3_SYNC_BUCKET": "seafloor-public-bucket-bucket83908e77-6ial2vrmrawf"
-   }
-   
-   for key, value in DEFAULT_CONFIG.items():
-       os.environ[key] = value
-   
-   # Initialize workflow handler
-   workflow = WorkflowHandler()
-   
-   # Configure GARPOS data filters
-   FILTER_CONFIG = {
-       "acoustic_filters": {
-           "enabled": True,
-           "level": "OK",
-           "description": "Apply standard acoustic data quality filters"
-       }
-   }
-   
-   # Process multiple stations
-   NETWORK = "cascadia-gorda"
-   CAMPAIGN = "2025_A_1126"
-   STATIONS = ["NTH1", "NCC1", "NBR1", "GCC1"]
-   
-   for station in STATIONS:
-       # Set processing context
-       workflow.set_network_station_campaign(
-           network_id=NETWORK,
-           station_id=station,
-           campaign_id=CAMPAIGN,
-       )
-       
-       # Parse survey data
-       workflow.midprocess_parse_surveys()
-       
-       # Prepare GARPOS data with quality filters
-       workflow.midprocess_prep_garpos(custom_filters=FILTER_CONFIG)
-       workflow.modeling_run_garpos()
+    import os
 
-Complete Preprocessing Pipeline
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    from es_sfgtools.config.env_config import Environment
+    from es_sfgtools.workflows.workflow_handler import WorkflowHandler
+    from earthscope_sdk import AsyncEarthScopeClient
+    from earthscope_sdk.config.settings import SdkSettings
 
-The preprocessing example (``examples/preprocessing/preprocessing.py``) shows the full SV3 data processing pipeline:
+    #this reads environment variables set in the image
+    Environment.load_working_environment()
+   
+    # Create an EarthScope client 
+    es = AsyncEarthScopeClient()
+    # Set AWS credentials for access to preprocessed data in S3
+    creds = await es.user.get_aws_credentials(role="s3-seafloor")
+    os.environ['AWS_ACCESS_KEY_ID'] = creds.aws_access_key_id
+    os.environ['AWS_SECRET_ACCESS_KEY'] = creds.aws_secret_access_key
+    os.environ['AWS_SESSION_TOKEN']  = creds.aws_session_token
 
-.. code-block:: python
+    # Initialize workflow handler
+    workflow = WorkflowHandler()
+   
+    # Select Network, Station, Campaign
+    NETWORK = "cascadia-gorda"
+    STATION = "NTH1"
+    CAMPAIGN = "2025_A_1126"
+   
+    workflow.set_network_station_campaign(
+        network_id=NETWORK,
+        station_id=station,
+        campaign_id=CAMPAIGN,
+    )
+    
+    # Load data and prepare GARPOS input files
+    workflow.midprocess_prep_garpos()
+    
+    # Run GARPOS
+    workflow.modeling_run_garpos()
 
-   #!/usr/bin/env python3
-   """
-   Complete SV3 Preprocessing Pipeline Example
-   
-   Demonstrates the full preprocessing workflow from raw data to analysis-ready products.
-   """
-   
-   import os
-   from pathlib import Path
-   from es_sfgtools.workflows.workflow_handler import WorkflowHandler
-   
-   # Configure external tool paths
-   os.environ["GARPOS_PATH"] = str(Path.home() / "garpos")
-   os.environ["PATH"] += os.pathsep + str(Path.home() / ".PRIDE_PPPAR_BIN")
-   
-   def main():
-       # Initialize workflow with data directory
-       main_dir = Path("/path/to/seafloor/data")
-       workflow = WorkflowHandler(main_dir)
-       
-       # Configure processing parameters
-       global_config = {
-           "novatel_config": {
-               "n_processes": 14,
-               "override": False
-           },
-           "pride_config": {
-               "cutoff_elevation": 7,
-               "frequency": ["G12", "R12", "E15", "C26", "J12"],
-               "system": "GREC23J"
-           },
-           "rinex_config": {
-               "time_interval": 24,
-               "override": False
-           }
-       }
-       
-       # Set processing context
-       workflow.set_network_station_campaign(
-           network_id="cascadia-gorda",
-           station_id="NCC1", 
-           campaign_id="2025_A_1126"
-       )
-       
-       # Add local raw data to catalog
-       raw_data_dir = main_dir / "cascadia-gorda" / "NCC1" / "2025_A_1126" / "raw"
-       workflow.ingest_add_local_data(directory_path=raw_data_dir)
-       
-       # Run complete SV3 preprocessing pipeline
-       workflow.preprocess_run_pipeline_sv3(
-           job="all",
-           primary_config=global_config
-       )
-   
-   if __name__ == "__main__":
-       main()
-
-**Pipeline Components Demonstrated:**
-- **Raw Data Ingestion**: Scanning and cataloging local data files
-- **NOVATEL Processing**: Converting binary GNSS observations
-- **RINEX Generation**: Creating standardized GNSS observation files  
-- **PRIDE-PPPAR Processing**: Precise GNSS positioning solutions
-- **Kinematic Processing**: High-rate position and velocity solutions
-- **Data Quality Control**: Automated filtering and validation
+    # Plot results
+    workflow.modeling_plot_garpos_results()
 
 
 
-Basic Workflow Pattern
-~~~~~~~~~~~~~~~~~~~~~~
-
-Most processing follows this general pattern:
-
-.. code-block:: python
-
-   from es_sfgtools.workflows.workflow_handler import WorkflowHandler
-   
-   # 1. Initialize workflow
-   workflow = WorkflowHandler(data_directory)
-   
-   # 2. Set processing context
-   workflow.set_network_station_campaign(network, station, campaign)
-   
-   # 3. Add data to the catalog for preprocessing
-
-   # 3.1 Ingest raw local data (optional)
-   workflow.ingest_add_local_data(raw_data_path)
-   
-   # 3.2 Download raw archive data (optional)
-   workflow.ingest_catalog_archive_data()
-   workflow.ingest_download_catalog_data()
-
-   # 4. Run preprocessing
-   workflow.preprocess_run_pipeline_sv3()
-   
-   # 5. Parse and prepare data
-   workflow.midprocess_parse_surveys()
-   workflow.midprocess_prep_garpos()
-   
-   # 6. Run acoustic modeling
-   workflow.modeling_run_garpos()
-   
-   # 7. Generate results and plots
-   workflow.modeling_plot_garpos_results()
-
-Configuration Management
-~~~~~~~~~~~~~~~~~~~~~~~~
-
-Customize processing with configuration dictionaries:
-
-.. code-block:: python
-
-   # GNSS processing configuration
-   gnss_config = {
-       "pride_config": {
-           "cutoff_elevation": 7,
-           "frequency": ["G12", "R12", "E15"],
-           "system": "GREC23J"
-       },
-       "novatel_config": {
-           "n_processes": 8,
-           "override": False
-       }
-   }
-   
-   # Data quality filters
-   filter_config = {
-       "acoustic_filters": {"enabled": True, "level": "OK"},
-       "pride_residuals": {"enabled": True, "max_residual_mm": 10}
-   }
 
 Getting Help
 ------------
@@ -257,6 +122,7 @@ Getting Help
 - `GitHub Repository <https://github.com/EarthScope/es_sfgtools>`_ - Source code and issues
 
 **Community Support**
+
 - GitHub Issues for bug reports and feature requests
 
 - EarthScope forums for scientific discussions
