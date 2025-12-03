@@ -1,7 +1,7 @@
 Usage Guide
 ===========
 
-This guide provides comprehensive instructions for installing and using es_sfgtools for seafloor geodesy data processing. The package supports complete workflows from raw data ingestion through acoustic positioning modeling.
+This guide provides comprehensive instructions for local installation and usage es_sfgtools for seafloor geodesy data processing. The package supports complete workflows from raw data ingestion through acoustic positioning modeling.
 
 .. _installation:
 
@@ -10,28 +10,22 @@ Installation
 
 The es_sfgtools package provides comprehensive tools for seafloor geodesy data processing, including GNSS-Acoustic positioning workflows, data management, and acoustic modeling.
 
-**Future PyPI Installation (Recommended)**
+**PyPI Installation (Recommended)**
 
-The package will be published on PyPI and installable as follows:
+The package is available on PyPI and installable as follows:
 
 .. code-block:: bash
 
-   pip install es_sfgtools
+   pip install es-sfgtools
 
-**Development Installation (Current)**
+**Development Installation**
 
-For now, clone the `repository <https://github.com/EarthScope/es_sfgtools>`_ and install from source:
+Clone the `repository <https://github.com/EarthScope/es_sfgtools>`_ and install in editable mode from source:
 
 .. code-block:: bash
 
    git clone https://github.com/EarthScope/es_sfgtools.git
    cd es_sfgtools
-   pip install .
-
-For development work, use editable mode:
-
-.. code-block:: bash
-
    pip install -e .
 
 **Dependencies**
@@ -39,7 +33,7 @@ For development work, use editable mode:
 The package requires several external tools for complete functionality:
 
 - **GARPOS**: Acoustic positioning solver (set ``GARPOS_PATH`` environment variable)
-- **PRIDE-PPPAR**: Precise GNSS processing (set ``PATH`` to include binaries)
+- **PRIDE-PPPAR**: Precise GNSS processing (set ``PATH`` to include Novatel GO translation binaries)
 - **AWS CLI**: For cloud data access (configure credentials)
 - **TileDB**: Array storage (installed automatically with package)
 
@@ -61,9 +55,8 @@ Build the macOS environment:
 
 .. code-block:: bash
 
-   conda env create -f macos_environment.yml
+   conda env create -f mac_environment.yml
    conda activate es_sfgtools
-
 
 
 Examples and Workflows
@@ -87,65 +80,6 @@ es_sfgtools follows a hierarchical data organization to manage data from multipl
    │   │   │   ├── logs/       # Processing logs
    │   │   │   └── results/    # Analysis results
 
-
-GeoLab Data Processing
-~~~~~~~~~~~~~~~~~~~~~~
-
-The GeoLab example (``examples/geolab/get_data.py``) demonstrates mid-process data preparation for acoustic modeling:
-
-.. code-block:: python
-
-   #!/usr/bin/env python3
-   """
-   Seafloor Geodesy Data Processing Demo - GeoLab Environment
-   
-   Demonstrates mid-process workflow for preparing data for GARPOS modeling in GEOLAB.
-   """
-   
-   import os
-   from es_sfgtools.workflows.workflow_handler import WorkflowHandler
-   
-   # Configure GeoLab environment
-   DEFAULT_CONFIG = {
-       "WORKING_ENVIRONMENT": "GEOLAB",
-       "MAIN_DIRECTORY_GEOLAB": "/path/to/geolab/data",
-       "S3_SYNC_BUCKET": "your-s3-bucket"
-   }
-   
-   for key, value in DEFAULT_CONFIG.items():
-       os.environ[key] = value
-   
-   # Initialize workflow handler
-   workflow = WorkflowHandler()
-   
-   # Configure GARPOS data filters
-   FILTER_CONFIG = {
-       "acoustic_filters": {
-           "enabled": True,
-           "level": "OK",
-           "description": "Apply standard acoustic data quality filters"
-       }
-   }
-   
-   # Process multiple stations
-   NETWORK = "cascadia-gorda"
-   CAMPAIGN = "2025_A_1126"
-   STATIONS = ["NTH1", "NCC1", "NBR1", "GCC1"]
-   
-   for station in STATIONS:
-       # Set processing context
-       workflow.set_network_station_campaign(
-           network_id=NETWORK,
-           station_id=station,
-           campaign_id=CAMPAIGN,
-       )
-       
-       # Parse survey data
-       workflow.midprocess_parse_surveys()
-       
-       # Prepare GARPOS data with quality filters
-       workflow.midprocess_prep_garpos(custom_filters=FILTER_CONFIG)
-       workflow.modeling_run_garpos()
 
 Complete Preprocessing Pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
