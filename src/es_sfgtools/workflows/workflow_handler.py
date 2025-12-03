@@ -239,7 +239,7 @@ class WorkflowHandler(WorkflowABC):
             )
 
         pipeline = SV3Pipeline(
-            directory_handler=self.data_handler.directory_handler, config=base_config
+            directory_handler=self.data_handler.directory_handler, config=base_config_updated
         )
         pipeline.set_network_station_campaign(
             network_id=self.current_network_name,

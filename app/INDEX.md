@@ -43,6 +43,34 @@ Configuration for PRIDE PDP processing.
 - `override` (bool): If `True`, existing kin files will be replaced with newly generated ones
 
 ## Garpos Config
+
+### Filter Config
+pre-filtering configuration
+
+- `pride_residuals` (dict): Configuration for filtering based on GNSS positioning residuals.
+  - `enabled` (bool): If `True`, enables pride residual filtering. Defaults to `False`.
+  - `max_residual_mm` (int): Maximum residual threshold in millimeters. Defaults to `8`.
+  - `description` (str): Filter description: "Filter based on GNSS positioning residuals".
+
+- `max_distance_from_center` (dict): Configuration for filtering shots based on distance from array center.
+  - `enabled` (bool): If `True`, enables distance-based filtering. Defaults to `False`.
+  - `max_distance_m` (float): Maximum distance threshold in meters. Defaults to `500.0`.
+  - `description` (str): Filter description: "Filter shots beyond maximum distance from array center".
+
+- `ping_replies` (dict): Configuration for filtering based on acoustic ping replies.
+  - `enabled` (bool): If `True`, enables ping reply filtering. Defaults to `False`.
+  - `min_replies` (int): Minimum number of required ping replies. Defaults to `1`.
+  - `description` (str): Filter based on minimum acoustic ping replies.
+
+- `acoustic_filters` (dict): Configuration for standard acoustic data quality filters based on SNR, DBV, and XC thresholds.
+  - `enabled` (bool): If `True`, enables acoustic quality filtering. Defaults to `True`.
+  - `level` (str): Quality level threshold. Available levels:
+    - `"GOOD"`: High quality data - SNR ≥ 20, DBV between -26 and -3, XC ≥ 60
+    - `"OK"`: Medium quality data - SNR between 12-20, DBV between -36 and -3, XC between 45-60
+    - `"DIFFICULT"`: Low quality data - SNR < 12, DBV < -36 or > -3, XC < 45
+  - `description` (str): Filter description: "Apply standard acoustic data quality filters".
+
+### Job Config
 - `garpos_path` (str): Path to the garpos repository to use for model runs. Defaults to the forked version installed via pip.
 
 - `override` (bool): If `True`, will override existing garpos runs of the same run_id and prepared shot data
