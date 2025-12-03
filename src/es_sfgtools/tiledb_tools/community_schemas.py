@@ -74,8 +74,7 @@ attribute_dict: Dict[str, tiledb.Attr] = {
 SFGDSTFSeafloorAcousticDataArraySchema = tiledb.ArraySchema(
     sparse=True,
     domain=tiledb.Domain(
-        tiledb.Dim(name="T_transmit", dtype="datetime64[ns]"),
-        tiledb.Dim(name="MT_ID", dtype="ascii"),
+        tiledb.Dim(name="T_transmit", dtype="datetime64[ns]")
     ),
     attrs=list(attribute_dict.values()),
     cell_order="col-major",

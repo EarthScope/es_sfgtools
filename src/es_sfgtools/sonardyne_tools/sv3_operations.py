@@ -229,7 +229,7 @@ def dfop00_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
     return ShotDataFrame.validate(df,lazy=True)
 
 
-def dfop00_to_SFGDSTFSeafloorAcousticData(source: str | Path,siteData:SFGDTSFSite) -> SFGDSTFSeafloorAcousticData | None:
+def dfop00_to_cstd_shotdata(source: str | Path,atd_offset:list) -> SFGDSTFSeafloorAcousticData | None:
     """Parses a DFOP00-format file and converts it to SFGDSTFSeafloorAcousticData.
 
     The function reads the specified file line by line, expecting each line
@@ -241,8 +241,8 @@ def dfop00_to_SFGDSTFSeafloorAcousticData(source: str | Path,siteData:SFGDTSFSit
     ----------
     source : str | Path
         Path to the DFOP00-format file containing event data.
-    siteData : SFGDTSFSite
-        The site data.
+    atd_offset : list
+        Antenna to transponder offset [m] with [forward,rightward,downward].
 
     Returns
     -------
@@ -258,13 +258,13 @@ def dfop00_to_SFGDSTFSeafloorAcousticData(source: str | Path,siteData:SFGDTSFSit
         return None
 
     # Convert ShotDataFrame to SFGDSTFSeafloorAcousticData
-    X_transmit = shotdata.east0.apply(lambda x: x+siteData.ATDoffset[0])
-    Y_transmit = shotdata.north0.apply(lambda x: x+siteData.ATDoffset[1])
-    Z_transmit = shotdata.up0.apply(lambda x: x+siteData.ATDoffset[2])
+    X_transmit = shotdata.east0.apply(lambda x: x+atd_offset[0])
+    Y_transmit = shotdata.north0.apply(lambda x: x+atd_offset[1])
+    Z_transmit = shotdata.up0.apply(lambda x: x+atd_offset[2])
 
-    X_receive = shotdata.east1.apply(lambda x: x+siteData.ATDoffset[0])
-    Y_receive = shotdata.north1.apply(lambda x: x+siteData.ATDoffset[1])
-    Z_receive = shotdata.up1.apply(lambda x: x+siteData.ATDoffset[2])
+    X_receive = shotdata.east1.apply(lambda x: x+atd_offset[0])
+    Y_receive = shotdata.north1.apply(lambda x: x+atd_offset[1])
+    Z_receive = shotdata.up1.apply(lambda x: x+atd_offset[2])
 
     df = pd.DataFrame(
         {
