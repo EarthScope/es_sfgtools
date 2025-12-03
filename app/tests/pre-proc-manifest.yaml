@@ -1,17 +1,21 @@
 projectDir: "/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain"
 operations:
   - network: "cascadia-gorda"
-    station: "NDP1"
-    campaign: "2023_A_1063"
+    station: "NCC1"
+    campaign: "2025_A_1126"
     jobs:
       - type: "preprocessing"
         config:
           rinex_config:
-            override: true
+            override: false
             time_interval: 24
             
           pride_config:
             sample_frequency: 1
+      - type: "garpos"
+        config:
+          run_id: 1
+          override: true
 
 
 
@@ -51,6 +55,20 @@ garposConfig:
       cov_nu: 0
       cov_ue: 0
       cov_en: 0
+      
+  filter_config:
+    pride_residuals:
+      enabled: false
+      max_residual_mm: 8
+    max_distance_from_center:
+      enabled: false
+      max_distance_m: 500.0
+    ping_replies:
+      enabled: false
+      min_replies: 1
+    acoustic_filters:
+      enabled: true
+      level: "OK"
 
 globalConfig:
   dfop00_config:
@@ -83,3 +101,4 @@ globalConfig:
     n_processes: 14
     time_interval: 24
     override: false
+  

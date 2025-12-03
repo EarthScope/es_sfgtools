@@ -61,15 +61,23 @@ def run_manifest(manifest_object: PipelineManifest):
         )
 
     for job in manifest_object.garpos_jobs:
-        wfh.set_network_station_campaign(
-            network_id=job.network, station_id=job.station, campaign_id=job.campaign
-        )
-        wfh.midprocess_parse_surveys(override=False)
-        
         config:GARPOSConfig = validate_and_merge_config(
             base_class=job.global_config,
             override_config=job.secondary_config,
         )
+        wfh.set_network_station_campaign(
+            network_id=job.network, station_id=job.station, campaign_id=job.campaign
+        )
+        wfh.midprocess_prep_garpos(
+            custom_filters=(
+                config.filter_config.model_dump() if config.filter_config else None
+            ),
+            override=config.override,
+            override_survey_parsing=False,
+            survey_id=None,
+            write_intermediate=False,
+        )
+
         surveys = (
             job.surveys
             if job.surveys

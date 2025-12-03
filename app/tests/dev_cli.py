@@ -23,5 +23,5 @@ if __name__ == "__main__":
     )
 
     run_manifest(
-        manifest_object=PipelineManifest.from_yaml(manifest_path)
+        manifest_object=PipelineManifest.load(manifest_path)
     )
