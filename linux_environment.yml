@@ -52,7 +52,7 @@ dependencies:
     - -e .
     # - es-sfgtools
     - garpos @ git+https://github.com/EarthScope/garpos.git
-    - earthscope-sdk==1.1.0
+    - earthscope-sdk==1.1.1
     - earthscope-cli==1.0.1
     - sphinx_pyproject
     - gnatss
