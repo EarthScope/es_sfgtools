@@ -888,7 +888,7 @@ class SV3Pipeline(WorkflowABC):
         # 2. Process DFOP00 files to generate shotdata dataframes
         with Pool() as pool:
             results = pool.imap(
-                partial(sv3_ops.dfop00_to_SFGDSTFSeafloorAcousticData, sfgdstf_site),
+                partial(sv3_ops.dfop00_to_cstd_shotdata, sfgdstf_site),
                 [x.local_path for x in dfop00_entries],
             )
             for shotdata_df, dfo_entry in tqdm(
