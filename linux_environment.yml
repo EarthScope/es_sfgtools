@@ -2,61 +2,30 @@ name: seafloor_geodesy_linux
 channels:
   - defaults
   - conda-forge
-dependencies: 
- # Python version & pip
+dependencies:
+  # Python version & pip
   - python=3.11
   - pip
 
-  # Code dependencies
-  - bc # in linux but not mac?
-  - boto3
-  - botocore
-  - ipykernel
-  - julian
-  - matplotlib
-  - numpy
-  - pandera=0.20.3
-  - pandas
-  - pyarrow
-  - pydantic
-  - pyproj
-  - pymap3d
-  - python-dotenv
-  - scipy
-  - scikit-learn
+  # System dependencies that need conda for proper compilation/linking
   - scikit-sparse
-  - seaborn
-  - sqlalchemy
-  - sqlite=3.49.1 # in linux but not mac?
-  - tiledb=2.28
-  - tiledb-py
-  - tqdm
+  - bc
+  - sqlite=3.49.1
 
   # Build / compiler dependencies
   - clang
   - gcc
   - gfortran
   - go
-  - go-cgo 
+  - go-cgo
   - libstdcxx-ng
   - make
   - nodejs
 
-  # Documentation dependencies (Optional)
-  - myst-parser
-  - sphinx
-  - sphinxcontrib-apidoc
-  - sphinx-rtd-theme
-
   - pip:
+    # Install package with all dependencies from pyproject.toml
     - -e .
-    # - es-sfgtools
-    - garpos @ git+https://github.com/EarthScope/garpos.git
-    - earthscope-sdk==1.1.1
-    - earthscope-cli==1.0.1
-    - sphinx_pyproject
-    - gnatss
-    - regex
-    - cloudpathlib[s3]
+    # Git dependencies not in PyPI
+    # - garpos @ git+https://github.com/EarthScope/garpos.git
 variables:
   CGO_ENABLED: 1
