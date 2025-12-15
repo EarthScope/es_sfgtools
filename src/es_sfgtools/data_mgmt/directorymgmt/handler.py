@@ -287,11 +287,12 @@ class DirectoryHandler(_Base):
 
         # Iterate over directories in the local path
         pride_dir = local_dir_handler.location / PRIDE_DIR
-        if pride_dir.exists():
+        if pride_dir.exists() or Environment.working_environment() == WorkingEnvironment.ECS:
             local_dir_handler.pride_directory = pride_dir
+        
 
         asset_catalog_db_path = local_dir_handler.location / ASSET_CATALOG
-        if asset_catalog_db_path.exists():
+        if asset_catalog_db_path.exists() or Environment.working_environment() == WorkingEnvironment.ECS:
             local_dir_handler.asset_catalog_db_path = asset_catalog_db_path
         
         for sub_dir in local_dir_handler.location.iterdir():

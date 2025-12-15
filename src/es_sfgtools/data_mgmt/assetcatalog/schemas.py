@@ -65,3 +65,11 @@ class AssetEntry(_AssetBase):
         model_dict = self.model_dump()
         model_dict.pop("id")
         return model_dict
+
+class ConnectionInfo(BaseModel):
+    username:str
+    password:str
+    engine:str
+    host:str
+    port:int
+    dbInstanceIdentifier:str

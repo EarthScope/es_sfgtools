@@ -5,20 +5,47 @@ from typing import Dict, List
 import pandas as pd
 import sqlalchemy as sa
 
-from .schemas import AssetEntry
+from .schemas import AssetEntry,ConnectionInfo
 from es_sfgtools.config.file_config import AssetType
+from es_sfgtools.config.env_config import Environment, WorkingEnvironment
 
 from es_sfgtools.logging import ProcessLogger as logger
 
 from .tables import Assets, Base, MergeJobs
 
+from .utils import get_db_connection_info
 
 class PreProcessCatalogHandler:
     """
     A class to handle the preprocessing catalog.
     """
-    def __init__(self, db_path: Path):
+    def __init__(self, db_path: Path = None, db_config: ConnectionInfo = None):
         """Initializes the PreProcessCatalog.
+
+        Parameters
+        ----------
+        db_path : Path
+            The path to the database.
+        db_config : ConnectionInfo
+            The RDS database connection information.
+        """
+        match Environment.working_environment():
+            case WorkingEnvironment.LOCAL | WorkingEnvironment.GEOLAB:
+                if db_path is None:
+                    raise ValueError("db_path must be provided for LOCAL environment.")
+                self._build_local_sqlite(db_path)
+            case WorkingEnvironment.ECS:
+                if db_config is None:
+                    db_config = get_db_connection_info()
+                if db_config is None:
+                    raise ValueError("db_config must be provided for GEOLAB or ECS environment.")
+                self._create_rds_engine(db_config)
+            case _:
+                raise ValueError("Unsupported working environment.")
+        
+
+    def _build_local_sqlite(self, db_path: Path):
+        """Builds a local SQLite database.
 
         Parameters
         ----------
@@ -30,6 +57,17 @@ class PreProcessCatalogHandler:
             f"sqlite+pysqlite:///{self.db_path}", poolclass=sa.pool.NullPool
         )
         Base.metadata.create_all(self.engine)
+
+    def _create_rds_engine(self, db_config: ConnectionInfo):
+        """Create SQLAlchemy engine for RDS connection."""
+        connection_string = (
+            f"postgresql://{db_config.username}:{db_config.password}@"
+            f"{db_config.host}:{db_config.port}/{db_config.dbInstanceIdentifier}"
+        )
+        self.connection_info = db_config
+        self.engine = sa.create_engine(connection_string, poolclass=sa.pool.QueuePool)
+        Base.metadata.create_all(self.engine)
+        
 
     def get_dtype_counts(self, network:str, station:str, campaign:str, **kwargs) -> Dict[str,int]:
         """Gets the counts of each data type for a given network, station, and campaign.
@@ -119,7 +157,7 @@ class PreProcessCatalogHandler:
             except Exception as e:
                 logger.logerr(f"Error deleting entries: {e}")
                 return False
-            
+
     def get_assets(self,
                    network: str,
                    station: str,
@@ -170,7 +208,7 @@ class PreProcessCatalogHandler:
                 except Exception as e:
                     logger.logerr("Unable to add row, error: {}".format(e))
             return out
-        
+
     def get_ctds(self, station: str, campaign: str) -> List[AssetEntry]:
         """Get all svp, ctd and seabird assets for a given station and campaign.
 
@@ -458,7 +496,7 @@ class PreProcessCatalogHandler:
             if results:
                 return True
         return False
-    
+
     def add_entry(self, entry:AssetEntry) -> bool:
         """Adds an entry to the database.
 
@@ -481,7 +519,7 @@ class PreProcessCatalogHandler:
                 logger.logdebug(f" Integrity error adding entry {entry} to catalog: {e}")
                 return False
         return False
-    
+
     def delete_entry(self, entry:AssetEntry) -> bool:
         """Deletes an entry from the database.
 
