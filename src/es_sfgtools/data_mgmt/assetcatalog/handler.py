@@ -42,7 +42,6 @@ class PreProcessCatalogHandler:
                 self._create_rds_engine(db_config)
             case _:
                 raise ValueError("Unsupported working environment.")
-        
 
     def _build_local_sqlite(self, db_path: Path):
         """Builds a local SQLite database.
@@ -58,16 +57,42 @@ class PreProcessCatalogHandler:
         )
         Base.metadata.create_all(self.engine)
 
+
     def _create_rds_engine(self, db_config: ConnectionInfo):
         """Create SQLAlchemy engine for RDS connection."""
+
+        # Use the actual database name, not the instance identifier
+        database_name = (
+            getattr(db_config, "database_name", None) or "postgres"
+        )  # Default to 'postgres'
+
         connection_string = (
             f"postgresql://{db_config.username}:{db_config.password}@"
-            f"{db_config.host}:{db_config.port}/{db_config.dbInstanceIdentifier}"
+            f"{db_config.host}:{db_config.port}/{database_name}"
         )
+
+        logger.loginfo(f"Connecting to database: {database_name} on {db_config.host}")
+
         self.connection_info = db_config
-        self.engine = sa.create_engine(connection_string, poolclass=sa.pool.QueuePool)
+
+        # Add connection timeout and error handling
+        self.engine = sa.create_engine(
+            connection_string,
+            poolclass=sa.pool.QueuePool,
+            connect_args={"connect_timeout": 30, "options": "-c timezone=utc"},
+        )
+
+        # Test connection before creating tables
+        try:
+            with self.engine.connect() as conn:
+                result = conn.execute(sa.text("SELECT current_database()"))
+                current_db = result.fetchone()[0]
+                logger.loginfo(f"Successfully connected to database: {current_db}")
+        except Exception as e:
+            logger.logerr(f"Failed to connect to database: {e}")
+            raise
+
         Base.metadata.create_all(self.engine)
-        
 
     def get_dtype_counts(self, network:str, station:str, campaign:str, **kwargs) -> Dict[str,int]:
         """Gets the counts of each data type for a given network, station, and campaign.

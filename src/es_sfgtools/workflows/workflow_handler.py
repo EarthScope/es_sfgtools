@@ -75,8 +75,14 @@ class WorkflowHandler(WorkflowABC):
         """
         Environment.load_working_environment()
         if directory is None:
-            assert Environment.working_environment() == WorkingEnvironment.GEOLAB, "Directory must be provided unless in GEOLAB environment"
-            directory = Environment.main_directory_GEOLAB()
+            match Environment.working_environment():
+                case WorkingEnvironment.ECS:
+                        directory = Environment.main_directory_ECS()
+                case WorkingEnvironment.GEOLAB:
+                        directory = Environment.main_directory_GEOLAB()
+                case _:
+                        raise ValueError("Directory must be provided in LOCAL environment")
+        
 
         # Initialize parent WorkflowABC with directory
         super().__init__(directory=directory)
