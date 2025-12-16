@@ -165,12 +165,13 @@ class DataHandler(WorkflowABC):
         logger.loginfo(
             f"Consolidating existing TileDB arrays for {self.current_station_name}"
         )
-        self.acoustic_tdb.consolidate()
-        self.kin_position_tdb.consolidate()
-        self.imu_position_tdb.consolidate()
-        self.shotdata_tdb.consolidate()
-        self.gnss_obs_tdb.consolidate()
-        self.gnss_obs_secondary_tdb.consolidate()
+        if Environment.working_environment() != WorkingEnvironment.ECS:
+            self.acoustic_tdb.consolidate()
+            self.kin_position_tdb.consolidate()
+            self.imu_position_tdb.consolidate()
+            self.shotdata_tdb.consolidate()
+            self.gnss_obs_tdb.consolidate()
+            self.gnss_obs_secondary_tdb.consolidate()
 
     def set_network_station_campaign(
         self,

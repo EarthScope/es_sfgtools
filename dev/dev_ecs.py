@@ -33,7 +33,7 @@ def main():
         network_id=network, station_id=station, campaign_id=campaign
     
     )
-    pl.pre_process_novatel()
+    pl.get_rinex_files()
     #wfh.ingest_catalog_archive_data()
     #wfh.ingest_download_archive_data()
 

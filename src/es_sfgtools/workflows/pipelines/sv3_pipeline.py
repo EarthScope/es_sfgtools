@@ -8,8 +8,11 @@ from multiprocessing import Pool
 from pathlib import Path
 import tempfile
 from typing import List, Optional
-
+import os
+import numpy as np
 from tqdm.auto import tqdm
+from pandas import Timestamp
+import hatanaka
 
 # Local imports
 from es_sfgtools.data_mgmt.assetcatalog.handler import PreProcessCatalogHandler
@@ -49,6 +52,8 @@ from es_sfgtools.tiledb_tools.tiledb_schemas import (
     TDBKinPositionArray,
     TDBShotDataArray,
 )
+from es_sfgtools.config.env_config import Environment,WorkingEnvironment
+
 from .config import SV3PipelineConfig
 from .shotdata_gnss_refinement import merge_shotdata_kinposition
 from .exceptions import NoRinexFound, NoNovatelFound,NoRinexBuilt,NoKinFound,NoDFOP00Found,NoSVPFound,NoLocalData
@@ -1388,5 +1393,75 @@ class SV3PipelineECS(WorkflowABC):
         Exception
             If an error occurs during RINEX file generation.
         """
+        from es_sfgtools.tiledb_tools.tiledb_operations import tile2rinex_ecs
+        from es_sfgtools.tiledb_tools.tiledb_schemas import TDBGNSSObsArray
+        self._build_rinex_meta()
+        s3_dir_handler:DirectoryHandler = self.directory_handler.point_to_s3(Environment.s3_sync_bucket())
+        s3_campaign_dir = s3_dir_handler[self.current_network_name][self.current_station_name][self.current_campaign_name]
 
-        rinexDestination = self.current_campaign_dir.processed
+        gnss_data_tdb = TDBGNSSObsArray(self.gnssObsTDBURI)
+        unique_dates:np.ndarray[np.datetime64] = gnss_data_tdb.get_unique_dates()
+        # Convert from np.datetime64 to datetime.date
+        unique_dates: List[datetime.date] = list(set([
+            Timestamp(d).date() for d in unique_dates
+        ]))
+
+        year = self.current_campaign_name.split("_")[0]
+
+        if not year.isdigit():
+            raise ValueError(
+                f"Cannot determine processing year from campaign name {self.current_campaign_name}"
+            )
+        year_int = int(year)
+        campaign_dates = [d for d in unique_dates if d.year == year_int]
+
+        for date in campaign_dates:
+            date_start = datetime.datetime.combine(date, datetime.time.min).timestamp()
+            date_end = datetime.datetime.combine(date, datetime.time.max).timestamp()
+            merge_signature = {
+                "parent_type": AssetType.GNSSOBSTDB.value,
+                "child_type": AssetType.RINEX2.value,
+                "parent_ids": [f"{self.current_station_name}_{date.strftime('%Y%m%d')}"],
+            }
+            if (
+                self.config.rinex_config.override
+                or not self.asset_catalog.is_merge_complete(**merge_signature)
+            ):
+                ProcessLogger.loginfo(
+                    f"Generating RINEX file for {self.current_station_name} on {date.strftime('%Y-%m-%d')}"
+                )
+                with tempfile.TemporaryDirectory() as workingdir:
+
+                    rinex_file: Path = tile2rinex_ecs(
+                        gnss_obs_tdb=self.gnssObsTDBURI,
+                        settings=self.config.rinex_config.settings_path,
+                        workdir=workingdir,
+                        unix_end_time=date_end,
+                        unix_start_time=date_start,
+                        processing_year=year_int,
+                    )[0]
+                    if rinex_file is not None:
+                        # Compress RINEX file with Hatanaka
+                        # Path('1lsu0010.21d.gz').write_bytes(hatanaka.compress(rinex_data))
+                        compressed_rinex_path = rinex_file.with_suffix(rinex_file.suffix + ".gz")
+                        hatanaka.compress_on_disk(str(rinex_file),delete=True)
+                        compressed_rinex_path = hatanaka.get_compressed_path(str(rinex_file))
+                        # Upload to S3 and catalog
+                        remote_rinex_path = s3_campaign_dir.processed / "rinex" / compressed_rinex_path.name
+                        remote_rinex_path.upload_from(str(compressed_rinex_path))
+                        rinex_entry = AssetEntry(
+                            network=self.current_network_name,
+                            station=self.current_station_name,
+                            campaign=self.current_campaign_name,
+                            type=AssetType.RINEX2,
+                            remote_path=str(remote_rinex_path)
+                        )
+                        self.asset_catalog.add_or_update(rinex_entry)
+                        self.asset_catalog.add_merge_job(**merge_signature)
+                        ProcessLogger.loginfo(
+                            f"Generated and cataloged RINEX file {rinex_file.name} for {self.current_station_name} on {date.strftime('%Y-%m-%d')}"
+                        )
+                    else:
+                        ProcessLogger.logerr(
+                            f"Failed to generate RINEX file for {self.current_station_name} on {date.strftime('%Y-%m-%d')}"
+                        )
