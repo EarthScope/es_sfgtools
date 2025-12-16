@@ -137,6 +137,12 @@ class DataHandler(WorkflowABC):
         """
         logger.loginfo(f"Creating TileDB arrays for {self.current_station_name}")
 
+        if Environment.working_environment() == WorkingEnvironment.ECS:
+            dir_handler_s3 = self.directory_handler.point_to_s3(Environment.s3_sync_bucket())
+            station_dir_s3 = dir_handler_s3[self.current_network_name][self.current_station_name]
+            station_dir_s3.tiledb_directory.station = station_dir_s3.location
+            station_dir_s3.tiledb_directory.build()
+            self.current_station_dir.tiledb_directory = station_dir_s3.tiledb_directory
         tiledb_dir = self.current_station_dir.tiledb_directory
         if 's3:/' in str(tiledb_dir.location):
             tiledb_dir.to_s3()
@@ -195,7 +201,7 @@ class DataHandler(WorkflowABC):
         change_all_logger_dirs(log_dir)
         os.environ["LOG_FILE_PATH"] = str(log_dir)
 
-        if Environment.working_environment() == WorkingEnvironment.LOCAL:
+        if Environment.working_environment() in (WorkingEnvironment.LOCAL, WorkingEnvironment.ECS):
             self._build_tileDB_arrays()
 
         logger.loginfo(f"Changed working station to {network_id} {station_id} {campaign_id}")
@@ -760,15 +766,15 @@ class DataHandler(WorkflowABC):
             - Creates local directory structure to match S3 organization
             - Maintains both local and remote directory catalogs for consistency
         """
-        
+
         # =================================================================
         # ENVIRONMENT AND CONFIGURATION VALIDATION
         # =================================================================
-        
+
         # Ensure we're running in the correct environment for S3 operations
         assert Environment.working_environment() == WorkingEnvironment.GEOLAB, \
             "S3 sync is only available in the GEOLAB environment."
-        
+
         # Get the configured S3 bucket for data synchronization
         try:
             s3_bucket = Environment.s3_sync_bucket()
@@ -776,11 +782,11 @@ class DataHandler(WorkflowABC):
             # S3 bucket not configured - skip synchronization
             logger.logwarn(f"S3 synchronization skipped: {e}")
             return
-        
+
         # =================================================================
         # S3 DIRECTORY CATALOG MANAGEMENT
         # =================================================================
-        
+
         # Check if we have a cached remote catalog file
         if self.s3_directory_handler is None or overwrite:
             self.s3_directory_handler = DirectoryHandler.load_from_path(s3_bucket)
@@ -790,13 +796,13 @@ class DataHandler(WorkflowABC):
         # =================================================================
         # DATA SYNCHRONIZATION PROCESS
         # =================================================================
-        
+
         # Iterate through all networks in the S3 directory structure
         for network_name, network_dir in self.s3_directory_handler.networks.items():
             # Only process the currently selected network (skip others)
             if network_name != self.current_network_name:
                 continue
-            
+
             # Create or get the corresponding local network directory
             local_network_dir = self.directory_handler.add_network(network_name)
 
@@ -805,29 +811,29 @@ class DataHandler(WorkflowABC):
                 # Only process the currently selected station (skip others)
                 if station_name != self.current_station_name:
                     continue
-                
+
                 # Create or get the corresponding local station directory
                 local_station_dir = local_network_dir.add_station(station_name)
-                
+
                 # Synchronize TileDB directory reference (array storage location)
                 local_station_dir.tiledb_directory = remote_station_dir.tiledb_directory
-                
+
                 # =================================================================
                 # CAMPAIGN DATA SYNCHRONIZATION
                 # =================================================================
-                
+
                 # Process all campaigns within the current station
                 for campaign_id, remote_campaign_dir in remote_station_dir.campaigns.items():
                     # Create or get the corresponding local campaign directory
                     local_campaign_dir = local_station_dir.add_campaign(campaign_id)
-                    
+
                     # Download all files within this campaign from S3
                     for file in remote_campaign_dir.location.rglob("*"):
                         # Calculate the relative path within the campaign directory
                         relative_path = file.relative_to(remote_campaign_dir.location)
                         # Construct the corresponding local file path
                         local_file_path = local_campaign_dir.location / relative_path
-                        
+
                         try:
                             # Download file if it doesn't exist locally or if overwriting
                             if not local_file_path.exists() or overwrite:
@@ -840,11 +846,11 @@ class DataHandler(WorkflowABC):
                         except Exception as e:
                             # Log download failures but continue with other files
                             logger.logerr(f"Failed to download campaign file {file} to local: {e}")
-        
+
         # =================================================================
         # CATALOG PERSISTENCE
         # =================================================================
-        
+
         # Save the updated local directory catalog to disk
         # This ensures the local catalog reflects all downloaded files
         self.directory_handler.save()

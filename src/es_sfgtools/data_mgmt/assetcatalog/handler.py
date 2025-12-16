@@ -538,7 +538,9 @@ class PreProcessCatalogHandler:
         if not self._does_entry_exist(entry):
             try:
                 with self.engine.begin() as conn:
-                    conn.execute(sa.insert(Assets).values(entry.model_dump()))
+                    entry_model = entry.model_dump()
+                    entry_model.pop("id",None)  # Remove id if present
+                    conn.execute(sa.insert(Assets).values(entry_model))
                 return True
             except sa.exc.IntegrityError as e:
                 logger.logdebug(f" Integrity error adding entry {entry} to catalog: {e}")

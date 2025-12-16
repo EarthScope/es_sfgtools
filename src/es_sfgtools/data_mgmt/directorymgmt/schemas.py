@@ -247,7 +247,7 @@ class TileDBDir(_Base):
         """Creates the directory structure for the TileDB arrays."""
         if not self.location:
             self.location = self.station / TILEDB_DIR
-            if Environment.working_environment() == WorkingEnvironment.LOCAL:
+            if Environment.working_environment() in (WorkingEnvironment.LOCAL, WorkingEnvironment.ECS):
                 self.location.mkdir(parents=True, exist_ok=True)
         if not self.shot_data:
             self.shot_data = self.location / SHOTDATA_TDB
@@ -649,8 +649,12 @@ class StationDir(_Base):
             self.location.mkdir(parents=True, exist_ok=True)
 
         if not self.tiledb_directory:
-            self.tiledb_directory = TileDBDir(station=self.location)
-            self.tiledb_directory.build()
+            if Environment.working_environment() == WorkingEnvironment.ECS:
+                self.tiledb_directory = TileDBDir(station=self.location)
+                self.tiledb_directory.to_s3()
+            else:
+                self.tiledb_directory = TileDBDir(station=self.location)
+                self.tiledb_directory.build()
 
         if not self.metadata_directory:
             self.metadata_directory = self.location / "metadata"
