@@ -35,7 +35,7 @@ class PingRepliesFilterConfig(BaseModel):
 
 class MaxDistFromCenterConfig(BaseModel):
     enabled: bool = Field(
-        False, description="Whether to enable max distance from center filtering"
+        True, description="Whether to enable max distance from center filtering"
     )
     max_distance_m: float = Field(
         150.0,

@@ -54,7 +54,7 @@ pre-filtering configuration
 
 - `max_distance_from_center` (dict): Configuration for filtering shots based on distance from array center.
   - `enabled` (bool): If `True`, enables distance-based filtering. Defaults to `False`.
-  - `max_distance_m` (float): Maximum distance threshold in meters. Defaults to `500.0`.
+  - `max_distance_m` (float): Maximum distance threshold in meters. Defaults to `150.0`.
   - `description` (str): Filter description: "Filter shots beyond maximum distance from array center".
 
 - `ping_replies` (dict): Configuration for filtering based on acoustic ping replies.
