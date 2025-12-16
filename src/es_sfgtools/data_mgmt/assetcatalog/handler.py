@@ -94,7 +94,7 @@ class PreProcessCatalogHandler:
 
         Base.metadata.create_all(self.engine)
 
-    def get_dtype_counts(self, network:str, station:str, campaign:str, **kwargs) -> Dict[str,int]:
+    def get_dtype_counts(self, network:str, station:str, campaign:str, use_local:bool = True,**kwargs) -> Dict[str,int]:
         """Gets the counts of each data type for a given network, station, and campaign.
 
         Parameters
@@ -105,6 +105,8 @@ class PreProcessCatalogHandler:
             The station name.
         campaign : str
             The campaign name.
+        use_local : bool, optional
+            Whether to only count local assets, by default True.
 
         Returns
         -------
@@ -120,7 +122,7 @@ class PreProcessCatalogHandler:
                         Assets.network.in_([network]),
                         Assets.station.in_([station]),
                         Assets.campaign.in_([campaign]),
-                        Assets.local_path.is_not(None),
+                        Assets.local_path.is_not(None) if use_local else True,
                     )
                     .group_by(Assets.type)
                 ).fetchall()
@@ -269,7 +271,50 @@ class PreProcessCatalogHandler:
                 except Exception as e:
                     logger.logerr("Unable to add row, error: {}".format(e))
             return out
+    def get_assets(self,
+                   network: str,
+                   station: str,
+                   campaign: str,
+                   type: AssetType) -> List[AssetEntry]:
+        """Get assets for a given network, station, campaign, and type.
 
+        Parameters
+        ----------
+        network : str
+            The network.
+        station : str
+            The station.
+        campaign : str
+            The campaign.
+        type : AssetType
+            The asset type.
+
+        Returns
+        -------
+        List[AssetEntry]
+            A list of AssetEntry objects.
+        """
+
+        logger.logdebug(f" Getting assets for {network} {station} {campaign} {str(type)}")
+
+        with self.engine.connect() as conn:
+            query = sa.select(Assets).where(
+                sa.and_(
+                    Assets.network == network,
+                    Assets.station == station,
+                    Assets.campaign == campaign,
+                    Assets.type == type.value
+                )
+            )
+            result = conn.execute(query).fetchall()
+            out = []
+            for row in result:
+                try:
+                    out.append(AssetEntry(**row._mapping))
+                except Exception as e:
+                    logger.logerr("Unable to add row, error: {}".format(e))
+            return out
+        
     def get_local_assets(self,
                    network: str,
                    station: str,

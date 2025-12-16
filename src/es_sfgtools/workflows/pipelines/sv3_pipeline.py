@@ -6,6 +6,7 @@ import sys
 from functools import partial
 from multiprocessing import Pool
 from pathlib import Path
+import tempfile
 from typing import List, Optional
 
 from tqdm.auto import tqdm
@@ -21,6 +22,9 @@ from es_sfgtools.data_mgmt.directorymgmt import (
 )
 from es_sfgtools.data_mgmt.utils import (
     get_merge_signature_shotdata,
+)
+from es_sfgtools.data_mgmt.ingestion.archive_pull import (
+    download_file_from_archive
 )
 from es_sfgtools.logging import ProcessLogger, change_all_logger_dirs
 from es_sfgtools.novatel_tools import novatel_binary_operations as novb_ops
@@ -1058,3 +1062,331 @@ class SV3Pipeline(WorkflowABC):
         ProcessLogger.loginfo(
             f"Completed SV3 Processing Pipeline for {self.current_network_name} {self.current_station_name} {self.current_campaign_name}"
         )
+
+
+class SV3PipelineECS(WorkflowABC):
+    # SV3 pipeline for ECS-based workflows
+    mid_process_workflow = False
+
+    def __init__(
+        self,
+        directory_handler: Optional[DirectoryHandler] = None,
+        asset_catalog: Optional[PreProcessCatalogHandler] = None,
+        config: SV3PipelineConfig = None,
+    ):
+        """Initializes the SV3Pipeline with directory handler and configuration.
+
+        Sets up the pipeline with necessary infrastructure including:
+        - Directory structure management
+        - Asset catalog for tracking processed files
+        - Configuration for all processing steps
+        - Context attributes (network, station, campaign)
+
+        Parameters
+        ----------
+        directory_handler : DirectoryHandler, optional
+            Handler for managing project directory structure. Must be provided
+            and should already be built.
+        config : Optional[SV3PipelineConfig], optional
+            Configuration settings for the pipeline. If None, uses default
+            configuration. Defaults to None.
+
+        Raises
+        ------
+        AttributeError
+            If directory_handler is None or doesn't have
+            asset_catalog_db_path.
+
+        Notes
+        -----
+        The pipeline will not be ready for processing until
+        :meth:`set_network_station_campaign` is called to establish the
+        processing context.
+        """
+        super().__init__(
+            directory=directory_handler.location,
+            asset_catalog=asset_catalog,
+            directory_handler=directory_handler,
+        )
+
+        self.config = config if config is not None else SV3PipelineConfig()
+
+        # Initialize TileDB array objects to None
+        # These will be created when set_network_station_campaign() is called
+        self.shotDataPreTDB: TDBShotDataArray = (
+            None  # Preliminary shotdata (before refinement)
+        )
+        self.kinPositionTDB: TDBKinPositionArray = (
+            None  # High-precision kinematic positions
+        )
+        self.imuPositionTDB: TDBIMUPositionArray = (
+            None  # IMU positions from Novatel 000
+        )
+        self.shotDataFinalTDB: TDBShotDataArray = (
+            None  # Final shotdata (after refinement)
+        )
+
+    def set_network_station_campaign(
+        self,
+        network_id: str,
+        station_id: str,
+        campaign_id: str,
+    ) -> None:
+        """Set the current network, station, and campaign context for pipeline processing.
+
+        This method establishes the processing context and performs several
+        initialization tasks:
+        1. Resets previous context and clears TileDB arrays if context changes
+        2. Calls parent method to handle context switching
+        3. Validates data availability
+        4. Initializes TileDB arrays
+        5. Configures logging
+        6. Prepares RINEX metadata
+
+        Parameters
+        ----------
+        network_id : str
+            Network identifier (e.g., "cascadia-gorda").
+        station_id : str
+            Station identifier (e.g., "NCC1").
+        campaign_id : str
+            Campaign identifier (e.g., "2023_A_1126").
+        """
+        # Clear TileDB arrays if switching context to avoid stale references
+        if (
+            network_id != self.current_network_name
+            or station_id != self.current_station_name
+            or campaign_id != self.current_campaign_name
+        ):
+            self.shotDataPreTDB = None
+            self.kinPositionTDB = None
+            self.imuPositionTDB = None
+            self.shotDataFinalTDB = None
+
+        # Call parent method with correct parameter names
+        super().set_network_station_campaign(network_id, station_id, campaign_id)
+
+        # Make sure there are files to process
+        dtype_counts = self.asset_catalog.get_dtype_counts(
+            network_id, station_id, campaign_id,use_local=False
+        )
+        if dtype_counts == {}:
+            message = f"No catalogged files found for {network_id}/{station_id}/{campaign_id}. Ensure data is ingested before processing."
+            ProcessLogger.logerr(message)
+            raise NoLocalData(message)
+
+        # Update all log directories
+        change_all_logger_dirs(self.current_campaign_dir.log_directory)
+
+        for dtype, count in dtype_counts.items():
+            ProcessLogger.loginfo(
+                f"Found {count} local files of type {dtype} for {network_id}/{station_id}/{campaign_id}"
+            )
+
+        # Initialize TileDB arrays if not already created
+        self._build_tiledb_arrays()
+
+    def _build_tiledb_arrays(self) -> None:
+        """Initialize TileDB arrays for the current station context."""
+        tiledb_dir = self.current_station_dir.tiledb_directory
+
+        if self.shotDataPreTDB is None:
+            self.shotDataPreTDB = TDBShotDataArray(tiledb_dir.shot_data_pre)
+        if self.kinPositionTDB is None:
+            self.kinPositionTDB = TDBKinPositionArray(tiledb_dir.kin_position_data)
+        if self.imuPositionTDB is None:
+            self.imuPositionTDB = TDBIMUPositionArray(tiledb_dir.imu_position_data)
+        if self.shotDataFinalTDB is None:
+            self.shotDataFinalTDB = TDBShotDataArray(tiledb_dir.shot_data)
+
+        # Store GNSS URIs for later use
+        self.gnssObsTDBURI = tiledb_dir.gnss_obs_data
+        self.gnssObsTDB_secondaryURI = tiledb_dir.gnss_obs_data_secondary
+
+        self._build_rinex_meta()
+
+    def _build_rinex_meta(self) -> None:
+        """Build RINEX metadata files for the current campaign if they don't exist.
+
+        Creates two metadata files:
+        - rinex_metav2.json: Updated format with metadata
+        - rinex_metav1.json: Legacy format for backward compatibility
+
+        These files contain station-specific information needed for RINEX
+        generation.
+        """
+
+        # Get the RINEX metadata
+        rinex_metav2 = (
+            self.current_campaign_dir.metadata_directory / "rinex_metav2.json"
+        )
+        rinex_metav1 = (
+            self.current_campaign_dir.metadata_directory / "rinex_metav1.json"
+        )
+        if not rinex_metav2.exists():
+            with open(rinex_metav2, "w") as f:
+                json.dump(get_metadatav2(site=self.current_station_name), f)
+
+        if not rinex_metav1.exists():
+            with open(rinex_metav1, "w") as f:
+                json.dump(get_metadata(site=self.current_station_name), f)
+
+        self.config.rinex_config.settings_path = rinex_metav2
+
+    @validate_network_station_campaign
+    def pre_process_novatel(self) -> None:
+        """Preprocess Novatel 770 and 000 binary files for the current context.
+
+        Processing steps:
+        1. **Novatel 770**: Extracts GNSS observations to primary TileDB array
+        2. **Novatel 000**: Extracts GNSS observations to secondary array + IMU
+           positions
+
+        Both steps check if processing is needed (via override config or merge
+        status) and update the asset catalog upon completion.
+
+        Raises
+        ------
+        Exception
+            If no Novatel 770 or 000 files are found.
+        """
+
+        """
+        Process Novatel 770 files
+        1. Query asset catalog for Novatel 770 files for current context
+        2. If files exist, check if processing is needed (override or not merged)
+        3. Call novatel_770_2tile to process files into TileDB GNSS observation array
+        4. Update asset catalog with merge job
+        """
+        found_novatel_770 = False
+        found_novatel_000 = False
+
+        novatel_770_entries: List[AssetEntry] = self.asset_catalog.get_assets(
+            network=self.current_network_name,
+            station=self.current_station_name,
+            campaign=self.current_campaign_name,
+            type=AssetType.NOVATEL770,
+        )
+
+        if novatel_770_entries:
+            found_novatel_770 = True
+            ProcessLogger.loginfo(
+                f"Processing {len(novatel_770_entries)} Novatel 770 files for {self.current_network_name} {self.current_station_name} {self.current_campaign_name}. This may take a few minutes..."
+            )
+            for entry in novatel_770_entries:
+
+                merge_signature = {
+                      "parent_type": AssetType.NOVATEL770.value,
+                      "child_type": AssetType.GNSSOBSTDB.value,
+                      "parent_ids": [entry.id],
+                 }
+                if (
+                      self.config.novatel_config.override
+                      or not self.asset_catalog.is_merge_complete(**merge_signature)
+                 ):
+                    ProcessLogger.logdebug(
+                            f"Novatel 770 file {entry.remote_path} requires processing."
+                      )
+                    with tempfile.TemporaryDirectory() as temp_dir:
+                        local_path = Path(temp_dir) / Path(entry.remote_path).name
+                        entry.local_path = str(local_path)
+                        download_file_from_archive(entry.remote_path,temp_dir)
+
+                        try:
+                            novb_ops.novatel_770_2tile(
+                                    files=[local_path],
+                                    gnss_obs_tdb=self.gnssObsTDBURI,
+                                    n_procs=1,  # Process one file at a time
+                                )
+                            ProcessLogger.logdebug(
+                                    f"Processed Novatel 770 file {entry.remote_path} into TileDB."
+                                )
+                            self.asset_catalog.add_merge_job(**merge_signature)
+                        except Exception as e:
+                            if (
+                                  message := ProcessLogger.logerr(
+                                        f"Error processing Novatel 770 file {entry.remote_path}: {e}"
+                                  )
+                             ) is not None:
+                                print(message)
+                            continue  # Skip to next file
+        else:
+            ProcessLogger.loginfo(
+                f"No Novatel 770 Files Found to Process for {self.current_network_name} {self.current_station_name} {self.current_campaign_name}"
+            )
+        """
+        Process Novatel 000 files
+        1. Query asset catalog for Novatel 000 files for current context
+        2. If files exist, check if processing is needed (override or not merged)
+        3. Call novatel_000_2tile to process files into TileDB GNSS observation array + IMU positions
+        4. Update asset catalog with merge job
+        
+        """
+        ProcessLogger.loginfo(
+            f"Processing Novatel 000 data for {self.current_network_name} {self.current_station_name} {self.current_campaign_name}"
+        )
+        novatel_000_entries: List[AssetEntry] = self.asset_catalog.get_assets(
+            network=self.current_network_name,
+            station=self.current_station_name,
+            campaign=self.current_campaign_name,
+            type=AssetType.NOVATEL000,
+        )
+        ProcessLogger.loginfo(f"Found {len(novatel_000_entries)} Novatel 000 files.")
+        for entry in novatel_000_entries:
+
+            merge_signature = {
+                "parent_type": AssetType.NOVATEL000.value,
+                "child_type": AssetType.GNSSOBSTDB.value,
+                "parent_ids": [entry.id],
+            }
+            if (
+                self.config.novatel_config.override
+                or not self.asset_catalog.is_merge_complete(**merge_signature)
+            ):
+                ProcessLogger.logdebug(
+                    f"Novatel 000 file {entry.remote_path} requires processing."
+                )
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    local_path = Path(temp_dir) / Path(entry.remote_path).name
+                    entry.local_path = str(local_path)
+                    download_file_from_archive(entry.remote_path,temp_dir)
+                    try:
+                        novb_ops.novatel_000_2tile(
+                            files=[local_path],
+                            gnss_obs_tdb=self.gnssObsTDB_secondaryURI,
+                            position_tdb=self.imuPositionTDB.uri,
+                            n_procs=1,  # Process one file at a time
+                        )
+                        ProcessLogger.logdebug(
+                            f"Processed Novatel 000 file {entry.remote_path} into TileDB."
+                        )
+                        self.asset_catalog.add_merge_job(**merge_signature)
+                    except Exception as e:
+                        if (
+                            message := ProcessLogger.logerr(
+                                f"Error processing Novatel 000 file {entry.remote_path}: {e}"
+                            )
+                        ) is not None:
+                            print(message)
+                        continue  # Skip to next file
+
+    @validate_network_station_campaign
+    def get_rinex_files(self) -> None:
+        """Generate and catalog daily RINEX files for the current campaign.
+
+        Steps:
+        1. Consolidates GNSS observation data
+        2. Determines processing year from config or campaign name
+        3. Invokes tile2rinex to generate daily RINEX files
+        4. Creates AssetEntry for each RINEX file
+        5. Updates asset catalog with merge job
+
+        Raises
+        ------
+        ValueError
+            If a processing year cannot be determined from the campaign name.
+        Exception
+            If an error occurs during RINEX file generation.
+        """
+
+        rinexDestination = self.current_campaign_dir.processed

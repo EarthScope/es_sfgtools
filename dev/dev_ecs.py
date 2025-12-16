@@ -15,6 +15,7 @@ PRIDE_DIR = Path.home() / ".PRIDE_PPPAR_BIN"
 os.environ["PATH"] += os.pathsep + str(PRIDE_DIR)
 
 from es_sfgtools.workflows.workflow_handler import WorkflowHandler
+from es_sfgtools.workflows.pipelines.sv3_pipeline import SV3PipelineECS
 
 def main():
     wfh = WorkflowHandler()
@@ -24,6 +25,15 @@ def main():
     wfh.set_network_station_campaign(
         network_id=network, station_id=station, campaign_id=campaign
     )
+    pl = SV3PipelineECS(
+        directory_handler=wfh.directory_handler,
+        asset_catalog=wfh.asset_catalog,
+    )
+    pl.set_network_station_campaign(
+        network_id=network, station_id=station, campaign_id=campaign
+    
+    )
+    pl.pre_process_novatel()
     #wfh.ingest_catalog_archive_data()
     #wfh.ingest_download_archive_data()
 

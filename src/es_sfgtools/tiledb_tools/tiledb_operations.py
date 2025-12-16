@@ -19,6 +19,8 @@ def tile2rinex(
     writedir: Path,
     time_interval: int = 1,
     processing_year: int = 0,
+    unix_start_time: int = 0,
+    unix_end_time: int = 0,
 ) -> List[Path]:
     """
     Converts GNSS observation tileDB data to RINEX format using the TILE2RINEX binary.
@@ -60,6 +62,10 @@ def tile2rinex(
             str(time_interval),
             "-year",
             str(processing_year),
+            "-start",
+            str(unix_start_time),
+            "-end",
+            str(unix_end_time)
         ]
         logger.loginfo(f" Running {cmd}")
         result = subprocess.run(cmd, cwd=workdir,capture_output=True)

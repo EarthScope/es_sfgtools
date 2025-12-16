@@ -153,26 +153,65 @@ func GetHourSlice(daySlice tiledbgnss.TimeRange,interval int) ([]tiledbgnss.Time
 	return hourSlices
 }
 
-func FilterDaySlices(daySlices []tiledbgnss.TimeRange, year int) (daySlicesModified []tiledbgnss.TimeRange,err error) {
-	if len(daySlices) == 0 {
-		log.Warn("No Day Slices Found")
-		return nil,fmt.Errorf("No Day Slices Found")
-	}
-	if year <= 0 {
-		log.Warn("Year not specified, generating daily RINEX for all years")
-		return daySlices,nil
-	}
-	daySlicesModified = []tiledbgnss.TimeRange{}
-	for _,slice := range daySlices {
-		if slice.Start.Year() == year {
-			daySlicesModified = append(daySlicesModified,slice)
-		}
-	}
-	if len(daySlicesModified) == 0 {
-		err = fmt.Errorf("No Day Slices Found For The Year %d",year)
-		return nil,err
-	}
-	return daySlicesModified,nil
+func FilterDaySlices(daySlices []tiledbgnss.TimeRange, year int, startUnix int64, endUnix int64) (daySlicesModified []tiledbgnss.TimeRange, err error) {
+    if len(daySlices) == 0 {
+        log.Warn("No Day Slices Found")
+        return nil, fmt.Errorf("No Day Slices Found")
+    }
+
+    daySlicesModified = []tiledbgnss.TimeRange{}
+
+    // Convert Unix timestamps to time.Time if provided
+    var filterStart, filterEnd time.Time
+    var useTimeFilter bool
+    
+    if startUnix > 0 && endUnix > 0 {
+        filterStart = time.Unix(startUnix, 0).UTC()
+        filterEnd = time.Unix(endUnix, 0).UTC()
+        useTimeFilter = true
+        log.Infof("Filtering day slices between %s and %s", filterStart, filterEnd)
+    }
+
+    for _, slice := range daySlices {
+        // Apply year filter if specified
+        if year > 0 && slice.Start.Year() != year {
+            continue
+        }
+
+        // Apply time range filter if specified
+        if useTimeFilter {
+            // Check if day slice overlaps with the filter time range
+            // Overlap occurs if: slice.Start < filterEnd AND slice.End > filterStart
+            if slice.Start.Before(filterEnd) && slice.End.After(filterStart) {
+                // Optionally trim the slice to the filter bounds
+                adjustedSlice := slice
+                if slice.Start.Before(filterStart) {
+                    adjustedSlice.Start = filterStart
+                }
+                if slice.End.After(filterEnd) {
+                    adjustedSlice.End = filterEnd
+                }
+                daySlicesModified = append(daySlicesModified, adjustedSlice)
+            }
+        } else {
+            // No time filter, just add the slice
+            daySlicesModified = append(daySlicesModified, slice)
+        }
+    }
+
+    if len(daySlicesModified) == 0 {
+        if year > 0 {
+            err = fmt.Errorf("No Day Slices Found For The Year %d", year)
+        } else if useTimeFilter {
+            err = fmt.Errorf("No Day Slices Found For Time Range %s to %s", filterStart, filterEnd)
+        } else {
+            err = fmt.Errorf("No Day Slices Found")
+        }
+        return nil, err
+    }
+
+    log.Infof("Found %d day slices after filtering", len(daySlicesModified))
+    return daySlicesModified, nil
 }
 
 func ProcessDaySlice(daySlice tiledbgnss.TimeRange, tdbPath string, interval int,settings *rinex.Settings) {
@@ -223,40 +262,43 @@ func ProcessDaySlice(daySlice tiledbgnss.TimeRange, tdbPath string, interval int
 }
 
 func main() {
-	log.Println("Starting TDB2Rnx")
-	sfg_utils.LoadEnv()
-	tdbPathPtr := flag.String("tdb", "", "Path to the TileDB array")
-	metaPtr := flag.String("settings", "", "settings file")
-	timeIntervals := flag.Int("timeint", 1, "Break array queries into intervals of N hours")
-	processingYear := flag.Int("year", 0, "If set, only process data for the given year")
+    log.Println("Starting TDB2Rnx")
+    sfg_utils.LoadEnv()
+    tdbPathPtr := flag.String("tdb", "", "Path to the TileDB array")
+    metaPtr := flag.String("settings", "", "settings file")
+    timeIntervals := flag.Int("timeint", 1, "Break array queries into intervals of N hours")
+    processingYear := flag.Int("year", 0, "If set, only process data for the given year")
+    startUnix := flag.Int64("start", 0, "Start time as Unix timestamp")
+    endUnix := flag.Int64("end", 0, "End time as Unix timestamp")
 
-	flag.Parse()
-	log.SetOutput(os.Stdout)
-	
-	// Parse settings from JSON
-	settings, err := ParseSettings(*metaPtr)
-	if err != nil {
-		log.Fatalf("failed parsing settings: %s", err)
-	}
+    flag.Parse()
+    log.SetOutput(os.Stdout)
+    
+    // Parse settings from JSON
+    settings, err := ParseSettings(*metaPtr)
+    if err != nil {
+        log.Fatalf("failed parsing settings: %s", err)
+    }
+
     // check if tdbPathPtr points to an existing file
-	if _, err := os.Stat(*tdbPathPtr); err != nil {
-		log.Fatalf("TileDB array not found at %s: %v", *tdbPathPtr, err)
-	}
-	timeStart,timeEnd,err := tiledbgnss.GetTimeRange(*tdbPathPtr,"us-east-2")
-	if err != nil {
-		log.Fatalln(err)
-	}
-	log.Infof("Time Range: %s - %s Found At %s",timeStart,timeEnd,*tdbPathPtr)
-	daySlices := tiledbgnss.GetDateArranged(timeStart,timeEnd)
-	daySlices,err = FilterDaySlices(daySlices,*processingYear)
-	if err != nil {
-		log.Warnf("Error Filtering Day Slices: %s",err)
-		return
-	}
+    if _, err := os.Stat(*tdbPathPtr); err != nil {
+        log.Fatalf("TileDB array not found at %s: %v", *tdbPathPtr, err)
+    }
 
-	for _,daySlice := range daySlices {
-	
-		ProcessDaySlice(daySlice,*tdbPathPtr,*timeIntervals,settings)
-	}
+    timeStart, timeEnd, err := tiledbgnss.GetTimeRange(*tdbPathPtr, "us-east-2")
+    if err != nil {
+        log.Fatalln(err)
+    }
+    log.Infof("Time Range: %s - %s Found At %s", timeStart, timeEnd, *tdbPathPtr)
+    
+    daySlices := tiledbgnss.GetDateArranged(timeStart, timeEnd)
+    daySlices, err = FilterDaySlices(daySlices, *processingYear, *startUnix, *endUnix)
+    if err != nil {
+        log.Warnf("Error Filtering Day Slices: %s", err)
+        return
+    }
+
+    for _, daySlice := range daySlices {
+        ProcessDaySlice(daySlice, *tdbPathPtr, *timeIntervals, settings)
+    }
 }
-
