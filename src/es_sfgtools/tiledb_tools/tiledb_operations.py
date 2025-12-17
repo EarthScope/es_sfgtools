@@ -125,4 +125,4 @@ def tile2rinex_ecs(
     rinex_files = list(Path(workdir).rglob("*"))
   
 
-    return rinex_files
+    return rinex_files if rinex_files else []

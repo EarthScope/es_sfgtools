@@ -5,8 +5,10 @@ import json
 import sys
 from functools import partial
 from multiprocessing import Pool
+from multiprocessing.pool import ThreadPool
 from pathlib import Path
 import tempfile
+from turtle import pd
 from typing import List, Optional
 import os
 import numpy as np
@@ -1432,14 +1434,17 @@ class SV3PipelineECS(WorkflowABC):
                 )
                 with tempfile.TemporaryDirectory() as workingdir:
 
-                    rinex_file: Path = tile2rinex_ecs(
+                    rinex_files: Path = tile2rinex_ecs(
                         gnss_obs_tdb=self.gnssObsTDBURI,
                         settings=self.config.rinex_config.settings_path,
                         workdir=workingdir,
                         unix_end_time=date_end,
                         unix_start_time=date_start,
                         processing_year=year_int,
-                    )[0]
+                    )
+                    if len(rinex_files) == 0:
+                        continue
+                    rinex_file = rinex_files[0]  # Assuming one file per day
                     if rinex_file is not None:
                         # Compress RINEX file with Hatanaka
                         # Path('1lsu0010.21d.gz').write_bytes(hatanaka.compress(rinex_data))
@@ -1465,3 +1470,57 @@ class SV3PipelineECS(WorkflowABC):
                         ProcessLogger.logerr(
                             f"Failed to generate RINEX file for {self.current_station_name} on {date.strftime('%Y-%m-%d')}"
                         )
+
+    def process_dfop00(self) -> None:
+        """Process Sonardyne DFOP00 files to generate preliminary shotdata.
+        
+        Steps:
+        1. Retrieves DFOP00 files needing processing
+        2. Converts each file to shotdata dataframe (acoustic ping-reply
+           sequences)
+        3. Writes dataframes to preliminary shotdata TileDB array
+        4. Marks files as processed in asset catalog
+        
+        Uses multiprocessing for efficient parallel processing.
+        """
+        dfop00_entries: List[AssetEntry] = self.asset_catalog.get_assets(
+            network=self.current_network_name,
+            station=self.current_station_name,
+            campaign=self.current_campaign_name,
+            type=AssetType.DFOP00,
+        )
+        if not dfop00_entries:
+            response = f"No DFOP00 Files Found to Process for {self.current_network_name} {self.current_station_name} {self.current_campaign_name}"
+            ProcessLogger.logerr(response)
+            raise NoDFOP00Found(response)
+
+        response = f"Found {len(dfop00_entries)} DFOP00 Files to Process"
+        ProcessLogger.loginfo(response)
+
+        def download_and_process_dfop00(entry: AssetEntry,self=self) -> None:
+            merge_signature = {
+                "parent_type": AssetType.DFOP00.value,
+                "child_type": AssetType.SHOTDATA.value,
+                "parent_ids": [entry.id],
+            }
+            if (
+                self.config.dfop00_config.override
+                or not self.asset_catalog.is_merge_complete(**merge_signature)
+            ):
+                ProcessLogger.logdebug(
+                    f"DFOP00 file {entry.remote_path} requires processing."
+                )
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    local_path = Path(temp_dir) / Path(entry.remote_path).name
+                    download_file_from_archive(entry.remote_path,temp_dir)
+                    try:
+                        shotdata_df = sv3_ops.dfop00_to_shotdata(local_path)
+                        self.shotDataPreTDB.write_df(shotdata_df)  # write to pre-shotdata
+                        self.asset_catalog.add_merge_job(**merge_signature)
+                    except Exception as e:
+                        ProcessLogger.logerr(f"Error processing {entry.local_path}: {e}")
+                        return None
+        
+        with ThreadPool() as threadpool_executor:
+            threadpool_executor.map(download_and_process_dfop00, dfop00_entries)
+
