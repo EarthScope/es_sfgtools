@@ -33,9 +33,10 @@ def main():
         network_id=network, station_id=station, campaign_id=campaign
     
     )
-    pl.get_rinex_files()
+    #pl.get_rinex_files()
     #wfh.ingest_catalog_archive_data()
     #wfh.ingest_download_archive_data()
+    pl.process_dfop00()
 
 if __name__ == "__main__":
     main()
