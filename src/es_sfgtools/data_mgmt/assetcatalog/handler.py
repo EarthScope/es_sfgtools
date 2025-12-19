@@ -508,17 +508,26 @@ class PreProcessCatalogHandler:
         with self.engine.begin() as conn:
             try:
                 conn.execute(
-                    sa.insert(Assets).values(entry.model_dump()))
+                    sa.insert(Assets).values(entry.to_update_dict())
+                )
                 return True
-            except Exception:
+            except Exception as e:
+                logger.logdebug(f" Entry may already exist, attempting update: {e}")
                 try:
-
-                    conn.execute(
-                        sa.update(table=Assets)
-                        .where(Assets.local_path.is_(str(entry.local_path)))
-                        .values(entry.to_update_dict()) 
-                    )
-                    return True
+                    if Environment.working_environment() == WorkingEnvironment.LOCAL:
+                        conn.execute(
+                            sa.update(table=Assets)
+                            .where(Assets.local_path == str(entry.local_path))
+                            .values(entry.to_update_dict()) 
+                        )
+                        return True
+                    else:
+                        conn.execute(
+                            sa.update(table=Assets)
+                            .where(Assets.remote_path == str(entry.remote_path))
+                            .values(entry.to_update_dict()) 
+                        )
+                        return True
                 except Exception as e:
                     logger.logerr(f"Error adding or updating entry {entry} to catalog: {e}")
                     pass

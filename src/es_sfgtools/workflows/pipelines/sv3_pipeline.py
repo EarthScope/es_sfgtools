@@ -8,13 +8,15 @@ from multiprocessing import Pool
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
 import tempfile
+import threading
 from turtle import pd
-from typing import List, Optional
+from typing import List, Optional,Tuple
 import os
 import numpy as np
 from tqdm.auto import tqdm
 from pandas import Timestamp
 import hatanaka
+from cloudpathlib import S3Path
 
 # Local imports
 from es_sfgtools.data_mgmt.assetcatalog.handler import PreProcessCatalogHandler
@@ -1417,7 +1419,7 @@ class SV3PipelineECS(WorkflowABC):
         year_int = int(year)
         campaign_dates = [d for d in unique_dates if d.year == year_int]
 
-        for date in campaign_dates:
+        def process_date(date:datetime.date,self=self) -> None:
             date_start = datetime.datetime.combine(date, datetime.time.min).timestamp()
             date_end = datetime.datetime.combine(date, datetime.time.max).timestamp()
             merge_signature = {
@@ -1434,7 +1436,7 @@ class SV3PipelineECS(WorkflowABC):
                 )
                 with tempfile.TemporaryDirectory() as workingdir:
 
-                    rinex_files: Path = tile2rinex_ecs(
+                    rinex_files: List[Path] = tile2rinex_ecs(
                         gnss_obs_tdb=self.gnssObsTDBURI,
                         settings=self.config.rinex_config.settings_path,
                         workdir=workingdir,
@@ -1443,17 +1445,16 @@ class SV3PipelineECS(WorkflowABC):
                         processing_year=year_int,
                     )
                     if len(rinex_files) == 0:
-                        continue
+                        return
                     rinex_file = rinex_files[0]  # Assuming one file per day
                     if rinex_file is not None:
                         # Compress RINEX file with Hatanaka
                         # Path('1lsu0010.21d.gz').write_bytes(hatanaka.compress(rinex_data))
                         compressed_rinex_path = rinex_file.with_suffix(rinex_file.suffix + ".gz")
-                        hatanaka.compress_on_disk(str(rinex_file),delete=True)
-                        compressed_rinex_path = hatanaka.get_compressed_path(str(rinex_file))
+                        compressed_rinex_path = hatanaka.compress_on_disk(str(rinex_file),delete=True)
                         # Upload to S3 and catalog
                         remote_rinex_path = s3_campaign_dir.processed / "rinex" / compressed_rinex_path.name
-                        remote_rinex_path.upload_from(str(compressed_rinex_path))
+                        remote_rinex_path = remote_rinex_path.upload_from(str(compressed_rinex_path))
                         rinex_entry = AssetEntry(
                             network=self.current_network_name,
                             station=self.current_station_name,
@@ -1461,15 +1462,17 @@ class SV3PipelineECS(WorkflowABC):
                             type=AssetType.RINEX2,
                             remote_path=str(remote_rinex_path)
                         )
-                        self.asset_catalog.add_or_update(rinex_entry)
-                        self.asset_catalog.add_merge_job(**merge_signature)
-                        ProcessLogger.loginfo(
-                            f"Generated and cataloged RINEX file {rinex_file.name} for {self.current_station_name} on {date.strftime('%Y-%m-%d')}"
-                        )
-                    else:
-                        ProcessLogger.logerr(
-                            f"Failed to generate RINEX file for {self.current_station_name} on {date.strftime('%Y-%m-%d')}"
-                        )
+                        with threading.Lock():
+                            self.asset_catalog.add_merge_job(**merge_signature)
+                            if self.asset_catalog.add_or_update(rinex_entry):
+                                ProcessLogger.loginfo(
+                                f"Generated and cataloged RINEX file {rinex_file.name} for {self.current_station_name} on {date.strftime('%Y-%m-%d')}"
+                            )
+                        rinex_file.unlink(missing_ok=True)
+                        compressed_rinex_path.unlink(missing_ok=True)
+
+        with ThreadPool(processes=10) as threadpool_executor:
+            threadpool_executor.map(process_date, campaign_dates)
 
     def process_dfop00(self) -> None:
         """Process Sonardyne DFOP00 files to generate preliminary shotdata.
@@ -1520,7 +1523,181 @@ class SV3PipelineECS(WorkflowABC):
                     except Exception as e:
                         ProcessLogger.logerr(f"Error processing {entry.local_path}: {e}")
                         return None
-        
+
         with ThreadPool() as threadpool_executor:
             threadpool_executor.map(download_and_process_dfop00, dfop00_entries)
 
+    @validate_network_station_campaign
+    def process_rinex(self) -> None:
+        """Run PRIDE-PPP on RINEX files to generate KIN and residual files.
+
+        Processing steps:
+        1. Retrieves RINEX files needing processing
+        2. Downloads GNSS product files (SP3, OBX, ATT) for each unique DOY
+        3. Runs PRIDE-PPPAR in parallel to convert RINEX to KIN format
+        4. Adds KIN and residual files to asset catalog
+
+        Uses multiprocessing for efficient parallel processing of multiple RINEX
+        files.
+        """
+
+        response = f"Running PRIDE-PPPAR on Rinex Data for {self.current_network_name} {self.current_station_name} {self.current_campaign_name}. This may take a few minutes..."
+        ProcessLogger.loginfo(response)
+
+        # Get the PRIDE directory and intermediate directory
+        prideDir = self.directory_handler.pride_directory
+        intermediateDir = self.current_campaign_dir.intermediate
+
+        # Get the Rinex files to process
+        rinex_entries: List[AssetEntry] = (
+            self.asset_catalog.get_assets(
+                network=self.current_network_name,
+                station=self.current_station_name,
+                campaign=self.current_campaign_name,
+                type=AssetType.RINEX2
+            )
+        )
+        if not rinex_entries:
+            response = f"No Rinex Files Found to Process for {self.current_network_name} {self.current_station_name} {self.current_campaign_name}"
+            ProcessLogger.logerr(response)
+            raise NoRinexFound(response)
+
+        response = f"Found {len(rinex_entries)} Rinex Files to Process"
+        ProcessLogger.loginfo(response)
+
+        """
+        Get the PRIDE GNSS product files for each unique DOY
+
+        1, Build partial functions for getting nav files and pride config files
+        2. Use ThreadPoolExecutor to download files in parallel
+        3. Create list of tuples (rinex_entry, pride_config_path) for processing
+        4. Filter out any entries where pride_config_path is None
+        """
+
+        def process_remote_rinex(
+            rinex_entry: AssetEntry, prideDir: Path, writeDir: Path, pride_config:PrideCLIConfig
+        ) -> Tuple[Optional[AssetEntry], Optional[AssetEntry]]:
+
+            remote_path: S3Path = S3Path(rinex_entry.remote_path)
+            local_path = writeDir / Path(rinex_entry.remote_path).name
+            local_path.parent.mkdir(parents=True, exist_ok=True)
+            if not local_path.exists():
+                local_path = remote_path.download_to(str(local_path))
+            if local_path.suffix == ".gz":
+                local_path_new = hatanaka.get_decompressed_path(str(local_path))
+                if not local_path_new.exists():
+                    local_path_new = hatanaka.decompress_on_disk(str(local_path))
+            else:
+                local_path_new = local_path
+
+            # Get the nav file
+            nav_file = get_nav_file(rinex_path=local_path_new,override=pride_config.override_products_download)
+            pride_config_file:Path = get_gnss_products(
+                rinex_path=local_path_new,
+                pride_dir=prideDir,
+                override=pride_config.override_products_download,
+            )
+            rinex_entry.local_path = str(local_path_new)
+            kin_entry, res_entry = rinex_to_kin_wrapper(
+                rinex_prideconfig_path=(rinex_entry, pride_config_file),
+                writedir=writeDir,
+                pridedir=prideDir,
+                site=self.current_station_name,
+                pride_config=pride_config,
+            )
+            # delete local rinex file
+            try:
+                local_path_new.unlink()
+                local_path.unlink()
+                nav_file.unlink()
+            except Exception as e:
+                ProcessLogger.logerr(f"Error deleting temporary RINEX file {str(local_path_new)}: {e}")
+
+            return kin_entry, res_entry
+
+        for rinex_entry in rinex_entries:
+            merge_signature = {
+                "parent_type": AssetType.RINEX2.value,
+                "child_type": AssetType.KINPOSITION.value,
+                "parent_ids": [rinex_entry.id],
+            }
+            if (
+                self.config.rinex_config.override
+                or not self.asset_catalog.is_merge_complete(**merge_signature)
+            ):
+                log_message = f"Rinex file {rinex_entry.remote_path} requires processing.\n"
+                log_message += f"PRIDE Config: {self.config.pride_config}\n"
+                ProcessLogger.loginfo(log_message)
+
+                try:
+                    kin_entry, res_entry = process_remote_rinex(
+                        rinex_entry,
+                        prideDir,
+                        intermediateDir,
+                        self.config.pride_config,
+                    )
+                    if kin_entry is not None:
+                        # Upload the kinfile to the tdb array
+                        kin_position_df = kin_to_kin_position_df(kin_entry.local_path)
+                        self.kinPositionTDB.write_df(kin_position_df)
+                        self.asset_catalog.add_merge_job(**merge_signature)
+
+                        ProcessLogger.loginfo(
+                            f"Generated and parsed Kin file from RINEX {rinex_entry.remote_path} to TileDB {self.kinPositionTDB.uri}"
+                        )
+                        kin_entry.local_path.unlink()  # delete local kin file
+                        res_entry.local_path.unlink()  # delete local residual file
+                    else:
+                        ProcessLogger.logerr(
+                            f"Failed to generate Kin file from RINEX {rinex_entry.remote_path}"
+                        )
+                except Exception as e:
+                    ProcessLogger.logerr(f"Error processing RINEX {rinex_entry.remote_path}: {e}")
+                    continue  # Skip to next file
+
+    @validate_network_station_campaign
+    def update_shotdata(self):
+        """Refine shotdata with interpolated high-precision kinematic positions."""
+        """Refine shotdata with interpolated high-precision kinematic positions.
+        
+        Steps:
+        1. Gets merge signature from preliminary shotdata and kinematic
+           position arrays
+        2. Checks if refinement is needed (via override or merge status)
+        3. Merges shotdata with interpolated kinematic positions
+        4. Writes refined shotdata to final TileDB array
+        5. Records merge job in asset catalog
+        
+        This step significantly improves position accuracy by replacing GNSS
+        positions with interpolated PRIDE-PPP solutions.
+        """
+
+        ProcessLogger.loginfo("Updating shotdata with interpolated KinPosition data")
+
+        # 1. Get the merge signature
+        try:
+            merge_signature, dates = get_merge_signature_shotdata(
+                self.shotDataPreTDB, self.kinPositionTDB
+            )
+        except Exception as e:
+            ProcessLogger.logerr(e)
+            return
+        merge_job = {
+            "parent_type": AssetType.KINPOSITION.value,
+            "child_type": AssetType.SHOTDATA.value,
+            "parent_ids": merge_signature,
+        }
+        # 2. Check if processing is needed
+        if (
+            not self.asset_catalog.is_merge_complete(**merge_job)
+            or self.config.position_update_config.override
+        ):
+            # 3. Merge shotdata with interpolated kinematic positions
+            merge_shotdata_kinposition(
+                shotdata_pre=self.shotDataPreTDB,
+                shotdata=self.shotDataFinalTDB,
+                kin_position=self.kinPositionTDB,
+                position_data=self.imuPositionTDB,
+                dates=dates,
+            )
+            self.asset_catalog.add_merge_job(**merge_job)

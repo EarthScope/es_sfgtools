@@ -70,7 +70,7 @@ def main():
             "cutoff_elevation": 7,}
     }
 
-    override_survey_parsing = False
+    override_survey_parsing = True
     override_garpos_parsing = False
 
     # station = "NCC1"
@@ -95,12 +95,12 @@ def main():
     # mid_processer.midprocess_sync_s3()
 
 
-    stations = ['NTH1','NCC1','NBR1','GCC1']
+    stations = ['GCC1']
     for station in stations:
         wfh.set_network_station_campaign(network_id=network, station_id=station, campaign_id=campaign)
         wfh.midprocess_parse_surveys(override=override_survey_parsing,write_intermediate=True)
-        mid_processer = wfh.midprocess_get_processor()
-        mid_processer.prepare_shotdata_garpos()
+        #mid_processer = wfh.midprocess_get_processor()
+        #mid_processer.prepare_shotdata_garpos(overwrite=True)
 
     # wfh.midprocess_parse_surveys(override=override_survey_parsing,write_intermediate=True)
     # wfh.midprocess_prep_garpos(override=override_garpos_parsing,custom_filters=filter_config,survey_id="2025_A_1126_1")

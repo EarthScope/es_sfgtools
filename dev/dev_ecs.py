@@ -15,8 +15,9 @@ PRIDE_DIR = Path.home() / ".PRIDE_PPPAR_BIN"
 os.environ["PATH"] += os.pathsep + str(PRIDE_DIR)
 
 from es_sfgtools.workflows.workflow_handler import WorkflowHandler
+from es_sfgtools.workflows.midprocess import IntermediateDataProcessor
 from es_sfgtools.workflows.pipelines.sv3_pipeline import SV3PipelineECS
-
+from es_sfgtools.data_mgmt.assetcatalog.schemas import AssetEntry
 def main():
     wfh = WorkflowHandler()
     network = "cascadia-community"
@@ -33,10 +34,15 @@ def main():
         network_id=network, station_id=station, campaign_id=campaign
     
     )
+
+    #pl.config.rinex_config.override = True
     #pl.get_rinex_files()
-    #wfh.ingest_catalog_archive_data()
-    #wfh.ingest_download_archive_data()
-    pl.process_dfop00()
+    # wfh.ingest_catalog_archive_data()
+    # wfh.ingest_download_archive_data()
+    #pl.process_rinex()
+    #pl.update_shotdata()
+    dataPostProcessor: IntermediateDataProcessor = wfh.midprocess_get_processor(override_metadata_require=True)
+    dataPostProcessor.parse_surveys()
 
 if __name__ == "__main__":
     main()
