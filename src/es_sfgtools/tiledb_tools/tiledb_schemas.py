@@ -530,15 +530,17 @@ class TDBShotDataArray(TBDArray):
         Returns:
             pd.DataFrame: A DataFrame of shot data, or None on error.
         """
-        if isinstance(start, datetime.date):
+        if not hasattr(start, "hour"):
             start = datetime.datetime.combine(start, datetime.datetime.min.time())
 
         logger.logdebug(f" Reading dataframe from {self.uri} for {start} to {end}")
         # TODO slice array by start and end and return the dataframe
         if end is None:
-            end = start + datetime.timedelta(
-                hours=23, minutes=59, seconds=59, milliseconds=999
-            )
+            end = datetime.datetime.combine(start.date(), datetime.datetime.max.time())
+            
+        start = start.replace(tzinfo=datetime.timezone.utc)
+        end = end.replace(tzinfo=datetime.timezone.utc)
+        
         with tiledb.open(str(self.uri), mode="r") as array:
             try:
                 df = array.df[slice(np.datetime64(start), np.datetime64(end)), :]
@@ -547,8 +549,13 @@ class TDBShotDataArray(TBDArray):
             except IndexError as e:
                 logger.logerr(e)
                 return None
-        df.pingTime = df.pingTime.apply(lambda x: x.timestamp())
-        df.returnTime = df.returnTime.apply(lambda x: x.timestamp())
+        df.pingTime = df.pingTime.apply(
+            lambda x: x.timestamp()  
+        )
+        df.returnTime = df.returnTime.apply(
+            lambda x: x.timestamp()
+        )
+
         df = self.dataframe_schema.validate(df, lazy=True)
         return df
 
