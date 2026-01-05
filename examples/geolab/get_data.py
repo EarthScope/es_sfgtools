@@ -33,8 +33,8 @@ FILTER_CONFIG = {
         "description": "Filter based on GNSS positioning residuals",
     },
     "max_distance_from_center": {
-        "enabled": False,
-        "max_distance_m": 500.0,
+        "enabled": True,
+        "max_distance_m": 150.0,
         "description": "Filter shots beyond maximum distance from array center",
     },
     "ping_replies": {

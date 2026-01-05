@@ -24,7 +24,7 @@ def main():
 
     filter_config = {
         "pride_residuals": {"enabled": False, "max_residual_mm": 8},
-        "max_distance_from_center": {"enabled": False, "max_distance_m": 500.0},
+        "max_distance_from_center": {"enabled": True, "max_distance_m": 150.0},
         "ping_replies": {"enabled": False, "min_replies": 1},
         "acoustic_filters": {"enabled": True, "level": "OK"},
     }
