@@ -13,13 +13,15 @@ os.environ["DYLD_LIBRARY_PATH"] = (
 )
 PRIDE_DIR = Path.home() / ".PRIDE_PPPAR_BIN"
 os.environ["PATH"] += os.pathsep + str(PRIDE_DIR)
-
+from es_sfgtools.config.env_config import Environment, WorkingEnvironment
+Environment.load_working_environment()
 from es_sfgtools.workflows.workflow_handler import WorkflowHandler
 from es_sfgtools.workflows.midprocess import IntermediateDataProcessor
 from es_sfgtools.workflows.pipelines.sv3_pipeline import SV3PipelineECS
 from es_sfgtools.data_mgmt.assetcatalog.schemas import AssetEntry
+
 def main():
-    wfh = WorkflowHandler()
+    wfh:WorkflowHandler = WorkflowHandler()
     network = "cascadia-community"
     station = "NSS1"
     campaign = "2024_A"
