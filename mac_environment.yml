@@ -20,14 +20,8 @@ dependencies:
   - go-cgo=1.11.3
   - make=4.2.1
   
-  # Documentation dependencies (Optional)
-  # - myst-parser
-  # - sphinx
-  # - sphinxcontrib-apidoc
-  # - sphinx-rtd-theme
-
   - pip:
-    - -e .
+    - -e .[notebook,dev]
     #- es-sfgtools
     - garpos @ git+https://github.com/EarthScope/garpos.git
 variables:
