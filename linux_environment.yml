@@ -32,7 +32,7 @@ dependencies:
   # - sphinx-rtd-theme
 
   - pip:
-    - -e .
+    - -e .[notebook,dev]
     # - es-sfgtools
     - garpos @ git+https://github.com/EarthScope/garpos.git
 variables:
