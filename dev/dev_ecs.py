@@ -2,6 +2,9 @@
 import os
 from pathlib import Path
 
+os.environ["CONDA_PREFIX"] = (
+    "/Users/franklyndunbar/micromamba/envs/seafloor_geodesy_mac"
+)
 os.environ["GARPOS_PATH"] = str(Path.home() / "Project/SeaFloorGeodesy" / "garpos")
 os.environ["WORKING_ENVIRONMENT"] = "ECS"
 os.environ["S3_SYNC_BUCKET"] = "seafloor-public-bucket-bucket83908e77-gprctmuztrim"
@@ -28,6 +31,10 @@ def main():
     wfh.set_network_station_campaign(
         network_id=network, station_id=station, campaign_id=campaign
     )
+
+    wfh.ingest_catalog_archive_data()
+    #wfh.ingest_download_archive_data()
+    
     pl = SV3PipelineECS(
         directory_handler=wfh.directory_handler,
         asset_catalog=wfh.asset_catalog,
@@ -37,9 +44,6 @@ def main():
     
     )
 
-
-    wfh.ingest_catalog_archive_data()
-    wfh.ingest_download_archive_data()
     pl.config.rinex_config.override = True
     pl.get_rinex_files()
     pl.process_rinex()

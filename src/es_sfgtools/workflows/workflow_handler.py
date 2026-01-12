@@ -151,6 +151,7 @@ class WorkflowHandler(WorkflowABC):
         -----
         This method requires that the catalog has been populated with remote file paths using `ingest_catalog_archive_data`.
         """
+        assert Environment.working_environment() != WorkingEnvironment.ECS, "ingest_download_archive_data should not be used in ECS environment where data is accessed directly from S3."
         self.data_handler.download_data(file_types=file_types)
 
     @validate_network_station_campaign
