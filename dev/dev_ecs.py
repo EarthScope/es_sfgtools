@@ -22,9 +22,9 @@ from es_sfgtools.data_mgmt.assetcatalog.schemas import AssetEntry
 
 def main():
     wfh:WorkflowHandler = WorkflowHandler()
-    network = "cascadia-community"
-    station = "NSS1"
-    campaign = "2024_A"
+    network = "cascadia-gorda"
+    station = "GCC1"
+    campaign = "2022_A_1065"
     wfh.set_network_station_campaign(
         network_id=network, station_id=station, campaign_id=campaign
     )
@@ -37,12 +37,13 @@ def main():
     
     )
 
-    #pl.config.rinex_config.override = True
-    #pl.get_rinex_files()
-    # wfh.ingest_catalog_archive_data()
-    # wfh.ingest_download_archive_data()
-    #pl.process_rinex()
-    #pl.update_shotdata()
+
+    wfh.ingest_catalog_archive_data()
+    wfh.ingest_download_archive_data()
+    pl.config.rinex_config.override = True
+    pl.get_rinex_files()
+    pl.process_rinex()
+    pl.update_shotdata()
     dataPostProcessor: IntermediateDataProcessor = wfh.midprocess_get_processor(override_metadata_require=True)
     dataPostProcessor.parse_surveys()
 

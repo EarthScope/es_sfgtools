@@ -570,8 +570,9 @@ se.
         shotDataTDB = TDBShotDataArray(tileDBDir.shot_data)
 
         surveys_to_process: List[Survey] = []
-        for survey in self.current_campaign_metadata.surveys:
-            surveys_to_process.append(survey)
+        if self.current_campaign_metadata is not None:
+            for survey in self.current_campaign_metadata.surveys:
+                surveys_to_process.append(survey)
         if not surveys_to_process:
             logger.loginfo("No surveys found in campaign metadata, generating pseudo-surveys.")
             surveys_to_process = self.get_pseudo_surveys(shotDataTDB)

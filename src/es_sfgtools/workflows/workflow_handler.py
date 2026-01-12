@@ -520,8 +520,9 @@ class WorkflowHandler(WorkflowABC):
                 campaign_id=self.current_campaign_name,
                 directory_handler=self.data_handler.directory_handler,
             )
-            if not override_metadata_require and self.current_station_metadata is not None:
-                dataPostProcessor.station_metadata = self.current_station_metadata
+        
+            if self.current_station_metadata is not None:
+                dataPostProcessor.current_station_metadata = self.current_station_metadata
         dataPostProcessor.mid_process_workflow = not override_metadata_require
         dataPostProcessor.set_network(network_id=self.current_network_name)
         dataPostProcessor.set_station(station_id=self.current_station_name)
