@@ -20,7 +20,7 @@ class WorkingEnvironment(Enum):
 WORKING_ENVIRONMENT_KEY = "WORKING_ENVIRONMENT"
 S3_SYNC_BUCKET_KEY = "S3_SYNC_BUCKET"
 MAIN_DIRECTORY_GEOLAB_KEY = "MAIN_DIRECTORY_GEOLAB"
-MAIN_DIRECORY_ECS_KEY = "MAIN_DIRECTORY_ECS"
+MAIN_DIRECTORY_ECS_KEY = "MAIN_DIRECTORY_ECS"
 
 class Environment:
     """
@@ -84,10 +84,10 @@ class Environment:
             
             case "ECS":
                 cls._working_environment = WorkingEnvironment.ECS
-                md_ecs = os.environ.get(MAIN_DIRECORY_ECS_KEY)
+                md_ecs = os.environ.get(MAIN_DIRECTORY_ECS_KEY)
                 if md_ecs is None:
                     raise ValueError(
-                        f"{MAIN_DIRECORY_ECS_KEY} environment variable must be set in ECS environment."
+                        f"{MAIN_DIRECTORY_ECS_KEY} environment variable must be set in ECS environment."
                     )
                 cls._main_directory_ECS = md_ecs
             case _:

@@ -1701,3 +1701,48 @@ class SV3PipelineECS(WorkflowABC):
                 dates=dates,
             )
             self.asset_catalog.add_merge_job(**merge_job)
+
+    def run_pipeline(self) -> None:
+        """Execute the complete SV3 data processing pipeline in sequence.
+        
+        Pipeline steps (in order):
+        1. pre_process_novatel(): Process Novatel GNSS data
+        2. get_rinex_files(): Generate RINEX files
+        3. process_rinex(): Run PRIDE-PPP on RINEX
+        4. process_kin(): Convert KIN files to dataframes
+        5. process_dfop00(): Process acoustic data
+        6. update_shotdata(): Refine shotdata with high-precision positions
+        7. process_svp(): Generate sound velocity profile
+        
+        Each step checks if processing is needed via config overrides or
+        catalog status.
+        """
+
+        ProcessLogger.loginfo(
+            f"Starting SV3 Processing Pipeline for {self.current_network_name} {self.current_station_name} {self.current_campaign_name}"
+        )
+        try:
+            self.pre_process_novatel()
+        except NoNovatelFound as e:
+            pass
+
+        try:
+            self.get_rinex_files()
+        except NoRinexBuilt as e:
+            pass
+
+        try:
+            self.process_rinex()
+        except NoRinexFound as e:
+            pass
+
+        try:
+            self.process_dfop00()
+        except NoDFOP00Found as e:
+            pass
+
+        self.update_shotdata()
+
+        ProcessLogger.loginfo(
+            f"Completed SV3 Processing Pipeline for {self.current_network_name} {self.current_station_name} {self.current_campaign_name}"
+        )

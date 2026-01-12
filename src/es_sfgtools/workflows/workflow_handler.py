@@ -11,7 +11,7 @@ from es_sfgtools.config.file_config import DEFAULT_FILE_TYPES_TO_DOWNLOAD
 
 
 from es_sfgtools.data_mgmt.assetcatalog.schemas import AssetEntry, AssetType
-from es_sfgtools.workflows.midprocess.mid_processing import IntermediateDataProcessor
+from es_sfgtools.workflows.midprocess.mid_processing import IntermediateDataProcessor, IntermediateDataProcessorECS
 from es_sfgtools.workflows.modeling.garpos_handler import GarposHandler
 
 from es_sfgtools.data_models.metadata.site import Site
@@ -507,12 +507,21 @@ class WorkflowHandler(WorkflowABC):
             self.midprocess_get_sitemeta(site_metadata=site_metadata)
             if self.current_station_metadata is None:
                 raise ValueError("Station metadata must be loaded before initializing IntermediateDataProcessor.")
-        
-        dataPostProcessor = IntermediateDataProcessor(
-            mid_process_workflow=not override_metadata_require,
-            station_metadata=self.current_station_metadata,
-            directory_handler=self.data_handler.directory_handler,
-        )
+        if Environment.working_environment() != WorkingEnvironment.ECS:
+            dataPostProcessor = IntermediateDataProcessor(
+                mid_process_workflow=not override_metadata_require,
+                station_metadata=self.current_station_metadata,
+                directory_handler=self.data_handler.directory_handler,
+            )
+        else:
+            dataPostProcessor = IntermediateDataProcessorECS(
+                network_id=self.current_network_name,
+                station_id=self.current_station_name,
+                campaign_id=self.current_campaign_name,
+                directory_handler=self.data_handler.directory_handler,
+            )
+            if not override_metadata_require and self.current_station_metadata is not None:
+                dataPostProcessor.station_metadata = self.current_station_metadata
         dataPostProcessor.mid_process_workflow = not override_metadata_require
         dataPostProcessor.set_network(network_id=self.current_network_name)
         dataPostProcessor.set_station(station_id=self.current_station_name)

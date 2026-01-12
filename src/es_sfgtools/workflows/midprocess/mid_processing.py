@@ -5,9 +5,11 @@ import json
 import os
 import shutil
 from typing import List, Optional
+from cloudpathlib import S3Path
 import numpy as np
 import datetime
 import pandas as pd
+import tempfile
 
 from es_sfgtools.data_mgmt.directorymgmt import (
     DirectoryHandler,
@@ -84,7 +86,7 @@ class IntermediateDataProcessor(WorkflowABC):
             A list of pseudo-surveys.
         """
         pseudo_surveys: List[Survey] = []
-        dates:List[np.datetime64] = shotdatatdb.get_unique_dates()
+        dates:List[np.datetime64] = shotdatatdb.get_unique_dates().tolist()
         if not dates:
             logger.logwarn("No shotdata dates found to generate pseudo-surveys.")
             return pseudo_surveys
@@ -133,26 +135,24 @@ class IntermediateDataProcessor(WorkflowABC):
         tileDBDir = self.current_station_dir.tiledb_directory
 
         shotDataTDB = TDBShotDataArray(tileDBDir.shot_data)
-        print(Environment.working_environment())
-        if Environment.working_environment() != WorkingEnvironment.ECS:
-            with open(
-                self.current_campaign_dir.campaign_metadata,
-                "w",
-            ) as f:
-                json_dict = json.loads(self.current_campaign_metadata.model_dump_json())
-                json.dump(json_dict, f, indent=4)
+      
+        with open(
+            self.current_campaign_dir.campaign_metadata,
+            "w",
+        ) as f:
+            json_dict = json.loads(self.current_campaign_metadata.model_dump_json())
+            json.dump(json_dict, f, indent=4)
 
         surveys_to_process: List[Survey] = []
-        if Environment.working_environment() != WorkingEnvironment.ECS:
-            for survey in self.current_campaign_metadata.surveys:
-                if survey_id is None or survey_id == survey.id:
-                    surveys_to_process.append(survey)
-            if not surveys_to_process:
-                raise ValueError(f"Survey {survey_id} not found in campaign {self.current_campaign_name}.")
-        else:
-            surveys_to_process = self.get_pseudo_surveys(shotDataTDB)
+       
+        for survey in self.current_campaign_metadata.surveys:
+            if survey_id is None or survey_id == survey.id:
+                surveys_to_process.append(survey)
+        if not surveys_to_process:
+            raise ValueError(f"Survey {survey_id} not found in campaign {self.current_campaign_name}.")
 
         for survey in surveys_to_process:
+            
             self.set_survey(survey_id=survey.id)
 
             # Prepare shotdata
@@ -488,3 +488,127 @@ class IntermediateDataProcessor(WorkflowABC):
                         except Exception as e:
                             logger.logerr(f"Failed to upload {log_file} to S3: {e}")
 
+
+class IntermediateDataProcessorECS(WorkflowABC):
+    def __init__(self,network_id:str,station_id:str,campaign_id:str,directory_handler:DirectoryHandler):
+        self.network_id = network_id
+        self.station_id = station_id
+        self.campaign_id = campaign_id
+        self.directory_handler = directory_handler
+        self.current_station_dir = self.directory_handler.networks[self.network_id].stations[self.station_id]
+        self.current_campaign_dir = self.current_station_dir.campaigns[self.campaign_id]
+        self.current_network_name = self.network_id
+        self.current_station_name = self.station_id
+        self.current_campaign_name = self.campaign_id
+
+    # def set_survey(self,survey_id:str):
+    #     if (
+    #         current_survey_dir := self.current_campaign_dir.surveys.get(survey_id, None)
+    #     ) is None:
+    #         current_survey_dir = self.current_campaign_dir.add_survey(name=survey_id)
+    #     self.current_survey_dir = current_survey_dir
+    #     self.current_survey_dir.build()
+
+    def get_pseudo_surveys(self,shotdatatdb:TDBShotDataArray) -> List[Survey]:
+        """Generates pseudo-surveys based on shotdata timestamps.
+
+        Parameters
+        ----------
+        shotdatatdb : TDBShotDataArray
+            The TileDB shotdata array.
+
+        Returns
+        -------
+        List[Survey]
+            A list of pseudo-surveys.
+        """
+        pseudo_surveys: List[Survey] = []
+        dates:List[np.datetime64] = shotdatatdb.get_unique_dates().tolist()
+        if not dates:
+            logger.logwarn("No shotdata dates found to generate pseudo-surveys.")
+            return pseudo_surveys
+
+        # Filter by current campaign date range
+        current_year = float(self.current_campaign_name.split("_")[0])
+        filtered_dates = [date for date in dates if date.year == current_year]
+        if not filtered_dates:
+            logger.logwarn(f"No shotdata dates found for campaign year {current_year} to generate pseudo-surveys.")
+            return pseudo_surveys
+
+        filtered_dates = sorted(filtered_dates)
+        for idx,date in enumerate(filtered_dates):
+            start_time = pd.Timestamp(date).tz_localize('UTC').to_pydatetime().replace(hour=0, minute=0, second=0, microsecond=0)
+            end_time = datetime.datetime.combine(start_time.date(),datetime.time.max).replace(tzinfo=datetime.timezone.utc)
+
+            pseudo_survey = Survey(
+                id=f"{self.current_campaign_name}_{date.strftime('%Y%m%d')}_{idx+1}",
+                type="unknown",
+                start=start_time,
+                end=end_time,
+                benchmarkIDs=[],
+            )
+            pseudo_surveys.append(pseudo_survey)
+        return pseudo_surveys
+
+    def parse_surveys(
+        self,
+        override: bool = False,
+    ):
+        """Parses the surveys from the current campaign and adds them to the directory structure.
+
+        Parameters
+        ----------
+        survey_id : Optional[str], optional
+            The ID of the survey to parse. If None, all surveys are parsed, by default None.
+        override : bool, optional
+            Whether to override existing files, by default False.
+se.
+        """
+
+        tileDBDir = self.current_station_dir.tiledb_directory
+
+        shotDataTDB = TDBShotDataArray(tileDBDir.shot_data)
+
+        surveys_to_process: List[Survey] = []
+        for survey in self.current_campaign_metadata.surveys:
+            surveys_to_process.append(survey)
+        if not surveys_to_process:
+            logger.loginfo("No surveys found in campaign metadata, generating pseudo-surveys.")
+            surveys_to_process = self.get_pseudo_surveys(shotDataTDB)
+        if not surveys_to_process:
+            raise ValueError(f"No Data Found at TileDB {tileDBDir.shot_data} to generate surveys.")
+    
+
+        s3_dir_handler:DirectoryHandler = self.directory_handler.point_to_s3(load_s3_sync_bucket())
+        shotdata_file_dir = s3_dir_handler[self.current_network_name][self.current_station_name][self.current_campaign_name]
+
+        for survey in surveys_to_process:
+            
+            # Prepare shotdata
+            shotdata_file_name_unfiltered = (
+                f"{survey.id}_{survey.type.value}_shotdata.csv".replace(" ", "")
+            )
+            shotdata_file_dest: S3Path = (
+                shotdata_file_dir.location / "processed" / "shotdata" / shotdata_file_name_unfiltered
+            )
+            
+            if (
+                not shotdata_file_dest.exists()
+                or shotdata_file_dest.stat().st_size == 0
+                or override
+            ):
+                shot_data_queried = shotDataTDB.read_df(
+                    start=survey.start,
+                    end=survey.end,
+                )
+                if shot_data_queried.empty:
+                    logger.logwarn(
+                        f"No shot data found for survey {survey.id} from {survey.start} to {survey.end}, skipping survey."
+                    )
+                    continue
+                else:
+                    with tempfile.NamedTemporaryFile(delete=False) as tmpfile:
+                        shot_data_queried.to_csv(tmpfile.name)
+                        shotdata_file_dest.upload_from(tmpfile.name,force_overwrite_to_cloud=override)
+
+            
