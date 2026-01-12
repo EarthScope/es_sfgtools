@@ -5,7 +5,7 @@ GarposHandler class for processing and preparing shot data for the GARPOS model.
 from pathlib import Path
 from typing import Optional
 import shutil
-from datetime import datetime
+from datetime import datetime,timezone
 import numpy as np
 
 # Plotting imports
@@ -116,7 +116,7 @@ class GarposHandler(WorkflowABC):
             If the network is not found in the site metadata.
         """
         super().set_network(network_id=network_id)
-     
+
         self.current_garpos_survey_dir = None
 
     def set_station(self, station_id: str):
@@ -134,7 +134,7 @@ class GarposHandler(WorkflowABC):
         """
 
         super().set_station(station_id=station_id)
-     
+
     def set_campaign(self, campaign_id: str):
         """Sets the current campaign.
 
@@ -411,7 +411,6 @@ class GarposHandler(WorkflowABC):
                 logger.logwarn(f"Skipping plotting for survey {survey_id}: {e}")
                 continue
 
-
     def _plot_ts_results(
         self,
         survey_id: str,
@@ -440,8 +439,9 @@ class GarposHandler(WorkflowABC):
             Whether to display the figure.
 
         """
-
-
+        # Clear previous plots
+        plt.clf()
+        
         results_dir: Path = self.current_garpos_survey_dir.results_dir
         run_dir = results_dir / f"run_{run_id}"
         if not run_dir.exists():
@@ -487,7 +487,7 @@ class GarposHandler(WorkflowABC):
         results_df_raw = pd.read_csv(garpos_results.shot_data)
         results_df_raw = ObservationData.validate(results_df_raw, lazy=True)
         results_df_raw["time"] = results_df_raw.ST.apply(
-            lambda x: datetime.fromtimestamp(x)
+            lambda x: datetime.fromtimestamp(x, timezone.utc)
         )
         df_filter = results_df_raw["ResiRange"].abs() < res_filter
         results_df = results_df_raw[df_filter]
@@ -636,3 +636,4 @@ class GarposHandler(WorkflowABC):
                 bbox_inches="tight",
                 pad_inches=0.1,
             )
+        

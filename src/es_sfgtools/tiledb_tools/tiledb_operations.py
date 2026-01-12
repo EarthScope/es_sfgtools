@@ -19,6 +19,8 @@ def tile2rinex(
     writedir: Path,
     time_interval: int = 1,
     processing_year: int = 0,
+    unix_start_time: int = 0,
+    unix_end_time: int = 0,
 ) -> List[Path]:
     """
     Converts GNSS observation tileDB data to RINEX format using the TILE2RINEX binary.
@@ -60,6 +62,10 @@ def tile2rinex(
             str(time_interval),
             "-year",
             str(processing_year),
+            "-start",
+            str(unix_start_time),
+            "-end",
+            str(unix_end_time)
         ]
         logger.loginfo(f" Running {cmd}")
         result = subprocess.run(cmd, cwd=workdir,capture_output=True)
@@ -75,3 +81,48 @@ def tile2rinex(
             logger.loginfo(f"Generated Daily RINEX file {str(new_rinex_path)}")
 
     return rinex_assets
+
+
+def tile2rinex_ecs(
+    gnss_obs_tdb: Path,
+    settings: Path,
+    workdir:str,
+    time_interval: int = 1,
+    processing_year: int = 0,
+    unix_start_time: int = 0,
+    unix_end_time: int = 0,
+   
+) -> Path:
+    binary_path = get_tile2rinex_binary_path()
+
+    os.environ["LD_LIBRARY_PATH"] = os.environ["CONDA_PREFIX"] + "/lib"
+    os.environ["DYLD_LIBRARY_PATH"] = os.environ["CONDA_PREFIX"] + "/lib"
+    
+    
+    # Convert unix milliseconds to nanoseconds
+    unix_start_time = int(unix_start_time )
+    unix_end_time = int(unix_end_time)
+    cmd = [
+        str(binary_path),
+        "-tdb",
+        str(gnss_obs_tdb),
+        "-settings",
+        str(settings),
+        "-timeint",
+        str(time_interval),
+        "-year",
+        str(processing_year),
+        "-start",
+        str(unix_start_time),
+        "-end",
+        str(unix_end_time),
+    ]
+    logger.loginfo(f" Running {cmd}")
+    result = subprocess.run(cmd, cwd=workdir, capture_output=True)
+
+    parse_cli_logs(result, logger)
+
+    rinex_files = list(Path(workdir).rglob("*"))
+  
+
+    return rinex_files if rinex_files else []

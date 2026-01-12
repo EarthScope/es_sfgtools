@@ -14,12 +14,13 @@ class WorkingEnvironment(Enum):
 
     LOCAL = "LOCAL"
     GEOLAB = "GEOLAB"
+    ECS = "ECS"
 
 
 WORKING_ENVIRONMENT_KEY = "WORKING_ENVIRONMENT"
 S3_SYNC_BUCKET_KEY = "S3_SYNC_BUCKET"
 MAIN_DIRECTORY_GEOLAB_KEY = "MAIN_DIRECTORY_GEOLAB"
-
+MAIN_DIRECTORY_ECS_KEY = "MAIN_DIRECTORY_ECS"
 
 class Environment:
     """
@@ -32,6 +33,7 @@ class Environment:
     _working_environment: WorkingEnvironment = WorkingEnvironment.LOCAL
     _s3_sync_bucket: str | None = None
     _main_directory_GEOLAB: str | None = None
+    _main_directory_ECS: str | None = None
 
     @classmethod
     def working_environment(cls) -> WorkingEnvironment:
@@ -48,6 +50,11 @@ class Environment:
         """Returns the main directory for the GEOLAB environment, if configured."""
         return cls._main_directory_GEOLAB
 
+    @classmethod
+    def main_directory_ECS(cls) -> str | None:
+        """Returns the main directory for the ECS environment, if configured."""
+        return cls._main_directory_ECS
+    
     @classmethod
     def load_working_environment(cls) -> None:
         """
@@ -74,6 +81,15 @@ class Environment:
                         f"{MAIN_DIRECTORY_GEOLAB_KEY} environment variable must be set in GEOLAB environment."
                     )
                 cls._main_directory_GEOLAB = md_geolab
+            
+            case "ECS":
+                cls._working_environment = WorkingEnvironment.ECS
+                md_ecs = os.environ.get(MAIN_DIRECTORY_ECS_KEY)
+                if md_ecs is None:
+                    raise ValueError(
+                        f"{MAIN_DIRECTORY_ECS_KEY} environment variable must be set in ECS environment."
+                    )
+                cls._main_directory_ECS = md_ecs
             case _:
                 raise ValueError(
                     f"Unknown WORKING_ENVIRONMENT: {env_str}. "

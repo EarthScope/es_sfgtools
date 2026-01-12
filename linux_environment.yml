@@ -58,5 +58,6 @@ dependencies:
     - gnatss
     - regex
     - cloudpathlib[s3]
+    - hatanaka
 variables:
   CGO_ENABLED: 1

@@ -5,20 +5,46 @@ from typing import Dict, List
 import pandas as pd
 import sqlalchemy as sa
 
-from .schemas import AssetEntry
+from .schemas import AssetEntry,ConnectionInfo
 from es_sfgtools.config.file_config import AssetType
+from es_sfgtools.config.env_config import Environment, WorkingEnvironment
 
 from es_sfgtools.logging import ProcessLogger as logger
 
 from .tables import Assets, Base, MergeJobs
 
+from .utils import get_db_connection_info
 
 class PreProcessCatalogHandler:
     """
     A class to handle the preprocessing catalog.
     """
-    def __init__(self, db_path: Path):
+    def __init__(self, db_path: Path = None, db_config: ConnectionInfo = None):
         """Initializes the PreProcessCatalog.
+
+        Parameters
+        ----------
+        db_path : Path
+            The path to the database.
+        db_config : ConnectionInfo
+            The RDS database connection information.
+        """
+        match Environment.working_environment():
+            case WorkingEnvironment.LOCAL | WorkingEnvironment.GEOLAB:
+                if db_path is None:
+                    raise ValueError("db_path must be provided for LOCAL environment.")
+                self._build_local_sqlite(db_path)
+            case WorkingEnvironment.ECS:
+                if db_config is None:
+                    db_config = get_db_connection_info()
+                if db_config is None:
+                    raise ValueError("db_config must be provided for GEOLAB or ECS environment.")
+                self._create_rds_engine(db_config)
+            case _:
+                raise ValueError("Unsupported working environment.")
+
+    def _build_local_sqlite(self, db_path: Path):
+        """Builds a local SQLite database.
 
         Parameters
         ----------
@@ -31,7 +57,44 @@ class PreProcessCatalogHandler:
         )
         Base.metadata.create_all(self.engine)
 
-    def get_dtype_counts(self, network:str, station:str, campaign:str, **kwargs) -> Dict[str,int]:
+
+    def _create_rds_engine(self, db_config: ConnectionInfo):
+        """Create SQLAlchemy engine for RDS connection."""
+
+        # Use the actual database name, not the instance identifier
+        database_name = (
+            getattr(db_config, "database_name", None) or "postgres"
+        )  # Default to 'postgres'
+
+        connection_string = (
+            f"postgresql://{db_config.username}:{db_config.password}@"
+            f"{db_config.host}:{db_config.port}/{database_name}"
+        )
+
+        logger.loginfo(f"Connecting to database: {database_name} on {db_config.host}")
+
+        self.connection_info = db_config
+
+        # Add connection timeout and error handling
+        self.engine = sa.create_engine(
+            connection_string,
+            poolclass=sa.pool.QueuePool,
+            connect_args={"connect_timeout": 30, "options": "-c timezone=utc"},
+        )
+
+        # Test connection before creating tables
+        try:
+            with self.engine.connect() as conn:
+                result = conn.execute(sa.text("SELECT current_database()"))
+                current_db = result.fetchone()[0]
+                logger.loginfo(f"Successfully connected to database: {current_db}")
+        except Exception as e:
+            logger.logerr(f"Failed to connect to database: {e}")
+            raise
+
+        Base.metadata.create_all(self.engine)
+
+    def get_dtype_counts(self, network:str, station:str, campaign:str, use_local:bool = True,**kwargs) -> Dict[str,int]:
         """Gets the counts of each data type for a given network, station, and campaign.
 
         Parameters
@@ -42,6 +105,8 @@ class PreProcessCatalogHandler:
             The station name.
         campaign : str
             The campaign name.
+        use_local : bool, optional
+            Whether to only count local assets, by default True.
 
         Returns
         -------
@@ -57,7 +122,7 @@ class PreProcessCatalogHandler:
                         Assets.network.in_([network]),
                         Assets.station.in_([station]),
                         Assets.campaign.in_([campaign]),
-                        Assets.local_path.is_not(None),
+                        Assets.local_path.is_not(None) if use_local else True,
                     )
                     .group_by(Assets.type)
                 ).fetchall()
@@ -119,7 +184,7 @@ class PreProcessCatalogHandler:
             except Exception as e:
                 logger.logerr(f"Error deleting entries: {e}")
                 return False
-            
+
     def get_assets(self,
                    network: str,
                    station: str,
@@ -170,7 +235,7 @@ class PreProcessCatalogHandler:
                 except Exception as e:
                     logger.logerr("Unable to add row, error: {}".format(e))
             return out
-        
+
     def get_ctds(self, station: str, campaign: str) -> List[AssetEntry]:
         """Get all svp, ctd and seabird assets for a given station and campaign.
 
@@ -206,7 +271,50 @@ class PreProcessCatalogHandler:
                 except Exception as e:
                     logger.logerr("Unable to add row, error: {}".format(e))
             return out
+    def get_assets(self,
+                   network: str,
+                   station: str,
+                   campaign: str,
+                   type: AssetType) -> List[AssetEntry]:
+        """Get assets for a given network, station, campaign, and type.
 
+        Parameters
+        ----------
+        network : str
+            The network.
+        station : str
+            The station.
+        campaign : str
+            The campaign.
+        type : AssetType
+            The asset type.
+
+        Returns
+        -------
+        List[AssetEntry]
+            A list of AssetEntry objects.
+        """
+
+        logger.logdebug(f" Getting assets for {network} {station} {campaign} {str(type)}")
+
+        with self.engine.connect() as conn:
+            query = sa.select(Assets).where(
+                sa.and_(
+                    Assets.network == network,
+                    Assets.station == station,
+                    Assets.campaign == campaign,
+                    Assets.type == type.value
+                )
+            )
+            result = conn.execute(query).fetchall()
+            out = []
+            for row in result:
+                try:
+                    out.append(AssetEntry(**row._mapping))
+                except Exception as e:
+                    logger.logerr("Unable to add row, error: {}".format(e))
+            return out
+        
     def get_local_assets(self,
                    network: str,
                    station: str,
@@ -400,17 +508,26 @@ class PreProcessCatalogHandler:
         with self.engine.begin() as conn:
             try:
                 conn.execute(
-                    sa.insert(Assets).values(entry.model_dump()))
+                    sa.insert(Assets).values(entry.to_update_dict())
+                )
                 return True
-            except Exception:
+            except Exception as e:
+                logger.logdebug(f" Entry may already exist, attempting update: {e}")
                 try:
-
-                    conn.execute(
-                        sa.update(table=Assets)
-                        .where(Assets.local_path.is_(str(entry.local_path)))
-                        .values(entry.to_update_dict()) 
-                    )
-                    return True
+                    if Environment.working_environment() == WorkingEnvironment.LOCAL:
+                        conn.execute(
+                            sa.update(table=Assets)
+                            .where(Assets.local_path == str(entry.local_path))
+                            .values(entry.to_update_dict()) 
+                        )
+                        return True
+                    else:
+                        conn.execute(
+                            sa.update(table=Assets)
+                            .where(Assets.remote_path == str(entry.remote_path))
+                            .values(entry.to_update_dict()) 
+                        )
+                        return True
                 except Exception as e:
                     logger.logerr(f"Error adding or updating entry {entry} to catalog: {e}")
                     pass
@@ -458,7 +575,7 @@ class PreProcessCatalogHandler:
             if results:
                 return True
         return False
-    
+
     def add_entry(self, entry:AssetEntry) -> bool:
         """Adds an entry to the database.
 
@@ -475,13 +592,15 @@ class PreProcessCatalogHandler:
         if not self._does_entry_exist(entry):
             try:
                 with self.engine.begin() as conn:
-                    conn.execute(sa.insert(Assets).values(entry.model_dump()))
+                    entry_model = entry.model_dump()
+                    entry_model.pop("id",None)  # Remove id if present
+                    conn.execute(sa.insert(Assets).values(entry_model))
                 return True
             except sa.exc.IntegrityError as e:
                 logger.logdebug(f" Integrity error adding entry {entry} to catalog: {e}")
                 return False
         return False
-    
+
     def delete_entry(self, entry:AssetEntry) -> bool:
         """Deletes an entry from the database.
 

@@ -11,7 +11,7 @@ from es_sfgtools.config.file_config import DEFAULT_FILE_TYPES_TO_DOWNLOAD
 
 
 from es_sfgtools.data_mgmt.assetcatalog.schemas import AssetEntry, AssetType
-from es_sfgtools.workflows.midprocess.mid_processing import IntermediateDataProcessor
+from es_sfgtools.workflows.midprocess.mid_processing import IntermediateDataProcessor, IntermediateDataProcessorECS
 from es_sfgtools.workflows.modeling.garpos_handler import GarposHandler
 
 from es_sfgtools.data_models.metadata.site import Site
@@ -75,8 +75,14 @@ class WorkflowHandler(WorkflowABC):
         """
         Environment.load_working_environment()
         if directory is None:
-            assert Environment.working_environment() == WorkingEnvironment.GEOLAB, "Directory must be provided unless in GEOLAB environment"
-            directory = Environment.main_directory_GEOLAB()
+            match Environment.working_environment():
+                case WorkingEnvironment.ECS:
+                        directory = Environment.main_directory_ECS()
+                case WorkingEnvironment.GEOLAB:
+                        directory = Environment.main_directory_GEOLAB()
+                case _:
+                        raise ValueError("Directory must be provided in LOCAL environment")
+        
 
         # Initialize parent WorkflowABC with directory
         super().__init__(directory=directory)
@@ -145,6 +151,7 @@ class WorkflowHandler(WorkflowABC):
         -----
         This method requires that the catalog has been populated with remote file paths using `ingest_catalog_archive_data`.
         """
+        assert Environment.working_environment() != WorkingEnvironment.ECS, "ingest_download_archive_data should not be used in ECS environment where data is accessed directly from S3."
         self.data_handler.download_data(file_types=file_types)
 
     @validate_network_station_campaign
@@ -499,13 +506,24 @@ class WorkflowHandler(WorkflowABC):
         if not override_metadata_require:
             # Ensure site metadata is loaded
             self.midprocess_get_sitemeta(site_metadata=site_metadata)
-
-        if self.current_station_metadata is None:
-            raise ValueError("Station metadata must be loaded before initializing IntermediateDataProcessor.")
-        dataPostProcessor = IntermediateDataProcessor(
-            station_metadata=self.current_station_metadata,
-            directory_handler=self.data_handler.directory_handler,
-        )
+            if self.current_station_metadata is None:
+                raise ValueError("Station metadata must be loaded before initializing IntermediateDataProcessor.")
+        if Environment.working_environment() != WorkingEnvironment.ECS:
+            dataPostProcessor = IntermediateDataProcessor(
+                mid_process_workflow=not override_metadata_require,
+                station_metadata=self.current_station_metadata,
+                directory_handler=self.data_handler.directory_handler,
+            )
+        else:
+            dataPostProcessor = IntermediateDataProcessorECS(
+                network_id=self.current_network_name,
+                station_id=self.current_station_name,
+                campaign_id=self.current_campaign_name,
+                directory_handler=self.data_handler.directory_handler,
+            )
+        
+            if self.current_station_metadata is not None:
+                dataPostProcessor.current_station_metadata = self.current_station_metadata
         dataPostProcessor.mid_process_workflow = not override_metadata_require
         dataPostProcessor.set_network(network_id=self.current_network_name)
         dataPostProcessor.set_station(station_id=self.current_station_name)
