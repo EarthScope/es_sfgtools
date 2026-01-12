@@ -12,6 +12,7 @@ import threading
 from turtle import pd
 from typing import List, Optional,Tuple
 import os
+from es_sfgtools.pride_tools.pride_operations import cleanup_pride_files
 import numpy as np
 from tqdm.auto import tqdm
 from pandas import Timestamp
@@ -1654,7 +1655,8 @@ class SV3PipelineECS(WorkflowABC):
                 except Exception as e:
                     ProcessLogger.logerr(f"Error processing RINEX {rinex_entry.remote_path}: {e}")
                     continue  # Skip to next file
-
+        cleanup_pride_files(prideDir, self.current_station_name)
+        
     @validate_network_station_campaign
     def update_shotdata(self):
         """Refine shotdata with interpolated high-precision kinematic positions."""
