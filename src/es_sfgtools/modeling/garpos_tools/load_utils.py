@@ -77,7 +77,7 @@ def load_drive_garpos() -> Callable:
     garpos_path_env = os.getenv("GARPOS_PATH", None)
     if garpos_path_env is None or garpos_path_env == 'None':
         raise FileNotFoundError("GARPOS_PATH environment variable is not set")
-    garpos_path = Path(garpos_path_env) if garpos_path_env else None
+    garpos_path = Path(garpos_path_env)
     if not garpos_path.exists():
         raise FileNotFoundError(f"GARPOS_PATH {garpos_path} does not exist")
     logger.logdebug(
