@@ -10,5 +10,5 @@ wfh.set_network_station_campaign(
     network_id=network, station_id=station, campaign_id=campaign
 )
 wfh.midprocess_parse_surveys(
-    override=True,write_intermediate=True
+    override=True, write_intermediate=True
 )
