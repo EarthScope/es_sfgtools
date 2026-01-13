@@ -74,8 +74,10 @@ def load_drive_garpos() -> Callable:
         AttributeError: If the `drive_garpos` function is not found in the
                         `garpos_main` module.
     """
-
-    garpos_path = Path(os.getenv("GARPOS_PATH"))
+    garpos_path_env = os.getenv("GARPOS_PATH", None)
+    if garpos_path_env is None or garpos_path_env == 'None':
+        raise FileNotFoundError("GARPOS_PATH environment variable is not set")
+    garpos_path = Path(garpos_path_env)
     if not garpos_path.exists():
         raise FileNotFoundError(f"GARPOS_PATH {garpos_path} does not exist")
     logger.logdebug(
