@@ -12,14 +12,14 @@ from es_sfgtools.workflows.workflow_handler import WorkflowHandler
 
 
 def main():
-    os.environ["WORKING_ENVIRONMENT"] = "GEOLAB"
-    os.environ["MAIN_DIRECTORY_GEOLAB"] = "/Volumes/DunbarSSD/Project/SeafloorGeodesy/GEOLABDemo"
-    os.environ["S3_SYNC_BUCKET"] = (
-        "seafloor-public-bucket-bucket83908e77-gprctmuztrim"
-    )
+    # os.environ["WORKING_ENVIRONMENT"] = "GEOLAB"
+    # os.environ["MAIN_DIRECTORY_GEOLAB"] = "/Volumes/DunbarSSD/Project/SeafloorGeodesy/GEOLABDemo"
+    # os.environ["S3_SYNC_BUCKET"] = (
+    #     "seafloor-public-bucket-bucket83908e77-gprctmuztrim"
+    # )
     from es_sfgtools.config import Environment, WorkingEnvironment
     Environment.load_working_environment()
-    main_dir = Path("/Volumes/DunbarSSD/Project/SeafloorGeodesy/GEOLABDemo")
+    main_dir = Path("/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain")
     wfh = WorkflowHandler(main_dir)
 
     network = "cascadia-gorda"
@@ -73,8 +73,8 @@ def main():
     override_survey_parsing = False
     override_garpos_parsing = False
 
-    # station = "NCC1"
-    # run_id = "NCC1_Test1"
+    station = "NCC1"
+    run_id = "NCC1_Test1"
     # raw_dir_ncc1 = main_dir / network / station / campaign / "raw"
     # wfh.set_network_station_campaign(network_id=network, station_id=station, campaign_id=campaign)
     # wfh.ingest_add_local_data(directory_path=raw_dir_ncc1)
@@ -94,13 +94,17 @@ def main():
     # mid_processer = wfh.midprocess_get_processor()
     # mid_processer.midprocess_sync_s3()
 
-
-    stations = ['NTH1','NCC1','NBR1','GCC1']
+    run_id = "plot_test"
+    
+    override_survey_parsing = False
+    stations = ['NCC1']
     for station in stations:
         wfh.set_network_station_campaign(network_id=network, station_id=station, campaign_id=campaign)
-        wfh.midprocess_parse_surveys(override=override_survey_parsing,write_intermediate=True)
+        wfh.midprocess_parse_surveys(override=override_survey_parsing,write_intermediate=False)
         mid_processer = wfh.midprocess_get_processor()
         mid_processer.prepare_shotdata_garpos()
+        wfh.modeling_run_garpos(run_id=run_id,iterations=2,override=False,custom_settings={"inversion_params":{"maxloop":10}})
+        wfh.modeling_plot_garpos_results(run_id=run_id ,residuals_filter=10,show_fig=False)
 
     # wfh.midprocess_parse_surveys(override=override_survey_parsing,write_intermediate=True)
     # wfh.midprocess_prep_garpos(override=override_garpos_parsing,custom_filters=filter_config,survey_id="2025_A_1126_1")
