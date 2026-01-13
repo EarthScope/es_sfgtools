@@ -42,7 +42,6 @@ def as_py_datetime_object_col(s: pd.Series) -> pd.Series:
     # Vectorized conversion; force object dtype so pandas doesn't coerce back to datetime64
     dt = pd.to_datetime(s, errors="coerce", utc=True)  # handles numpy datetime64, Timestamp, strings
     py = dt.dt.to_pydatetime()  # ndarray[datetime.datetime]
-    # ass
     return pd.Series(py, index=s.index, dtype=object)
 
 filters = tiledb.FilterList([tiledb.ZstdFilter(7)])
