@@ -31,7 +31,7 @@ def as_py_datetime_object_col(s: pd.Series) -> pd.Series:
     """
     Convert a pandas Series of datetime-like objects to Python datetime objects.
 
-    Parameter
+    Parameters
     ----------
         s (pd.Series): A pandas Series containing datetime-like objects.
 
