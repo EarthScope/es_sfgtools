@@ -40,8 +40,9 @@ def as_py_datetime_object_col(s: pd.Series) -> pd.Series:
         pd.Series: A pandas Series with Python datetime objects.
     """
     # Vectorized conversion; force object dtype so pandas doesn't coerce back to datetime64
-    dt = pd.to_datetime(s, errors="coerce")  # handles numpy datetime64, Timestamp, strings
+    dt = pd.to_datetime(s, errors="coerce", utc=True)  # handles numpy datetime64, Timestamp, strings
     py = dt.dt.to_pydatetime()  # ndarray[datetime.datetime]
+    # ass
     return pd.Series(py, index=s.index, dtype=object)
 
 filters = tiledb.FilterList([tiledb.ZstdFilter(7)])
@@ -376,16 +377,19 @@ class TBDArray:
             start = start.astype(datetime.datetime)
         if isinstance(end, np.datetime64):
             end = end.astype(datetime.datetime)
-        if isinstance(start, datetime.date):
+        if end is None:
+            end = start.date()
+
+        if isinstance(start, datetime.date) and not isinstance(start, datetime.datetime):
             start = datetime.datetime.combine(start, datetime.datetime.min.time())
-        if isinstance(end, datetime.date):
-            end = datetime.datetime.combine(end, datetime.datetime.min.time())
+        if isinstance(end, datetime.date) and not isinstance(end, datetime.datetime):
+            end = datetime.datetime.combine(end, datetime.datetime.max.time())
+
         logger.logdebug(f" Reading dataframe from {self.uri}")
         # TODO slice array by start and end and return the dataframe
-        if end is None:
-            end = start + datetime.timedelta(days=1)
-        else:
-            end = end + datetime.timedelta(days=1)
+        start = start.replace(tzinfo=datetime.timezone.utc)
+        end = end.replace(tzinfo=datetime.timezone.utc)
+        
         with tiledb.open(str(self.uri), mode="r") as array:
             try:
                 df = array.df[slice(np.datetime64(start), np.datetime64(end))]
@@ -547,7 +551,7 @@ class TDBShotDataArray(TBDArray):
         Returns:
             pd.DataFrame: A DataFrame of shot data, or None on error.
         """
-        if isinstance(start, datetime.date):
+        if isinstance(start, datetime.date) and not isinstance(start, datetime.datetime):
             start = datetime.datetime.combine(start, datetime.datetime.min.time())
 
         logger.logdebug(f" Reading dataframe from {self.uri} for {start} to {end}")
@@ -556,6 +560,9 @@ class TDBShotDataArray(TBDArray):
             end = datetime.datetime.combine(
                 start.date() ,datetime.datetime.max.time()
             )
+        start = start.replace(tzinfo=datetime.timezone.utc)
+        end = end.replace(tzinfo=datetime.timezone.utc)
+
         with tiledb.open(str(self.uri), mode="r") as array:
             try:
                 df = array.df[slice(np.datetime64(start), np.datetime64(end)), :]
