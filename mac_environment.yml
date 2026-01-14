@@ -13,6 +13,8 @@ dependencies:
   - tiledb-py=0.34.2
 
   # Build / compiler dependencies
+  - setuptools
+  - wheel
   - clang=18.1.8
   - gfortran=11.3.0
   - go=1.24.4
@@ -21,7 +23,7 @@ dependencies:
   
   - pip:
     - -e .[notebook,dev]
-    #- es-sfgtools
     - garpos @ git+https://github.com/EarthScope/garpos.git
 variables:
   CGO_ENABLED: 1
+  PIP_INDEX_URL: https://pypi.org/simple
