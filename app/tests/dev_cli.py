@@ -19,7 +19,7 @@ if __name__ == "__main__":
     os.environ["PATH"] += os.pathsep + str(pride_path)
 
     manifest_path = Path(
-        "/Users/franklyndunbar/Project/SeaFloorGeodesy/es_sfgtools/app/tests/pre-proc-manifest.yaml"
+        "/Users/franklyndunbar/Project/SeaFloorGeodesy/es_sfgtools/dev/NCC1-preproc-manifest.json"
     )
 
     run_manifest(
