@@ -8,50 +8,22 @@ dependencies:
   - pip
 
   # Code dependencies
-  - boto3
-  - botocore
-  - ipykernel
-  - julian
-  - matplotlib
-  - numpy
-  - pandera=0.20.3
-  - pandas
-  - pyarrow
-  - pydantic=2.8.2
-  - pymap3d
-  - pyproj
-  - python-dotenv
-  - scipy
-  - scikit-learn
-  - scikit-sparse
-  - seaborn
-  - sqlalchemy
+  - scikit-sparse=0.4.16
   - tiledb=2.28
-  - tiledb-py
-  - tqdm
+  - tiledb-py=0.34.2
 
   # Build / compiler dependencies
-  - clang
-  - gfortran
-  - go
-  - go-cgo 
-  - make
+  - setuptools
+  - wheel
+  - clang=18.1.8
+  - gfortran=11.3.0
+  - go=1.24.4
+  - go-cgo=1.24.4
+  - make=4.3
   
-  # Documentation dependencies (Optional)
-  - myst-parser
-  - sphinx
-  - sphinxcontrib-apidoc
-  - sphinx-rtd-theme
-
   - pip:
-    - -e .
-    #- es-sfgtools
+    - -e .[notebook,dev]
     - garpos @ git+https://github.com/EarthScope/garpos.git
-    - earthscope-sdk==1.1.1
-    - earthscope-cli==1.0.1
-    - sphinx_pyproject
-    - gnatss
-    - regex
-    - cloudpathlib[s3]
 variables:
   CGO_ENABLED: 1
+  PIP_INDEX_URL: https://pypi.org/simple
