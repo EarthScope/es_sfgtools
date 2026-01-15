@@ -137,7 +137,8 @@ def merge_interrogation_reply(
     #validate that tt > 0 (we actually got a range value in the reply)
     range = float(reply.tt) + float(reply.tat) + TRIGGER_DELAY_SV3
     assert (abs(range) > 1e-3), (f"Transponder {reply.transponderID} has range={abs(round(range,1))} for ping at {interrogation.pingTime} {datetime.fromtimestamp(float(interrogation.pingTime))}")
-    
+    time_difference = abs(float(reply.returnTime) - float(interrogation.pingTime))
+    assert time_difference <= 15, f"Calculated time difference between ping and return is too large: {time_difference} seconds for transponder {reply.transponderID}"
     # Validate that pingTime + tt + tat + TRIGGER_DELAY_SV3 equals returnTime
     # calculate original range
     range_original = float(reply.tt) + float(reply.tat) 
@@ -173,7 +174,12 @@ def dfop00_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
         A ShotDataFrame containing processed and merged event data, or None
         if no valid data was found or an error occurred during file reading.
     """
-
+    good_parse_count_interrogation = 0
+    fail_parse_count_interrogation = 0
+    good_parse_count_reply = 0
+    fail_parse_count_reply = 0
+    good_merge_count = 0
+    fail_merge_count = 0
 
     processed = []
     interrogation = None
@@ -193,29 +199,33 @@ def dfop00_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
             try:
                 interrogation = NovatelInterrogationEvent(**data)
                 interrogation_parsed = novatelInterrogation_to_garpos_interrogation(interrogation)
+                good_parse_count_interrogation += 1
                 #logger.loginfo(f"Interrogation: pingTime: {interrogation_parsed.pingTime}")
             except Exception:
                 interrogation_parsed = None
-
+                fail_parse_count_interrogation += 1
         if data.get("event") == "range":
             try:
                 reply_data = NovatelRangeEvent(**data)
-                reply_data_parsed = novatelReply_to_garpos_reply(reply_data)
+                reply_data_parsed:SV3ReplyData = novatelReply_to_garpos_reply(reply_data)
+                good_parse_count_reply += 1
                 #logger.loginfo(f"Reply: \n  returnTime: {reply_data_parsed.returnTime}\n  tt: {reply_data_parsed.tt}")
 
             except Exception:
                 reply_data_parsed = None
+                fail_parse_count_reply += 1
 
             if reply_data_parsed is not None and interrogation_parsed is not None:
                 try:
                     merged_data = merge_interrogation_reply(interrogation_parsed, reply_data_parsed)
-                    interrogation_parsed = None  # Reset interrogation after merging
+                  
                     reply_data_parsed = None  # Reset reply after merging
+                    good_merge_count += 1
                 except AssertionError as e:
                     logger.logerr(f"Assertion error in merging ping/reply data: {e}")
                     merged_data = None
+                    fail_merge_count += 1
 
-                interrogation_parsed = None  # Reset interrogation after merging attempt  
                 reply_data_parsed = None  # Reset reply after merging attempt  
                 
                 if merged_data is not None:
@@ -224,7 +234,11 @@ def dfop00_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
     if not processed:
         logger.logerr(f"No valid data found in {source}")
         return None
+    message = f"Good parses - Interrogation: {good_parse_count_interrogation}, Reply: {good_parse_count_reply}. Fail parses - Interrogation: {fail_parse_count_interrogation}, Reply: {fail_parse_count_reply}."
+    message += f"\n Good merges: {good_merge_count}, Failed merges: {fail_merge_count}."
+    logger.loginfo(message)
     df = pd.DataFrame(processed)
+    print(f"Pre-validation dataframe shape: {df.shape}")
     df["isUpdated"] = False
     return ShotDataFrame.validate(df,lazy=True)
 
