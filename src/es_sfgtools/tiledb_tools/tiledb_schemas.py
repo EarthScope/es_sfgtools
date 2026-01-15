@@ -27,6 +27,23 @@ from ..data_models.observables import (
 )
 from ..logging import ProcessLogger as logger
 
+def as_py_datetime_object_col(s: pd.Series) -> pd.Series:
+    """
+    Convert a pandas Series of datetime-like objects to Python datetime objects.
+
+    Parameters
+    ----------
+        s (pd.Series): A pandas Series containing datetime-like objects.
+
+    Returns
+    -------
+        pd.Series: A pandas Series with Python datetime objects.
+    """
+    # Vectorized conversion; force object dtype so pandas doesn't coerce back to datetime64
+    dt = pd.to_datetime(s, errors="coerce", utc=True)  # handles numpy datetime64, Timestamp, strings
+    py = dt.dt.to_pydatetime()  # ndarray[datetime.datetime]
+    return pd.Series(py, index=s.index, dtype=object)
+
 filters = tiledb.FilterList([tiledb.ZstdFilter(7)])
 TimeDomain = tiledb.Dim(name="time", dtype="datetime64[ms]")
 TransponderDomain = tiledb.Dim(name="transponderID", dtype="ascii")
@@ -359,16 +376,19 @@ class TBDArray:
             start = start.astype(datetime.datetime)
         if isinstance(end, np.datetime64):
             end = end.astype(datetime.datetime)
-        if isinstance(start, datetime.date):
+        if end is None:
+            end = start.date()
+
+        if isinstance(start, datetime.date) and not isinstance(start, datetime.datetime):
             start = datetime.datetime.combine(start, datetime.datetime.min.time())
-        if isinstance(end, datetime.date):
-            end = datetime.datetime.combine(end, datetime.datetime.min.time())
+        if isinstance(end, datetime.date) and not isinstance(end, datetime.datetime):
+            end = datetime.datetime.combine(end, datetime.datetime.max.time())
+
         logger.logdebug(f" Reading dataframe from {self.uri}")
         # TODO slice array by start and end and return the dataframe
-        if end is None:
-            end = start + datetime.timedelta(days=1)
-        else:
-            end = end + datetime.timedelta(days=1)
+        start = start.replace(tzinfo=datetime.timezone.utc)
+        end = end.replace(tzinfo=datetime.timezone.utc)
+        
         with tiledb.open(str(self.uri), mode="r") as array:
             try:
                 df = array.df[slice(np.datetime64(start), np.datetime64(end))]
@@ -530,15 +550,18 @@ class TDBShotDataArray(TBDArray):
         Returns:
             pd.DataFrame: A DataFrame of shot data, or None on error.
         """
-        if isinstance(start, datetime.date):
+        if isinstance(start, datetime.date) and not isinstance(start, datetime.datetime):
             start = datetime.datetime.combine(start, datetime.datetime.min.time())
 
         logger.logdebug(f" Reading dataframe from {self.uri} for {start} to {end}")
         # TODO slice array by start and end and return the dataframe
         if end is None:
-            end = start + datetime.timedelta(
-                hours=23, minutes=59, seconds=59, milliseconds=999
+            end = datetime.datetime.combine(
+                start.date() ,datetime.datetime.max.time()
             )
+        start = start.replace(tzinfo=datetime.timezone.utc)
+        end = end.replace(tzinfo=datetime.timezone.utc)
+
         with tiledb.open(str(self.uri), mode="r") as array:
             try:
                 df = array.df[slice(np.datetime64(start), np.datetime64(end)), :]
@@ -547,8 +570,15 @@ class TDBShotDataArray(TBDArray):
             except IndexError as e:
                 logger.logerr(e)
                 return None
+        df.pingTime = as_py_datetime_object_col(df.pingTime)
+        df.returnTime = as_py_datetime_object_col(df.returnTime)
+
+        assert df.pingTime[0] >= start, "pingTime start date mismatch"
+        assert df.pingTime.iloc[-1] <= end, "pingTime end date mismatch"
+        
         df.pingTime = df.pingTime.apply(lambda x: x.timestamp())
         df.returnTime = df.returnTime.apply(lambda x: x.timestamp())
+
         df = self.dataframe_schema.validate(df, lazy=True)
         return df
 
