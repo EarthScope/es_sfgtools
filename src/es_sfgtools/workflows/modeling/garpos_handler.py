@@ -609,7 +609,7 @@ class GarposHandler(WorkflowABC):
 
             ax_ts.plot(
                 df_ts["time"],
-                df_ts["ResiRange"],
+                df_ts["ResiRange"].abs(),
                 label=label_ts,
                 color=id_colors.get(unique_id, "black"),
                 linewidth=1,
@@ -635,7 +635,6 @@ class GarposHandler(WorkflowABC):
                 ax_ts.set_xlabel("Time - Month / Day / Hour")
                 plt.setp(ax_ts.xaxis.get_majorticklabels(), rotation=45, ha="right")
 
-            last_ts_ax = ax_ts
         
         # Create a y-label subplot on the left side
         ax_ylabel = plt.subplot(gs[:total_rows, 0])
@@ -664,12 +663,16 @@ class GarposHandler(WorkflowABC):
             Plot the residual range boxplot and histogram
             """
         ax2 = plt.subplot(gs[lower_start:(lower_start + 3), :9])
-        resiRange = results_df_raw["ResiRange"]
+        resiRange = results_df_raw["ResiRange"].abs()
+        
         resiRange_np = resiRange.to_numpy()
         resiRange_filter = np.abs(resiRange_np) < 50
         resiRange = resiRange[resiRange_filter]
+        max_value = resiRange.max()
         flier_props = dict(marker=".", markerfacecolor="r", markersize=5, alpha=0.25)
         ax2.boxplot(resiRange.to_numpy(), vert=False, flierprops=flier_props)
+        # keep axis plot limit slightly larger than max value for visibility
+        ax2.set_xlim(0, max_value * 1.1)
         median = resiRange.median()
         q1 = resiRange.quantile(0.25)
         q3 = resiRange.quantile(0.75)
@@ -684,7 +687,7 @@ class GarposHandler(WorkflowABC):
         ax2.set_xlabel("Residual Range (m)", labelpad=-1)
         ax2.yaxis.set_visible(False)
         ax2.set_title("Box Plot of Residual Range Values")
-        bins = np.arange(-res_filter, res_filter, 0.05)
+        bins = np.arange(0, res_filter, 0.05)
         counts, bins = np.histogram(resiRange_np, bins=bins, density=True)
         ax4 = plt.subplot(gs[(lower_start + 3):(lower_start + 6), :9])
         ax4.sharex(ax2)
