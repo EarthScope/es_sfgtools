@@ -12,11 +12,22 @@ os.environ["PATH"] += os.pathsep + str(pride_path)
 manifest_path = Path(
     "/Users/franklyndunbar/Project/SeaFloorGeodesy/es_sfgtools/dev/NCC1-preproc-manifest.json"
 )
+DEFAULT_CONFIG = {
+    # The destination S3 bucket for syncing TileDB arrays
+    "S3_SYNC_BUCKET": "seafloor-public-bucket-bucket83908e77-gprctmuztrim",
+}
+for key, value in DEFAULT_CONFIG.items():
+    os.environ[key] = value
+from es_sfgtools.config.env_config import Environment
+
+# This will read the environment variables set above
+Environment.load_working_environment()
+
 if __name__ == "__main__":
     manifest_object:PipelineManifest = PipelineManifest.load(manifest_path)
-    run_manifest(
-        manifest_object=manifest_object
-    )
+    # run_manifest(
+    #     manifest_object=manifest_object
+    # )
     COMBINATIONS = [
         {"network": "cascadia-gorda", "station": "NCC1", "campaign": "2022_A_1065"},
         {"network": "cascadia-gorda", "station": "NCC1", "campaign": "2023_A_1063"},
@@ -41,4 +52,4 @@ if __name__ == "__main__":
             campaign_id=combo["campaign"],
         )
         # Sync TileDB arrays to S3
-        workflow.midprocess_upload_s3(overwrite=True, override_metadata_require=True)
+        workflow.midprocess_upload_s3(overwrite=False, override_metadata_require=True)
