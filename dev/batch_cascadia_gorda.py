@@ -41,4 +41,4 @@ if __name__ == "__main__":
             campaign_id=combo["campaign"],
         )
         # Sync TileDB arrays to S3
-        workflow.midprocess_upload_s3(overwrite=False, override_metadata_require=True)
+        workflow.midprocess_upload_s3(overwrite=True, override_metadata_require=True)
