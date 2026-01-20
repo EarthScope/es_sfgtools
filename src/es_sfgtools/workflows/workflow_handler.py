@@ -685,6 +685,94 @@ class WorkflowHandler(WorkflowABC):
             custom_settings=custom_settings,
         )
 
+
+    @validate_network_station_campaign
+    def modeling_plot_shotdata_replies_per_transponder(
+        self,
+        survey_id: Optional[str] = None,
+        save_fig: bool = True,
+        show_fig: bool = False,
+    ) -> None:
+        """Plots the shot data replies per transponder for a given survey.
+
+        Parameters
+        ----------
+        survey_id : str, optional
+            ID of the survey to plot results for, by default None.
+        save_fig : bool, optional
+            If True, save the figure, by default True.
+        show_fig : bool, optional
+            If True, display the figure, by default False.
+        """
+        gp_handler = self.modeling_get_garpos_handler()
+        gp_handler.plot_shotdata_replies_per_transponder(
+            savefig=save_fig,
+            showfig=show_fig,
+        )
+
+    @validate_network_station_campaign
+    def modeling_plot_flagged_residuals(
+        self,
+        survey_id: Optional[str] = None,
+        run_id: str = "Test",
+        save_fig: bool = True,
+        show_fig: bool = False,
+    ) -> None:
+        """Plots the flagged residuals for a given survey.
+
+        Parameters
+        ----------
+        survey_id : str, optional
+            ID of the survey to plot results for, by default None.
+        run_id : int or str, optional
+            The run ID of the survey results to plot, by default 0.
+        save_fig : bool, optional
+            If True, save the figure, by default True.
+        show_fig : bool, optional
+            If True, display the figure, by default False.
+        """
+        gp_handler = self.modeling_get_garpos_handler()
+        gp_handler.plot_residuals_per_transponder_before_and_after(
+            survey_id=survey_id,
+            run_id=run_id,
+            savefig=save_fig,
+            showfig=show_fig,
+        )
+
+    @validate_network_station_campaign
+    def modeling_plot_garpos_residuals(
+        self,
+        survey_id: Optional[str] = None,
+        run_id: str = "Test",
+        subplots: bool = True,
+        save_fig: bool = True,
+        show_fig: bool = False,
+    ) -> None:
+        """Plots the time series results for a given survey.
+
+        Parameters
+        ----------
+        survey_id : str, optional
+            ID of the survey to plot results for, by default None.
+        run_id : int or str, optional
+            The run ID of the survey results to plot, by default 0.
+        res_filter : float, optional
+            The residual filter value to filter outrageous values (m), by
+            default 10.
+        save_fig : bool, optional
+            If True, save the figure, by default True.
+        show_fig : bool, optional
+            If True, display the figure, by default False.
+        """
+        gp_handler = self.modeling_get_garpos_handler()
+        gp_handler.plot_remaining_residuals_per_transponder(
+            survey_id=survey_id,
+            run_id=run_id,
+            subplots=subplots,
+            savefig=save_fig,
+            showfig=show_fig,
+        )
+
     @validate_network_station_campaign
     def modeling_plot_garpos_results(
         self,
