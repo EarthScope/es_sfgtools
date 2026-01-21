@@ -234,8 +234,9 @@ class GarposHandler(WorkflowABC):
             )
 
         garpos_input = GarposInput.from_datafile(obsfile_path)
-        results_path = results_dir / f"_{run_id}_results.json"
-
+        results_suffix = f"{garpos_input.survey_id}_{run_id}"
+        results_path = results_dir / f"{results_suffix}-res.dat"
+        
         if results_path.exists() and not override:
             print(f"Results already exist for {str(results_path)}")
             return None
@@ -296,7 +297,11 @@ class GarposHandler(WorkflowABC):
         results_dir = results_dir_main / f"run_{run_id}"
         if results_dir.exists() and override:
             # Remove existing results directory if override is True
-            shutil.rmtree(results_dir)
+            try:
+                shutil.rmtree(results_dir)
+            except Exception as e:
+                logger.logerr(f"Failed to remove existing results directory {results_dir}: {e}")
+                
         results_dir.mkdir(parents=True, exist_ok=True)
 
         obsfile_path = self.current_garpos_survey_dir.default_obsfile
@@ -439,6 +444,7 @@ class GarposHandler(WorkflowABC):
             Whether to display the figure.
 
         """
+
         # Clear previous plots
         plt.clf()
         
@@ -489,17 +495,51 @@ class GarposHandler(WorkflowABC):
         results_df_raw["time"] = results_df_raw.ST.apply(
             lambda x: datetime.fromtimestamp(x, timezone.utc)
         )
-        df_filter = results_df_raw["ResiRange"].abs() < res_filter
-        results_df = results_df_raw[df_filter]
-        unique_ids = results_df["MT"].unique()
+        df_filter_1 = results_df_raw["ResiRange"].abs() < res_filter
+        df_filter_2 = results_df_raw["flag"].eq(False)
+        results_df = results_df_raw[df_filter_1 & df_filter_2]
+        # Use raw IDs so we allocate plot space for every transponder present,
+        # even if a transponder has no points after filtering.
+        unique_ids = results_df_raw["MT"].unique()
 
-        plt.figure(figsize=(16, 9))
+        # Build a plot plan so we don't create empty (extra) subplots.
+        # Always include the unfiltered plot when raw data exists; include the
+        # filtered plot only when there are points after filtering.
+        plot_plan: list[tuple[str, str]] = []
+        for unique_id in unique_ids:
+            df_raw_transponder = results_df_raw[results_df_raw["MT"] == unique_id]
+            if not df_raw_transponder.empty:
+                plot_plan.append((unique_id, "unfiltered"))
+            df_filtered_transponder = results_df[results_df["MT"] == unique_id]
+            if not df_filtered_transponder.empty:
+                plot_plan.append((unique_id, "filtered"))
+
+        # Number of time-series subplot rows (each entry in plot_plan is one row)
+        total_rows = len(plot_plan)
+
+        # Dynamic figure sizing:
+        # - ~1 inch per time-series subplot row.
+        # - fixed extra inches for map/box/hist panels, spacer, and top text.
+        # Slightly > 1 inch per plot row to leave room for titles.
+        ts_row_height_in = 1.2
+        extra_height_in = 8.0
+        spacer_rows = 2  # gap between last time-series x ticks and lower panels
+        lower_panel_rows = 6  # box (3) + hist (3), map shares these rows on the right
+        min_extra_rows = spacer_rows + lower_panel_rows
+        extra_rows = max(int(np.ceil(extra_height_in / ts_row_height_in)), min_extra_rows)
+        total_height = (total_rows + extra_rows) * ts_row_height_in
+
+        plt.figure(figsize=(20, total_height))
         title = f"{self.current_campaign_dir.location.parent.stem}"
         if survey_type is not None:
             title += f" {survey_type}"
         title += f" Survey {survey_id} Results"
-        plt.suptitle(title, x=0.6, y=0.95, fontsize=14)  # Move to left with left alignment
-        gs = gridspec.GridSpec(13, 16)
+        plt.suptitle(title, x=0.6, y=0.96, fontsize=16)  # Move title higher up
+        # GridSpec: with the figure height above, 1 row ~= 1 inch.
+        gs = gridspec.GridSpec(total_rows + extra_rows, 16, hspace=1.35, wspace=0.35)
+        
+        # Adjust subplot parameters to add more space at the top
+        plt.subplots_adjust(top=0.90, left=0.04, right=0.99, bottom=0.06)
 
         dpos_std = array_dpos.get_std_dev()
         dpos = array_dpos.get_position()
@@ -515,10 +555,13 @@ class GarposHandler(WorkflowABC):
 
         print(figure_text)
 
+        lower_start = total_rows + spacer_rows
+
         """
             Plot the waveglider track and transponder positions
             """
-        ax3 = plt.subplot(gs[6:, 8:])
+        # Make the ENU track plot larger: more columns and a bit more height.
+        ax3 = plt.subplot(gs[lower_start:(lower_start + 6), 9:])
         ax3.set_aspect("equal", "box")
         ax3.set_xlabel("East (m)")
         ax3.set_ylabel("North (m)", labelpad=-1)
@@ -540,39 +583,67 @@ class GarposHandler(WorkflowABC):
         ax3.scatter(0, 0, label="Origin", color="magenta", s=100)
 
         """
-            Plot the time series of residuals
-            """
-        ax1 = plt.subplot(gs[1:5, :])
-        points = (
-            pd.DataFrame(
-                {"x": mdates.date2num(results_df["time"]), "y": results_df["ResiRange"]}
-            )
-            .sort_values("x")
-            .to_numpy()
-        )
-        segments = np.concatenate(
-            [points[:-1, np.newaxis, :], points[1:, np.newaxis, :]], axis=1
-        )
-        lc = LineCollection(segments, cmap="viridis", norm=norm, linewidth=5, zorder=10)
-        lc.set_array(colormap_times_scaled)
+        Plot the time series of residuals - separate plot for each transponder
+        """
+        
+        # Color mapping per transponder ID
+        id_colors = {uid: colors[idx % len(colors)] for idx, uid in enumerate(unique_ids)}
 
-        for i, unique_id in enumerate(unique_ids):
-            df = results_df[results_df["MT"] == unique_id].sort_values("time")
-            ax1.plot(
-                df["time"],
-                df["ResiRange"],
-                label=f"{unique_id}",
-                color=colors[i],
+        # Plot separate unfiltered/filtered plots based on plot_plan
+        shared_ax = None
+        last_ts_ax = None
+        for row_idx, (unique_id, kind) in enumerate(plot_plan):
+            if shared_ax is None:
+                ax_ts = plt.subplot(gs[row_idx : row_idx + 1, 1:14])
+                shared_ax = ax_ts
+            else:
+                ax_ts = plt.subplot(gs[row_idx : row_idx + 1, 1:14], sharex=shared_ax)
+
+            if kind == "unfiltered":
+                df_ts = results_df_raw[results_df_raw["MT"] == unique_id].sort_values("time")
+                title_ts = f"Transponder {unique_id} - Unfiltered Data"
+                label_ts = f"{unique_id} Unfiltered"
+            else:
+                df_ts = results_df[results_df["MT"] == unique_id].sort_values("time")
+                title_ts = (
+                    f"Transponder {unique_id} - Filtered Data (|residuals| < {res_filter}m, flag=False)"
+                )
+                label_ts = f"{unique_id} Filtered"
+
+            ax_ts.plot(
+                df_ts["time"],
+                df_ts["ResiRange"].abs(),
+                label=label_ts,
+                color=id_colors.get(unique_id, "black"),
                 linewidth=1,
-                zorder=i,
-                alpha=0.75,
+                alpha=0.85,
             )
-        # ax1.add_collection(lc)
-        ax1.set_xlabel("Time - Month / Day / Hour")
-        ax1.set_ylabel("Residuals - Range (M)", labelpad=-1)
-        ax1.xaxis.set_label_position("top")
-        ax1.xaxis.set_ticks_position("top")
-        ax1.legend()
+            ax_ts.set_title(title_ts, fontsize=11, pad=6)
+            ax_ts.legend(loc="upper right")
+            ax_ts.grid(True, alpha=0.3)
+
+            # Hide datetime ticks on all but the bottom-most time-series plot
+            if row_idx < (len(plot_plan) - 1):
+                ax_ts.tick_params(
+                    axis="x",
+                    which="both",
+                    bottom=False,
+                    top=False,
+                    labelbottom=False,
+                    labeltop=False,
+                )
+            else:
+                ax_ts.xaxis.set_major_formatter(mdates.DateFormatter("%m-%d %H"))
+                ax_ts.xaxis.set_major_locator(mdates.HourLocator(interval=6))
+                ax_ts.set_xlabel("Time - Month / Day / Hour")
+                plt.setp(ax_ts.xaxis.get_majorticklabels(), rotation=45, ha="right")
+
+        
+        # Create a y-label subplot on the left side
+        ax_ylabel = plt.subplot(gs[:total_rows, 0])
+        ax_ylabel.text(0.5, 0.5, "Range-Residuals (m)", rotation=90, va='center', ha='center', 
+                      fontsize=14, weight='bold', transform=ax_ylabel.transAxes)
+        ax_ylabel.axis('off')  # Hide the axes
 
         for transponder in garpos_results.transponders:
             try:
@@ -581,12 +652,12 @@ class GarposHandler(WorkflowABC):
                     transponder.position_enu.east,
                     transponder.position_enu.north,
                     label=f"{transponder.id}",
-                    color=colors[idx],
+                    color=colors[idx % len(colors)],
                     s=100,
                 )
-            except ValueError:
+            except ValueError as e:
                 logger.logwarn(
-                    f"Transponder {transponder.id} not found in results, skipping plotting."
+                    f"Transponder {transponder.id} not found in results, skipping plotting. {e}"
                 )
         cbar = plt.colorbar(sc, label="Time (hr)", norm=norm)
         ax3.legend()
@@ -594,13 +665,17 @@ class GarposHandler(WorkflowABC):
         """
             Plot the residual range boxplot and histogram
             """
-        ax2 = plt.subplot(gs[6:9, :7])
-        resiRange = results_df_raw["ResiRange"]
+        ax2 = plt.subplot(gs[lower_start:(lower_start + 3), :9])
+        resiRange = results_df_raw["ResiRange"].abs()
+        
         resiRange_np = resiRange.to_numpy()
         resiRange_filter = np.abs(resiRange_np) < 50
         resiRange = resiRange[resiRange_filter]
+        max_value = resiRange.max()
         flier_props = dict(marker=".", markerfacecolor="r", markersize=5, alpha=0.25)
         ax2.boxplot(resiRange.to_numpy(), vert=False, flierprops=flier_props)
+        # keep axis plot limit slightly larger than max value for visibility
+        ax2.set_xlim(0, max_value * 1.1)
         median = resiRange.median()
         q1 = resiRange.quantile(0.25)
         q3 = resiRange.quantile(0.75)
@@ -615,9 +690,9 @@ class GarposHandler(WorkflowABC):
         ax2.set_xlabel("Residual Range (m)", labelpad=-1)
         ax2.yaxis.set_visible(False)
         ax2.set_title("Box Plot of Residual Range Values")
-        bins = np.arange(-res_filter, res_filter, 0.05)
+        bins = np.arange(0, res_filter, 0.05)
         counts, bins = np.histogram(resiRange_np, bins=bins, density=True)
-        ax4 = plt.subplot(gs[10:, :7])
+        ax4 = plt.subplot(gs[(lower_start + 3):(lower_start + 6), :9])
         ax4.sharex(ax2)
         ax4.hist(bins[:-1], bins, weights=counts, edgecolor="black")
         ax4.axvline(median, color="blue", linestyle="-", label=f"Median: {median:.3f}")
@@ -626,12 +701,19 @@ class GarposHandler(WorkflowABC):
         ax4.set_title(f"Histogram of Residual Range Values, within {res_filter:.1f} meters")
         ax4.legend()
         # add figure text
-        plt.gcf().text(0.2, 0.85, figure_text, fontsize=11, ha="center")
+        plt.gcf().text(0.02, 0.98, figure_text, fontsize=9, ha="left", va="top")
+
+        # Avoid tight_layout() here; it tends to compress the GridSpec time-series
+        # area when there are only a few transponders.
+        
         if showfig:
             plt.show()
+        fig_path = run_dir / f"_{run_id}_results.png"
+
         if savefig:
+            logger.loginfo(f"Saving figure to {fig_path}")
             plt.savefig(
-                run_dir / f"_{run_id}_results.png",
+                fig_path,
                 dpi=300,
                 bbox_inches="tight",
                 pad_inches=0.1,
