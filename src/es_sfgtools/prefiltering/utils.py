@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional,Union
 import numpy as np
 import pandas as pd
@@ -53,9 +53,9 @@ def filter_shotdata(
     initial_count = len(shot_data)
     new_shot_data_df = shot_data.copy()
 
-    # Convert start_time and end_time to Unix timestamps
-    start_unix = start_time.timestamp()
-    end_unix = end_time.timestamp()
+    # Convert start_time and end_time to Unix timestamps in UTC
+    start_unix = start_time.replace(tzinfo=timezone.utc).timestamp()
+    end_unix = end_time.replace(tzinfo=timezone.utc).timestamp()
 
     # Filter by time
     new_shot_data_df = new_shot_data_df[

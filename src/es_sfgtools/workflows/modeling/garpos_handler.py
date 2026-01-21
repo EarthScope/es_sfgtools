@@ -5,7 +5,7 @@ GarposHandler class for processing and preparing shot data for the GARPOS model.
 from pathlib import Path
 from typing import Optional
 import shutil
-from datetime import datetime,timezone
+from datetime import datetime,timezone, UTC
 import numpy as np
 
 # Plotting imports
@@ -117,6 +117,7 @@ class GarposHandler(WorkflowABC):
         """
         super().set_network(network_id=network_id)
 
+
         self.current_garpos_survey_dir = None
 
     def set_station(self, station_id: str):
@@ -134,6 +135,7 @@ class GarposHandler(WorkflowABC):
         """
 
         super().set_station(station_id=station_id)
+
 
     def set_campaign(self, campaign_id: str):
         """Sets the current campaign.
@@ -372,6 +374,390 @@ class GarposHandler(WorkflowABC):
                 survey_id=survey_id, run_id=run_id, override=override, iterations=iterations, custom_settings=dict(custom_settings).get("inversion_params") if custom_settings else None
             )
 
+
+    def plot_shotdata_replies_per_transponder(
+        self,
+        savefig: bool = False,
+        showfig: bool = True,
+    ) -> None:
+        """Plots the time series results for a given survey.
+
+        Parameters
+        ----------
+        survey_id : str, optional
+            ID of the survey to plot results for, by default None.
+        savefig : bool, optional
+            If True, save the figure, by default False.
+        showfig : bool, optional
+            If True, display the figure, by default True.
+        """
+        self._plot_shotdata_replies_per_transponder(
+            savefig=savefig,
+            showfig=showfig,
+        )
+
+    def _plot_shotdata_replies_per_transponder(
+            self,
+            savefig: bool,
+            showfig: bool,
+    ) -> None:
+        """
+        Plots the shotdata replies for a given survey and transponder.
+
+        Parameters
+        ----------
+        survey_id : str
+            The ID of the survey to plot.
+        survey_type : str
+            The type of the survey to plot.
+        savefig : bool
+            If True, save the figure, by default False.
+        showfig : bool
+            If True, display the figure, by default True.
+        """
+        metadata_surveys = []
+        for campaign in self.current_station_metadata.campaigns:
+            if campaign.name == self.current_campaign_name:
+                metadata_surveys = campaign.surveys
+
+        metadata_time_windows = {}
+        shotdata_time_windows = {}
+        shotdata_dfs = {}
+        shotdata_filtered_dfs = {}
+        for survey_name in sorted(self.current_campaign_dir.surveys):
+            if survey_name in [survey.id for survey in metadata_surveys]:
+                for survey in metadata_surveys:
+                    if survey.id == survey_name:
+                        metadata_start = survey.start.replace(tzinfo=UTC)
+                        metadata_end = survey.end.replace(tzinfo=UTC)
+                        metadata_time_windows[survey_name] = (metadata_start, metadata_end)
+                    continue
+                try:
+                    shotdata_filepath = self.current_campaign_dir.surveys[survey_name].shotdata
+                    shotdata_df = pd.read_csv(shotdata_filepath, sep=",", header=0, index_col=0)
+                    shotdata_dfs[survey_name] = shotdata_df
+                    #use utc
+                    start = datetime.fromtimestamp(shotdata_df['pingTime'].iloc[0], tz=timezone.utc)
+                    end = datetime.fromtimestamp(shotdata_df['pingTime'].iloc[-1], tz=timezone.utc)
+                    shotdata_time_windows[survey_name] = (start, end)
+
+                    shotdata_filtered_filepath = self.current_campaign_dir.surveys[survey_name].shotdata_filtered
+                    shotdata_filtered_df = pd.read_csv(shotdata_filtered_filepath, sep=",", header=0, index_col=0)
+                    shotdata_filtered_dfs[survey_name] = shotdata_filtered_df
+                
+                except Exception as e:
+                    print(e)
+
+        fig, axs = plt.subplots(3, 1, figsize=(20, 15), sharex=False)
+        colors = ['blue', 'orange', 'red', 'green', 'purple', 'brown', 'pink', 'gray', 'olive', 'cyan']
+        for i, (survey_name, shotdata_df) in enumerate(shotdata_dfs.items()):
+            try:
+                unique_ids = shotdata_df["transponderID"].unique()
+                for j, transponder_id in enumerate(unique_ids):
+                    df = shotdata_df[shotdata_df["transponderID"] == transponder_id]
+                    filtered_df = shotdata_filtered_dfs[survey_name][shotdata_filtered_dfs[survey_name]["transponderID"] == transponder_id]
+                    # # Resample the data to 10 minute intervals and count replies
+                    df = df.set_index(pd.to_datetime(df['pingTime'], unit='s'))
+                    filtered_df = filtered_df.set_index(pd.to_datetime(filtered_df['pingTime'], unit='s'))
+                    replies_per_bin = df['pingTime'].resample('10min').count()
+                    filtered_replies_per_bin = filtered_df['pingTime'].resample('10min').count()
+                    axs[j].scatter(replies_per_bin.index, replies_per_bin.values/40*100, label=f"{survey_name} - {transponder_id}", s=10, color='black')
+                    axs[j].scatter(filtered_replies_per_bin.index, filtered_replies_per_bin.values/40*100, label=f"{survey_name} - {transponder_id} (Filtered)", s=10, color=colors[(i) % len(colors)])
+                    total_pings = shotdata_df['pingTime'].nunique()
+                    total_filtered_pings = shotdata_filtered_df['pingTime'].nunique()
+                    survey_midpoint = metadata_time_windows[survey_name][0] + (metadata_time_windows[survey_name][1] - metadata_time_windows[survey_name][0]) / 2
+                    axs[j].text(
+                        survey_midpoint, 110,
+                        f"{survey_name}\n{next((survey.type.value for survey in metadata_surveys if survey.id == survey_name), 'Unknown')}\ntotal pings: {total_pings}\ntotal replies: {replies_per_bin.sum()}\nfiltered replies: {filtered_replies_per_bin.sum()}\nfiltered reply %: {filtered_replies_per_bin.sum() / total_pings * 100:.2f}%", fontsize=12, ha='center'
+                    )
+                    axs[j].set_xlabel("Time")
+                    axs[j].set_ylabel("% Expected replies per 10 min bin")
+                    axs[j].set_ylim(0, 150)
+                    axs[j].axvspan(xmin=metadata_time_windows[survey_name][0], xmax=metadata_time_windows[survey_name][1], color=colors[(i) % len(colors)], linestyle='--', linewidth=1, alpha=0.1)
+            except Exception as e:
+                logger.logwarn(f"Error processing {survey_name}")
+        fig.suptitle(f"Shotdata Reply Percentages for {self.current_station_name} {self.current_campaign_name}")
+        axs[0].set_title(f"{self.current_station_name} Transponder 5209")
+        axs[1].set_title(f"{self.current_station_name} Transponder 5210")
+        axs[2].set_title(f"{self.current_station_name} Transponder 5211")
+        fig.tight_layout()
+        if showfig:
+            plt.show()
+        
+        
+        fig_path =  f"{self.current_campaign_dir.location}/{self.current_station_name}_{self.current_campaign_name}_shotdata_replies.png"
+        if savefig:
+            logger.loginfo(f"Saving figure to {fig_path}")
+            plt.savefig(
+                fig_path,
+                dpi=300,
+                bbox_inches="tight",
+                pad_inches=0.1,
+            )
+        
+    def plot_residuals_per_transponder_before_and_after(
+        self,
+        survey_id: str,
+        run_id: int | str = 0,
+        savefig: bool = False,
+        showfig: bool = True,
+    ):
+        surveys_to_process = []
+        for survey in self.current_campaign_metadata.surveys:
+            if survey.id == survey_id or survey_id is None:
+                surveys_to_process.append((survey.id,survey.type.value))
+
+        for survey_id, survey_type in surveys_to_process:
+            try:
+                self.set_survey(survey_id)
+                self._plot_residuals_per_transponder_before_and_after(
+                    survey_id=survey_id,
+                    run_id=run_id,
+                    savefig=savefig,
+                    showfig=showfig,
+                )
+            except Exception as e:
+                logger.logwarn(f"Skipping plotting for survey {survey_id}: {e}")
+                continue
+        
+
+    def _plot_residuals_per_transponder_before_and_after(
+        self,
+        survey_id: str,
+        run_id: int | str = 0,
+        savefig: bool = False,
+        showfig: bool = True,
+    ):
+        """Plots the residuals on 3 subplots for a given survey.
+
+        Args:
+            survey_id (str): The ID of the survey to plot results for.
+            run_id (int | str, optional): The run ID of the survey results to plot. Defaults to 0.
+            savefig (bool, optional): If True, save the figure, by default False.
+            showfig (bool, optional): If True, display the figure, by default True.
+        """
+        results_dir: Path = self.current_garpos_survey_dir.results_dir
+        run_dir = results_dir / f"run_{run_id}"
+        if not run_dir.exists():
+            raise FileNotFoundError(f"Run directory {run_dir} does not exist.")
+
+        # Get *-res.dat files
+        data_files = list(run_dir.glob("*-res.dat"))
+        if not data_files:
+            raise FileNotFoundError(f"No .dat files found in run directory {run_dir}.")
+
+        """
+            sort by iteration number if multiple files found
+
+            >>> data_files = [NTH1.2025_A_1126_0-res.dat,NTH1.2025_A_1126_1-res.dat,NTH1.2025_A_1126_2-res.dat]
+            >>> sorted_data_files = sorted(data_files, key=lambda x: int(x.stem.split("_")[-1].split("-")[0]))
+            >>> sorted_data_files
+            [NTH1.2025_A_1126_0-res.dat,NTH1.2025_A_1126_1-res.dat,NTH1.2025_A_1126_2-res.dat]
+
+            """
+        data_files = sorted(
+            data_files, key=lambda x: int(x.stem.split("_")[-1].split("-")[0])
+        )
+        data_file = data_files[-1]
+        logger.loginfo(f"Using data file {data_file} for plotting.")
+
+        garpos_results = GarposInput.from_datafile(data_file)
+        
+        array_enu = garpos_results.array_center_enu
+        array_dpos = garpos_results.delta_center_position
+        if array_enu is None or array_dpos is None:
+            raise ValueError("Array center or delta position not found in GARPOS results.")
+
+        array_final_position = array_dpos.model_copy()
+        array_final_position.east += array_enu.east
+        array_final_position.north += array_enu.north
+        array_final_position.up += array_enu.up
+
+        results_df_raw = pd.read_csv(garpos_results.shot_data)
+        results_df_raw = ObservationData.validate(results_df_raw, lazy=True)
+        results_df_raw["time"] = results_df_raw.ST.apply(
+            lambda x: datetime.fromtimestamp(x, timezone.utc)
+        )
+        #df_filter_1 = results_df_raw["ResiRange"].abs() < res_filter
+        df_filter_2 = results_df_raw["flag"] == False
+        #results_df = results_df_raw[df_filter_1 & df_filter_2]
+        results_df = results_df_raw[df_filter_2]
+        #logger.loginfo(results_df_raw.columns)
+        unique_ids = results_df_raw["MT"].unique()
+        #make a plot with 3 subplots showing ResiRange vs time for each unique_id
+        fig, axs = plt.subplots(3, 1, figsize=(20, 8), sharex=True)
+        fig.suptitle(f"Residuals for {self.current_station_name} {survey_id} (Run {run_id})")
+        for i, unique_id in enumerate(unique_ids):
+            transponder_df_raw = results_df_raw[results_df_raw["MT"] == unique_id].sort_values("time")
+            transponder_df = results_df[results_df["MT"] == unique_id].sort_values("time")
+            axs[i].scatter(transponder_df_raw["time"], transponder_df_raw[f"ResiRange"], s=1, label=f"{unique_id}_raw {transponder_df_raw['time'].count()}", color="blue")
+            percent_remaining = round(transponder_df['time'].count() / transponder_df_raw['time'].count() * 100, 1)
+            axs[i].scatter(transponder_df["time"], transponder_df[f"ResiRange"], s=1, label=f"{unique_id}_unflagged {transponder_df['time'].count()} ({percent_remaining} %)", color="orange")
+            axs[i].set_ylabel("Residual (m)")
+            axs[i].legend(loc="upper right")
+            axs[i].grid()
+        axs[-1].set_xlabel("Time")
+        plt.xticks(rotation=45)
+        # add gridlines
+        for ax in axs:
+            ax.grid()
+        plt.tight_layout()
+        fig_path =  f"{self.current_garpos_survey_dir.results_dir}/{self.current_station_name}_{survey_id}_flagged_residuals.png"
+        if savefig:
+            logger.loginfo(f"Saving figure to {fig_path}")
+            plt.savefig(
+                fig_path,
+                dpi=300,
+                bbox_inches="tight",
+                pad_inches=0.1,
+            )
+        if showfig:
+            plt.show()
+    
+    def plot_remaining_residuals_per_transponder(
+        self,
+        survey_id: str,
+        run_id: int | str = 0,
+        subplots: bool = True,
+        savefig: bool = False,
+        showfig: bool = True,
+    ) -> None:
+        """Plots the remaining residuals for each transponder.
+
+        Args:
+            survey_id (str): The ID of the survey to plot results for.
+            run_id (int | str, optional): The run ID of the survey results to plot. Defaults to 0.
+            savefig (bool, optional): If True, save the figure. Defaults to False.
+            showfig (bool, optional): If True, display the figure. Defaults to True.
+        """
+        surveys_to_process = []
+        for survey in self.current_campaign_metadata.surveys:
+            if survey.id == survey_id or survey_id is None:
+                surveys_to_process.append((survey.id,survey.type.value))
+
+        for survey_id, survey_type in surveys_to_process:
+            try:
+                self.set_survey(survey_id)
+                self._plot_remaining_residuals_per_transponder(
+                    survey_id=survey_id,
+                    run_id=run_id,
+                    subplots=subplots,
+                    savefig=savefig,
+                    showfig=showfig,
+                )
+            except Exception as e:
+                logger.logwarn(f"Skipping plotting for survey {survey_id}: {e}")
+                continue
+        
+        
+        
+
+    def _plot_remaining_residuals_per_transponder(
+        self,
+        survey_id: str,
+        run_id: int | str = 0,
+        subplots: bool = True,
+        savefig: bool = False,
+        showfig: bool = True,
+    ):
+        """Plots the residuals on 3 subplots for a given survey.
+
+        Args:
+            survey_id (str): The ID of the survey to plot results for.
+            run_id (int | str, optional): The run ID of the survey results to plot. Defaults to 0.
+            subplots (bool, optional): If True, use multiple subplots for the residuals. Defaults to True.
+            savefig (bool, optional): If True, save the figure, by default False.
+            showfig (bool, optional): If True, display the figure, by default True.
+        """
+        results_dir: Path = self.current_garpos_survey_dir.results_dir
+        run_dir = results_dir / f"run_{run_id}"
+        if not run_dir.exists():
+            raise FileNotFoundError(f"Run directory {run_dir} does not exist.")
+
+        # Get *-res.dat files
+        data_files = list(run_dir.glob("*-res.dat"))
+        if not data_files:
+            raise FileNotFoundError(f"No .dat files found in run directory {run_dir}.")
+
+        """
+            sort by iteration number if multiple files found
+
+            >>> data_files = [NTH1.2025_A_1126_0-res.dat,NTH1.2025_A_1126_1-res.dat,NTH1.2025_A_1126_2-res.dat]
+            >>> sorted_data_files = sorted(data_files, key=lambda x: int(x.stem.split("_")[-1].split("-")[0]))
+            >>> sorted_data_files
+            [NTH1.2025_A_1126_0-res.dat,NTH1.2025_A_1126_1-res.dat,NTH1.2025_A_1126_2-res.dat]
+
+            """
+        data_files = sorted(
+            data_files, key=lambda x: int(x.stem.split("_")[-1].split("-")[0])
+        )
+        data_file = data_files[-1]
+        logger.loginfo(f"Using data file {data_file} for plotting.")
+
+        garpos_results = GarposInput.from_datafile(data_file)
+        
+        array_enu = garpos_results.array_center_enu
+        array_dpos = garpos_results.delta_center_position
+        if array_enu is None or array_dpos is None:
+            raise ValueError("Array center or delta position not found in GARPOS results.")
+
+        array_final_position = array_dpos.model_copy()
+        array_final_position.east += array_enu.east
+        array_final_position.north += array_enu.north
+        array_final_position.up += array_enu.up
+
+        results_df_raw = pd.read_csv(garpos_results.shot_data)
+        results_df_raw = ObservationData.validate(results_df_raw, lazy=True)
+        results_df_raw["time"] = results_df_raw.ST.apply(
+            lambda x: datetime.fromtimestamp(x, timezone.utc)
+        )
+        #df_filter_1 = results_df_raw["ResiRange"].abs() < res_filter
+        df_filter_2 = results_df_raw["flag"] == False
+        #results_df = results_df_raw[df_filter_1 & df_filter_2]
+        results_df = results_df_raw[df_filter_2]
+        #logger.loginfo(results_df_raw.columns)
+        unique_ids = results_df_raw["MT"].unique()
+        colors = ["green", "orange", "blue"] 
+        if subplots:
+            #make a plot with 3 subplots showing ResiRange vs time for each unique_id
+            fig, axs = plt.subplots(3, 1, figsize=(20, 8), sharex=True)
+            fig.suptitle(f"Residuals for {self.current_station_name} {survey_id} (Run {run_id})")
+            for i, unique_id in enumerate(unique_ids):
+                transponder_df = results_df[results_df["MT"] == unique_id].sort_values("time")
+                axs[i].scatter(transponder_df["time"], transponder_df[f"ResiRange"], s=1,label=f"{unique_id}_unflagged {transponder_df['time'].count()}", color=colors[i])
+                axs[i].set_ylabel("Residual (m)")
+                axs[i].legend(loc="upper right")
+                axs[i].grid()
+            axs[-1].set_xlabel("Time")
+            plt.xticks(rotation=45)
+            # add gridlines
+            for ax in axs:
+                ax.grid()
+        else:
+            fig, ax = plt.subplots(figsize=(20, 8))
+            for i, unique_id in enumerate(unique_ids):
+                transponder_df = results_df[results_df["MT"] == unique_id].sort_values("time")
+                ax.scatter(transponder_df["time"], transponder_df[f"ResiRange"], s=1,label=f"{unique_id}_unflagged {transponder_df['time'].count()}", color=colors[i])
+            ax.set_ylabel("Residual (m)")
+            ax.legend()
+            ax.grid()
+            ax.set_xlabel("Time")
+            plt.xticks(rotation=45)
+            # add gridlines
+            ax.grid()
+        plt.tight_layout()
+        fig_path =  f"{self.current_garpos_survey_dir.results_dir}/{self.current_station_name}_{survey_id}_garpos_residuals.png"
+        if savefig:
+            logger.loginfo(f"Saving figure to {fig_path}")
+            plt.savefig(
+                fig_path,
+                dpi=300,
+                bbox_inches="tight",
+                pad_inches=0.1,
+            )
+        if showfig:
+            plt.show()
+
     def plot_ts_results(
         self,
         survey_id: str = None,
@@ -415,7 +801,7 @@ class GarposHandler(WorkflowABC):
             except Exception as e:
                 logger.logwarn(f"Skipping plotting for survey {survey_id}: {e}")
                 continue
-
+    
     def _plot_ts_results(
         self,
         survey_id: str,
@@ -446,7 +832,7 @@ class GarposHandler(WorkflowABC):
         """
 
         # Clear previous plots
-        plt.clf()
+        #plt.clf()
         
         results_dir: Path = self.current_garpos_survey_dir.results_dir
         run_dir = results_dir / f"run_{run_id}"

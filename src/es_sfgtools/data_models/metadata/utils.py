@@ -1,5 +1,5 @@
 # Description: Utility functions for metadata classes.
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional, Union
 
 from pydantic import BaseModel, Field, field_validator
@@ -179,7 +179,7 @@ def convert_to_datetime(date_str: Union[str, datetime]) -> datetime:
     Returns
     -------
     datetime
-        The converted datetime object.
+        The converted datetime object, always timezone-aware in UTC.
 
     Raises
     ------
@@ -188,12 +188,19 @@ def convert_to_datetime(date_str: Union[str, datetime]) -> datetime:
     """
     if isinstance(date_str, str):
         try:
-            return datetime.fromisoformat(date_str)
+            dt = datetime.fromisoformat(date_str)
+            # If the datetime is timezone-naive, assume UTC
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt
         except ValueError:
             print(
                 "Invalid date format, please provide a valid date in format YYYY-MM-DDTHH:MM:SS"
             )
             raise
+    # If it's already a datetime, ensure it's timezone-aware
+    if isinstance(date_str, datetime) and date_str.tzinfo is None:
+        return date_str.replace(tzinfo=timezone.utc)
     return date_str
 
 

@@ -84,8 +84,7 @@ class DirectoryHandler(_Base):
         if not self.filepath:
             self.filepath = self.location / self._filepath
         with open(self.filepath, "w") as file:
-            json_dict = json.loads(self.model_dump_json())
-            json.dump(json_dict, file, indent=4)
+            json.dump(self.model_dump(mode='json'), file, indent=4)
 
     def add_network(self, name: str) -> NetworkDir:
         """Adds a new network to the directory structure.

@@ -675,8 +675,7 @@ class DataHandler(WorkflowABC):
                 site = source
                 # Write the site metadata to the station directory
                 with open(site_meta_write_dest, "w") as f:
-                    json_dict = json.loads(site.model_dump_json())
-                    json.dump(json_dict, f, indent=4)
+                    json.dump(site.model_dump(mode='json'), f, indent=4)
                 site_meta_read_dest = site_meta_write_dest
                 logger.loginfo(
                     f"Using provided site metadata and wrote to {site_meta_write_dest}"
@@ -700,8 +699,7 @@ class DataHandler(WorkflowABC):
                         network=self.current_network_name, station=self.current_station_name
                     )
                     with open(site_meta_write_dest, "w") as f:
-                        json_dict = json.loads(site.model_dump_json())
-                        json.dump(json_dict, f, indent=4)
+                        json.dump(site.model_dump(mode='json'), f, indent=4)
 
                     site_meta_read_dest = site_meta_write_dest
                     logger.loginfo(
