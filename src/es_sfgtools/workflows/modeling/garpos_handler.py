@@ -5,7 +5,7 @@ GarposHandler class for processing and preparing shot data for the GARPOS model.
 from pathlib import Path
 from typing import Optional
 import shutil
-from datetime import datetime
+from datetime import datetime,timezone
 import numpy as np
 
 # Plotting imports
@@ -445,6 +445,9 @@ class GarposHandler(WorkflowABC):
 
         """
 
+        # Clear previous plots
+        plt.clf()
+        
         results_dir: Path = self.current_garpos_survey_dir.results_dir
         run_dir = results_dir / f"run_{run_id}"
         if not run_dir.exists():
@@ -490,7 +493,7 @@ class GarposHandler(WorkflowABC):
         results_df_raw = pd.read_csv(garpos_results.shot_data)
         results_df_raw = ObservationData.validate(results_df_raw, lazy=True)
         results_df_raw["time"] = results_df_raw.ST.apply(
-            lambda x: datetime.fromtimestamp(x)
+            lambda x: datetime.fromtimestamp(x, timezone.utc)
         )
         df_filter_1 = results_df_raw["ResiRange"].abs() < res_filter
         df_filter_2 = results_df_raw["flag"].eq(False)
@@ -715,3 +718,4 @@ class GarposHandler(WorkflowABC):
                 bbox_inches="tight",
                 pad_inches=0.1,
             )
+        

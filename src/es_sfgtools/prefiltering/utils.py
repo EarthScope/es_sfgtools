@@ -52,6 +52,17 @@ def filter_shotdata(
 
     initial_count = len(shot_data)
     new_shot_data_df = shot_data.copy()
+
+    # Convert start_time and end_time to Unix timestamps
+    start_unix = start_time.timestamp()
+    end_unix = end_time.timestamp()
+
+    # Filter by time
+    new_shot_data_df = new_shot_data_df[
+        (new_shot_data_df["pingTime"] >= start_unix)
+        & (new_shot_data_df["pingTime"] <= end_unix)
+    ]
+
     if custom_filters:
         filter_config = validate_and_merge_config(
             base_class=filter_config, override_config=custom_filters

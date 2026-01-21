@@ -87,24 +87,38 @@ class Environment:
             cls._s3_sync_bucket = s3_sync_bucket_str
 
     @classmethod
-    def load_aws_credentials(cls) -> None:
+    def load_aws_credentials(cls) -> tuple[str | None, str | None, str | None, str | None]:
         """
-        Loads AWS credentials from environment variables.
+        Loads AWS credentials from environment variables or profile.
 
-        This method checks for AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY
-        environment variables and sets them for use with AWS SDKs.
+        This method first checks for AWS_PROFILE. If set, it returns the profile name
+        and None for the explicit credentials (letting the AWS SDK handle profile resolution).
+        Otherwise, it checks for AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and AWS_SESSION_TOKEN
+        environment variables.
+
+        Returns:
+            tuple: (aws_access_key, aws_secret_key, aws_session_token, aws_profile)
+                   If profile is set, the first three will be None.
+                   If explicit credentials are set, aws_profile will be None.
 
         Raises:
-            Warning: If either of the required AWS credentials is not set.
+            Warning: If neither profile nor explicit credentials are fully set.
         """
-        
+
+        aws_profile = os.environ.get("AWS_PROFILE")
+
+        # If profile is set, return it and let AWS SDK handle credential resolution
+        if aws_profile:
+            return None, None, None, aws_profile
+
+        # Otherwise, fall back to explicit credentials
         aws_access_key = os.environ.get("AWS_ACCESS_KEY_ID")
         aws_secret_key = os.environ.get("AWS_SECRET_ACCESS_KEY")
         aws_session_token = os.environ.get("AWS_SESSION_TOKEN")
 
-        if aws_access_key is None or aws_secret_key is None or aws_session_token is None:
+        if aws_access_key is None or aws_secret_key is None:
             warnings.warn(
-                "AWS credentials are not fully set in environment variables. \n Please set AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and AWS_SESSION_TOKEN.",
+                "AWS credentials are not fully set in environment variables. \n Please set AWS_PROFILE or AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and AWS_SESSION_TOKEN.",
                 stacklevel=2,
             )
-        return aws_access_key, aws_secret_key, aws_session_token
+        return aws_access_key, aws_secret_key, aws_session_token, None

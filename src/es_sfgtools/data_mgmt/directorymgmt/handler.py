@@ -31,25 +31,34 @@ from es_sfgtools.config.env_config import Environment,WorkingEnvironment
 
 
 def get_s3_client() -> Optional[cloudpathlib.S3Client]:
-    """Gets an S3 client using cloudpathlib."""
-    aws_access_key, aws_secret_key, aws_session_token = load_credentials()
+    """Gets an S3 client using cloudpathlib with support for AWS profiles."""
+    aws_access_key, aws_secret_key, aws_session_token, aws_profile = load_credentials()
     try:
-        s3_client = cloudpathlib.S3Client(
-            aws_access_key_id=aws_access_key,
-            aws_secret_access_key=aws_secret_key,
-            aws_session_token=aws_session_token,
-        )
+        if aws_profile:
+            # If profile is set, use it (cloudpathlib will use boto3 session with profile)
+            s3_client = cloudpathlib.S3Client(profile_name=aws_profile)
+        else:
+            # Otherwise use explicit credentials
+            s3_client = cloudpathlib.S3Client(
+                aws_access_key_id=aws_access_key,
+                aws_secret_access_key=aws_secret_key,
+                aws_session_token=aws_session_token,
+            )
     except Exception as e:
         s3_client = None
     return s3_client
 
-def load_credentials() -> tuple[Optional[str], Optional[str], Optional[str]]:
-    """Loads credentials for accessing remote resources."""
+def load_credentials() -> tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
+    """Loads credentials for accessing remote resources.
+
+    Returns:
+        tuple: (aws_access_key, aws_secret_key, aws_session_token, aws_profile)
+    """
     try:
         return Environment.load_aws_credentials()
     except Exception as e:
         print(f"Error loading AWS credentials: {e}")
-        return None, None, None
+        return None, None, None, None
 
 
 class DirectoryHandler(_Base):
