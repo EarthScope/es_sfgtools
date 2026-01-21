@@ -424,6 +424,7 @@ class GarposHandler(WorkflowABC):
         metadata_time_windows = {}
         shotdata_time_windows = {}
         shotdata_dfs = {}
+        shotdata_filtered_dfs = {}
         for survey_name in sorted(self.current_campaign_dir.surveys):
             if survey_name in [survey.id for survey in metadata_surveys]:
                 for survey in metadata_surveys:
@@ -441,32 +442,41 @@ class GarposHandler(WorkflowABC):
                     end = datetime.fromtimestamp(shotdata_df['pingTime'].iloc[-1], tz=timezone.utc)
                     shotdata_time_windows[survey_name] = (start, end)
 
-                    shotdata_filtered_filepath = self.current_campaign_dir.surveys[survey_name].sho
-                    
+                    shotdata_filtered_filepath = self.current_campaign_dir.surveys[survey_name].shotdata_filtered
+                    shotdata_filtered_df = pd.read_csv(shotdata_filtered_filepath, sep=",", header=0, index_col=0)
+                    shotdata_filtered_dfs[survey_name] = shotdata_filtered_df
+                
                 except Exception as e:
                     print(e)
 
         fig, axs = plt.subplots(3, 1, figsize=(20, 15), sharex=False)
         colors = ['blue', 'orange', 'red', 'green', 'purple', 'brown', 'pink', 'gray', 'olive', 'cyan']
         for i, (survey_name, shotdata_df) in enumerate(shotdata_dfs.items()):
-            unique_ids = shotdata_df["transponderID"].unique()
-            for j, transponder_id in enumerate(unique_ids):
-                df = shotdata_df[shotdata_df["transponderID"] == transponder_id]
-                # # Resample the data to 10 minute intervals and count replies
-                df = df.set_index(pd.to_datetime(df['pingTime'], unit='s'))
-                replies_per_bin = df['pingTime'].resample('10min').count()
-                axs[j].scatter(replies_per_bin.index, replies_per_bin.values/40*100, label=f"{survey_name} - {transponder_id}", s=10, color=colors[(i) % len(colors)])
-                total_pings = shotdata_df['pingTime'].nunique()
-                survey_midpoint = metadata_time_windows[survey_name][0] + (metadata_time_windows[survey_name][1] - metadata_time_windows[survey_name][0]) / 2
-                axs[j].text(
-                    survey_midpoint, 110,
-                    f"{survey_name}\n{next((survey.type.value for survey in metadata_surveys if survey.id == survey_name), 'Unknown')}\ntotal pings: {total_pings}\ntotal replies: {replies_per_bin.sum()}\nreply %: {replies_per_bin.sum() / total_pings * 100:.2f}%", fontsize=12, ha='center'
-                )
-                axs[j].set_xlabel("Time")
-                axs[j].set_ylabel("% Expected replies per 10 min bin")
-                axs[j].set_ylim(0, 140)
-                axs[j].axvspan(xmin=metadata_time_windows[survey_name][0], xmax=metadata_time_windows[survey_name][1], color=colors[(i) % len(colors)], linestyle='--', linewidth=1, alpha=0.1)
-
+            try:
+                unique_ids = shotdata_df["transponderID"].unique()
+                for j, transponder_id in enumerate(unique_ids):
+                    df = shotdata_df[shotdata_df["transponderID"] == transponder_id]
+                    filtered_df = shotdata_filtered_dfs[survey_name][shotdata_filtered_dfs[survey_name]["transponderID"] == transponder_id]
+                    # # Resample the data to 10 minute intervals and count replies
+                    df = df.set_index(pd.to_datetime(df['pingTime'], unit='s'))
+                    filtered_df = filtered_df.set_index(pd.to_datetime(filtered_df['pingTime'], unit='s'))
+                    replies_per_bin = df['pingTime'].resample('10min').count()
+                    filtered_replies_per_bin = filtered_df['pingTime'].resample('10min').count()
+                    axs[j].scatter(replies_per_bin.index, replies_per_bin.values/40*100, label=f"{survey_name} - {transponder_id}", s=10, color='black')
+                    axs[j].scatter(filtered_replies_per_bin.index, filtered_replies_per_bin.values/40*100, label=f"{survey_name} - {transponder_id} (Filtered)", s=10, color=colors[(i) % len(colors)])
+                    total_pings = shotdata_df['pingTime'].nunique()
+                    total_filtered_pings = shotdata_filtered_df['pingTime'].nunique()
+                    survey_midpoint = metadata_time_windows[survey_name][0] + (metadata_time_windows[survey_name][1] - metadata_time_windows[survey_name][0]) / 2
+                    axs[j].text(
+                        survey_midpoint, 110,
+                        f"{survey_name}\n{next((survey.type.value for survey in metadata_surveys if survey.id == survey_name), 'Unknown')}\ntotal pings: {total_pings}\ntotal replies: {replies_per_bin.sum()}\nfiltered replies: {filtered_replies_per_bin.sum()}\nfiltered reply %: {filtered_replies_per_bin.sum() / total_pings * 100:.2f}%", fontsize=12, ha='center'
+                    )
+                    axs[j].set_xlabel("Time")
+                    axs[j].set_ylabel("% Expected replies per 10 min bin")
+                    axs[j].set_ylim(0, 150)
+                    axs[j].axvspan(xmin=metadata_time_windows[survey_name][0], xmax=metadata_time_windows[survey_name][1], color=colors[(i) % len(colors)], linestyle='--', linewidth=1, alpha=0.1)
+            except Exception as e:
+                logger.logwarn(f"Error processing {survey_name}")
         fig.suptitle(f"Shotdata Reply Percentages for {self.current_station_name} {self.current_campaign_name}")
         axs[0].set_title(f"{self.current_station_name} Transponder 5209")
         axs[1].set_title(f"{self.current_station_name} Transponder 5210")

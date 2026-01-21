@@ -337,6 +337,7 @@ class SurveyDir(_Base):
         default=None, description="The survey directory path"
     )
     shotdata: Optional[Path|S3Path] = Field(default=None, description="The shotdata file path")
+    shotdata_filtered: Optional[Path|S3Path] = Field(default=None, description="The filtered shotdata file path")
     kinpositiondata: Optional[Path|S3Path] = Field(
         default=None, description="The kinematic position file path"
     )
@@ -420,14 +421,15 @@ class SurveyDir(_Base):
             survey_dir.metadata = metadata_path
 
         garpos_dir = path / "GARPOS"
-        if garpos_dir.exists():
+        if garpos_dir.exists() and GARPOSSurveyDir.is_garpos_directory(garpos_dir):
             survey_dir.garpos = GARPOSSurveyDir.load_from_path(garpos_dir)
 
         shotdata_files = list(path.glob("*.csv"))
         for shotdata_file in shotdata_files:
             if "shotdata" in shotdata_file.name.lower() and "filtered" not in shotdata_file.name.lower():
                 survey_dir.shotdata = shotdata_file
-  
+            elif "shotdata" in shotdata_file.name.lower() and "filtered" in shotdata_file.name.lower():
+                survey_dir.shotdata_filtered = shotdata_file
 
         return survey_dir
 
