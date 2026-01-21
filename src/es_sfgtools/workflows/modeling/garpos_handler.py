@@ -664,9 +664,8 @@ class GarposHandler(WorkflowABC):
 
         Args:
             survey_id (str): The ID of the survey to plot results for.
-            survey_type (str, optional): The type of the survey. Defaults to None.
             run_id (int | str, optional): The run ID of the survey results to plot. Defaults to 0.
-            res_filter (float, optional): The residual filter value to filter outrageous values (m). Defaults to 10.
+            subplots (bool, optional): If True, use multiple subplots for the residuals. Defaults to True.
             savefig (bool, optional): If True, save the figure, by default False.
             showfig (bool, optional): If True, display the figure, by default True.
         """
