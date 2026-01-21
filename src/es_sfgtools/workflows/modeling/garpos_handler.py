@@ -493,7 +493,7 @@ class GarposHandler(WorkflowABC):
             lambda x: datetime.fromtimestamp(x)
         )
         df_filter_1 = results_df_raw["ResiRange"].abs() < res_filter
-        df_filter_2 = results_df_raw["flag"] == False
+        df_filter_2 = results_df_raw["flag"].eq(False)
         results_df = results_df_raw[df_filter_1 & df_filter_2]
         # Use raw IDs so we allocate plot space for every transponder present,
         # even if a transponder has no points after filtering.
