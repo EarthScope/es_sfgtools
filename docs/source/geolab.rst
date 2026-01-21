@@ -22,9 +22,7 @@ To access GeoLab and our prebuilt Jupyter notebooks, follow these steps:
 
 2. Login with your EarthScope credentials.
 
-3. Select Environment -> Other, and use this custom image URL:
-
-   `public.ecr.aws/earthscope/sfg-geolab:latest`
+3. Under the Environment drop down, select `Seafloor Geodesy`.  This loads a preconfigured Docker image with all necessary software and dependencies.
 
 4. Select a resource allocation, suggest starting with 7GB RAM, 1 CPU and increasing as needed.
 
