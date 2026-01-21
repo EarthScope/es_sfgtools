@@ -388,7 +388,6 @@ class GarposHandler(WorkflowABC):
             ID of the survey to plot results for, by default None.
         savefig : bool, optional
             If True, save the figure, by default False.
-            If True, save the figure, by default False.
         showfig : bool, optional
             If True, display the figure, by default True.
         """
