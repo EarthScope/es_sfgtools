@@ -10,6 +10,7 @@ creating, writing to, and reading from these TileDB arrays, handling both
 local and S3 storage.
 """
 import datetime
+import os
 from pathlib import Path
 from typing import Dict
 
@@ -213,6 +214,17 @@ config["vfs.s3.region"] = "us-east-2"
 config["vfs.s3.scheme"] = "https"
 config["vfs.s3.endpoint_override"] = ""
 config["vfs.s3.use_virtual_addressing"] = "true"
+
+# Support AWS profile or explicit credentials
+# If AWS_PROFILE is set, use it; otherwise fall back to explicit credentials
+aws_profile = os.environ.get("AWS_PROFILE", "")
+if aws_profile:
+    config["vfs.s3.aws_profile"] = aws_profile
+else:
+    # Fall back to explicit credentials for backward compatibility
+    config["vfs.s3.aws_access_key_id"] = os.environ.get("AWS_ACCESS_KEY_ID", "")
+    config["vfs.s3.aws_secret_access_key"] = os.environ.get("AWS_SECRET_ACCESS_KEY", "")
+    config["vfs.s3.session_token"] = os.environ.get("AWS_SESSION_TOKEN", "")
 
 ctx = tiledb.Ctx(config=config)
 
