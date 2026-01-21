@@ -119,6 +119,9 @@ class GARPOSSurveyDir(_Base):
         if not self.shotdata_rectified:
             self.shotdata_rectified = self.find_rectified_shotdata()
 
+        if not self.shotdata_filtered:
+            self.shotdata_filtered = self.find_filtered_shotdata()
+
         # Create directories if they don't exist
         for path in [
             self.location,
@@ -138,7 +141,23 @@ class GARPOSSurveyDir(_Base):
         shotdata_files = list(self.location.glob("*_rectified.csv"))
         if shotdata_files:
             return shotdata_files[0]
-        
+
+        return None
+
+    def find_filtered_shotdata(self) -> Optional[Path]:
+        """Find the filtered shotdata file in the parent survey directory.
+
+        Returns
+        -------
+        Optional[Path]
+            The path to the filtered shotdata file if found, else None.
+        """
+        # Look in the parent survey directory for filtered shotdata
+        parent_dir = self.survey_dir
+        shotdata_files = list(parent_dir.glob("*_filtered.csv"))
+        if shotdata_files:
+            return shotdata_files[0]
+
         return None
     @classmethod
     def is_garpos_directory(cls,path: Path| S3Path) -> bool:
@@ -206,6 +225,16 @@ class GARPOSSurveyDir(_Base):
         svp_file_path = path / SVP_FILE_NAME
         if svp_file_path.exists():
             survey_dir.svp_file = svp_file_path
+
+        # Look for shotdata_rectified
+        shotdata_rectified = survey_dir.find_rectified_shotdata()
+        if shotdata_rectified:
+            survey_dir.shotdata_rectified = shotdata_rectified
+
+        # Look for shotdata_filtered in parent survey directory
+        shotdata_filtered = survey_dir.find_filtered_shotdata()
+        if shotdata_filtered:
+            survey_dir.shotdata_filtered = shotdata_filtered
 
         return survey_dir
 

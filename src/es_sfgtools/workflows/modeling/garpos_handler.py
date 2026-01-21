@@ -834,7 +834,7 @@ class GarposHandler(WorkflowABC):
         """
 
         # Clear previous plots
-        plt.clf()
+        #plt.clf()
         
         results_dir: Path = self.current_garpos_survey_dir.results_dir
         run_dir = results_dir / f"run_{run_id}"
