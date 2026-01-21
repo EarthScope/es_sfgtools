@@ -53,16 +53,6 @@ def filter_shotdata(
     initial_count = len(shot_data)
     new_shot_data_df = shot_data.copy()
 
-    # Convert start_time and end_time to Unix timestamps in UTC
-    start_unix = start_time.replace(tzinfo=timezone.utc).timestamp()
-    end_unix = end_time.replace(tzinfo=timezone.utc).timestamp()
-
-    # Filter by time
-    new_shot_data_df = new_shot_data_df[
-        (new_shot_data_df["pingTime"] >= start_unix)
-        & (new_shot_data_df["pingTime"] <= end_unix)
-    ]
-
     if custom_filters:
         filter_config = validate_and_merge_config(
             base_class=filter_config, override_config=custom_filters
@@ -114,8 +104,8 @@ def filter_shotdata(
         new_shot_data_df = filter_pride_residuals(
             df=new_shot_data_df,
             kinPostionTDBUri=kinPostionTDBUri,
-            start_time=start_time,
-            end_time=end_time,
+            start_time=start_time.astimezone(timezone.utc),
+            end_time=end_time.astimezone(timezone.utc),
             max_wrms=filter_config.pride_residuals.max_residual_mm,
         )
 

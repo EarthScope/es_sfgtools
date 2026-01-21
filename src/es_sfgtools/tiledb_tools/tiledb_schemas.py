@@ -389,7 +389,7 @@ class TBDArray:
         if isinstance(end, np.datetime64):
             end = end.astype(datetime.datetime)
         if end is None:
-            end = start.date()
+            end = start + datetime.timedelta(days=1)
 
         if isinstance(start, datetime.date) and not isinstance(start, datetime.datetime):
             start = datetime.datetime.combine(start, datetime.datetime.min.time())

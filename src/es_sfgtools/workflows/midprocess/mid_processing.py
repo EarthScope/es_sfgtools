@@ -5,7 +5,7 @@ import json
 import os
 import shutil
 from typing import List, Optional
-
+from datetime import timezone
 
 import pandas as pd
 
@@ -303,8 +303,8 @@ class IntermediateDataProcessor(WorkflowABC):
                 site=self.current_station_metadata,
                 shot_data=shotDataRaw,
                 kinPostionTDBUri=self.current_station_dir.tiledb_directory.kin_position_data,
-                start_time=survey.start,
-                end_time=survey.end,
+                start_time=survey.start.astimezone(timezone.utc),
+                end_time=survey.end.astimezone(timezone.utc),
                 custom_filters=custom_filters,
             )
             if shot_data_filtered.empty:
