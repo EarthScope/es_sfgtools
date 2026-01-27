@@ -134,10 +134,10 @@ def merge_interrogation_reply(
     AssertionError
         If the calculated return time does not match the reply's returnTime.
     """
-    #validate that tt > 0 (we actually got a range value in the reply)
+    # validate that tt > 0 (we actually got a range value in the reply)
     range = float(reply.tt) + float(reply.tat) + TRIGGER_DELAY_SV3
     assert (abs(range) > 1e-3), (f"Transponder {reply.transponderID} has range={abs(round(range,1))} for ping at {interrogation.pingTime} {datetime.fromtimestamp(float(interrogation.pingTime))}")
-    
+
     # Validate that pingTime + tt + tat + TRIGGER_DELAY_SV3 equals returnTime
     # calculate original range
     range_original = float(reply.tt) + float(reply.tat) 
@@ -145,7 +145,7 @@ def merge_interrogation_reply(
         float(interrogation.pingTime)
         + range_original
     )
-    
+
     assert abs(calc_return_time - float(reply.returnTime)) < 1e-6, (
         f"Calculated return time {calc_return_time} does not match reply return time {reply.returnTime}"
     )
@@ -173,7 +173,12 @@ def dfop00_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
         A ShotDataFrame containing processed and merged event data, or None
         if no valid data was found or an error occurred during file reading.
     """
-
+    good_parse_count_interrogation = 0
+    fail_parse_count_interrogation = 0
+    good_parse_count_reply = 0
+    fail_parse_count_reply = 0
+    good_merge_count = 0
+    fail_merge_count = 0
 
     processed = []
     interrogation = None
@@ -183,50 +188,64 @@ def dfop00_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
     except (FileNotFoundError, PermissionError, UnicodeDecodeError) as e:
         logger.logerr(f"Error reading {source}: {e}")
         return None
-    
+
     interrogation_parsed = None
     reply_data_parsed = None
-    
+
     for line in lines:
         data = json.loads(line)
         if data.get("event") == "interrogation":
             try:
                 interrogation = NovatelInterrogationEvent(**data)
-                interrogation_parsed = novatelInterrogation_to_garpos_interrogation(interrogation)
-                #logger.loginfo(f"Interrogation: pingTime: {interrogation_parsed.pingTime}")
+                interrogation_parsed = novatelInterrogation_to_garpos_interrogation(
+                    interrogation
+                )
+                good_parse_count_interrogation += 1
+                # logger.loginfo(f"Interrogation: pingTime: {interrogation_parsed.pingTime}")
             except Exception:
                 interrogation_parsed = None
-
+                fail_parse_count_interrogation += 1
         if data.get("event") == "range":
             try:
                 reply_data = NovatelRangeEvent(**data)
-                reply_data_parsed = novatelReply_to_garpos_reply(reply_data)
-                #logger.loginfo(f"Reply: \n  returnTime: {reply_data_parsed.returnTime}\n  tt: {reply_data_parsed.tt}")
+                reply_data_parsed: SV3ReplyData = novatelReply_to_garpos_reply(
+                    reply_data
+                )
+                good_parse_count_reply += 1
+                # logger.loginfo(f"Reply: \n  returnTime: {reply_data_parsed.returnTime}\n  tt: {reply_data_parsed.tt}")
 
             except Exception:
                 reply_data_parsed = None
+                fail_parse_count_reply += 1
 
             if reply_data_parsed is not None and interrogation_parsed is not None:
                 try:
-                    merged_data = merge_interrogation_reply(interrogation_parsed, reply_data_parsed)
-                    interrogation_parsed = None  # Reset interrogation after merging
+                    merged_data = merge_interrogation_reply(
+                        interrogation_parsed, reply_data_parsed
+                    )
+
                     reply_data_parsed = None  # Reset reply after merging
+                    good_merge_count += 1
                 except AssertionError as e:
                     logger.logerr(f"Assertion error in merging ping/reply data: {e}")
                     merged_data = None
+                    fail_merge_count += 1
 
-                interrogation_parsed = None  # Reset interrogation after merging attempt  
-                reply_data_parsed = None  # Reset reply after merging attempt  
-                
+                reply_data_parsed = None  # Reset reply after merging attempt
+
                 if merged_data is not None:
                     processed.append(merged_data)
 
     if not processed:
         logger.logerr(f"No valid data found in {source}")
         return None
+    message = f"Good parses - Interrogation: {good_parse_count_interrogation}, Reply: {good_parse_count_reply}. Fail parses - Interrogation: {fail_parse_count_interrogation}, Reply: {fail_parse_count_reply}."
+    message += f"\n Good merges: {good_merge_count}, Failed merges: {fail_merge_count}."
+    logger.loginfo(message)
     df = pd.DataFrame(processed)
+    print(f"Pre-validation dataframe shape: {df.shape}")
     df["isUpdated"] = False
-    return ShotDataFrame.validate(df,lazy=True)
+    return ShotDataFrame.validate(df, lazy=True)
 
 
 def dfop00_to_SFGDSTFSeafloorAcousticData(source: str | Path,siteData:SFGDTSFSite) -> SFGDSTFSeafloorAcousticData | None:

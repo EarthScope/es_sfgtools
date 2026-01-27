@@ -105,34 +105,73 @@ def uncompress_file(file_path: Path, dest_dir: Optional[Path]) -> Path:
     """
     Decompresses a file using zlib and returns the path of the decompressed file.
     Args:
-        file (Path): The path of the compressed file.
+        file_path (Path): The path of the compressed file.
+        dest_dir (Optional[Path]): Directory where the decompressed file should be placed.
     Returns:
-        Path: The path of the decompressed file.
+        Path: The path of the decompressed file, or None if decompression failed.
     Raises:
         FileNotFoundError: If the file does not exist.
     Examples:
         >>> file = Path("data/brdc1500.21n.gz")
-        >>> uncompress_file(file)
+        >>> uncompress_file(file, None)
         Path("data/brdc1500.21n")
     """
     # Ensure the file exists
     if not file_path.exists():
         raise FileNotFoundError(f"File {file_path} does not exist.")
 
+    # Check if file is actually compressed
+    if not file_path.name.endswith('.gz'):
+        logger.logwarn(f"File {file_path} does not appear to be gzip compressed (no .gz extension)")
+        return file_path
+
+    # Check file size - empty or very small files are likely corrupted
+    file_size = file_path.stat().st_size
+    if file_size == 0:
+        logger.logerr(f"File {file_path} is empty, cannot decompress")
+        file_path.unlink(missing_ok=True)
+        return None
+    elif file_size < 20:  # Minimum gzip header is ~18 bytes
+        logger.logerr(f"File {file_path} is too small ({file_size} bytes) to be a valid gzip file")
+        file_path.unlink(missing_ok=True)
+        return None
+
     out_file_path = file_path.with_suffix("")
     if dest_dir is not None:
         out_file_path = dest_dir / out_file_path.name
         if not dest_dir.exists():
             dest_dir.mkdir(parents=True, exist_ok=True)
+    
     try:
+        logger.logdebug(f"Attempting to decompress {file_path} ({file_size} bytes) to {out_file_path}")
         with gzip.open(file_path, "rb") as f_in:
             with open(out_file_path, "wb") as f_out:
                 f_out.write(f_in.read())
-    except EOFError as e:
-        logger.logerr(f"Failed to decompress {file_path}: {e}")
-        # Optionally, remove the corrupted file
+        
+        # Verify the decompressed file was created and has content
+        if not out_file_path.exists() or out_file_path.stat().st_size == 0:
+            logger.logerr(f"Decompression failed: output file {out_file_path} is empty or missing")
+            out_file_path.unlink(missing_ok=True)
+            file_path.unlink(missing_ok=True)
+            return None
+            
+        logger.logdebug(f"Successfully decompressed {file_path} to {out_file_path} ({out_file_path.stat().st_size} bytes)")
+        
+    except (EOFError, OSError, gzip.BadGzipFile) as e:
+        logger.logerr(f"Failed to decompress {file_path} ({file_size} bytes): {type(e).__name__}: {e}")
+        logger.logerr(f"File may be corrupted or incomplete. Removing corrupted file.")
+        # Remove corrupted files
+        file_path.unlink(missing_ok=True)
+        out_file_path.unlink(missing_ok=True)
+        return None
+    except Exception as e:
+        logger.logerr(f"Unexpected error decompressing {file_path}: {type(e).__name__}: {e}")
+        # Clean up partial files
+        out_file_path.unlink(missing_ok=True)
         file_path.unlink(missing_ok=True)
         return None
+    
+    # Only remove the original file if decompression was successful
     file_path.unlink(missing_ok=True)
     return out_file_path
 
@@ -644,6 +683,15 @@ def get_gnss_products(
             assert (
                 product_directory.exists()
             ), f"Product directory {product_directory} does not exist"
+            
+            # # Check and fix session time if it has template placeholders
+            # if isinstance(config_template.observation.session_time, str) and "-YYYY-" in config_template.observation.session_time:
+            #     session_time_str = f"{start_date.year} {start_date.month:02d} {start_date.day:02d} 00 00 00 24"
+            #     config_template.observation.session_time = session_time_str
+            #     logger.logdebug(f"Updated session time from template to: {session_time_str}")
+            #     # Rewrite the config file with the corrected session time
+            #     config_template.write_config_file(config_template_file_path)
+            
             # check if the gnss products are already downloaded
             for (
                 name,
@@ -758,6 +806,13 @@ def get_gnss_products(
     )
     config_template = PRIDEPPPFileConfig.load_default()
     config_template.satellite_products = satellite_products
+    
+    # Set proper session time based on the date
+    # Format: "YYYY MM DD HH MI SS SE" where SE is session length in hours (24 for full day)
+    session_time_str = f"{start_date.year} {start_date.month:02d} {start_date.day:02d} 00 00 00 24"
+    config_template.observation.session_time = session_time_str
+    logger.logdebug(f"Setting session time to: {session_time_str}")
+    
     config_template_file_path = pride_dir / year / doy / "config_file"
     config_template.write_config_file(config_template_file_path)
     return config_template_file_path

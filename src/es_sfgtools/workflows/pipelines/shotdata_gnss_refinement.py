@@ -523,7 +523,7 @@ def merge_shotdata_kinposition(
             start_dt=constants.start_dt,
             filter_radius=filter_radius,
         )
-
+        logger.loginfo(f"Writing updated shotdata of shape {shotdata_df_updated.shape} for date {str(date)} to {shotdata.uri}")
         shotdata.write_df(shotdata_df_updated, validate=False)
 
 

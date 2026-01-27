@@ -1451,24 +1451,57 @@ class SV3PipelineECS(WorkflowABC):
                     if rinex_file is not None:
                         # Compress RINEX file with Hatanaka
                         # Path('1lsu0010.21d.gz').write_bytes(hatanaka.compress(rinex_data))
-                        compressed_rinex_path = rinex_file.with_suffix(rinex_file.suffix + ".gz")
-                        compressed_rinex_path = hatanaka.compress_on_disk(str(rinex_file),delete=True)
+                        try:
+                            compressed_rinex_result = hatanaka.compress_on_disk(
+                                str(rinex_file),
+                                delete=True,
+                            )
+                        except Exception as exc:
+                            ProcessLogger.logerror(
+                                f"Failed to Hatanaka-compress RINEX file {rinex_file} for "
+                                f"{self.current_station_name} on {date.strftime('%Y-%m-%d')}: {exc}"
+                            )
+                            return
+                        if not compressed_rinex_result:
+                            ProcessLogger.logerror(
+                                f"Hatanaka compression returned no output path for RINEX file {rinex_file} "
+                                f"for {self.current_station_name} on {date.strftime('%Y-%m-%d')}"
+                            )
+                            return
+                        compressed_rinex_path = Path(compressed_rinex_result)
+                        if not compressed_rinex_path.exists():
+                            ProcessLogger.logerror(
+                                f"Hatanaka-compressed RINEX file not found at {compressed_rinex_path} "
+                                f"for {self.current_station_name} on {date.strftime('%Y-%m-%d')}"
+                            )
+                            return
+
                         # Upload to S3 and catalog
                         remote_rinex_path = s3_campaign_dir.processed / "rinex" / compressed_rinex_path.name
-                        remote_rinex_path = remote_rinex_path.upload_from(str(compressed_rinex_path))
-                        rinex_entry = AssetEntry(
-                            network=self.current_network_name,
-                            station=self.current_station_name,
-                            campaign=self.current_campaign_name,
-                            type=AssetType.RINEX2,
-                            remote_path=str(remote_rinex_path)
-                        )
-                        with threading.Lock():
-                            self.asset_catalog.add_merge_job(**merge_signature)
-                            if self.asset_catalog.add_or_update(rinex_entry):
-                                ProcessLogger.loginfo(
-                                f"Generated and cataloged RINEX file {rinex_file.name} for {self.current_station_name} on {date.strftime('%Y-%m-%d')}"
+                        try:
+                            uploaded_rinex_path = remote_rinex_path.upload_from(
+                                str(compressed_rinex_path)
                             )
+                        except Exception as exc:
+                            ProcessLogger.logerror(
+                                f"Failed to upload RINEX file {compressed_rinex_path} for "
+                                f"{self.current_station_name} on {date.strftime('%Y-%m-%d')}: {exc}"
+                            )
+                            uploaded_rinex_path = None
+                        if uploaded_rinex_path is not None:
+                            rinex_entry = AssetEntry(
+                                network=self.current_network_name,
+                                station=self.current_station_name,
+                                campaign=self.current_campaign_name,
+                                type=AssetType.RINEX2,
+                                remote_path=str(uploaded_rinex_path),
+                            )
+                            with threading.Lock():
+                                self.asset_catalog.add_merge_job(**merge_signature)
+                                if self.asset_catalog.add_or_update(rinex_entry):
+                                    ProcessLogger.loginfo(
+                                        f"Generated and cataloged RINEX file {rinex_file.name} for {self.current_station_name} on {date.strftime('%Y-%m-%d')}"
+                                    )
                         rinex_file.unlink(missing_ok=True)
                         compressed_rinex_path.unlink(missing_ok=True)
 
@@ -1656,10 +1689,9 @@ class SV3PipelineECS(WorkflowABC):
                     ProcessLogger.logerr(f"Error processing RINEX {rinex_entry.remote_path}: {e}")
                     continue  # Skip to next file
         cleanup_pride_files(prideDir, self.current_station_name)
-        
+
     @validate_network_station_campaign
     def update_shotdata(self):
-        """Refine shotdata with interpolated high-precision kinematic positions."""
         """Refine shotdata with interpolated high-precision kinematic positions.
         
         Steps:

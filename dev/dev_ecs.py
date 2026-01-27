@@ -24,32 +24,56 @@ from es_sfgtools.workflows.pipelines.sv3_pipeline import SV3PipelineECS
 from es_sfgtools.data_mgmt.assetcatalog.schemas import AssetEntry
 
 def main():
+    COMBINATIONS = [
+    # {"network": "cascadia-gorda", "station": "NCC1", "campaign": "2022_A_1065"},
+    # {"network": "cascadia-gorda", "station": "NCC1", "campaign": "2023_A_1063"},
+    # {"network": "cascadia-gorda", "station": "NCC1", "campaign": "2024_A_1126"},
+    # {"network": "cascadia-gorda", "station": "NCC1", "campaign": "2025_A_1126"},
+    # {"network": "cascadia-gorda", "station": "NBR1", "campaign": "2023_A_1063"},
+    # {"network": "cascadia-gorda", "station": "NBR1", "campaign": "2025_A_1126"},
+    # {"network": "cascadia-gorda", "station": "GCC1", "campaign": "2022_A_1065"},
+    # {"network": "cascadia-gorda", "station": "GCC1", "campaign": "2023_A_1063"},
+    # {"network": "cascadia-gorda", "station": "GCC1", "campaign": "2024_A_1126"},
+    {"network": "cascadia-gorda", "station": "GCC1", "campaign": "2025_A_1126"},
+    # {"network": "cascadia-gorda", "station": "NCL1", "campaign": "2023_A_1063"},
+    # {"network": "cascadia-gorda", "station": "NDP1", "campaign": "2023_A_1063"},
+    # {"network": "cascadia-gorda", "station": "NTH1", "campaign": "2025_A_1126"},
+]
     wfh:WorkflowHandler = WorkflowHandler()
-    network = "cascadia-gorda"
-    station = "GCC1"
-    campaign = "2022_A_1065"
-    wfh.set_network_station_campaign(
-        network_id=network, station_id=station, campaign_id=campaign
-    )
+    for combo in COMBINATIONS:
+        print(f"Processing {combo['network']}/{combo['station']}/{combo['campaign']}")
+        network = combo["network"]
+        station = combo["station"]
+        campaign = combo["campaign"]
+        wfh.set_network_station_campaign(
+            network_id=network, station_id=station, campaign_id=campaign
+        )
 
-    wfh.ingest_catalog_archive_data()
-    #wfh.ingest_download_archive_data()
-    
-    pl = SV3PipelineECS(
-        directory_handler=wfh.directory_handler,
-        asset_catalog=wfh.asset_catalog,
-    )
-    pl.set_network_station_campaign(
-        network_id=network, station_id=station, campaign_id=campaign
-    
-    )
+        #wfh.ingest_catalog_archive_data()
+        #wfh.ingest_download_archive_data()
+        
+        pl = SV3PipelineECS(
+            directory_handler=wfh.directory_handler,
+            asset_catalog=wfh.asset_catalog,
+        )
+        try:
+            pl.set_network_station_campaign(
+                network_id=network, station_id=station, campaign_id=campaign
+            
+            )
+        except Exception as e:
+            print(f"Error setting network/station/campaign: {e}")
+            continue
 
-    pl.config.rinex_config.override = True
-    pl.get_rinex_files()
-    pl.process_rinex()
-    pl.update_shotdata()
-    dataPostProcessor: IntermediateDataProcessor = wfh.midprocess_get_processor(override_metadata_require=True)
-    dataPostProcessor.parse_surveys()
+        #pl.config.rinex_config.override = True
+        #pl.get_rinex_files()
+        pl.config.dfop00_config.override = False
+        pl.config.position_update_config.override = True
+        #pl.process_rinex()
+        pl.process_dfop00()
+        pl.update_shotdata()
+        dataPostProcessor: IntermediateDataProcessor = wfh.midprocess_get_processor(override_metadata_require=True)
+        dataPostProcessor.parse_surveys()
 
 if __name__ == "__main__":
     main()
