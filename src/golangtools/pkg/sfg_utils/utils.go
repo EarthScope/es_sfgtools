@@ -78,9 +78,12 @@ func BatchEpochsByDay(epochs []observation.Epoch) map[string][]observation.Epoch
 	// first, sort epochs by time
 	SortEpochsByTime(epochs)
 	for _, epoch := range epochs {
-		startYear,startMonth,startDay := epochs[0].Time.Date()
+		startYear,startMonth,startDay := epoch.Time.Date()
 		dayKey := fmt.Sprintf("%04d-%02d-%02d", startYear, startMonth, startDay)
 		batchedEpochs[dayKey] = append(batchedEpochs[dayKey], epoch)
+	}
+	for dayKey := range batchedEpochs {
+		log.Infof("Batched %d epochs for day %s", len(batchedEpochs[dayKey]), dayKey)
 	}
 	return batchedEpochs
 }

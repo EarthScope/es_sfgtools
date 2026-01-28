@@ -6,6 +6,8 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"sync"
+	"time"
 
 	"github.com/EarthScope/es_sfgtools/src/golangtools/pkg/sfg_utils"
 	"gitlab.com/earthscope/gnsstools/pkg/common/gnss/observation"
@@ -59,23 +61,51 @@ func main() {
 		slog.Error("Error unmarshalling json", "error", err)
 		os.Exit(1)
 	}
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, 10) // Limit to 10 concurrent goroutines
+
 	epochs := []observation.Epoch{}
 	for _, novatel_filename := range filenames {
-
-		file_epochs, _ := sfg_utils.ProcessFileNOV000(novatel_filename)
-		epochs = append(epochs, file_epochs...)
-		slog.Info("Processed file", "filename", novatel_filename, "num_epochs", len(file_epochs))
+		wg.Add(1)
+		go func(novatel_filename string) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			file_epochs, _ := sfg_utils.ProcessFileNOV000(novatel_filename)
+			if len(file_epochs) == 0 {
+				slog.Warn("No epochs found in file", "filename", novatel_filename)
+				return
+			}
+			startYear,startMonth,startDay := file_epochs[0].Time.Date()
+			currentDate := time.Date(startYear,startMonth,startDay,0,0,0,0,time.UTC)
+			dayOfYear := currentDate.YearDay()
+			slog.Info("Processed file", "filename", novatel_filename,"Year", startYear,"Day of Year",dayOfYear, "DayOfYear", dayOfYear, "num_epochs", len(file_epochs))
+			mu := sync.Mutex{}
+			mu.Lock()
+			epochs = append(epochs, file_epochs...)
+			mu.Unlock()
+		}(novatel_filename)
 	}
+	wg.Wait()
+
 
 	slog.Info("Total epochs processed", "count", len(epochs))
 	batchedEpochs := sfg_utils.BatchEpochsByDay(epochs)
 
-
+	sem = make(chan struct{}, 10) // Limit to 10 concurrent goroutines
 	for dayKey, dayEpochs := range batchedEpochs {
-		slog.Info("Writing RINEX for day", "day", dayKey, "num_epochs", len(dayEpochs))
-		err := sfg_utils.WriteEpochs(dayEpochs,settings)
-		if err != nil {
-			slog.Error("Error writing epochs", "error", err)
-		}
+		wg.Add(1)
+		go func(dayKey string, dayEpochs []observation.Epoch) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			slog.Info("Writing RINEX for day", "day", dayKey, "num_epochs", len(dayEpochs))
+			err := sfg_utils.WriteEpochs(dayEpochs,settings)
+			if err != nil {
+				slog.Error("Error writing epochs", "error", err)
+			}
+		}(dayKey, dayEpochs)
 	}
+	wg.Wait()
 }
+	

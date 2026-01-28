@@ -20,10 +20,10 @@ RINEX_BIN_PATH = {
 
 
 RINEX_BIN_PATH_BINARY = {
-    "darwin_amd64": GOLANG_BINARY_BUILD_DIR / "novb2rnxo_darwin_amd64",
-    "darwin_arm64": GOLANG_BINARY_BUILD_DIR / "novb2rnxo_darwin_arm64",
-    "linux_amd64": GOLANG_BINARY_BUILD_DIR / "novb2rnxo_linux_amd64",
-    "linux_arm64": GOLANG_BINARY_BUILD_DIR / "novb2rnxo_linux_arm64",
+    "darwin_amd64": GOLANG_BINARY_BUILD_DIR / "novb2rnx_darwin_amd64",
+    "darwin_arm64": GOLANG_BINARY_BUILD_DIR / "novb2rnx_darwin_arm64",
+    "linux_amd64": GOLANG_BINARY_BUILD_DIR / "novb2rnx_linux_amd64",
+    "linux_arm64": GOLANG_BINARY_BUILD_DIR / "novb2rnx_linux_arm64",
 }
 
 RINEX_0000_PATH_BINARY = {
@@ -241,6 +241,28 @@ def get_metadata(site: str, serialNumber: str = "XXXXXXXXXX") -> dict:
     }
 
 def check_metadata_path(metadata_path: Path | str) -> str:
+    """Validate and normalize a metadata file path.
+
+    This function ensures that the given path points to an existing JSON
+    metadata file and that its contents conform to the ``MetadataModel`` schema.
+
+    Parameters
+    ----------
+    metadata_path (Path | str)
+        The path to the metadata JSON file.
+
+    Returns
+    -------
+    str
+        The validated metadata file path as a string.
+
+    Raises
+    ------
+    AssertionError 
+        If the metadata file does not exist.
+    ValueError
+        If the metadata file cannot be parsed into ``MetadataModel``.
+    """
     if isinstance(metadata_path, str):
         metadata_path = Path(metadata_path)
     assert (
@@ -255,6 +277,32 @@ def check_metadata_path(metadata_path: Path | str) -> str:
         raise ValueError(f"Error parsing metadata file {str(metadata_path)}: {e}")
 
 def check_metadata(meta: dict | MetadataModel) -> dict:
+    """Validate and normalize metadata input into a dictionary.
+
+    This function accepts either a raw metadata dictionary or a `MetadataModel`
+    instance, validates it against the `MetadataModel` schema, and returns a
+    dictionary representation.
+
+    If a dictionary is provided, it is used to instantiate `MetadataModel`; any
+    validation error will raise a `ValueError`. If a `MetadataModel` instance is
+    provided, it is converted to a dictionary via `model_dump()`.
+
+    Parameters
+    ----------
+    meta : dict or MetadataModel
+        Metadata to validate and normalize.
+
+    Returns
+    -------
+    dict
+        A dictionary representation of the validated metadata.
+
+    Raises
+    ------
+    ValueError
+        If `meta` is not a `dict` or `MetadataModel`, or if validation of the
+        provided metadata fails.
+    """
     if isinstance(meta, dict):
         try:
             _ = MetadataModel(**meta).model_dump()
