@@ -2,12 +2,12 @@ from pathlib import Path
 import subprocess
 import tempfile
 import shutil
-import warnings
 import uuid
 import json
 from typing import List, Optional, Dict
 from collections import defaultdict
 import os
+from colorama import Fore, Style
 import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ES_SFGTools.NovatelToRinex")
@@ -24,6 +24,7 @@ from .utils import (
 )
 
 os.environ["DYLD_LIBRARY_PATH"] = os.environ.get("CONDA_PREFIX", "") + "/lib"
+os.environ["LD_LIBRARY_PATH"] = os.environ.get("CONDA_PREFIX", "") + "/lib"
 
 def _novatel_2rinex_wrapper(
     files: List[Path] | List[str],
@@ -62,7 +63,7 @@ def _novatel_2rinex_wrapper(
 
     # Normalise the input file list to Paths for logging and command building
     if not files:
-        raise ValueError("No input files provided to _novatel_2rinex_wrapper")
+        raise ValueError(Fore.RED + "No input files provided to _novatel_2rinex_wrapper" + Style.RESET_ALL)
 
     file_paths: List[Path] = [Path(f) for f in files]
 
@@ -75,11 +76,11 @@ def _novatel_2rinex_wrapper(
         elif isinstance(metadata, (Path, str)):
             metadata_path = Path(metadata)
             if not metadata_path.exists():
-                raise FileNotFoundError(f"Metadata file not found: {metadata_path}")
+                raise FileNotFoundError(Fore.RED + f"Metadata file not found: {metadata_path}" + Style.RESET_ALL)
             if not metadata_path.is_file():
-                raise ValueError(f"Metadata path is not a file: {metadata_path}")
+                raise ValueError(Fore.RED + f"Metadata path is not a file: {metadata_path}" + Style.RESET_ALL)
             if (suffix := metadata_path.suffix.lower()) != ".json":
-                raise ValueError(f"Metadata file must be a JSON file, got {suffix}")
+                raise ValueError(Fore.RED + f"Metadata file must be a JSON file, got {suffix}" + Style.RESET_ALL)
             with open(metadata_path) as f:
                 metadata_dict = json.load(f)
         else:
@@ -102,7 +103,7 @@ def _novatel_2rinex_wrapper(
             *[str(p) for p in file_paths],
         ]
         cmd_str = " ".join(cmd)
-        logger.info(f" Running {cmd_str} in {workdir}")
+        logger.info(f" Running {Fore.CYAN}{cmd_str}{Style.RESET_ALL} in {workdir}")
         result = subprocess.run(cmd, capture_output=True, cwd=workdir, text=True)
 
         # If the Go binary aborted, log its output clearly before raising
@@ -115,8 +116,8 @@ def _novatel_2rinex_wrapper(
                 }
             )
             raise RuntimeError(
-                f"{binary_path.name} failed with return code {result.returncode}. "
-                "See logs for stdout/stderr."
+                f"{Fore.RED}{binary_path.name} failed with return code {result.returncode}. "
+                "See logs for stdout/stderr." + Style.RESET_ALL
             )
 
         parse_cli_logs(result, logger)
@@ -124,25 +125,26 @@ def _novatel_2rinex_wrapper(
         rinex_file_paths = [
             x for x in workdir.rglob(f"*{site}*") if not x.suffix == ".json"
         ]
+        print(f"\n{'='*40}")
         logger.info(
-            f"Converted {len(file_paths)} input files to {len(rinex_file_paths)} Daily RINEX files"
+            f"\nConverted {Fore.GREEN}{len(file_paths)}{Style.RESET_ALL} input files to {Fore.GREEN}{len(rinex_file_paths)}{Style.RESET_ALL} Daily RINEX files"
         )
         outpaths: List[Path] = []
         for rinex_file in rinex_file_paths:
             logger.debug(f" RINEX file: {str(rinex_file)}")
             new_rinex_path = writedir / rinex_file.name
             if new_rinex_path.exists():
-                warnings.warn(
-                    f"RINEX file {new_rinex_path} already exists and will be overwritten.",
-                    stacklevel=2,
+                logger.warning(
+                    f"{Fore.YELLOW}RINEX file {new_rinex_path} already exists and will be overwritten.{Style.RESET_ALL}",
+                    stacklevel=1,
                 )
             shutil.move(src=rinex_file, dst=new_rinex_path)
             logger.info(f"Generated Daily RINEX file {str(new_rinex_path)}")
             outpaths.append(new_rinex_path)
 
     if not outpaths:
-        warnings.warn(
-            f"No RINEX files were generated from files: {file_paths}", stacklevel=2
+        logger.warning(
+            f"No RINEX files were generated from files: {file_paths}", stacklevel=1
         )
     return outpaths
 
@@ -227,12 +229,12 @@ def novatel_2rinex(
             metadata = check_metadata(metadata)
         else:
             raise ValueError(
-                "Metadata must be a dict, MetadataModel, or path to a JSON file, "
-                f"got {type(metadata)}",
+                Fore.RED + "Metadata must be a dict, MetadataModel, or path to a JSON file, "
+                f"got {type(metadata)}" + Style.RESET_ALL,
             )
     else:
         if site is None:
-            raise ValueError("Either metadata or site must be provided")
+            raise ValueError(Fore.RED + "Either metadata or site must be provided" + Style.RESET_ALL)
         if not isinstance(site, str):
             raise ValueError(f"Site must be a string, got {type(site)}")
         if len(site) != 4:
@@ -330,10 +332,12 @@ def novatel_2rinex(
     for rinex_path in all_rinex_paths:
         counted_paths[rinex_path] += 1
     overlapping_paths = [path for path, count in counted_paths.items() if count > 1]
+    overlapping_paths = "\n".join([str(p) for p in overlapping_paths])
+
     if overlapping_paths:
-        warnings.warn(
-            f"The following RINEX files were generated multiple times: {overlapping_paths}",
-            stacklevel=2,
+        logger.warning(
+            Fore.YELLOW + f"\nThe following RINEX files were generated multiple times: \n{overlapping_paths}\n" + Style.RESET_ALL,
+            stacklevel=1,
         )
 
     return all_rinex_paths
