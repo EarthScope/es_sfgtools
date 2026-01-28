@@ -4,14 +4,17 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"log/slog"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/labstack/gommon/log"
+	log "github.com/labstack/gommon/log"
 	"gitlab.com/earthscope/gnsstools/pkg/common/gnss/observation"
 	novatelascii "gitlab.com/earthscope/gnsstools/pkg/encoding/novatel/novatel_ascii"
+	novatelbinary "gitlab.com/earthscope/gnsstools/pkg/encoding/novatel/novatel_binary"
 )
 
 type InspvaaRecord struct {
@@ -480,4 +483,123 @@ func DeserializeNOV00bin(r *bufio.Reader) (message novatelascii.Message, err err
 
 	return novatelascii.LongMessage{}, fmt.Errorf("unknown error")
 
+}
+
+// processFileNOVASCII reads a NOVATEL ASCII file and processes its contents to extract GNSS epochs.
+// It takes a filename as input and returns a slice of observation.Epoch.
+//
+// The function performs the following steps:
+// 1. Opens the specified file.
+// 2. Creates a new scanner to read NOVATEL ASCII messages from the file.
+// 3. Iterates over the messages in the file.
+// 4. For each "RANGEA" message, deserializes the message data and converts it to a GNSS epoch.
+// 5. Appends the GNSS epoch to the result slice.
+//
+// If an error occurs while opening the file or reading messages, the function logs the error and terminates the program.
+func ProcessFileNOVASCII(filename string) []observation.Epoch{
+	file, err := os.Open(filename)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
+	epochs := []observation.Epoch{}
+	scanner := novatelascii.NewScanner(bufio.NewReader(file))
+	epochLoop:
+		for {
+			msg, err := scanner.NextMessage()
+			if err != nil {
+				if err == io.EOF {
+					err = file.Close()
+					if err != nil {
+						slog.Error("Error closing file", "error", err)
+					}
+					break epochLoop
+				}
+				slog.Debug("Error reading message", "error", err)
+			}
+			// log.Debugf("%+v", msg)
+			switch m := msg.(type) {
+			case novatelascii.LongMessage:
+				if m.Msg == "RANGEA" {
+					rangea, err := novatelascii.DeserializeRANGEA(m.Data)
+					if err != nil {
+						slog.Error("Error deserializing RANGEA", "error", err)
+					}
+					// slog.Debug("Message time", "time", m.Time())
+					epoch, err := rangea.SerializeGNSSEpoch(m.Time())
+					if err != nil {
+						slog.Error("Error serializing GNSS epoch", "error", err)
+					}
+					epochs = append(epochs, epoch)
+				}
+			case novatelascii.ShortMessage:
+				if m.Msg == "RANGEA" {
+					rangea, err := novatelascii.DeserializeRANGEA(m.Data)
+					if err != nil {
+						slog.Error("Error deserializing RANGEA", "error", err)
+					}
+					epoch, err := rangea.SerializeGNSSEpoch(m.Time())
+					if err != nil {
+						slog.Error("Error serializing GNSS epoch", "error", err)
+					}
+					epochs = append(epochs, epoch)
+				}
+			}
+		}
+
+			return epochs
+	}
+
+// processFileNOVB processes a NOVB file and returns a slice of observation.Epoch.
+// It reads the file, scans for messages, and extracts epochs from messages with ID 140.
+// If an error occurs while opening the file, it logs a fatal error.
+// If an error occurs while reading a message, it logs a warning and continues.
+// If an error occurs while serializing an epoch, it logs an error and continues.
+// It skips epochs with no satellites.
+//
+// Parameters:
+//   - file: The path to the NOVB file to be processed.
+//
+// Returns:
+//   - A slice of observation.Epoch containing the extracted epochs.
+func ProcessFileNOVB(file string) ([]observation.Epoch,error) {
+	f, err := os.Open(file)
+	if err != nil {
+		log.Fatalf("failed opening file: %s", err)
+	}
+	defer f.Close()
+
+	reader := bufio.NewReader(f)
+	epochs := []observation.Epoch{}
+	MessageLoop:
+		for {
+			msg,err := novatelbinary.DeserializeMessage(reader)
+			if err != nil {
+				if err == io.EOF {
+					break MessageLoop
+
+				}
+				if err == bufio.ErrBufferFull{
+					log.Warnf("buffer full: %s", err)
+					reader.Reset(f)
+				}
+				//log.Warnf("failed reading message: %s", err)
+				continue MessageLoop
+			}
+			if msg.MessageID == 140 {
+				msg140 := msg.DeserializeMessage140()
+				epoch, err := msg140.SerializeGNSSEpoch(msg.Time())
+				if err != nil {
+					log.Errorf("failed serializing epoch: %s", err)
+					continue MessageLoop
+				}
+				if len(epoch.Satellites) == 0 {
+					continue MessageLoop
+				}
+				epochs = append(epochs, epoch)
+			} else {
+				continue MessageLoop
+			}
+		}
+	return epochs,nil
 }

@@ -1,8 +1,11 @@
+import logging
 import platform
 import re
 import warnings
 from pathlib import Path
 from typing import Tuple
+
+from es_sfgtools.logging.loggers import _BaseLogger
 
 # Local imports
 from ..logging import ProcessLogger as logger
@@ -69,11 +72,14 @@ def raise_exception(string: str) -> Exception | None:
             return exception
     return None
 
-def parse_cli_logs(result, logger):
+def parse_cli_logs(result, logger: _BaseLogger| logging.Logger):
     if result.stdout:
         stdout_decoded = result.stdout.decode("utf-8") if isinstance(result.stdout, bytes) else result.stdout
         stdout_decoded = remove_ansi_escape(stdout_decoded)
-        logger.logdebug(stdout_decoded)
+        if hasattr(logger, 'logdebug'):
+            logger.logdebug(stdout_decoded)
+        else:
+            logger.debug(stdout_decoded)
         result_message = stdout_decoded.split("msg=")
         for log_line in result_message:
             message = log_line.split("\n")[0]
@@ -85,17 +91,29 @@ def parse_cli_logs(result, logger):
         stderr_decoded = result.stderr.decode("utf-8") if isinstance(result.stderr, bytes) else result.stderr
         stderr_decoded = remove_ansi_escape(stderr_decoded)
         if "error" in stderr_decoded.lower():
-            logger.logerr(stderr_decoded)
+            if hasattr(logger, 'logerr'):
+                logger.logerr(stderr_decoded)
+            else:
+                logger.error(stderr_decoded)
             if (warning := parse_error(stderr_decoded)) is not None:
-                logger.logwarn(warning.message)
+                if hasattr(logger, 'logwarn'):
+                    logger.logwarn(warning.message)
+                else:
+                    logger.warning(warning.message)
                 warnings.warn(warning.message, warning, 3)
         else:
-            logger.logwarn(stderr_decoded)
+            if hasattr(logger, 'logwarn'):
+                logger.logwarn(stderr_decoded)
+            else:
+                logger.warning(stderr_decoded)
         
         result_message = stderr_decoded.split("msg=")
         for log_line in result_message:
             message = log_line.split("\n")[0]
             if "Processing" in message or "Created" in message:
-                logger.loginfo(message)
+                if hasattr(logger, 'loginfo'):
+                    logger.loginfo(message)
+                else:
+                    logger.info(message)
             if (exception := raise_exception(message)) is not None:
                 raise exception
