@@ -3,8 +3,8 @@ es\_sfgtools.data\_mgmt.assetcatalog package
 
 .. automodule:: es_sfgtools.data_mgmt.assetcatalog
    :members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:
 
 Submodules
 ----------

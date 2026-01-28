@@ -3,8 +3,8 @@ es\_sfgtools.workflows.midprocess package
 
 .. automodule:: es_sfgtools.workflows.midprocess
    :members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:
 
 Submodules
 ----------

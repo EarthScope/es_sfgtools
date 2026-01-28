@@ -3,8 +3,8 @@ es\_sfgtools.utils package
 
 .. automodule:: es_sfgtools.utils
    :members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:
 
 Submodules
 ----------

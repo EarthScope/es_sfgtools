@@ -3,8 +3,8 @@ es\_sfgtools.workflows.preprocess\_ingest package
 
 .. automodule:: es_sfgtools.workflows.preprocess_ingest
    :members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:
 
 Submodules
 ----------

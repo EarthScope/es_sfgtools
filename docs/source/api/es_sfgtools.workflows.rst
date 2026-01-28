@@ -3,8 +3,8 @@ es\_sfgtools.workflows package
 
 .. automodule:: es_sfgtools.workflows
    :members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:
 
 Subpackages
 -----------

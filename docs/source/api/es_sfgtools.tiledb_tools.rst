@@ -3,8 +3,8 @@ es\_sfgtools.tiledb\_tools package
 
 .. automodule:: es_sfgtools.tiledb_tools
    :members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:
 
 Submodules
 ----------

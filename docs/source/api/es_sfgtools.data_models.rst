@@ -3,8 +3,8 @@ es\_sfgtools.data\_models package
 
 .. automodule:: es_sfgtools.data_models
    :members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:
 
 Subpackages
 -----------

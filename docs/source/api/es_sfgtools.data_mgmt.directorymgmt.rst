@@ -3,8 +3,8 @@ es\_sfgtools.data\_mgmt.directorymgmt package
 
 .. automodule:: es_sfgtools.data_mgmt.directorymgmt
    :members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:
 
 Submodules
 ----------

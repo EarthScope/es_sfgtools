@@ -3,8 +3,8 @@ es\_sfgtools.prefiltering package
 
 .. automodule:: es_sfgtools.prefiltering
    :members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:
 
 Submodules
 ----------

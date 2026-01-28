@@ -3,8 +3,8 @@ es\_sfgtools.seafloor\_site\_tools package
 
 .. automodule:: es_sfgtools.seafloor_site_tools
    :members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:
 
 Submodules
 ----------

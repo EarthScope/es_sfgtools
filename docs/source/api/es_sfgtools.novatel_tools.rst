@@ -3,8 +3,8 @@ es\_sfgtools.novatel\_tools package
 
 .. automodule:: es_sfgtools.novatel_tools
    :members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:
 
 Submodules
 ----------
@@ -14,4 +14,5 @@ Submodules
 
    es_sfgtools.novatel_tools.novatel_ascii_operations
    es_sfgtools.novatel_tools.novatel_binary_operations
+   es_sfgtools.novatel_tools.novatel_to_rinex_operations
    es_sfgtools.novatel_tools.utils

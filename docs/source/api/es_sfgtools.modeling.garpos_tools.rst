@@ -3,8 +3,8 @@ es\_sfgtools.modeling.garpos\_tools package
 
 .. automodule:: es_sfgtools.modeling.garpos_tools
    :members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:
 
 Submodules
 ----------

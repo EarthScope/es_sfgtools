@@ -3,8 +3,8 @@ es\_sfgtools.pride\_tools package
 
 .. automodule:: es_sfgtools.pride_tools
    :members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:
 
 Submodules
 ----------
