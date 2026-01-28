@@ -7,7 +7,7 @@ TEST_PREFIX := $(shell echo $$CONDA_PREFIX)
 # Variables
 BUILD_DIR=build
 COMMANDS=$(wildcard cmd/*)
-CONDA_BASE := $(shell conda info --base)
+# Use existing CONDA_PREFIX (from conda or micromamba); avoid calling `conda` directly
 CONDA_PREFIX := $(shell echo $$CONDA_PREFIX)
 
 # Set DYLD_LIBRARY_PATH on macOS or LD_LIBRARY_PATH on Linux
@@ -46,7 +46,6 @@ debug:
 	@echo "TEST_PREFIX: $(TEST_PREFIX)"
 	@echo "LIBRARY_PATH: $(LIBRARY_PATH)"
 	@echo "Conda Prefix: $(CONDA_PREFIX)"
-	@echo "Conda Base: $(CONDA_BASE)"
 	@echo "TileDB Library Path: $(CONDA_PREFIX)/lib"
 	@echo "DYLD_LIBRARY_PATH: $(DYLD_LIBRARY_PATH)"
 	@echo "CPATH: $(CPATH)"

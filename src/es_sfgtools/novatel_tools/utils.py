@@ -1,5 +1,9 @@
 # External imports
+import datetime
 from pathlib import Path
+from pydantic import BaseModel, Field
+from typing import Optional, List
+import json
 
 # Local imports
 from ..utils.command_line_utils import (
@@ -8,17 +12,25 @@ from ..utils.command_line_utils import (
 )
 
 RINEX_BIN_PATH = {
-    "darwin_amd64": GOLANG_BINARY_BUILD_DIR / "nova2rnxo_darwin_amd64",
-    "darwin_arm64": GOLANG_BINARY_BUILD_DIR / "nova2rnxo_darwin_arm64",
-    "linux_amd64": GOLANG_BINARY_BUILD_DIR / "nova2rnxo_linux_amd64",
-    "linux_arm64": GOLANG_BINARY_BUILD_DIR / "nova2rnxo_linux_arm64",
+    "darwin_amd64": GOLANG_BINARY_BUILD_DIR / "nova2rnx_darwin_amd64",
+    "darwin_arm64": GOLANG_BINARY_BUILD_DIR / "nova2rnx_darwin_arm64",
+    "linux_amd64": GOLANG_BINARY_BUILD_DIR / "nova2rnx_linux_amd64",
+    "linux_arm64": GOLANG_BINARY_BUILD_DIR / "nova2rnx_linux_arm64",
 }
+
 
 RINEX_BIN_PATH_BINARY = {
     "darwin_amd64": GOLANG_BINARY_BUILD_DIR / "novb2rnxo_darwin_amd64",
     "darwin_arm64": GOLANG_BINARY_BUILD_DIR / "novb2rnxo_darwin_arm64",
     "linux_amd64": GOLANG_BINARY_BUILD_DIR / "novb2rnxo_linux_amd64",
     "linux_arm64": GOLANG_BINARY_BUILD_DIR / "novb2rnxo_linux_arm64",
+}
+
+RINEX_0000_PATH_BINARY = {
+    "darwin_amd64": GOLANG_BINARY_BUILD_DIR / "nov0002rnx_darwin_amd64",
+    "darwin_arm64": GOLANG_BINARY_BUILD_DIR / "nov0002rnx_darwin_arm64",
+    "linux_amd64": GOLANG_BINARY_BUILD_DIR / "nov0002rnx_linux_amd64",
+    "linux_arm64": GOLANG_BINARY_BUILD_DIR / "nov0002rnx_linux_arm64",
 }
 
 NOVA2TILE_BIN_PATH = {
@@ -42,7 +54,8 @@ NOV0002TILE_BIN_PATH = {
     "linux_arm64": GOLANG_BINARY_BUILD_DIR / "nov0002tile_linux_arm64",
 }
 
-def get_nova2rnxo_binary_path() -> Path:
+
+def get_nova2rnx_binary_path() -> Path:
     """Get the path to the nova2rnxo golang binary based on the current platform."""
     system, arch = get_system_architecture()
     binary_path = RINEX_BIN_PATH.get(f"{system}_{arch}")
@@ -51,6 +64,7 @@ def get_nova2rnxo_binary_path() -> Path:
 
     return binary_path
 
+
 def get_novb2rnxo_binary_path() -> Path:
     """Get the path to the novb2rnxo binary based on the current platform."""
     system, arch = get_system_architecture()
@@ -58,7 +72,18 @@ def get_novb2rnxo_binary_path() -> Path:
     if not binary_path:
         raise FileNotFoundError(f"NOVB2RNXO binary not found for {system} {arch}")
 
-    return binary_path      
+    return binary_path
+
+
+def get_nov0002rnx_binary_path() -> Path:
+    """Get the path to the nov0002rnx binary based on the current platform."""
+    system, arch = get_system_architecture()
+    binary_path = RINEX_0000_PATH_BINARY.get(f"{system}_{arch}")
+    if not binary_path:
+        raise FileNotFoundError(f"NOV0002RNX binary not found for {system} {arch}")
+
+    return binary_path
+
 
 def get_nova2tile_binary_path() -> Path:
     """Get the path to the nova2tile golang binary based on the current platform."""
@@ -69,6 +94,7 @@ def get_nova2tile_binary_path() -> Path:
 
     return binary_path
 
+
 def get_nov_770_tile_binary_path() -> Path:
     """Get the path to the novb2tile golang binary based on the current platform."""
     system, arch = get_system_architecture()
@@ -78,6 +104,7 @@ def get_nov_770_tile_binary_path() -> Path:
 
     return binary_path
 
+
 def get_nov_000_tile_binary_path() -> Path:
     """Get the path to the nov0002tile golang binary based on the current platform."""
     system, arch = get_system_architecture()
@@ -86,6 +113,78 @@ def get_nov_000_tile_binary_path() -> Path:
         raise FileNotFoundError(f"NOV0002TILE binary not found for {system} {arch}")
 
     return binary_path
+
+
+"""
+
+// Settings - settings for RINEX header
+type Settings struct {
+	RinexVersion     RinexVersion         `json:"rinex_version"`
+	RinexType        string               `json:"rinex_type"`
+	RinexSystem      string               `json:"rinex_system"`
+	Interval         float64              `json:"interval"`
+	TimeOfFirst      time.Time            `json:"time_of_first"`
+	TimeOfLast       time.Time            `json:"time_of_last"`
+	MarkerName       string               `json:"marker_name"`
+	MarkerNumber     string               `json:"marker_number"`
+	MarkerType       string               `json:"marker_type"`
+	Observer         string               `json:"observer"`
+	Agency           string               `json:"agency"`
+	Program          string               `json:"program"`
+	RunBy            string               `json:"run_by"`
+	Date             string               `json:"date"`
+	Comments         []string             `json:"comments"`
+	ReceiverModel    string               `json:"receiver_model"`
+	ReceiverSerial   string               `json:"receiver_serial"`
+	ReceiverFirmware string               `json:"receiver_firmware"`
+	AntennaModel     string               `json:"antenna_model"`
+	AntennaSerial    string               `json:"antenna_serial"`
+	AntennaPosition  coordinates.Vector3D `json:"antenna_position"`
+	AntennaOffsetHEN coordinates.Vector3D `json:"antenna_offsetHEN"`
+	// Sets which observation types to output (e.g. range, phase, doppler, snr)
+	OutputSettings *OutputSettings `json:"output_settings"`
+	// This stores the order of the observation codes for each system.
+	// The order of the observation codes is important for the RINEX 3&4 headers.
+	// Important: RINEX 3 and 4 cannot be streamed because the header must be written before the data.
+	ObservationsBySystem *observation.ObservationsBySystem `json:"observation_map"`
+}
+"""
+
+
+class MetadataModel(BaseModel):
+    marker_name: str = Field(..., description="Site name")
+    rinex_version: Optional[str] = Field(default="2.11", description="RINEX version")
+    rinex_type: Optional[str] = Field(default="O", description="RINEX type")
+    rinex_system: Optional[str] = Field(default="G", description="RINEX system")
+    marker_number: Optional[str] = Field(default="0001", description="Marker number")
+    marker_type: Optional[str] = Field(default="GEODETIC", description="Marker type")
+    observer: Optional[str] = Field(default="EarthScope", description="Observer name")
+    agency: Optional[str] = Field(default="EarthScope", description="Agency name")
+    program: Optional[str] = Field(default="gnsstools", description="Program name")
+    run_by: Optional[str] = Field(default="", description="Run by")
+    date: Optional[str] = Field(
+        default_factory=lambda: datetime.datetime.now()
+        .astimezone(datetime.timezone.utc)
+        .isoformat(),
+        description="Date",
+    )
+    receiver_model: Optional[str] = Field(default="NOV", description="Receiver model")
+    receiver_serial: Optional[str] = Field(
+        default="XXXXXXXXXX", description="Receiver serial number"
+    )
+    antenna_position: Optional[List[float]] = Field(
+        default=[0.0, 0.0, 0.0], description="Antenna position [X, Y, Z]"
+    )
+    antenna_offsetHEN: Optional[List[float]] = Field(
+        default=[0.0, 0.0, 0.0], description="Antenna offset [H, E, N]"
+    )
+    antenna_model: Optional[str] = Field(
+        default="TRM59800.00 SCIT", description="Antenna model"
+    )
+    antenna_serial: Optional[str] = Field(
+        default="987654321", description="Antenna serial number"
+    )
+
 
 def get_metadatav2(
     site: str,
@@ -101,7 +200,7 @@ def get_metadatav2(
         "rinex_system": "G",
         "marker_name": site,
         "marker_number": "0001",
-        "markerType": "GEODETIC",
+        "marker_type": "GEODETIC",
         "observer": "EarthScope",
         "agency": "EarthScope",
         "program": "gnsstools",
@@ -140,3 +239,31 @@ def get_metadata(site: str, serialNumber: str = "XXXXXXXXXX") -> dict:
             "offsetHEN": [0.0, 0.0, 0.0],  # read from lever arms file?
         },
     }
+
+def check_metadata_path(metadata_path: Path | str) -> str:
+    if isinstance(metadata_path, str):
+        metadata_path = Path(metadata_path)
+    assert (
+        metadata_path.exists()
+    ), f"Metadata file {str(metadata_path)} does not exist"
+    with open(metadata_path) as f:
+        metadata_dict = json.load(f)
+    try:
+        _ = MetadataModel(**metadata_dict).model_dump()
+        return str(metadata_path)
+    except Exception as e:  # pragma: no cover - defensive logging
+        raise ValueError(f"Error parsing metadata file {str(metadata_path)}: {e}")
+
+def check_metadata(meta: dict | MetadataModel) -> dict:
+    if isinstance(meta, dict):
+        try:
+            _ = MetadataModel(**meta).model_dump()
+            return meta
+        except Exception as e:  # pragma: no cover - defensive logging
+            raise ValueError(f"Error parsing metadata dictionary: {e}")
+    elif isinstance(meta, MetadataModel):
+        return meta.model_dump()
+    else:
+        raise ValueError(
+            f"Metadata must be a dict or MetadataModel, got {type(meta)}"
+        )
