@@ -78,12 +78,12 @@ class WorkflowHandler(WorkflowABC):
             assert Environment.working_environment() == WorkingEnvironment.GEOLAB, "Directory must be provided unless in GEOLAB environment"
             directory = Environment.main_directory_GEOLAB()
 
+        # Create DataHandler instance for data operations
+        self.data_handler = DataHandler(directory=directory)
+
         # Initialize parent WorkflowABC with directory
         super().__init__(directory=directory)
 
-        # Create DataHandler instance for data operations
-        self.data_handler = DataHandler(directory=directory)
-  
     def set_network_station_campaign(
         self, network_id: str, station_id: str, campaign_id: str
     ):
@@ -109,7 +109,7 @@ class WorkflowHandler(WorkflowABC):
             if value is not None and hasattr(self,key):
                 setattr(self,key,value)
                 logger.logdebug(f"WorkflowHandler state updated: {key} = {value}")
-        
+
         self._geolab_s3_synced = False
 
     @validate_network_station_campaign
@@ -545,7 +545,6 @@ class WorkflowHandler(WorkflowABC):
                 if value is not None and hasattr(self, key):
                     setattr(self, key, value)
                     logger.logdebug(f"WorkflowHandler state updated: {key} = {value}")
-            
 
         dataPostProcessor: IntermediateDataProcessor = self.midprocess_get_processor(site_metadata=site_metadata)
         dataPostProcessor.parse_surveys(
@@ -684,7 +683,6 @@ class WorkflowHandler(WorkflowABC):
             override=override,
             custom_settings=custom_settings,
         )
-
 
     @validate_network_station_campaign
     def modeling_plot_shotdata_replies_per_transponder(
