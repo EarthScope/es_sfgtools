@@ -3,6 +3,7 @@ This module defines the IntermediateDataProcessor class, which is responsible fo
 """
 import json
 import os
+from pathlib import Path
 import shutil
 from typing import List, Optional
 from datetime import timezone
@@ -405,7 +406,7 @@ class IntermediateDataProcessor(WorkflowABC):
         for tdb_array in tdb_arrays:
             local_tdb_array = getattr(local_tdb, tdb_array)
             s3_tdb_array = getattr(s3_tdb, tdb_array)
-       
+
             for tdb_file in local_tdb_array.rglob('*'):
                 relative_path = tdb_file.relative_to(local_tdb_array)
                 s3_file_path = s3_tdb_array / relative_path
@@ -425,7 +426,7 @@ class IntermediateDataProcessor(WorkflowABC):
             except Exception as e:
                 logger.logerr(f"Failed to upload {local_svp} to S3: {e}")
 
-            # upload log directory files 
+            # upload log directory files
             local_log_dir = local_campaign_dir.log_directory
             s3_log_dir = s3_campaign_dir.log_directory
             if local_log_dir.exists():
@@ -438,3 +439,25 @@ class IntermediateDataProcessor(WorkflowABC):
                         except Exception as e:
                             logger.logerr(f"Failed to upload {log_file} to S3: {e}")
 
+    @validate_network_station_campaign
+    def parse_surveys_qc(
+        self,
+        shotdata_uri: str|Path,
+        override: bool = False,
+    ):
+        """Parses the surveys from the current campaign and adds them to the directory structure.
+
+        Parameters
+        ----------
+        override : bool, optional
+            Whether to override existing files, by default False.
+        write_intermediate : bool, optional
+            Whether to write intermediate files, by default False.
+        """
+
+
+        shotDataTDB = TDBShotDataArray(Path(shotdata_uri))
+
+
+        surveys_to_process: List[Survey] = []
+       

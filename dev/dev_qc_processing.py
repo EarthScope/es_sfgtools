@@ -178,6 +178,13 @@ if __name__ == "__main__":
         station_id=station_id,
         campaign_id=campaign_id,
     )
+    import time
+    start_time = time.time()
+    qc_pipeline_wfh.config = {"override": True}
     qc_pipeline_wfh.process_qc_files()
+    end_time = time.time()
+    print(f"\n\nQC processing time: {end_time - start_time:.2f} seconds")
 
     print("QC processing complete.")
+
+    wfh.midprocess_parse_surveys()
