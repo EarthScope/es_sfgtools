@@ -6,8 +6,10 @@ import os
 from pathlib import Path
 import shutil
 from typing import List, Optional
+import datetime
 from datetime import timezone
 
+import numpy as np
 import pandas as pd
 
 from es_sfgtools.data_mgmt.directorymgmt import (
@@ -455,9 +457,151 @@ class IntermediateDataProcessor(WorkflowABC):
             Whether to write intermediate files, by default False.
         """
 
-
         shotDataTDB = TDBShotDataArray(Path(shotdata_uri))
+        surveys_to_process: List[Survey] = self.get_pseudo_surveys(shotDataTDB)
+
+        for survey in surveys_to_process:
+            survey_dir = self.current_campaign_dir.qc / survey.id
+            survey_dir.mkdir(parents=True, exist_ok=True)
+
+            # Prepare shotdata
+            shotdata_file_name_unfiltered = (
+                f"{survey.id}_{survey.type.value}_shotdata.csv".replace(" ", "")
+            )
+            shotdata_file_dest = (
+                survey_dir / shotdata_file_name_unfiltered
+            )
+
+            if (
+                not shotdata_file_dest.exists()
+                or shotdata_file_dest.stat().st_size == 0
+                or override
+            ):
+                shot_data_queried = shotDataTDB.read_df(
+                    start=survey.start,
+                    end=survey.end,
+                )
+                if shot_data_queried.empty:
+                    logger.logwarn(
+                        f"No shot data found for survey {survey.id} from {survey.start} to {survey.end}, skipping survey."
+                    )
+                    continue
+                else:
+                    shot_data_queried.to_csv(shotdata_file_dest)
+            else:
+                shot_data_queried = pd.read_csv(shotdata_file_dest)
+                    
+            garposDir: GARPOSSurveyDir = GARPOSSurveyDir(
+                survey_dir=survey_dir,
+                log_directory=survey_dir / "logs",
+            )
+            garposDir.build()
+
+            if not garposDir.default_settings.exists() or override:
+                GarposFixed()._to_datafile(garposDir.default_settings)
 
 
-        surveys_to_process: List[Survey] = []
-       
+
+            GPtransponders = GP_Transponders_from_benchmarks(
+                coord_transformer=self.coordTransformer,
+                survey=survey,
+                site=self.current_station_metadata,
+                is_qc=True,
+            )
+            array_dpos_center = get_array_dpos_center(self.coordTransformer, GPtransponders)
+
+            shotdata_out_path = (
+                garposDir.location / f"{shotdata_file_dest.stem}_rectified.csv"
+            )
+            garposDir.shotdata_rectified = shotdata_out_path
+
+            if shotdata_out_path.exists():
+                shotdata_rectified = pd.read_csv(shotdata_out_path)
+            else:
+                shotdata_rectified = pd.DataFrame()
+
+            if shotdata_rectified.empty or override:
+                shotdata_rectified = prepare_shotdata_for_garpos(
+                    coord_transformer=self.coordTransformer,
+                    shodata_out_path=shotdata_out_path,
+                    shot_data=shot_data_queried,
+                    GPtransponders=GPtransponders,
+                )
+                if shotdata_rectified.empty:
+                    logger.logwarn(
+                        f"No shot data remaining after rectification for survey {survey.id}, skipping survey."
+                    )
+                    return
+                shotdata_rectified.to_csv(shotdata_out_path)
+
+            # Copy the campaign svp file to the garpos directory if it doesn't exist
+            if not garposDir.svp_file.exists():
+                if self.current_campaign_dir.svp_file.exists():
+                    shutil.copy(self.current_campaign_dir.svp_file, garposDir.svp_file)
+                else:
+                    logger.logwarn(
+                        f"No sound speed profile file found for campaign {self.current_campaign_metadata.name}, GARPOS processing may fail."
+                    )
+            obsfile_out_path = garposDir.default_obsfile
+            if not obsfile_out_path.exists() or override:
+                garpos_input = prepare_garpos_input_from_survey(
+                    shot_data_path=shotdata_out_path,
+                    survey=survey,
+                    site=self.current_station_metadata,
+                    campaign=self.current_campaign_metadata,
+                    ss_path=garposDir.svp_file,
+                    array_dpos_center=array_dpos_center,
+                    num_of_shots=len(shotdata_rectified),
+                    GPtransponders=GPtransponders,
+                )
+                # Apply survey-type-specific configuration to garpos_input
+                site_config_update: GarposSiteConfig = get_garpos_site_config(survey.type)
+                garpos_input_configured: GarposInput = apply_survey_config(
+                    site_config_update, garpos_input
+                )
+
+                garpos_input_configured.to_datafile(garposDir.default_obsfile)
+
+        self.directory_handler.save()
+
+
+    def get_pseudo_surveys(self,shotdatatdb:TDBShotDataArray) -> List[Survey]:
+        """Generates pseudo-surveys based on shotdata timestamps.
+
+        Parameters
+        ----------
+        shotdatatdb : TDBShotDataArray
+            The TileDB shotdata array.
+
+        Returns
+        -------
+        List[Survey]
+            A list of pseudo-surveys.
+        """
+        pseudo_surveys: List[Survey] = []
+        dates:List[np.datetime64] = shotdatatdb.get_unique_dates().tolist()
+        if not dates:
+            logger.logwarn("No shotdata dates found to generate pseudo-surveys.")
+            return pseudo_surveys
+
+        # Filter by current campaign date range
+        current_year = float(self.current_campaign_name.split("_")[0])
+        filtered_dates = [date for date in dates if date.year == current_year]
+        if not filtered_dates:
+            logger.logwarn(f"No shotdata dates found for campaign year {current_year} to generate pseudo-surveys.")
+            return pseudo_surveys
+
+        filtered_dates = sorted(filtered_dates)
+        for idx,date in enumerate(filtered_dates):
+            start_time = pd.Timestamp(date).tz_localize('UTC').to_pydatetime().replace(hour=0, minute=0, second=0, microsecond=0)
+            end_time = datetime.datetime.combine(start_time.date(),datetime.time.max).replace(tzinfo=datetime.timezone.utc)
+            year, month, day = start_time.year, start_time.month, start_time.day
+            pseudo_survey = Survey(
+                id=f"{year}_{month}_{day}_{idx+1}",
+                type="unknown",
+                start=start_time,
+                end=end_time,
+                benchmarkIDs=[],
+            )
+            pseudo_surveys.append(pseudo_survey)
+        return pseudo_surveys

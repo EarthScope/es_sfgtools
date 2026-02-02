@@ -169,6 +169,9 @@ if __name__ == "__main__":
     wfh.ingest_add_local_data(
         directory_path=qc_dir,
     )
+    wfh.ingest_catalog_archive_data()
+    wfh.ingest_download_archive_data()
+    
     qc_pipeline_wfh = qc_pipeline.QCPipeline(
         directory_handler=wfh.directory_handler,
         asset_catalog=wfh.asset_catalog,
@@ -187,4 +190,7 @@ if __name__ == "__main__":
 
     print("QC processing complete.")
 
-    wfh.midprocess_parse_surveys()
+    shotdata_uri =qc_pipeline_wfh.shotDataTDB.uri
+    qc_mid_processor = wfh.midprocess_get_processor()
+
+    qc_mid_processor.parse_surveys_qc(shotdata_uri=shotdata_uri)
