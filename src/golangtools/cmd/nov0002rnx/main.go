@@ -65,6 +65,7 @@ func main() {
 	sem := make(chan struct{}, 10) // Limit to 10 concurrent goroutines
 
 	epochs := []observation.Epoch{}
+	mu := sync.Mutex{}
 	for _, novatel_filename := range filenames {
 		wg.Add(1)
 		go func(novatel_filename string) {
@@ -80,7 +81,6 @@ func main() {
 			currentDate := time.Date(startYear,startMonth,startDay,0,0,0,0,time.UTC)
 			dayOfYear := currentDate.YearDay()
 			slog.Info("Processed file", "filename", novatel_filename,"Year", startYear,"Day of Year",dayOfYear, "DayOfYear", dayOfYear, "num_epochs", len(file_epochs))
-			mu := sync.Mutex{}
 			mu.Lock()
 			epochs = append(epochs, file_epochs...)
 			mu.Unlock()
@@ -90,7 +90,11 @@ func main() {
 
 
 	slog.Info("Total epochs processed", "count", len(epochs))
-	batchedEpochs := sfg_utils.BatchEpochsByDay(epochs)
+	batchedEpochs, err := sfg_utils.BatchEpochsByDay(epochs)
+	if err != nil {
+		slog.Error("Error batching epochs by day", "error", err)
+		os.Exit(1)
+	}
 
 	sem = make(chan struct{}, 10) // Limit to 10 concurrent goroutines
 	for dayKey, dayEpochs := range batchedEpochs {

@@ -19,8 +19,12 @@ It is recommended to instantiate a MetadataModel object to ensure all required f
 See the MetadataModel documentation for details on required and optional fields.
 
 '''
+NETWORK = "cascadia-gorda"
+STATION = "NCC1"
+CAMPAIGN = "2025_A_1126"
+PROJECT_DIRECTORY = Path("/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain")
 metadata = MetadataModel(
-    marker_name="NCC1",
+    marker_name=STATION,
     run_by="Franklyn Dunbar",
 )
 
@@ -28,9 +32,8 @@ metadata = MetadataModel(
 Step 2: Define input files.
 
 '''
-novatel_path_dir = Path(
-    "/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain/cascadia-gorda/NCC1/2025_A_1126/raw"
-)
+novatel_path_dir = PROJECT_DIRECTORY/NETWORK/STATION/CAMPAIGN/"raw"
+
 nov_bin = list(novatel_path_dir.glob("*NOV*.bin"))
 nov_raw = list(novatel_path_dir.glob("*NOV*.raw"))
 all_files = nov_bin + nov_raw
@@ -40,9 +43,8 @@ Step 3: Define output directory that you want to write RINEX files to.
 Note that if this is not provided, RINEX files will be written to the same directory
 as the input NovAtel files.
 '''
-write_dir = Path(
-    "/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain/cascadia-gorda/NCC1/2025_A_1126/processed"
-)
+write_dir = PROJECT_DIRECTORY/NETWORK/STATION/CAMPAIGN/"processed"
+
 
 
 rinex_paths = novatel_2rinex(

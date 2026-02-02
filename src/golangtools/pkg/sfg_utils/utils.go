@@ -73,7 +73,11 @@ func SortEpochsByTime(epochs []observation.Epoch) {
 	})
 }
 
-func BatchEpochsByDay(epochs []observation.Epoch) map[string][]observation.Epoch {
+func BatchEpochsByDay(epochs []observation.Epoch) (map[string][]observation.Epoch, error) {
+	
+	if len(epochs) == 0 {
+		return nil, fmt.Errorf("no epochs to batch")
+	}
 	batchedEpochs := make(map[string][]observation.Epoch)
 	// first, sort epochs by time
 	SortEpochsByTime(epochs)
@@ -85,7 +89,7 @@ func BatchEpochsByDay(epochs []observation.Epoch) map[string][]observation.Epoch
 	for dayKey := range batchedEpochs {
 		log.Infof("Batched %d epochs for day %s", len(batchedEpochs[dayKey]), dayKey)
 	}
-	return batchedEpochs
+	return batchedEpochs, nil
 }
 
 func WriteEpochs(epochs []observation.Epoch,settings *rinex.Settings) error {
