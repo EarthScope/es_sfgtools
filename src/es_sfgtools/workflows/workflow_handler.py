@@ -8,7 +8,8 @@ from typing import (
 
 
 from es_sfgtools.config.file_config import DEFAULT_FILE_TYPES_TO_DOWNLOAD
-
+from es_sfgtools.modeling.garpos_tools.schemas import InversionParams
+from es_sfgtools.workflows.pipelines.qc_pipeline import QCPipeline
 
 from es_sfgtools.data_mgmt.assetcatalog.schemas import AssetEntry, AssetType
 from es_sfgtools.workflows.midprocess.mid_processing import IntermediateDataProcessor
@@ -785,8 +786,8 @@ class WorkflowHandler(WorkflowABC):
         QCPipeline
             A configured QCPipeline instance.
         """
-        from es_sfgtools.workflows.pipelines.qc_pipeline import QCPipeline
-        qc_pipeline = QCPipeline(
+
+        qc_pipeline:QCPipeline = QCPipeline(
             directory_handler=self.directory_handler,
             asset_catalog=self.asset_catalog,
             config=config,
@@ -799,20 +800,44 @@ class WorkflowHandler(WorkflowABC):
         return qc_pipeline
 
     @validate_network_station_campaign
-    def qc_process_and_model(self, config: dict = {}) -> None:
+    def qc_process_and_model(self,
+                             site_metadata: Optional[Union[Site, str]] = None,
+                             run_id:str|int = 0,
+                             iterations:int = 1,
+                             garpos_settings: Optional[dict | InversionParams] = None,
+                             garpos_override: bool = False,
+                             pre_process_config: dict = {},
+                             ) -> None:
         """Process QC files and run GARPOS modeling.
 
         Parameters
         ----------
-        config : dict, optional
+        pre_process_config : dict, optional
             A dictionary of configuration options, by default {}
+        run_id : str or int, optional
+            Identifier for the GARPOS run, by default 0.
+        iterations : int, optional
+            Number of GARPOS iterations to perform, by default 1.
+        garpos_settings : Optional[dict | InversionParams], optional
+            Custom settings to override GARPOS defaults, by default None.
+        garpos_override : bool, optional
+            If True, re-runs GARPOS even if results exist, by default False.
+        
+        Raises
+        ------
+        ValueError
+            If site metadata is not provided and cannot be loaded.
         """
         # Get and run the QC pipeline
-        qc_pipeline = self.qc_get_pipeline(config=config)
+        qc_pipeline: QCPipeline = self.qc_get_pipeline(config=pre_process_config)
         qc_pipeline.process_qc_files()
 
         # Get the intermediate data processor and parse QC surveys
-        qc_mid_processor = self.midprocess_get_processor()
+        try:
+            qc_mid_processor = self.midprocess_get_processor(site_metadata=site_metadata)
+        except ValueError as e:
+            raise e # for visibility
+        
         gp_dir_list = qc_mid_processor.parse_surveys_qc(
             shotdata_uri=qc_pipeline.shotDataTDB.uri
         )
@@ -823,7 +848,12 @@ class WorkflowHandler(WorkflowABC):
             qc_garpos_handler.current_campaign_dir.qc
         )
         qc_garpos_handler.current_campaign_dir.build()
-        # qc_garpos_handler.run_garpos(surveys=gp_dir_list)
+        qc_garpos_handler.run_garpos(surveys=gp_dir_list,
+                                     run_id=run_id,
+                                     iterations=iterations,
+                                     override=garpos_override,
+                                     custom_settings=garpos_settings,
+                                     )
 
     @validate_network_station_campaign
     def modeling_plot_garpos_results(

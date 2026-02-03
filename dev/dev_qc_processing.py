@@ -168,10 +168,11 @@ if __name__ == "__main__":
         station_id=station_id,
         campaign_id=campaign_id,
     )
-    wfh.ingest_add_local_data(
-        directory_path=qc_dir,
-    )
-    wfh.qc_process_and_model()
+    # wfh.ingest_add_local_data(
+    #     directory_path=qc_dir,
+    # )
+    wfh.qc_process_and_model(run_id="test_qc_001",
+                             iterations=2)
     # # wfh.ingest_add_local_data(
     # #     wfh.current_campaign_dir.raw
     # # )
