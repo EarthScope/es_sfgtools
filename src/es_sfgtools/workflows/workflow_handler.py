@@ -772,6 +772,60 @@ class WorkflowHandler(WorkflowABC):
         )
 
     @validate_network_station_campaign
+    def qc_get_pipeline(self, config: dict = {}) -> "QCPipeline":
+        """Get a configured QCPipeline instance.
+
+        Parameters
+        ----------
+        config : dict, optional
+            A dictionary of configuration options, by default {}
+
+        Returns
+        -------
+        QCPipeline
+            A configured QCPipeline instance.
+        """
+        from es_sfgtools.workflows.pipelines.qc_pipeline import QCPipeline
+        qc_pipeline = QCPipeline(
+            directory_handler=self.directory_handler,
+            asset_catalog=self.asset_catalog,
+            config=config,
+        )
+        qc_pipeline.set_network_station_campaign(
+            network_id=self.current_network_name,
+            station_id=self.current_station_name,
+            campaign_id=self.current_campaign_name,
+        )
+        return qc_pipeline
+
+    @validate_network_station_campaign
+    def qc_process_and_model(self, config: dict = {}) -> None:
+        """Process QC files and run GARPOS modeling.
+
+        Parameters
+        ----------
+        config : dict, optional
+            A dictionary of configuration options, by default {}
+        """
+        # Get and run the QC pipeline
+        qc_pipeline = self.qc_get_pipeline(config=config)
+        qc_pipeline.process_qc_files()
+
+        # Get the intermediate data processor and parse QC surveys
+        qc_mid_processor = self.midprocess_get_processor()
+        gp_dir_list = qc_mid_processor.parse_surveys_qc(
+            shotdata_uri=qc_pipeline.shotDataTDB.uri
+        )
+
+        # Get the GARPOS handler and run GARPOS
+        qc_garpos_handler = self.modeling_get_garpos_handler()
+        qc_garpos_handler.current_campaign_dir.location = (
+            qc_garpos_handler.current_campaign_dir.qc
+        )
+        qc_garpos_handler.current_campaign_dir.build()
+        # qc_garpos_handler.run_garpos(surveys=gp_dir_list)
+
+    @validate_network_station_campaign
     def modeling_plot_garpos_results(
         self,
         survey_id: Optional[str] = None,

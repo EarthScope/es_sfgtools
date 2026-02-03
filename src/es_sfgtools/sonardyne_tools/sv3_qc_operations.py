@@ -4,20 +4,15 @@ from typing import Dict, List
 
 import pandas as pd
 from pandera.typing import DataFrame
-from collections import defaultdict
 
 from es_sfgtools.data_models.observables import ShotDataFrame
-from es_sfgtools.data_models.sv3_models import (
-    NovatelInterrogationEvent,
-    NovatelRangeEvent,
-)
+from es_sfgtools.data_models.sv3_models import NovatelInterrogationEvent, NovatelRangeEvent
 from es_sfgtools.logging import ProcessLogger as logger
 from es_sfgtools.sonardyne_tools.sv3_operations import (
     novatelInterrogation_to_garpos_interrogation,
     novatelReply_to_garpos_reply,
     merge_interrogation_reply,
 )
-
 
 def qcjson_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
     """Convert a QC.pin file into a ShotDataFrame.
@@ -48,7 +43,15 @@ def qcjson_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
     try:
         with open(path, encoding="utf-8") as f:
             raw = json.load(f)
-    except Exception as e:
+    except UnicodeDecodeError:
+        logger.logwarn(f"UTF-8 decoding failed for {path}, trying latin-1.")
+        try:
+            with open(path, encoding="latin-1") as f:
+                raw = json.load(f)
+        except (FileNotFoundError, PermissionError, json.JSONDecodeError) as e:
+            logger.logerr(f"Error reading QC JSON {path} with latin-1: {e}")
+            return None
+    except (FileNotFoundError, PermissionError, json.JSONDecodeError) as e:
         logger.logerr(f"Error reading QC JSON {path}: {e}")
         return None
 
@@ -81,7 +84,7 @@ def qcjson_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
             reply_parsed = novatelReply_to_garpos_reply(reply_event)
             merged = merge_interrogation_reply(interrogation_parsed, reply_parsed)
         except Exception as e:  # noqa: BLE001
-            # logger.logerr(f"Failed to parse/merge range entry '{key}' in {path}: {e}")
+            #logger.logerr(f"Failed to parse/merge range entry '{key}' in {path}: {e}")
             continue
 
         if merged is not None:
@@ -96,10 +99,7 @@ def qcjson_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
 
     return ShotDataFrame.validate(df, lazy=True)
 
-
-def batch_qc_by_day(
-    dataframes: List[pd.DataFrame], date_column: str = "pingTime"
-) -> Dict[str, pd.DataFrame]:
+def batch_qc_by_day(dataframes:List[pd.DataFrame], date_column:str='pingTime') -> Dict[str, pd.DataFrame]:
     """Batch QC dataframes by day.
 
     Parameters
@@ -114,6 +114,7 @@ def batch_qc_by_day(
     Dict[str, pd.DataFrame]
         Dictionary with keys as date strings (YYYY-MM-DD) and values as concatenated dataframes for that day.
     """
+    from collections import defaultdict
 
     batched_data = defaultdict(list)
 
@@ -121,15 +122,13 @@ def batch_qc_by_day(
         if date_column not in df.columns:
             logger.logerr(f"DataFrame missing '{date_column}' column.")
             continue
-
+        
         if df.empty:
             continue
-        df["date"] = pd.to_datetime(
-            df[date_column].apply(lambda x: x * 1e9), utc=True
-        ).dt.date
+        df['date'] = pd.to_datetime(df[date_column].apply(lambda x: x*1e9), utc=True).dt.date
 
-        for date, group in df.groupby("date"):
-            batched_data[str(date)].append(group.drop(columns=["date"]))
+        for date, group in df.groupby('date'):
+            batched_data[str(date)].append(group.drop(columns=['date']))
 
     # Concatenate dataframes for each day
     for date in batched_data:

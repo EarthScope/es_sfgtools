@@ -125,6 +125,10 @@ class QCPipeline(WorkflowABC):
                 f"No QC files found for {self.current_network_name}/{self.current_station_name}/{self.current_campaign_name}"
             )
             return
+
+        # Limit the number of files to process for debugging
+        qc_file_entries = qc_file_entries[:10]
+
         to_process = [x for x in qc_file_entries if not (self.config.get("override", False) or x.is_processed)]
         
         with concurrent.futures.ProcessPoolExecutor(max_workers=20) as pool:

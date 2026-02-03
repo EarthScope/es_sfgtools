@@ -1,6 +1,8 @@
+import sys
 from pathlib import Path
 import json
 from typing import Dict, List
+sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
 
 import pandas as pd
 from pandera.typing import DataFrame
@@ -140,20 +142,20 @@ if __name__ == "__main__":
     #     print(shot_df.head())
 
     qc_dir = Path("/Volumes/DunbarSSD/Project/SeafloorGeodesy/Misc/20250812/")
-    qc_files = list(qc_dir.glob("*.pin"))
-    # all_dfs = []
-    # for qc_file in qc_files:
-    #     try:
-    #         df = qcjson_to_shotdata(qc_file)
-    #         if df is not None and not df.empty:
-    #             all_dfs.append(df)
-    #     except Exception as e:
-    #         logger.logerr(f"Error processing {qc_file}: {e}")
+    # qc_files = list(qc_dir.glob("*.pin"))
+    # # all_dfs = []
+    # # for qc_file in qc_files:
+    # #     try:
+    # #         df = qcjson_to_shotdata(qc_file)
+    # #         if df is not None and not df.empty:
+    # #             all_dfs.append(df)
+    # #     except Exception as e:
+    # #         logger.logerr(f"Error processing {qc_file}: {e}")
 
-    # print(f"\n\nProcessed {len(all_dfs)} QC files.")
-    # batched = batch_qc_by_day(all_dfs, date_column='pingTime')
-    # for date, df in batched.items():
-    #     print(f"Date: {date}, Number of Shots: {len(df)}")
+    # # print(f"\n\nProcessed {len(all_dfs)} QC files.")
+    # # batched = batch_qc_by_day(all_dfs, date_column='pingTime')
+    # # for date, df in batched.items():
+    # #     print(f"Date: {date}, Number of Shots: {len(df)}")
 
     main_dir = Path("/Volumes/DunbarSSD/Project/SeafloorGeodesy/TestQC")
     main_dir.mkdir(parents=False, exist_ok=True)
@@ -169,28 +171,52 @@ if __name__ == "__main__":
     wfh.ingest_add_local_data(
         directory_path=qc_dir,
     )
-    wfh.ingest_catalog_archive_data()
-    wfh.ingest_download_archive_data()
-    
-    qc_pipeline_wfh = qc_pipeline.QCPipeline(
-        directory_handler=wfh.directory_handler,
-        asset_catalog=wfh.asset_catalog,
-    )
-    qc_pipeline_wfh.set_network_station_campaign(
-        network_id=network_id,
-        station_id=station_id,
-        campaign_id=campaign_id,
-    )
-    import time
-    start_time = time.time()
-    qc_pipeline_wfh.config = {"override": True}
-    qc_pipeline_wfh.process_qc_files()
-    end_time = time.time()
-    print(f"\n\nQC processing time: {end_time - start_time:.2f} seconds")
+    wfh.qc_process_and_model()
+    # # wfh.ingest_add_local_data(
+    # #     wfh.current_campaign_dir.raw
+    # # )
+    # # wfh.ingest_catalog_archive_data()
+    # # wfh.ingest_download_archive_data()
+    # # wfh.preprocess_run_pipeline_sv3(
+    # #     job='process_svp'
+    # # )
+    # qc_pipeline_wfh = qc_pipeline.QCPipeline(
+    #     directory_handler=wfh.directory_handler,
+    #     asset_catalog=wfh.asset_catalog,
+    # )
+    # qc_pipeline_wfh.set_network_station_campaign(
+    #     network_id=network_id,
+    #     station_id=station_id,
+    #     campaign_id=campaign_id,
+    # )
+    # # import time
+    # # start_time = time.time()
+    # # qc_pipeline_wfh.config = {"override": True}
+    # # qc_pipeline_wfh.process_qc_files()
+    # # end_time = time.time()
+    # # print(f"\n\nQC processing time: {end_time - start_time:.2f} seconds")
 
-    print("QC processing complete.")
+    # # print("QC processing complete.")
 
-    shotdata_uri =qc_pipeline_wfh.shotDataTDB.uri
-    qc_mid_processor = wfh.midprocess_get_processor()
+    # shotdata_uri = qc_pipeline_wfh.shotDataTDB.uri
+    # qc_mid_processor = wfh.midprocess_get_processor()
 
-    qc_mid_processor.parse_surveys_qc(shotdata_uri=shotdata_uri)
+    # gp_dir_list = qc_mid_processor.parse_surveys_qc(shotdata_uri=shotdata_uri)
+
+    # from es_sfgtools.workflows.modeling import GarposHandler
+
+    # qc_garpos_handler = GarposHandler(
+    #     directory_handler=wfh.directory_handler,
+    #     station_metadata=wfh.current_station_metadata,
+    # )
+    # qc_garpos_handler.set_network_station_campaign(
+    #     network_id=network_id,
+    #     station_id=station_id,
+    #     campaign_id=campaign_id,
+    # )
+    # qc_garpos_handler.current_campaign_dir.location = qc_garpos_handler.current_campaign_dir.qc
+    # qc_garpos_handler.current_campaign_dir.build()
+
+    # from es_sfgtools.tiledb_tools.tiledb_schemas import TDBShotDataArray
+
+    # qc_garpos_handler.run_garpos(surveys=gp_dir_list)
