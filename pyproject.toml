@@ -37,7 +37,6 @@ dependencies = [
   "scipy==1.16.3",
   "pandas==2.3.3",
   "matplotlib==3.10.6",
-  "scikit-learn==1.7.2",
   "julian==0.14",
   "pandera==0.20.3",
   "pyarrow==21.0.0",
