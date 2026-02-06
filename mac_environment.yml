@@ -12,6 +12,7 @@ dependencies:
   - tiledb
   - tiledb-py
   - scikit-learn
+  - pyarrow
 
   # Build / compiler dependencies
   - setuptools

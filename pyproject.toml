@@ -39,7 +39,6 @@ dependencies = [
   "matplotlib==3.10.6",
   "julian==0.14",
   "pandera==0.20.3",
-  "pyarrow==21.0.0",
   "pydantic==2.8.2",
   "pyproj==3.6.1",
   "pymap3d==3.2.0",
