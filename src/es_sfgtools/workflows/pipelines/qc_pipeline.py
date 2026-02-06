@@ -20,7 +20,7 @@ from es_sfgtools.data_mgmt.directorymgmt import (
 from es_sfgtools.tiledb_tools.tiledb_schemas import (
     TDBShotDataArray,
 )
-from es_sfgtools.sonardyne_tools.sv3_qc_operations import qcjson_to_shotdata, batch_qc_by_day
+from es_sfgtools.sonardyne_tools.sv3_qc_operations import qcjson_to_shotdata
 from es_sfgtools.workflows.pipelines.exceptions import NoLocalData
 from ..utils.protocols import WorkflowABC,validate_network_station_campaign
 
