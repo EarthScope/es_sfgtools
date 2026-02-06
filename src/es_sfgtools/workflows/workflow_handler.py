@@ -812,8 +812,8 @@ class WorkflowHandler(WorkflowABC):
 
         Parameters
         ----------
-        pre_process_config : dict, optional
-            A dictionary of configuration options, by default {}
+        site_metadata : Optional[Union[Site, str]], optional
+            Optional site metadata or path to metadata file. If not provided, it will be loaded if available.
         run_id : str or int, optional
             Identifier for the GARPOS run, by default 0.
         iterations : int, optional
@@ -822,6 +822,8 @@ class WorkflowHandler(WorkflowABC):
             Custom settings to override GARPOS defaults, by default None.
         garpos_override : bool, optional
             If True, re-runs GARPOS even if results exist, by default False.
+        pre_process_config : dict, optional
+            A dictionary of configuration options, by default {}
         
         Raises
         ------
