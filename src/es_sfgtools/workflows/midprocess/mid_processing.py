@@ -493,10 +493,10 @@ class IntermediateDataProcessor(WorkflowABC):
 
         Parameters
         ----------
+        shotdata_uri : str or pathlib.Path
+            URI or filesystem path to the TileDB shotdata array to be processed.
         override : bool, optional
             Whether to override existing files, by default False.
-        write_intermediate : bool, optional
-            Whether to write intermediate files, by default False.
         """
         garposDir_list: List[GARPOSSurveyDir] = []
         shotDataTDB = TDBShotDataArray(Path(shotdata_uri))
