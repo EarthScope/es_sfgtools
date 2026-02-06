@@ -21,7 +21,6 @@ sns.set_theme(style="whitegrid")
 from es_sfgtools.data_mgmt.directorymgmt import DirectoryHandler, GARPOSSurveyDir
 
 from es_sfgtools.data_models.metadata.site import Site
-from es_sfgtools.data_models.metadata.site import Survey
 from es_sfgtools.modeling.garpos_tools.schemas import (
     GarposFixed,
     GarposInput,
