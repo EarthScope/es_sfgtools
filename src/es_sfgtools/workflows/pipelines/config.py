@@ -27,6 +27,12 @@ class RinexConfig(BaseModel):
     processing_year: Optional[int] = Field(
         default=-1, description="Processing year to query tiledb", le=2100
     )
+    modulo_millis: int = Field(
+        default=0,
+        title="Decimation Modulo (ms)",
+        description="Decimation modulo in milliseconds (e.g., 1000 for 1 Hz, 15000 for 15s). If 0, no decimation. LLI from skipped epochs is propagated.",
+        ge=0,
+    )
     use_secondary: bool = Field(
         False,
         title="Use Secondary GNSS observation Data",

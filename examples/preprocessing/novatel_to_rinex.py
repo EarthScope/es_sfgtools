@@ -22,10 +22,10 @@ See the MetadataModel documentation for details on required and optional fields.
 NETWORK = "cascadia-gorda"
 STATION = "NCC1"
 CAMPAIGN = "2025_A_1126"
-PROJECT_DIRECTORY = Path("/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain")
+PROJECT_DIRECTORY = Path("/path/to/project_directory")
 metadata = MetadataModel(
     marker_name=STATION,
-    run_by="Franklyn Dunbar",
+    run_by="User",
 )
 
 '''
@@ -45,12 +45,26 @@ as the input NovAtel files.
 '''
 write_dir = PROJECT_DIRECTORY/NETWORK/STATION/CAMPAIGN/"processed"
 
+'''
+Step 4 (Optional): Define decimation.
+
+The modulo_millis parameter controls epoch decimation. When set to a positive value,
+only epochs where (epoch_time_ms % modulo_millis == 0) are kept. Loss-of-Lock 
+Indicators (LLI) from skipped epochs are propagated to the next written epoch.
+
+Examples:
+  - modulo_millis=1000   -> 1 Hz output (keep epochs at 1-second intervals)
+  - modulo_millis=15000  -> 15-second intervals
+  - modulo_millis=0      -> no decimation (default)
+'''
+MODULO_MILLIS = 1000  # Set to 0 to disable decimation
 
 
 rinex_paths = novatel_2rinex(
     files=all_files,
     writedir=write_dir,
     metadata=metadata,
+    modulo_millis=MODULO_MILLIS,
 )
 
 print(f"{'='*40}\nGenerated {len(rinex_paths)} RINEX files from {len(all_files)} NovAtel files:")

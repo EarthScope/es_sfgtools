@@ -19,6 +19,7 @@ def tile2rinex(
     writedir: Path,
     time_interval: int = 1,
     processing_year: int = 0,
+    modulo_millis: int = 0,
 ) -> List[Path]:
     """
     Converts GNSS observation tileDB data to RINEX format using the TILE2RINEX binary.
@@ -29,6 +30,7 @@ def tile2rinex(
         writedir (Path): Directory where the generated RINEX files will be written.
         time_interval (int, optional): Time interval (hours) of GNSS epochs loaded into memory from the tiledb array found at gnss_obs_tdb.
         processing_year (int, optional): Year of GNSS observations used to generate RINEX files from the tiledb array found at gnss_obs_tdb. Defaults to 0.
+        modulo_millis (int, optional): Decimation modulo in milliseconds (e.g., 1000 for 1 Hz, 15000 for 15s intervals). If 0, no decimation is applied. Loss-of-lock indicators from skipped epochs are propagated to the next written epoch. Defaults to 0.
 
     Returns:
         List[Path]: A list of Paths representing the generated RINEX files.
@@ -61,6 +63,8 @@ def tile2rinex(
             "-year",
             str(processing_year),
         ]
+        if modulo_millis > 0:
+            cmd.extend(["-modulo", str(modulo_millis)])
         logger.loginfo(f" Running {cmd}")
         result = subprocess.run(cmd, cwd=workdir,capture_output=True)
 

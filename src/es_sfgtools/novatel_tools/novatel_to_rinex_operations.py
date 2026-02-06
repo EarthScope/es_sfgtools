@@ -31,6 +31,7 @@ def _novatel_2rinex_wrapper(
     writedir: Path,
     metadata: dict | Path | str,
     binary_path: Path,
+    modulo_millis: int = 0,
 ) -> List[Path]:
     """Internal helper to call a NovAtel-to-RINEX Go binary on a batch of files.
 
@@ -45,6 +46,10 @@ def _novatel_2rinex_wrapper(
         to the temporary working directory for the Go binary to consume.
     binary_path
         Path to the nov0002rnx / novb2rnxo binary.
+    modulo_millis
+        Decimation modulo in milliseconds (e.g., 1000 for 1 Hz, 15000 for 15s
+        intervals). If 0, no decimation is applied. Loss-of-lock indicators
+        from skipped epochs are propagated to the next written epoch.
 
     Returns
     -------
@@ -100,8 +105,10 @@ def _novatel_2rinex_wrapper(
             str(binary_path),
             "-settings",
             str(metadata_tmp_path),
-            *[str(p) for p in file_paths],
         ]
+        if modulo_millis > 0:
+            cmd.extend(["-modulo", str(modulo_millis)])
+        cmd.extend([str(p) for p in file_paths])
         cmd_str = " ".join(cmd)
         logger.info(f" Running {Fore.CYAN}{cmd_str}{Style.RESET_ALL} in {workdir}")
         result = subprocess.run(cmd, capture_output=True, cwd=workdir, text=True)
@@ -154,6 +161,7 @@ def novatel_2rinex(
     writedir: Optional[Path | str] = None,
     site: Optional[str] = None,
     metadata: Optional[dict | MetadataModel | Path | str] = None,
+    modulo_millis: int = 0,
     **kwargs,
 ) -> List[Path]:
     """Convert NovAtel NOV000 / NOV770 binary files to daily RINEX.
@@ -181,6 +189,11 @@ def novatel_2rinex(
         instance, or a path to a JSON metadata file. If not provided, ``site``
         must be given so that minimal metadata can be generated, by default
         ``None``.
+    modulo_millis : int, optional
+        Decimation modulo in milliseconds (e.g., 1000 for 1 Hz, 15000 for 15s
+        intervals). If 0, no decimation is applied. Loss-of-lock indicators
+        from skipped epochs are propagated to the next written epoch. Default
+        is 0 (no decimation).
     **kwargs
         Currently ignored; reserved for future configuration options passed
         through to the underlying Go binaries.
@@ -293,6 +306,7 @@ def novatel_2rinex(
                 writedir=write_dir,
                 metadata=metadata,
                 binary_path=binary_path,
+                modulo_millis=modulo_millis,
             )
             logger.info(
                 f"Converted {len(files_to_process)} NOV000.bin files to "
@@ -320,6 +334,7 @@ def novatel_2rinex(
                 writedir=write_dir,
                 metadata=metadata,
                 binary_path=binary_path,
+                modulo_millis=modulo_millis,
             )
             logger.info(
                 f"Converted {len(files_to_process)} NOV770.raw files to "

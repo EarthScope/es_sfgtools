@@ -135,9 +135,9 @@ There are types of jobs that the pipeline can handle. They are:
   **JSON**:
   ```json
   {
-    "type": "processing",
+    "type": "preprocessing",
     "config": {
-      "rinex_config": { "override": true, "time_interval": 24 },
+      "rinex_config": { "override": true, "time_interval": 24, "modulo_millis": 1000 },
       "pride_config": { "sample_frequency": 1 }
     }
   }
@@ -145,11 +145,12 @@ There are types of jobs that the pipeline can handle. They are:
 
   **YAML**:
   ```yaml
-  type: "processing"
+  type: "preprocessing"
   config:
     rinex_config:
       override: true
       time_interval: 24
+      modulo_millis: 1000  # decimate to 1 Hz (keep epochs at 1-second intervals)
     pride_config:
       sample_frequency: 1
   ```
@@ -217,7 +218,7 @@ Note: see [GARPOS config](INDEX.md#garpos-config) for config details
             "directory": "/Users/user/Project/SeaFloorGeodesy/Data/Cascadia2023/NDP1/HR"
           },
           {
-            "type": "processing",
+            "type": "preprocessing",
             "config": {
               "rinex_config": { "override": true, "time_interval": 24 },
               "pride_config": { "sample_frequency": 1 }
@@ -240,7 +241,7 @@ Note: see [GARPOS config](INDEX.md#garpos-config) for config details
       jobs:
         - type: "ingestion"
           directory: "/Users/user/Project/SeaFloorGeodesy/Data/Cascadia2023/NDP1/HR"
-        - type: "processing"
+        - type: "preprocessing"
           config:
             rinex_config:
               override: true
