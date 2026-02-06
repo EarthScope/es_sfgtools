@@ -4,7 +4,6 @@ import datetime
 import json
 import sys
 from functools import partial
-import threading
 from pathlib import Path
 from typing import List, Optional
 
