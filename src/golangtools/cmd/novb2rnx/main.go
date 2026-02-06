@@ -26,9 +26,9 @@ func main() {
 
 	// parse command line args
 	metaPtr := flag.String("settings", "", "settings file")
+	moduloPtr := flag.Int64("modulo", 0, "decimation modulo in milliseconds (e.g., 100 for 10 Hz , 1000 for 1 Hz, 15000 for 15s intervals). If 0, no decimation is applied.")
 
 	flag.Parse()
-
 
 	filenames := flag.Args()
 	if len(filenames) == 0 {
@@ -82,10 +82,10 @@ func main() {
 				return
 			}
 			// get year, day of year from first epoch
-			startYear,startMonth,startDay := file_epochs[0].Time.Date()
-			currentDate := time.Date(startYear,startMonth,startDay,0,0,0,0,time.UTC)
+			startYear, startMonth, startDay := file_epochs[0].Time.Date()
+			currentDate := time.Date(startYear, startMonth, startDay, 0, 0, 0, 0, time.UTC)
 			dayOfYear := currentDate.YearDay()
-			slog.Info("Processed file", "filename", novatel_filename,"Year", startYear,"Day of Year",dayOfYear, "num_epochs", len(file_epochs))
+			slog.Info("Processed file", "filename", novatel_filename, "Year", startYear, "Day of Year", dayOfYear, "num_epochs", len(file_epochs))
 			mu.Lock()
 			epochs = append(epochs, file_epochs...)
 			mu.Unlock()
@@ -95,7 +95,13 @@ func main() {
 
 	slog.Info("\n================================================")
 	slog.Info("\nTotal epochs processed", "count", len(epochs))
-	batchedEpochs,err := sfg_utils.BatchEpochsByDay(epochs)
+
+	// Apply decimation if modulo is specified
+	if *moduloPtr > 0 {
+		epochs = sfg_utils.DecimateEpochs(epochs, *moduloPtr)
+	}
+
+	batchedEpochs, err := sfg_utils.BatchEpochsByDay(epochs)
 	if err != nil {
 		slog.Error("Error batching epochs by day", "error", err)
 		os.Exit(1)
@@ -108,7 +114,7 @@ func main() {
 			sem <- struct{}{}
 			defer func() { <-sem }()
 			slog.Info("Writing RINEX for day", "day", dayKey, "num_epochs", len(dayEpochs))
-			err := sfg_utils.WriteEpochs(dayEpochs,settings)
+			err := sfg_utils.WriteEpochs(dayEpochs, settings)
 			if err != nil {
 				slog.Error("Error writing epochs", "error", err)
 			}
@@ -116,4 +122,3 @@ func main() {
 	}
 	wg.Wait()
 }
-	

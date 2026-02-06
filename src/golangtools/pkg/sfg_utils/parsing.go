@@ -18,87 +18,87 @@ import (
 )
 
 type InspvaaRecord struct {
-	time time.Time
-	GNSSWeek int
+	time              time.Time
+	GNSSWeek          int
 	GNSSSecondsofWeek float64
-	latitude float64
-	longitude float64
-	height float64
-	northVelocity float64
-	eastVelocity float64
-	upVelocity float64
-	roll float64
-	pitch float64
-	azimuth float64
+	latitude          float64
+	longitude         float64
+	height            float64
+	northVelocity     float64
+	eastVelocity      float64
+	upVelocity        float64
+	roll              float64
+	pitch             float64
+	azimuth           float64
 	// status string
 }
 
 type INSSTDEVARecord struct {
-	time time.Time
-	latitude_std float64
-	longitude_std float64
-	height_std float64
+	time              time.Time
+	latitude_std      float64
+	longitude_std     float64
+	height_std        float64
 	northVelocity_std float64
-	eastVelocity_std float64
-	upVelocity_std float64
-	roll_std float64
-	pitch_std float64
-	azimuth_std float64
+	eastVelocity_std  float64
+	upVelocity_std    float64
+	roll_std          float64
+	pitch_std         float64
+	azimuth_std       float64
 }
 
 type INSCompleteRecord struct {
-	time time.Time
-	GNSSWeek int
+	time              time.Time
+	GNSSWeek          int
 	GNSSSecondsofWeek float64
-	latitude float64
-	longitude float64
-	height float64
-	northVelocity float64
-	eastVelocity float64
-	upVelocity float64
-	roll float64
-	pitch float64
-	azimuth float64
-	latitude_std float64
-	longitude_std float64
-	height_std float64
+	latitude          float64
+	longitude         float64
+	height            float64
+	northVelocity     float64
+	eastVelocity      float64
+	upVelocity        float64
+	roll              float64
+	pitch             float64
+	azimuth           float64
+	latitude_std      float64
+	longitude_std     float64
+	height_std        float64
 	northVelocity_std float64
-	eastVelocity_std float64
-	upVelocity_std float64
-	roll_std float64
-	pitch_std float64
-	azimuth_std float64
+	eastVelocity_std  float64
+	upVelocity_std    float64
+	roll_std          float64
+	pitch_std         float64
+	azimuth_std       float64
 	// status string
 }
 
 func MergeINSRecordsFlat(insPvaa InspvaaRecord, insStdDev INSSTDEVARecord) INSCompleteRecord {
 	return INSCompleteRecord{
-		time:               insPvaa.time,
-		GNSSWeek:                 insPvaa.GNSSWeek,
-		GNSSSecondsofWeek:        insPvaa.GNSSSecondsofWeek,
-		latitude:                 insPvaa.latitude,
-		longitude:                insPvaa.longitude,
-		height:                   insPvaa.height,
-		northVelocity:            insPvaa.northVelocity,
-		eastVelocity:             insPvaa.eastVelocity,
-		upVelocity:               insPvaa.upVelocity,
-		roll:                     insPvaa.roll,
-		pitch:                    insPvaa.pitch,
-		azimuth:                  insPvaa.azimuth,
-		latitude_std:            insStdDev.latitude_std,
-		longitude_std:           insStdDev.longitude_std,
-		height_std:              insStdDev.height_std,
-		northVelocity_std:       insStdDev.northVelocity_std,
-		eastVelocity_std:        insStdDev.eastVelocity_std,
-		upVelocity_std:         insStdDev.upVelocity_std,
-		roll_std:                insStdDev.roll_std,
-		pitch_std:               insStdDev.pitch_std,
-		azimuth_std:             insStdDev.azimuth_std,
+		time:              insPvaa.time,
+		GNSSWeek:          insPvaa.GNSSWeek,
+		GNSSSecondsofWeek: insPvaa.GNSSSecondsofWeek,
+		latitude:          insPvaa.latitude,
+		longitude:         insPvaa.longitude,
+		height:            insPvaa.height,
+		northVelocity:     insPvaa.northVelocity,
+		eastVelocity:      insPvaa.eastVelocity,
+		upVelocity:        insPvaa.upVelocity,
+		roll:              insPvaa.roll,
+		pitch:             insPvaa.pitch,
+		azimuth:           insPvaa.azimuth,
+		latitude_std:      insStdDev.latitude_std,
+		longitude_std:     insStdDev.longitude_std,
+		height_std:        insStdDev.height_std,
+		northVelocity_std: insStdDev.northVelocity_std,
+		eastVelocity_std:  insStdDev.eastVelocity_std,
+		upVelocity_std:    insStdDev.upVelocity_std,
+		roll_std:          insStdDev.roll_std,
+		pitch_std:         insStdDev.pitch_std,
+		azimuth_std:       insStdDev.azimuth_std,
 		// status:                  insPvaa.status,
 	}
 }
 
-func DeserializeINSPVAARecord(data string,time time.Time) (InspvaaRecord, error) {
+func DeserializeINSPVAARecord(data string, time time.Time) (InspvaaRecord, error) {
 	// 2267,580261.050000000,45.30245563418,-124.96561111107,-28.6138,-0.2412,0.6377,0.2949,2.627875295,0.299460630,70.416827684,INS_SOLUTION_GOOD
 	record := InspvaaRecord{}
 	record.time = time
@@ -256,7 +256,7 @@ func MergeINSPVAAAndINSSTDEVA(INSPVAARecords []InspvaaRecord, INSSTDEVRecords []
 	j := 0
 	foundMatch := 0
 	var elemB INSSTDEVARecord
-	
+
 	for i < len(INSPVAARecords) {
 		inspvaarecord := INSPVAARecords[i]
 		if j < len(INSSTDEVRecords) {
@@ -264,29 +264,27 @@ func MergeINSPVAAAndINSSTDEVA(INSPVAARecords []InspvaaRecord, INSSTDEVRecords []
 		} else {
 			elemB = INSSTDEVARecord{}
 		}
-	
-		
-	    if inspvaarecord.time.Equal(elemB.time) {
+
+		if inspvaarecord.time.Equal(elemB.time) {
 			foundMatch++
 			merged := MergeINSRecordsFlat(inspvaarecord, elemB)
 			matchedRecords = append(matchedRecords, merged)
 			i++
 			j++
-		} else{
+		} else {
 			merged := MergeINSRecordsFlat(inspvaarecord, INSSTDEVARecord{})
 			matchedRecords = append(matchedRecords, merged)
 			i++
 
 		}
-	
+
 	}
-		
 
 	log.Infof("Found %d matching elements between the two lists", foundMatch)
 	// Print the matching elements
 	return matchedRecords
 }
-func GetTimeDiffsINSPVA(list []INSCompleteRecord ) []float64 {
+func GetTimeDiffsINSPVA(list []INSCompleteRecord) []float64 {
 	var diffs []float64
 	minDiff := 100000.0 // 1000 seconds
 	for i := 1; i < len(list); i++ {
@@ -310,7 +308,7 @@ func GetTimeDiffsINSPVA(list []INSCompleteRecord ) []float64 {
 	return diffs
 }
 
-func GetTimeDiffGNSS(list []observation.Epoch ) []float64 {
+func GetTimeDiffGNSS(list []observation.Epoch) []float64 {
 	var diffs []float64
 	minDiff := 100000.0 // 1000 seconds
 	for i := 1; i < len(list); i++ {
@@ -347,10 +345,9 @@ func removeBeforeASCIISyncChar(s string) (string, error) {
 	}
 }
 
-
 func processBuffer(buffer []byte) (message novatelascii.Message, err error) {
 	stringArray := string(buffer)
-	trimmedLine,err := removeBeforeASCIISyncChar(stringArray)
+	trimmedLine, err := removeBeforeASCIISyncChar(stringArray)
 	if err != nil {
 		return message, err
 	}
@@ -366,7 +363,7 @@ func processBuffer(buffer []byte) (message novatelascii.Message, err error) {
 		return message, fmt.Errorf("message is missing checksum")
 		// endOfDataIndex = len(trimmedLine) - 1
 	}
-	if endOfHeaderIndex< 2 {
+	if endOfHeaderIndex < 2 {
 		return message, fmt.Errorf("message is too short")
 	}
 	splitHeaderText := strings.Split(trimmedLine[1:endOfHeaderIndex], ",")
@@ -374,59 +371,58 @@ func processBuffer(buffer []byte) (message novatelascii.Message, err error) {
 		return message, fmt.Errorf("message header is too short")
 	}
 	switch trimmedLine[0] {
-		case '#': // long
-			sequence, err := strconv.Atoi(splitHeaderText[2])
-			if err != nil {
-				return message, err
-			}
-			idleTime, err := strconv.ParseFloat(splitHeaderText[3], 64)
-			if err != nil {
-				return message, err
-			}
-			week, err := strconv.ParseFloat(splitHeaderText[5], 64)
-			if err != nil {
-				return message, err
-			}
-			seconds, err := strconv.ParseFloat(splitHeaderText[6], 64)
-			if err != nil {
-				return message, err
-			}
-			recStatus, err := strconv.ParseFloat(splitHeaderText[7], 64)
-			if err != nil {
-				return message, err
-			}
-			recSWVersion, err := strconv.ParseFloat(splitHeaderText[9], 64)
-			if err != nil {
-				return message, err
-			}
-			longMessage := novatelascii.LongMessage{
-				Sync:         string(trimmedLine[0]),
-				Msg:          splitHeaderText[0],
-				Port:         splitHeaderText[1],
-				Sequence:     sequence,
-				IdleTime:     idleTime,
-				TimeStatus:   splitHeaderText[4],
-				Week:         week,
-				Seconds:      seconds,
-				RecStatus:    recStatus,
-				Reserved:     splitHeaderText[8],
-				RecSWVersion: recSWVersion,
-				Data:         trimmedLine[endOfHeaderIndex+1 : endOfDataIndex],
-				Checksum:     trimmedLine[endOfDataIndex:],
-			}
-			return longMessage, nil
+	case '#': // long
+		sequence, err := strconv.Atoi(splitHeaderText[2])
+		if err != nil {
+			return message, err
+		}
+		idleTime, err := strconv.ParseFloat(splitHeaderText[3], 64)
+		if err != nil {
+			return message, err
+		}
+		week, err := strconv.ParseFloat(splitHeaderText[5], 64)
+		if err != nil {
+			return message, err
+		}
+		seconds, err := strconv.ParseFloat(splitHeaderText[6], 64)
+		if err != nil {
+			return message, err
+		}
+		recStatus, err := strconv.ParseFloat(splitHeaderText[7], 64)
+		if err != nil {
+			return message, err
+		}
+		recSWVersion, err := strconv.ParseFloat(splitHeaderText[9], 64)
+		if err != nil {
+			return message, err
+		}
+		longMessage := novatelascii.LongMessage{
+			Sync:         string(trimmedLine[0]),
+			Msg:          splitHeaderText[0],
+			Port:         splitHeaderText[1],
+			Sequence:     sequence,
+			IdleTime:     idleTime,
+			TimeStatus:   splitHeaderText[4],
+			Week:         week,
+			Seconds:      seconds,
+			RecStatus:    recStatus,
+			Reserved:     splitHeaderText[8],
+			RecSWVersion: recSWVersion,
+			Data:         trimmedLine[endOfHeaderIndex+1 : endOfDataIndex],
+			Checksum:     trimmedLine[endOfDataIndex:],
+		}
+		return longMessage, nil
 	default:
 		return novatelascii.LongMessage{}, fmt.Errorf("unknown error")
 	}
 
 }
 
-	
 func DeserializeNOV00bin(r *bufio.Reader) (message novatelascii.Message, err error) {
-	var stx byte = 0x2 // start of text, 2 in decimal
-	var etx byte = 0x3 // end of text, 3 in decimal
+	var stx byte = 0x2        // start of text, 2 in decimal
+	var etx byte = 0x3        // end of text, 3 in decimal
 	var log_start byte = 0x23 // log start, 35 in decimal ASCII #
-	var log_done byte = 0x2A// log done, 2 in decimal, * in Ascii
+	var log_done byte = 0x2A  // log done, 2 in decimal, * in Ascii
 	var got_start_of_text bool = false
 	var got_end_of_text bool = false
 	var got_start_of_log bool = false
@@ -454,7 +450,7 @@ func DeserializeNOV00bin(r *bufio.Reader) (message novatelascii.Message, err err
 		} else if peekByte[0] == log_start {
 			got_start_of_log = true
 			buffer = []byte{}
-		} else if peekByte[0] == etx{
+		} else if peekByte[0] == etx {
 			got_end_of_text = true
 		} else if peekByte[0] == log_done {
 			got_end_of_log = true
@@ -471,7 +467,7 @@ func DeserializeNOV00bin(r *bufio.Reader) (message novatelascii.Message, err err
 				break
 			}
 			return message, err
-		} else if got_start_of_text && got_start_of_log{
+		} else if got_start_of_text && got_start_of_log {
 			buffer = append(buffer, peekByte[0])
 		}
 		_, err = r.Discard(1)
@@ -479,7 +475,6 @@ func DeserializeNOV00bin(r *bufio.Reader) (message novatelascii.Message, err err
 			log.Warnf("error discarding byte (%s)", err)
 		}
 	}
-	
 
 	return novatelascii.LongMessage{}, fmt.Errorf("unknown error")
 
@@ -496,7 +491,7 @@ func DeserializeNOV00bin(r *bufio.Reader) (message novatelascii.Message, err err
 // 5. Appends the GNSS epoch to the result slice.
 //
 // If an error occurs while opening the file or reading messages, the function logs the error and terminates the program.
-func ProcessFileNOVASCII(filename string) []observation.Epoch{
+func ProcessFileNOVASCII(filename string) []observation.Epoch {
 	file, err := os.Open(filename)
 	if err != nil {
 		log.Fatal(err)
@@ -504,51 +499,51 @@ func ProcessFileNOVASCII(filename string) []observation.Epoch{
 	defer file.Close()
 	epochs := []observation.Epoch{}
 	scanner := novatelascii.NewScanner(bufio.NewReader(file))
-	epochLoop:
-		for {
-			msg, err := scanner.NextMessage()
-			if err != nil {
-				if err == io.EOF {
-					err = file.Close()
-					if err != nil {
-						slog.Error("Error closing file", "error", err)
-					}
-					break epochLoop
+epochLoop:
+	for {
+		msg, err := scanner.NextMessage()
+		if err != nil {
+			if err == io.EOF {
+				err = file.Close()
+				if err != nil {
+					slog.Error("Error closing file", "error", err)
 				}
-				slog.Debug("Error reading message", "error", err)
+				break epochLoop
 			}
-			// log.Debugf("%+v", msg)
-			switch m := msg.(type) {
-			case novatelascii.LongMessage:
-				if m.Msg == "RANGEA" {
-					rangea, err := novatelascii.DeserializeRANGEA(m.Data)
-					if err != nil {
-						slog.Error("Error deserializing RANGEA", "error", err)
-					}
-					// slog.Debug("Message time", "time", m.Time())
-					epoch, err := rangea.SerializeGNSSEpoch(m.Time())
-					if err != nil {
-						slog.Error("Error serializing GNSS epoch", "error", err)
-					}
-					epochs = append(epochs, epoch)
+			slog.Debug("Error reading message", "error", err)
+		}
+		// log.Debugf("%+v", msg)
+		switch m := msg.(type) {
+		case novatelascii.LongMessage:
+			if m.Msg == "RANGEA" {
+				rangea, err := novatelascii.DeserializeRANGEA(m.Data)
+				if err != nil {
+					slog.Error("Error deserializing RANGEA", "error", err)
 				}
-			case novatelascii.ShortMessage:
-				if m.Msg == "RANGEA" {
-					rangea, err := novatelascii.DeserializeRANGEA(m.Data)
-					if err != nil {
-						slog.Error("Error deserializing RANGEA", "error", err)
-					}
-					epoch, err := rangea.SerializeGNSSEpoch(m.Time())
-					if err != nil {
-						slog.Error("Error serializing GNSS epoch", "error", err)
-					}
-					epochs = append(epochs, epoch)
+				// slog.Debug("Message time", "time", m.Time())
+				epoch, err := rangea.SerializeGNSSEpoch(m.Time())
+				if err != nil {
+					slog.Error("Error serializing GNSS epoch", "error", err)
 				}
+				epochs = append(epochs, epoch)
+			}
+		case novatelascii.ShortMessage:
+			if m.Msg == "RANGEA" {
+				rangea, err := novatelascii.DeserializeRANGEA(m.Data)
+				if err != nil {
+					slog.Error("Error deserializing RANGEA", "error", err)
+				}
+				epoch, err := rangea.SerializeGNSSEpoch(m.Time())
+				if err != nil {
+					slog.Error("Error serializing GNSS epoch", "error", err)
+				}
+				epochs = append(epochs, epoch)
 			}
 		}
-
-			return epochs
 	}
+
+	return epochs
+}
 
 // processFileNOVB processes a NOVB file and returns a slice of observation.Epoch.
 // It reads the file, scans for messages, and extracts epochs from messages with ID 140.
@@ -562,7 +557,7 @@ func ProcessFileNOVASCII(filename string) []observation.Epoch{
 //
 // Returns:
 //   - A slice of observation.Epoch containing the extracted epochs.
-func ProcessFileNOVB(file string) ([]observation.Epoch,error) {
+func ProcessFileNOVB(file string) ([]observation.Epoch, error) {
 	f, err := os.Open(file)
 	if err != nil {
 		log.Fatalf("failed opening file: %s", err)
@@ -571,35 +566,35 @@ func ProcessFileNOVB(file string) ([]observation.Epoch,error) {
 
 	reader := bufio.NewReader(f)
 	epochs := []observation.Epoch{}
-	MessageLoop:
-		for {
-			msg,err := novatelbinary.DeserializeMessage(reader)
-			if err != nil {
-				if err == io.EOF {
-					break MessageLoop
+MessageLoop:
+	for {
+		msg, err := novatelbinary.DeserializeMessage(reader)
+		if err != nil {
+			if err == io.EOF {
+				break MessageLoop
 
-				}
-				if err == bufio.ErrBufferFull{
-					log.Warnf("buffer full: %s", err)
-					reader.Reset(f)
-				}
-				//log.Warnf("failed reading message: %s", err)
-				continue MessageLoop
 			}
-			if msg.MessageID == 140 {
-				msg140 := msg.DeserializeMessage140()
-				epoch, err := msg140.SerializeGNSSEpoch(msg.Time())
-				if err != nil {
-					log.Errorf("failed serializing epoch: %s", err)
-					continue MessageLoop
-				}
-				if len(epoch.Satellites) == 0 {
-					continue MessageLoop
-				}
-				epochs = append(epochs, epoch)
-			} else {
-				continue MessageLoop
+			if err == bufio.ErrBufferFull {
+				log.Warnf("buffer full: %s", err)
+				reader.Reset(f)
 			}
+			//log.Warnf("failed reading message: %s", err)
+			continue MessageLoop
 		}
-	return epochs,nil
+		if msg.MessageID == 140 {
+			msg140 := msg.DeserializeMessage140()
+			epoch, err := msg140.SerializeGNSSEpoch(msg.Time())
+			if err != nil {
+				log.Errorf("failed serializing epoch: %s", err)
+				continue MessageLoop
+			}
+			if len(epoch.Satellites) == 0 {
+				continue MessageLoop
+			}
+			epochs = append(epochs, epoch)
+		} else {
+			continue MessageLoop
+		}
+	}
+	return epochs, nil
 }
