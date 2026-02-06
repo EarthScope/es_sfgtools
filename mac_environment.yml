@@ -1,25 +1,27 @@
 name: seafloor_geodesy_mac
 channels:
-  - defaults
   - conda-forge
+  - nodefaults
 dependencies: 
   # Python version & pip
   - python=3.11
   - pip
 
   # Code dependencies
-  - scikit-sparse=0.4.16
-  - tiledb=2.28
-  - tiledb-py=0.34.2
+  - scikit-sparse
+  - tiledb
+  - tiledb-py
+  - scikit-learn
+  - pyarrow
 
   # Build / compiler dependencies
   - setuptools
   - wheel
-  - clang=18.1.8
-  - gfortran=11.3.0
-  - go=1.24.4
-  - go-cgo=1.24.4
-  - make=4.3
+  - clang
+  - gfortran
+  - go
+  - go-cgo
+  - make
   
   - pip:
     - -e .[notebook,dev]

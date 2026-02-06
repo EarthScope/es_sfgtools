@@ -13,6 +13,7 @@ dependencies:
   - sqlite=3.49.1 # in linux but not mac?
   - tiledb=2.28
   - tiledb-py=0.34.2
+  - scikit-learn==1.7.2
 
   # Build / compiler dependencies
   - setuptools
