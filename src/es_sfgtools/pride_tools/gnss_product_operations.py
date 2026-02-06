@@ -679,7 +679,7 @@ def get_gnss_products(
     for product_type, sources in remote_resource_dict.items():
         logger.logdebug(f" Attempting to download {product_type} products")
         if product_type not in product_status:
-            product_status[product_type] = "False"
+            product_status[product_type] = None
 
         for dl_source, remote_resource in sources.items():
             if source != "all" and dl_source != source:
@@ -700,9 +700,12 @@ def get_gnss_products(
                 logger.logdebug(f" Found {found_files[0]} for product {product_type}")
                 to_decompress = found_files[0]
                 if to_decompress.suffix == ".gz":
-                    decompressed_file = uncompress_file(
-                        to_decompress, common_product_dir
-                    )
+                    try:
+                        decompressed_file = uncompress_file(
+                            to_decompress, common_product_dir
+                        )
+                    except Exception as e:
+                        decompressed_file = None
                     if decompressed_file is None:
                         logger.logerr(
                             f"Failed to decompress {to_decompress} for product {product_type}"
