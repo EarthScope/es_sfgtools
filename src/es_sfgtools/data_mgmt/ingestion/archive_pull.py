@@ -203,7 +203,7 @@ def generate_archive_campaign_url(network, station, campaign):
     # Grab the year out of the campaign name
     year = campaign.split("_")[0]
 
-    return f"{ARCHIVE_PREFIX}{network}/{year}/{station}/{campaign}/raw"
+    return f"{ARCHIVE_PREFIX}/{network}/{year}/{station}/{campaign}/raw"
 
 def generate_archive_campaign_metadata_url(network, station, campaign):
     """Generate a URL for campaign metadata in the public archive.
