@@ -462,7 +462,7 @@ class IntermediateDataProcessor(WorkflowABC):
             return pseudo_surveys
 
         # Filter by current campaign date range
-        current_year = float(self.current_campaign_name.split("_")[0])
+        current_year = int(self.current_campaign_name.split("_")[0])
         filtered_dates = [date for date in dates if date.year == current_year]
         if not filtered_dates:
             logger.logwarn(f"No shotdata dates found for campaign year {current_year} to generate pseudo-surveys.")
