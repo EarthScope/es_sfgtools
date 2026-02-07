@@ -78,6 +78,8 @@ def _novatel_2rinex_wrapper(
     writedir: Path,
     metadata: dict | Path | str,
     binary_path: Path,
+    modulo_millis: int = 0,
+    num_routines: int = 1,
 ) -> List[Path]:
     """Internal helper to call a novatel-to-RINEX Go binary on a batch of files.
 
@@ -92,6 +94,12 @@ def _novatel_2rinex_wrapper(
         to the temporary working directory for the Go binary to consume.
     binary_path
         Path to the nov0002rnx / novb2rnxo binary.
+    modulo_millis
+        Decimation modulo in milliseconds (e.g., 1000 for 1 Hz, 15000 for 15s
+        intervals). If 0, no decimation is applied.
+    num_routines
+        Number of concurrent goroutines to use for processing files in the
+        Go binary. Defaults to 1.
     """
 
     # Normalise the input file list to Paths for logging and command building
@@ -135,8 +143,12 @@ def _novatel_2rinex_wrapper(
             str(binary_path),
             "-settings",
             str(metadata_tmp_path),
-            *[str(p) for p in file_paths],
         ]
+        if modulo_millis > 0:
+            cmd.extend(["-modulo", str(modulo_millis)])
+        if num_routines > 1:
+            cmd.extend(["-numroutines", str(num_routines)])
+        cmd.extend([str(p) for p in file_paths])
         cmd_str = " ".join(cmd)
         logger.loginfo(f" Running {cmd_str} in {workdir}")
         result = subprocess.run(cmd, capture_output=True, cwd=workdir, text=True)
@@ -185,6 +197,8 @@ def novatel_2rinex(
     writedir: Optional[Path | str] = None,
     site: Optional[str] = None,
     metadata: Optional[dict | MetadataModel | Path | str] = None,
+    modulo_millis: int = 0,
+    num_routines: int = 1,
     **kwargs,
 ) -> List[Path]:
     """Convert NovAtel 000/770 binary files to daily RINEX.
@@ -195,6 +209,15 @@ def novatel_2rinex(
     appropriate Go conversion binary.
 
     Either ``metadata`` or a 4-character ``site`` code must be supplied.
+
+    Parameters
+    ----------
+    modulo_millis : int, optional
+        Decimation modulo in milliseconds (e.g., 1000 for 1 Hz, 15000 for 15s
+        intervals). If 0, no decimation is applied. Default is 0.
+    num_routines : int, optional
+        Number of concurrent goroutines to use for processing files in the
+        Go binary. Defaults to 1.
     """
 
     # Normalise / validate metadata
@@ -270,6 +293,8 @@ def novatel_2rinex(
                 writedir=write_dir,
                 metadata=metadata,
                 binary_path=binary_path,
+                modulo_millis=modulo_millis,
+                num_routines=num_routines,
             )
             logger.loginfo(
                 f"Converted {len(files_to_process)} NOV000.bin files to "
@@ -299,6 +324,8 @@ def novatel_2rinex(
                 writedir=write_dir,
                 metadata=metadata,
                 binary_path=binary_path,
+                modulo_millis=modulo_millis,
+                num_routines=num_routines,
             )
             logger.loginfo(
                 f"Converted {len(files_to_process)} NOV770.raw files to "

@@ -28,8 +28,8 @@ func ArrayExists(arrayPath string) bool {
 	defer ctx.Free()
 
 	schema, err := tiledb.LoadArraySchema(ctx, arrayPath)
-	if err != nil{
-		log.Errorf("failed to load TileDB array schema: %v",err)
+	if err != nil {
+		log.Errorf("failed to load TileDB array schema: %v", err)
 	}
 	if schema == nil {
 		return false
@@ -39,23 +39,22 @@ func ArrayExists(arrayPath string) bool {
 }
 
 func LoadEnv() {
-	    // Get the file path of the current source file
-    _, currentFile, _, ok := runtime.Caller(0)
-    if !ok {
-        log.Fatalf("Unable to get the current file path")
-    }
+	// Get the file path of the current source file
+	_, currentFile, _, ok := runtime.Caller(0)
+	if !ok {
+		log.Fatalf("Unable to get the current file path")
+	}
 	// src/golangtools/cmd/tdb2rnx/main.go
 
 	// src/.env
 	// Get the directory of the current file
 	dir := filepath.Dir(currentFile)
 	for i := 0; i < 3; i++ {
-	// Move up three directories
+		// Move up three directories
 		dir = filepath.Dir(dir)
 	}
 	// Construct the path to the .env file
 	envFilePath := filepath.Join(dir, ".env")
-
 
 	// Load the .env file
 	log.Infof("Loading .env file from %s", envFilePath)
@@ -64,6 +63,7 @@ func LoadEnv() {
 		log.Warn("Error loading .env file", err)
 	}
 }
+
 // src/golangtools/cmd/tdb2rnx/main.go
 // src/.env
 
@@ -74,7 +74,7 @@ func SortEpochsByTime(epochs []observation.Epoch) {
 }
 
 func BatchEpochsByDay(epochs []observation.Epoch) (map[string][]observation.Epoch, error) {
-	
+
 	if len(epochs) == 0 {
 		return nil, fmt.Errorf("no epochs to batch")
 	}
@@ -82,8 +82,7 @@ func BatchEpochsByDay(epochs []observation.Epoch) (map[string][]observation.Epoc
 	// first, sort epochs by time
 	SortEpochsByTime(epochs)
 	for _, epoch := range epochs {
-		startYear,startMonth,startDay := epoch.Time.Date()
-		dayKey := fmt.Sprintf("%04d-%02d-%02d", startYear, startMonth, startDay)
+		dayKey := GetYMDKey(epoch.Time)
 		batchedEpochs[dayKey] = append(batchedEpochs[dayKey], epoch)
 	}
 	for dayKey := range batchedEpochs {
@@ -92,17 +91,18 @@ func BatchEpochsByDay(epochs []observation.Epoch) (map[string][]observation.Epoc
 	return batchedEpochs, nil
 }
 
-func WriteEpochs(epochs []observation.Epoch,settings *rinex.Settings) error {
-	startYear,startMonth,startDay := epochs[0].Time.Date()
-	currentDate := time.Date(startYear,startMonth,startDay,0,0,0,0,time.UTC)
+func WriteEpochs(epochs []observation.Epoch, settings *rinex.Settings) error {
+	SortEpochsByTime(epochs)
+	startYear, startMonth, startDay := epochs[0].Time.Date()
+	currentDate := time.Date(startYear, startMonth, startDay, 0, 0, 0, 0, time.UTC)
 	dayOfYear := currentDate.YearDay()
 	yy := startYear % 100
 	filename := fmt.Sprintf("%s%03d0.%02do", settings.MarkerName, dayOfYear, yy)
-	log.Infof("Generating Daily RINEX File For Year %d, Month %d, Day %d To %s",startYear,startMonth,startDay,filename)
-	
+	log.Infof("Generating Daily RINEX File For Year %d, Month %d, Day %d To %s", startYear, startMonth, startDay, filename)
+
 	// Check if the file already exists
 	if _, err := os.Stat(filename); err == nil {
-		log.Warnf("File Already Exists: %s",filename)
+		log.Warnf("File Already Exists: %s", filename)
 		// delete the file
 		err := os.Remove(filename)
 		if err != nil {
@@ -116,22 +116,23 @@ func WriteEpochs(epochs []observation.Epoch,settings *rinex.Settings) error {
 	}
 
 	defer outFile.Close()
-		header, err := rinex.NewHeader(settings)
+	header, err := rinex.NewHeader(settings)
+	if err != nil {
+		slog.Error("Error creating RINEX header", "error", err)
+		os.Exit(1)
+	}
+
+	header.Write(outFile)
+
+	for _, e := range epochs {
+		err = rinex.SerializeRnxObs(outFile, e, settings)
 		if err != nil {
-			slog.Error("Error creating RINEX header", "error", err)
-			os.Exit(1)
+			slog.Error("Error writing observation", "error", err)
 		}
-
-		header.Write(outFile)
-
-		for _, e := range epochs {
-			err = rinex.SerializeRnxObs(outFile, e, settings)
-			if err != nil {
-				slog.Error("Error writing observation", "error", err)
-			}
-		}
+	}
 	return nil
 }
+
 type Reader struct {
 	Reader *bufio.Reader
 }
@@ -152,87 +153,73 @@ func (reader Reader) nextMessageNOV00bin() (message novatelascii.Message, err er
 
 
 
-// processFileNOV000 processes a NOV000 file containing GNSS and INS messages.
-// It reads the file, parses messages such as RANGEA, INSPVAA, and INSSTDEVA,
-// and deserializes them into corresponding records. The function merges INSPVAA
-// and INSSTDEVA records into complete INS records, computes time differences for
-// GNSS and INS epochs, and returns slices of GNSS epochs and merged INS records.
+// DecimateEpochs decimates a slice of epochs to keep only those that fall on a modulo boundary.
+// It also propagates Loss-of-Lock Indicators (LLI) from skipped epochs to the next written epoch.
 //
 // Parameters:
-//   - file: The path to the NOV000.bin file to be processed.
+//   - epochs: The slice of epochs to decimate (must be sorted by time)
+//   - moduloMillis: The modulo interval in milliseconds (e.g., 1000 for 1 Hz, 15000 for 15-second intervals)
 //
 // Returns:
-//   - []observation.Epoch: A slice of GNSS epoch records parsed from the file.
-//   - []INSCompleteRecord: A slice of merged INS complete records.
+//   - A decimated slice of epochs with LLI bits propagated from skipped epochs
 //
-// The function logs errors encountered during file reading and message deserialization,
-// and logs the number of INSPVAA and INSSTDEVA records found.
-func ProcessFileNOV000(file string) ([]observation.Epoch, []INSCompleteRecord) {
-
-	f,err := os.Open(file)
-	if err != nil {
-		log.Fatalf("failed opening file %s, %s ",file, err)
+// If moduloMillis is 0 or negative, the original epochs are returned unchanged.
+func DecimateEpochs(epochs []observation.Epoch, moduloMillis int64) []observation.Epoch {
+	if moduloMillis <= 0 {
+		return epochs
 	}
-	defer f.Close()
-	reader := NewReader(bufio.NewReader(f))
-	epochs := []observation.Epoch{}
-	insEpochs := []InspvaaRecord{}
-	insStdDevEpochs := []INSSTDEVARecord{}
+	if len(epochs) == 0 {
+		return epochs
+	}
 
-	epochLoop:
-		for {
-			message,err := reader.nextMessageNOV00bin()
-			if err != nil {
-				if err == io.EOF {
-					err = f.Close()
-					if err != nil {
-						log.Errorln(err)
+	// Ensure epochs are sorted by time
+	SortEpochsByTime(epochs)
+
+	decimatedEpochs := []observation.Epoch{}
+
+	// Track accumulated LLI bits for each satellite/observation pair
+	// Key: SatelliteKey string + ObservationKey string
+	accumulatedLLI := make(map[string]uint16)
+
+	for _, epoch := range epochs {
+		epochMillis := epoch.Time.UnixMilli()
+
+		// Check if this epoch falls on the modulo boundary
+		if epochMillis%moduloMillis == 0 {
+			// Apply accumulated LLI bits to this epoch's observations
+			for satKey, obsMap := range epoch.Satellites {
+				for obsKey, obs := range obsMap {
+					lliKey := fmt.Sprintf("%s_%s", satKey, obsKey)
+					if accLLI, exists := accumulatedLLI[lliKey]; exists {
+						// OR the accumulated LLI bits with this observation's LLI
+						obs.LLI |= accLLI
+						obsMap[obsKey] = obs
 					}
-					break epochLoop
 				}
-				log.Println(err)
 			}
-			
-			switch m:=message.(type) {
-				case novatelascii.LongMessage:
-					
-					// Deserialize the message based on its type
 
-					// Check if the message is a GNSS RANGEA message
-					if m.Msg == "RANGEA" {
-						rangea, err := novatelascii.DeserializeRANGEA(m.Data)
-						if err != nil {
-							continue epochLoop
-						}
-						epoch, err := rangea.SerializeGNSSEpoch(m.Time())
-						if err != nil {
-							continue epochLoop
-						}
-						epochs = append(epochs, epoch)
-					// Check if the message is an INSPVAA message
-					} else if m.Msg == "INSPVAA" {
-						record, err := DeserializeINSPVAARecord(m.Data, m.Time())
-						if err != nil {
-							log.Errorf("error deserializing INSPVAA record: %s", err)
-							continue epochLoop
-						}
-						insEpochs = append(insEpochs, record)
-				
-					// Check if the message is an INSSTDEVA message
-					} else if m.Msg == "INSSTDEVA" {
-						record, err := DeserializeINSSTDEVARecord(m.Data, m.Time())
-						if err != nil {
-							log.Errorf("error deserializing INSSTDEVA record: %s", err)
-							continue epochLoop
-						}
-						insStdDevEpochs = append(insStdDevEpochs, record)
+			decimatedEpochs = append(decimatedEpochs, epoch)
+
+			// Clear accumulated LLI after writing an epoch
+			accumulatedLLI = make(map[string]uint16)
+		} else {
+			// This epoch is being skipped - accumulate any LLI bits
+			for satKey, obsMap := range epoch.Satellites {
+				for obsKey, obs := range obsMap {
+					if obs.LLI != 0 {
+						lliKey := fmt.Sprintf("%s_%s", satKey, obsKey)
+						accumulatedLLI[lliKey] |= obs.LLI
 					}
 				}
+			}
 		}
-	log.Infof("Found %d INSPVAA records, %d INSSTDEVA records", len(insEpochs), len(insStdDevEpochs))
-	// Merge INSPVAA and INSSTDEVA records
-	insCompleteRecords := MergeINSPVAAAndINSSTDEVA(insEpochs, insStdDevEpochs)
-	GetTimeDiffGNSS(epochs)
-	GetTimeDiffsINSPVA(insCompleteRecords)
-	return epochs, insCompleteRecords
-}	
+	}
+
+	slog.Info("Decimated epochs", "original", len(epochs), "decimated", len(decimatedEpochs), "modulo_ms", moduloMillis)
+	return decimatedEpochs
+}
+
+func GetYMDKey(t time.Time) string {
+	year, month, day := t.Date()
+	return fmt.Sprintf("%04d-%02d-%02d", year, month, day)
+}
