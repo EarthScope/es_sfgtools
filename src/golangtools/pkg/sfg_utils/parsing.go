@@ -598,3 +598,216 @@ MessageLoop:
 	}
 	return epochs, nil
 }
+
+// processFileNOV000 processes a NOV000 file containing GNSS and INS messages.
+// It reads the file, parses messages such as RANGEA, INSPVAA, and INSSTDEVA,
+// and deserializes them into corresponding records. The function merges INSPVAA
+// and INSSTDEVA records into complete INS records, computes time differences for
+// GNSS and INS epochs, and returns slices of GNSS epochs and merged INS records.
+//
+// Parameters:
+//   - file: The path to the NOV000.bin file to be processed.
+//
+// Returns:
+//   - []observation.Epoch: A slice of GNSS epoch records parsed from the file.
+//   - []INSCompleteRecord: A slice of merged INS complete records.
+//
+// The function logs errors encountered during file reading and message deserialization,
+// and logs the number of INSPVAA and INSSTDEVA records found.
+func ProcessFileNOV000(file string) ([]observation.Epoch, []INSCompleteRecord) {
+
+	f, err := os.Open(file)
+	if err != nil {
+		log.Fatalf("failed opening file %s, %s ", file, err)
+	}
+	defer f.Close()
+	reader := NewReader(bufio.NewReader(f))
+	epochs := []observation.Epoch{}
+	insEpochs := []InspvaaRecord{}
+	insStdDevEpochs := []INSSTDEVARecord{}
+
+epochLoop:
+	for {
+		message, err := reader.nextMessageNOV00bin()
+		if err != nil {
+			if err == io.EOF {
+				err = f.Close()
+				if err != nil {
+					log.Error(err)
+				}
+				break epochLoop
+			}
+			log.Print(err)
+		}
+
+		switch m := message.(type) {
+		case novatelascii.LongMessage:
+
+			// Deserialize the message based on its type
+
+			// Check if the message is a GNSS RANGEA message
+			if m.Msg == "RANGEA" {
+				rangea, err := novatelascii.DeserializeRANGEA(m.Data)
+				if err != nil {
+					continue epochLoop
+				}
+				epoch, err := rangea.SerializeGNSSEpoch(m.Time())
+				if err != nil {
+					continue epochLoop
+				}
+				epochs = append(epochs, epoch)
+				// Check if the message is an INSPVAA message
+			} else if m.Msg == "INSPVAA" {
+				record, err := DeserializeINSPVAARecord(m.Data, m.Time())
+				if err != nil {
+					log.Errorf("error deserializing INSPVAA record: %s", err)
+					continue epochLoop
+				}
+				insEpochs = append(insEpochs, record)
+
+				// Check if the message is an INSSTDEVA message
+			} else if m.Msg == "INSSTDEVA" {
+				record, err := DeserializeINSSTDEVARecord(m.Data, m.Time())
+				if err != nil {
+					log.Errorf("error deserializing INSSTDEVA record: %s", err)
+					continue epochLoop
+				}
+				insStdDevEpochs = append(insStdDevEpochs, record)
+			}
+		}
+	}
+	log.Infof("Found %d INSPVAA records, %d INSSTDEVA records", len(insEpochs), len(insStdDevEpochs))
+	// Merge INSPVAA and INSSTDEVA records
+	insCompleteRecords := MergeINSPVAAAndINSSTDEVA(insEpochs, insStdDevEpochs)
+	GetTimeDiffGNSS(epochs)
+	GetTimeDiffsINSPVA(insCompleteRecords)
+	return epochs, insCompleteRecords
+}
+
+func GetFirstEpochTimeNOV000(file string) (time.Time, error) {
+
+	f, err := os.Open(file)
+	if err != nil {
+		log.Fatalf("failed opening file %s, %s ", file, err)
+	}
+	defer f.Close()
+	reader := NewReader(bufio.NewReader(f))
+
+epochLoop:
+	for {
+		message, err := reader.nextMessageNOV00bin()
+		if err != nil {
+			if err == io.EOF {
+				err = f.Close()
+				if err != nil {
+					log.Error(err)
+				}
+				break epochLoop
+			}
+			log.Print(err)
+		}
+
+		switch m := message.(type) {
+		case novatelascii.LongMessage:
+
+			time := m.Time()
+			return time, nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("no RANGEA message found in file")
+}
+
+func GetFirstEpochTimeNOVB(file string) (time.Time, error) {
+
+	f, err := os.Open(file)
+	if err != nil {
+		log.Fatalf("failed opening file: %s", err)
+	}
+	defer f.Close()
+
+	reader := bufio.NewReader(f)
+MessageLoop:
+	for {
+		msg, err := novatelbinary.DeserializeMessage(reader)
+		if err != nil {
+			if err == io.EOF {
+				break MessageLoop
+
+			}
+			if err == bufio.ErrBufferFull {
+				log.Warnf("buffer full: %s", err)
+				reader.Reset(f)
+			}
+			//log.Warnf("failed reading message: %s", err)
+			continue MessageLoop
+		}
+		if msg.MessageID == 140 {
+			return msg.Time(), nil
+		} else {
+			continue MessageLoop
+		}
+	}
+	return time.Time{}, fmt.Errorf("no RANGEA message found in file")
+}
+
+type FileTime struct {
+	Filename string
+	Time     time.Time
+}
+
+
+// SortFilesByFirstEpochNOVB sorts a list of NOVB files by their first epoch timestamp.
+// It reads the first epoch time from each file and returns the files sorted in chronological order.
+// Files that cannot be parsed or have errors reading the first epoch time are skipped with a warning.
+// Parameters:
+//   - files: A slice of file paths to NOVB files to be sorted
+//
+// Returns:
+//   - A slice of file paths sorted by their first epoch time in ascending order
+//   - An error if the operation fails (currently always returns nil)
+func SortFilesByFirstEpochNOVB(files []string) ([]FileTime, error) {
+	var fileTimes []FileTime
+	for _, file := range files {
+		t, err := GetFirstEpochTimeNOVB(file)
+		if err != nil {
+			log.Warnf("error getting first epoch time for file %s: %s", file, err)
+			continue
+		}
+		fileTimes = append(fileTimes, FileTime{Filename: file, Time: t})
+	}
+	sort.Slice(fileTimes, func(i, j int) bool {
+		return fileTimes[i].Time.Before(fileTimes[j].Time)
+	})
+
+	return fileTimes, nil
+}
+
+// SortFilesByFirstEpochNOV000 sorts a list of NOV000 files by their first epoch timestamp.
+// It reads the first epoch time from each file and returns a new slice of filenames
+// sorted in chronological order (earliest first).
+//
+// Files that cannot be read or parsed are skipped with a warning log message
+// and will not be included in the returned slice.
+//
+// Parameters:
+//   - files: A slice of file paths to NOV000 files to be sorted.
+//
+// Returns:
+//   - A slice of file paths sorted by their first epoch time in ascending order.
+//   - An error (currently always nil, errors are logged as warnings).
+func SortFilesByFirstEpochNOV000(files []string) ([]FileTime, error) {
+
+	var fileTimes []FileTime
+	for _, file := range files {
+		t, err := GetFirstEpochTimeNOV000(file)
+		if err != nil {
+			log.Warnf("error getting first epoch time for file %s: %s", file, err)
+			continue
+		}
+		fileTimes = append(fileTimes, FileTime{Filename: file, Time: t})
+	}
+	sort.Slice(fileTimes, func(i, j int) bool {
+		return fileTimes[i].Time.Before(fileTimes[j].Time)
+	})
+	return fileTimes, nil
+}	
