@@ -139,7 +139,7 @@ def scrape_directory_local(directory: Path) -> Optional[List[Path]]:
 
     output_files = []
     for file in initial_files:
-        if file.is_file():
+        if file.is_file() and not file.name.startswith("._"):
             output_files.append(file)
     
     if len(output_files) == 0:
