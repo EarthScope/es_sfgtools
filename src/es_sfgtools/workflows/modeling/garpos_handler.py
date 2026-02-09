@@ -259,78 +259,6 @@ class GarposHandler(WorkflowABC):
         )
         return rf 
 
-    def _run_garpos_survey_dir(
-            self,
-            garpos_survey_dir: GARPOSSurveyDir,
-            custom_settings: Optional[dict | InversionParams] = None,
-            run_id: int | str = 0,
-            iterations: int = 1,
-            override: bool = False,
-    ) -> None:
-        """Run the GARPOS model for a specific GARPOSSurveyDir.
-
-        Parameters
-        ----------
-        garpos_survey_dir : GARPOSSurveyDir
-            The GARPOS survey directory to run.
-        custom_settings : dict, optional
-            Custom GARPOS settings to apply, by default None.
-        run_id : int | str, optional
-            The run identifier, by default 0.
-        iterations : int, optional
-            The number of iterations to run, by default 1.
-        override : bool, optional
-            If True, override existing results, by default False.
-
-        Raises
-        ------
-        ValueError
-            If the observation file does not exist.
-        """
-        logger.loginfo(f"Running GARPOS model for survey {garpos_survey_dir.location.parent.stem}. Run ID: {run_id}")
-
-        results_dir_main = garpos_survey_dir.results_dir
-        results_dir = results_dir_main / f"run_{run_id}"
-        if results_dir.exists() and override:
-            # Remove existing results directory if override is True
-            try:
-                shutil.rmtree(results_dir)
-            except Exception as e:
-                logger.logerr(f"Failed to remove existing results directory {results_dir}: {e}")
-                
-        results_dir.mkdir(parents=True, exist_ok=True)
-
-        obsfile_path = garpos_survey_dir.default_obsfile
-
-        if not obsfile_path.exists():
-            raise ValueError(f"Observation file not found at {obsfile_path}")
-
-        initialInput = GarposInput.from_datafile(obsfile_path)
-
-        for i in range(iterations):
-            logger.loginfo(f"Iteration {i+1} of {iterations} for survey {garpos_survey_dir.location.parent.stem}")
-
-            obsfile_path = self._run_garpos(
-                custom_settings=custom_settings,
-                obsfile_path=obsfile_path,
-                results_dir=results_dir,
-                run_id=f"{i}",
-                override=override,
-            )
-            if iterations > 1 and i < iterations - 1:
-                iterationInput = GarposInput.from_datafile(obsfile_path)
-                delta_position = iterationInput.delta_center_position.get_position()
-                iterationInput.array_center_enu.east += delta_position[0]
-                iterationInput.array_center_enu.north += delta_position[1]
-                iterationInput.array_center_enu.up += delta_position[2]
-                # zero out delta position for next iteration
-                iterationInput.delta_center_position = initialInput.delta_center_position
-                iterationInput.to_datafile(obsfile_path)
-            # Add array delta center position to the array center enu
-
-        results = GarposInput.from_datafile(obsfile_path)
-        process_garpos_results(results)
-
     def _run_garpos_survey(
         self,
         survey_id: str,
@@ -417,8 +345,7 @@ class GarposHandler(WorkflowABC):
         run_id: int | str = 0,
         iterations: int = 1,
         override: bool = False,
-        custom_settings: Optional[dict | InversionParams] = None,
-        surveys: Optional[list[GARPOSSurveyDir]] = None,
+        custom_settings: Optional[dict | InversionParams] = None, 
     ) -> None:
         """Run the GARPOS model for a specific date or for all dates.
 
@@ -437,20 +364,9 @@ class GarposHandler(WorkflowABC):
         """
 
         logger.loginfo(f"Running GARPOS model. Run ID: {run_id}")
-        if surveys is None:
-            surveys_to_process = [s.id for s in self.current_campaign_metadata.surveys] if survey_id is None else [survey_id]
-        elif all(isinstance(s, GARPOSSurveyDir) for s in surveys):
-            for garpos_survey_dir in surveys:
-                self._run_garpos_survey_dir(
-                    garpos_survey_dir=garpos_survey_dir,
-                    custom_settings=custom_settings,
-                    run_id=run_id,
-                    iterations=iterations,
-                    override=override,
-                )
-            return
+        surveys = [s.id for s in self.current_campaign_metadata.surveys] if survey_id is None else [survey_id]
 
-        for survey_id in surveys_to_process:
+        for survey_id in surveys:
             logger.loginfo(
                 f"Running GARPOS model for survey {survey_id}. Run ID: {run_id}"
             )

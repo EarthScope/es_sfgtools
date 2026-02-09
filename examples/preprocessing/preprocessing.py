@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 
-os.environ["GARPOS_PATH"] = str(Path.home() / "path"/"to"/"your"/"garpos")
+os.environ["GARPOS_PATH"] = str(Path.home() / "Project/SeaFloorGeodesy" / "garpos")
 
 os.environ["DYLD_LIBRARY_PATH"] = (
     os.environ.get("CONDA_PREFIX", "")
@@ -16,7 +16,7 @@ from es_sfgtools.workflows.workflow_handler import WorkflowHandler
 
 
 def main():
-    main_dir = Path("/path/to/your/project/directory/SFGMain")    
+    main_dir = Path("/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain")    
 
     workflow = WorkflowHandler(main_dir)
 
