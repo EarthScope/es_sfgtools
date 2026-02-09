@@ -142,20 +142,7 @@ if __name__ == "__main__":
     #     print(shot_df.head())
 
     qc_dir = Path("/Volumes/DunbarSSD/Project/SeafloorGeodesy/Misc/20250812/")
-    # qc_files = list(qc_dir.glob("*.pin"))
-    # # all_dfs = []
-    # # for qc_file in qc_files:
-    # #     try:
-    # #         df = qcjson_to_shotdata(qc_file)
-    # #         if df is not None and not df.empty:
-    # #             all_dfs.append(df)
-    # #     except Exception as e:
-    # #         logger.logerr(f"Error processing {qc_file}: {e}")
 
-    # # print(f"\n\nProcessed {len(all_dfs)} QC files.")
-    # # batched = batch_qc_by_day(all_dfs, date_column='pingTime')
-    # # for date, df in batched.items():
-    # #     print(f"Date: {date}, Number of Shots: {len(df)}")
 
     main_dir = Path("/Volumes/DunbarSSD/Project/SeafloorGeodesy/TestQC")
     main_dir.mkdir(parents=False, exist_ok=True)
