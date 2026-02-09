@@ -458,7 +458,7 @@ class DataHandler(WorkflowABC):
             else:
                 assets_to_download = []
                 for file_asset in assets:
-                    if file_asset.local_path is None:
+                    if file_asset.local_path is None or not Path(file_asset.local_path).exists():
                         assets_to_download.append(file_asset)
                     else:
                         # Check to see if the file exists locally anyway
