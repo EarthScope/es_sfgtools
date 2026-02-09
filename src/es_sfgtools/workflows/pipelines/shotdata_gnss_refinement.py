@@ -7,6 +7,7 @@ import pymap3d
 from gnatss.ops.kalman import run_filter_simulation
 from numpy import datetime64
 from scipy.stats import zscore
+from sklearn.neighbors import RadiusNeighborsRegressor
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF
 from sklearn.kernel_ridge import KernelRidge

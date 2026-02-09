@@ -45,7 +45,7 @@ class NoGPTranspondersError(Exception):
         self.message = message
 
 
-def GP_Transponders_from_benchmarks(coord_transformer: CoordTransformer, survey: Survey, site: Site,is_qc:bool=False) -> List[GPTransponder]:
+def GP_Transponders_from_benchmarks(coord_transformer: CoordTransformer, survey: Survey, site: Site) -> List[GPTransponder]:
     """Get GP transponders from the benchmarks in the survey.
 
     Parameters
@@ -56,8 +56,6 @@ def GP_Transponders_from_benchmarks(coord_transformer: CoordTransformer, survey:
         The survey object.
     site : Site
         The site metadata.
-    is_qc : bool, optional
-        Flag indicating if the data is for quality control, by default False
 
     Returns
     -------
@@ -71,7 +69,7 @@ def GP_Transponders_from_benchmarks(coord_transformer: CoordTransformer, survey:
     """
     survey_benchmarks = []
     for benchmark in site.benchmarks:
-        if benchmark.name in survey.benchmarkIDs or is_qc:
+        if benchmark.name in survey.benchmarkIDs:
             survey_benchmarks.append(benchmark)
 
     GPtransponders = []
