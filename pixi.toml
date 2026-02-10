@@ -7,9 +7,6 @@ platforms = ["win-64", "linux-64", "osx-64", "osx-arm64"]
 # Tasks
 # =============================================================================
 [tasks]
-test = "pytest tests/"
-test-garpos = "pytest tests/test_garpos.py -v"
-test-garpos-install = "pytest tests/test_garpos.py::TestGarposInstallation -v"
 lint = "black --check src/"
 format = "black src/"
 docs = { cmd = "make html", cwd = "docs" }
@@ -18,12 +15,15 @@ build-go = { cmd = "make -B", cwd = "src/golangtools" }
 # Clone and install garpos from source
 clone-garpos = "git clone https://github.com/s-watanabe-jhod/garpos.git external/garpos || (cd external/garpos && git pull)"
 compile-garpos = {cmd = "gfortran -shared -fPIC -fopenmp -O3 -o lib_raytrace.so sub_raytrace.f90 lib_raytrace.f90",cwd = "external/garpos/bin/garpos_v102/f90lib", depends-on = ["clone-garpos"]}
+test-garpos = "pytest tests/test_garpos.py -v"
 
 # Clone and install PRIDE-PPPAR
 clone-pride = { cmd = "git clone --depth 1 https://github.com/PrideLab/PRIDE-PPPAR.git  || git pull || echo Skipping clone ",cwd = "external/"}
 install-pride = { cmd = "chmod +x install.sh && echo 'N' | HOME=$PIXI_PROJECT_ROOT/external ./install.sh", cwd = "external/PRIDE-PPPAR", depends-on = ["clone-pride"] }
+test-pride = { cmd = "chmod +x test.sh && ./test.sh", cwd = "external/PRIDE-PPPAR/example"}
 
 setup = {depends-on = ["compile-garpos","install-pride","build-go"]}
+test_setup = {depends-on = ["test-garpos","test-pride"]}
 
 # =============================================================================
 # Conda dependencies (things that need to come from conda-forge)
@@ -101,16 +101,4 @@ full = { features = ["dev", "notebook"], solve-group = "default" }
 # Activation - environment variables
 # =============================================================================
 [activation]
-env = { CGO_ENABLED = "1", PIP_INDEX_URL = "https://pypi.org/simple", GARPOS_PATH = "$PIXI_PROJECT_ROOT/external/garpos", PATH = "$PIXI_PROJECT_ROOT/external/.PRIDE_PPPAR_BIN:$PATH" }
-
-[target.osx-64.activation]
-env = { DYLD_LIBRARY_PATH = "$PIXI_PROJECT_ROOT/.pixi/envs/$PIXI_ENVIRONMENT_NAME/lib:$DYLD_LIBRARY_PATH" }
-
-[target.osx-arm64.activation]
-env = { DYLD_LIBRARY_PATH = "$PIXI_PROJECT_ROOT/.pixi/envs/$PIXI_ENVIRONMENT_NAME/lib:$DYLD_LIBRARY_PATH" }
-
-[target.linux-64.activation]
-env = { LD_LIBRARY_PATH = "$PIXI_PROJECT_ROOT/.pixi/envs/$PIXI_ENVIRONMENT_NAME/lib:$LD_LIBRARY_PATH" }
-
-[target.win-64.activation]
-env = { PATH = "$PIXI_PROJECT_ROOT/.pixi/envs/$PIXI_ENVIRONMENT_NAME/Library/bin;$PATH" }
+env = { CGO_ENABLED = "1", PIP_INDEX_URL = "https://pypi.org/simple", GARPOS_PATH = "$PIXI_PROJECT_ROOT/external/garpos", PATH = "$PIXI_PROJECT_ROOT/external/.PRIDE_PPPAR_BIN:$PATH",DYLD_LIBRARY_PATH = "$PIXI_PROJECT_ROOT/.pixi/envs/$PIXI_ENVIRONMENT_NAME/lib:$DYLD_LIBRARY_PATH" , LD_LIBRARY_PATH = "$PIXI_PROJECT_ROOT/.pixi/envs/$PIXI_ENVIRONMENT_NAME/lib:$LD_LIBRARY_PATH" }
