@@ -23,7 +23,7 @@ compile-garpos = {cmd = "gfortran -shared -fPIC -fopenmp -O3 -o lib_raytrace.so 
 clone-pride = { cmd = "git clone --depth 1 https://github.com/PrideLab/PRIDE-PPPAR.git  || git pull || echo Skipping clone ",cwd = "external/"}
 install-pride = { cmd = "chmod +x install.sh && echo 'N' | HOME=$PIXI_PROJECT_ROOT/external ./install.sh", cwd = "external/PRIDE-PPPAR", depends-on = ["clone-pride"] }
 
-setup = {depends-on = ["compile-garpos","install-pride"]}
+setup = {depends-on = ["compile-garpos","install-pride","build-go"]}
 
 # =============================================================================
 # Conda dependencies (things that need to come from conda-forge)
