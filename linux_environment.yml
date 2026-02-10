@@ -18,14 +18,14 @@ dependencies:
   # Build / compiler dependencies
   - setuptools
   - wheel
-  - clang=20.1.8
-  - gcc=15.2.0
-  - gfortran=15.2.0
-  - go=1.22.9
-  - go-cgo=1.11.3
-  - libstdcxx-ng=15.2.0
-  - make=4.2.1 
-  - nodejs=24.10.0 
+  - clang
+  - gcc
+  - gfortran
+  - go
+  - go-cgo
+  - libstdcxx-ng
+  - make
+  - nodejs
 
   - pip:
     - -e .[notebook,dev]
