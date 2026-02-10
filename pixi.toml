@@ -20,7 +20,7 @@ clone-garpos = "git clone https://github.com/s-watanabe-jhod/garpos.git external
 compile-garpos = {cmd = "gfortran -shared -fPIC -fopenmp -O3 -o lib_raytrace.so sub_raytrace.f90 lib_raytrace.f90",cwd = "external/garpos/bin/garpos_v102/f90lib", depends-on = ["clone-garpos"]}
 
 # Clone and install PRIDE-PPPAR
-clone-pride = "git clone --depth 1 https://github.com/PrideLab/PRIDE-PPPAR.git external/PRIDE-PPPAR || (cd external/PRIDE-PPPAR && git pull)"
+clone-pride = { cmd = "git clone --depth 1 https://github.com/PrideLab/PRIDE-PPPAR.git  || git pull || echo Skipping clone ",cwd = "external/"}
 install-pride = { cmd = "chmod +x install.sh && echo 'N' | HOME=$PIXI_PROJECT_ROOT/external ./install.sh", cwd = "external/PRIDE-PPPAR", depends-on = ["clone-pride"] }
 
 # =============================================================================
