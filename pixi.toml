@@ -1,0 +1,109 @@
+[project]
+name = "es_sfgtools"
+version = "0.1.0"
+description = "Utilities for translating and processing Seafloor Geodesy data"
+authors = [
+  "Mike Gottlieb <mike.gottlieb@earthscope.org>",
+  "Franklyn Dunbar <franklyn.dunbar@earthscope.org>",
+  "Rachel Akie <rachel.akie@earthscope.org>",
+]
+channels = ["conda-forge","nodefaults"]
+platforms = ["win-64", "linux-64", "osx-64", "osx-arm64"]
+
+[tasks]
+# Development tasks
+dev = "pip install -e .[notebook,dev]"
+test = "pytest tests/"
+lint = "black --check src/"
+format = "black src/"
+docs = { cmd = "make html", cwd = "docs" }
+build-go = { cmd = "make -B", cwd = "src/golangtools" }
+
+
+[dependencies]
+uv = "*"
+
+# Python version
+python = "3.11.*"
+
+# Core conda dependencies (available on all platforms)
+pip = ">=24.0"
+numpy = ">=1.23.5,<2"
+proj = "*"
+scikit-sparse = "*"
+tiledb = ">=2.28"
+tiledb-py = "0.34.*"
+scikit-learn = ">=1.7"
+pyarrow = "*"
+
+# Build / compiler dependencies
+setuptools = ">=62.6"
+setuptools_scm = ">=6.2"
+wheel = "*"
+clang = "*"
+gfortran = "*"
+go = ">=1.22"
+go-cgo = "*"
+make = "*"
+
+[target.linux-64.dependencies]
+# Linux-specific dependencies
+bc = "1.07.*"
+sqlite = ">=3.49"
+gcc = ">=15"
+libstdcxx-ng = ">=15"
+nodejs = ">=24"
+
+[pypi-dependencies]
+# Runtime Python dependencies - versions locked in pixi.lock
+scipy = "*"
+pandas = "*"
+matplotlib = "*"
+julian = "*"
+pandera = "*"
+pydantic = "*"
+pyproj = "*"
+pymap3d = "*"
+boto3 = "*"
+botocore = "*"
+tqdm = "*"
+sqlalchemy = "*"
+python-dotenv = "*"
+seaborn = "*"
+earthscope-sdk = "*"
+earthscope-cli = "*"
+gnatss = "*"
+regex = "*"
+cloudpathlib = { version = "*", extras = ["s3"] }
+colorama = "*"
+
+# garpos from git
+garpos = { git = "https://github.com/EarthScope/garpos.git" }
+
+[feature.dev.dependencies]
+# Dev tools from conda
+black = "*"
+pytest = ">=7.1"
+
+[feature.dev.pypi-dependencies]
+# Docs dependencies
+sphinx = "*"
+sphinx-rtd-theme = "*"
+myst-parser = "*"
+sphinxcontrib-apidoc = "*"
+sphinx_pyproject = "*"
+build = "*"
+twine = "*"
+
+[feature.notebook.dependencies]
+ipykernel = "*"
+jupyterlab = "*"
+
+[environments]
+default = { solve-group = "default" }
+dev = { features = ["dev"], solve-group = "default" }
+notebook = { features = ["notebook"], solve-group = "default" }
+full = { features = ["dev", "notebook"], solve-group = "default" }
+
+[activation]
+env = { CGO_ENABLED = "1", PIP_INDEX_URL = "https://pypi.org/simple" }
