@@ -23,7 +23,7 @@ install-pride = { cmd = "chmod +x install.sh && echo 'N' | HOME=$PIXI_PROJECT_RO
 test-pride = { cmd = "chmod +x test.sh && ./test.sh", cwd = "external/PRIDE-PPPAR/example"}
 
 setup = {depends-on = ["compile-garpos","install-pride","build-go"]}
-test_setup = {depends-on = ["test-garpos","test-pride"]}
+test-setup = {depends-on = ["test-garpos","test-pride"]}
 
 # =============================================================================
 # Conda dependencies (things that need to come from conda-forge)

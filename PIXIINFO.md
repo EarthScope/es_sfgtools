@@ -60,10 +60,24 @@ pixi run setup
 This will:
 - Clone and compile GARPOS (Fortran raytracing library)
 - Clone and install PRIDE-PPPAR (GNSS processing)
+- Compile golang binaries
 
 ---
 
-## Step 5: Enter the Workspace Shell
+## Step 5: Test dependencies (optional)
+
+Run the test task to check pride and garpos installs
+
+```bash
+pixi run test-setup
+```
+
+This will:
+- Test the GARPOS install
+- Test the PRIDE-PPPAR install
+
+
+## Step 6: Enter the Workspace Shell
 
 Activate the pixi environment shell:
 
@@ -94,7 +108,7 @@ exit
 | `pixi run setup` | Setup external dependencies |
 | `pixi shell` | Enter the workspace shell |
 | `pixi run <task>` | Run a task without entering shell |
-| `pixi run test` | Run tests |
+| `pixi run test-setup` | Run tests |
 | `pixi run build-go` | Build Go tools |
 | `pixi clean` | Remove installed environments |
 
