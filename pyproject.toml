@@ -13,7 +13,7 @@ name = "es_sfgtools"
 description = "Utilities for translating and processing Seafloor Geodesy data"
 readme = "README.md"
 license = { file = "LICENSE" }
-requires-python = ">= 3.10"
+requires-python = ">= 3.11"
 
 # Authors
 authors = [
@@ -31,30 +31,29 @@ classifiers = [
 # Dynamic fields are determined at build time -- 'version' comes from setuptools_scm (git tags)
 dynamic = ["version"]
 
-# --- Runtime dependencies (Python packages your code actually imports) ---
+# --- Runtime dependencies (versions managed by pixi.lock) ---
 dependencies = [
-  "numpy==1.26.4",
-  "scipy==1.16.3",
-  "pandas==2.3.3",
-  "matplotlib==3.10.6",
-  "julian==0.14",
-  "pandera==0.20.3",
-  "pydantic==2.8.2",
-  "pyproj==3.6.1",
-  "pymap3d==3.2.0",
-  "boto3==1.40.54",
-  "botocore==1.40.54",
-  "tqdm==4.67.1",
-  "sqlalchemy==2.0.43",
-  "python-dotenv==1.1.0",
-  "tiledb==0.34.2",
-  "seaborn==0.13.2",
-  "earthscope-sdk==1.1.1",
-  "earthscope-cli==1.0.1",
-  "gnatss==0.3.1",
-  "regex==2025.11.3",
-  "cloudpathlib[s3]==0.23.0",
-  "colorama>=0.4.6",
+  "scipy",
+  "pandas",
+  "matplotlib",
+  "julian",
+  "pandera",
+  "pydantic",
+  "pyproj",
+  "pymap3d",
+  "boto3",
+  "botocore",
+  "tqdm",
+  "sqlalchemy",
+  "python-dotenv",
+  "seaborn",
+  "earthscope-sdk",
+  "earthscope-cli",
+  "gnatss",
+  "regex",
+  "cloudpathlib[s3]",
+  "colorama",
+  "garpos @ git+https://github.com/EarthScope/garpos.git",
 ]
 
 [project.optional-dependencies]
@@ -65,13 +64,13 @@ dev = [
   "myst-parser",
   "sphinxcontrib-apidoc",
   "sphinx_pyproject",
+  "build",
+  "twine",
 ]
 notebook = [
   "ipykernel",
+  "jupyterlab",
 ]
-# garpos = [
-#   "garpos @ git+https://github.com/EarthScope/garpos.git",
-# ]
 
 # Project URLs
 [project.urls]

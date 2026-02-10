@@ -37,3 +37,5 @@ dist
 src/es_sfgtools/_version.py
 src/golangtools/build/
 
+.pixi
+external/*

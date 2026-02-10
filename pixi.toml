@@ -1,34 +1,37 @@
-[project]
+[workspace]
 name = "es_sfgtools"
-version = "0.1.0"
-description = "Utilities for translating and processing Seafloor Geodesy data"
-authors = [
-  "Mike Gottlieb <mike.gottlieb@earthscope.org>",
-  "Franklyn Dunbar <franklyn.dunbar@earthscope.org>",
-  "Rachel Akie <rachel.akie@earthscope.org>",
-]
-channels = ["conda-forge","nodefaults"]
+channels = ["conda-forge"]
 platforms = ["win-64", "linux-64", "osx-64", "osx-arm64"]
 
+# =============================================================================
+# Tasks
+# =============================================================================
 [tasks]
-# Development tasks
-dev = "pip install -e .[notebook,dev]"
 test = "pytest tests/"
+test-garpos = "pytest tests/test_garpos.py -v"
+test-garpos-install = "pytest tests/test_garpos.py::TestGarposInstallation -v"
 lint = "black --check src/"
 format = "black src/"
 docs = { cmd = "make html", cwd = "docs" }
 build-go = { cmd = "make -B", cwd = "src/golangtools" }
-debug-go = { cmd = "echo CONDA_PREFIX: $CONDA_PREFIX && ls -l $CONDA_PREFIX/include/tiledb/tiledb.h && ls -l $CONDA_PREFIX/lib/libtiledb.dylib && ls -l $CONDA_PREFIX/lib/libtiledb.so" }
 
+# Clone and install garpos from source
+clone-garpos = "git clone https://github.com/s-watanabe-jhod/garpos.git external/garpos || (cd external/garpos && git pull)"
+compile-garpos = {cmd = "gfortran -shared -fPIC -fopenmp -O3 -o lib_raytrace.so sub_raytrace.f90 lib_raytrace.f90",cwd = "external/garpos/bin/garpos_v102/f90lib", depends-on = ["clone-garpos"]}
 
+# Clone and install PRIDE-PPPAR
+clone-pride = "git clone --depth 1 https://github.com/PrideLab/PRIDE-PPPAR.git external/PRIDE-PPPAR || (cd external/PRIDE-PPPAR && git pull)"
+install-pride = { cmd = "chmod +x install.sh && echo 'N' | HOME=$PIXI_PROJECT_ROOT/external ./install.sh", cwd = "external/PRIDE-PPPAR", depends-on = ["clone-pride"] }
+
+# =============================================================================
+# Conda dependencies (things that need to come from conda-forge)
+# =============================================================================
 [dependencies]
+python = ">=3.11"
+pip = ">=24.0"
 uv = "*"
 
-# Python version
-python = "3.11.*"
-
-# Core conda dependencies (available on all platforms)
-pip = ">=24.0"
+# Core conda dependencies (native libs / better binary compat)
 numpy = ">=1.23.5,<2"
 proj = "*"
 scikit-sparse = "*"
@@ -46,65 +49,66 @@ gfortran = "*"
 go = ">=1.22"
 go-cgo = "*"
 make = "*"
+requests = ">=2.32.5,<3"
+pytest = ">=9.0.2,<10"
 
+# =============================================================================
+# Platform-specific conda dependencies
+# =============================================================================
 [target.linux-64.dependencies]
-# Linux-specific dependencies
 bc = "1.07.*"
 sqlite = ">=3.49"
 gcc = ">=15"
 libstdcxx-ng = ">=15"
 nodejs = ">=24"
 
+# =============================================================================
+# PyPI dependencies - install this package in editable mode
+# This pulls in all dependencies from pyproject.toml [project.dependencies]
+# =============================================================================
 [pypi-dependencies]
-# Runtime Python dependencies - versions locked in pixi.lock
-scipy = "*"
-pandas = "*"
-matplotlib = "*"
-julian = "*"
-pandera = "*"
-pydantic = "*"
-pyproj = "*"
-pymap3d = "*"
-boto3 = "*"
-botocore = "*"
-tqdm = "*"
-sqlalchemy = "*"
-python-dotenv = "*"
-seaborn = "*"
-earthscope-sdk = "*"
-earthscope-cli = "*"
-gnatss = "*"
-regex = "*"
-cloudpathlib = { version = "*", extras = ["s3"] }
-colorama = "*"
+es_sfgtools = { path = ".", editable = true }
 
-# garpos from git
-garpos = { git = "https://github.com/EarthScope/garpos.git" }
-
+# =============================================================================
+# Feature: dev (adds dev tools)
+# =============================================================================
 [feature.dev.dependencies]
-# Dev tools from conda
 black = "*"
-pytest = ">=7.1"
 
 [feature.dev.pypi-dependencies]
-# Docs dependencies
-sphinx = "*"
-sphinx-rtd-theme = "*"
-myst-parser = "*"
-sphinxcontrib-apidoc = "*"
-sphinx_pyproject = "*"
-build = "*"
-twine = "*"
+# Optional dev deps from pyproject.toml are installed via editable install
+# Add any extra dev-only PyPI packages here if needed
 
+# =============================================================================
+# Feature: notebook (adds Jupyter support)
+# =============================================================================
 [feature.notebook.dependencies]
 ipykernel = "*"
 jupyterlab = "*"
 
+# =============================================================================
+# Environments
+# =============================================================================
 [environments]
 default = { solve-group = "default" }
 dev = { features = ["dev"], solve-group = "default" }
 notebook = { features = ["notebook"], solve-group = "default" }
 full = { features = ["dev", "notebook"], solve-group = "default" }
 
+# =============================================================================
+# Activation - environment variables
+# =============================================================================
 [activation]
-env = { CGO_ENABLED = "1", PIP_INDEX_URL = "https://pypi.org/simple" }
+env = { CGO_ENABLED = "1", PIP_INDEX_URL = "https://pypi.org/simple", GARPOS_PATH = "$PIXI_PROJECT_ROOT/external/garpos", PATH = "$PIXI_PROJECT_ROOT/external/.PRIDE_PPPAR_BIN:$PATH" }
+
+[target.osx-64.activation]
+env = { DYLD_LIBRARY_PATH = "$PIXI_PROJECT_ROOT/.pixi/envs/$PIXI_ENVIRONMENT_NAME/lib:$DYLD_LIBRARY_PATH" }
+
+[target.osx-arm64.activation]
+env = { DYLD_LIBRARY_PATH = "$PIXI_PROJECT_ROOT/.pixi/envs/$PIXI_ENVIRONMENT_NAME/lib:$DYLD_LIBRARY_PATH" }
+
+[target.linux-64.activation]
+env = { LD_LIBRARY_PATH = "$PIXI_PROJECT_ROOT/.pixi/envs/$PIXI_ENVIRONMENT_NAME/lib:$LD_LIBRARY_PATH" }
+
+[target.win-64.activation]
+env = { PATH = "$PIXI_PROJECT_ROOT/.pixi/envs/$PIXI_ENVIRONMENT_NAME/Library/bin;$PATH" }
