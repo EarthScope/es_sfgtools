@@ -22,7 +22,7 @@ dependencies:
   - gcc
   - gfortran
   - go >=1.24
-  - go-cgo
+  - go-cgo >=1.24 
   - libstdcxx-ng
   - make
   - nodejs
