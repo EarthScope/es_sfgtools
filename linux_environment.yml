@@ -8,24 +8,24 @@ dependencies:
   - pip
 
   # Code dependencies
-  - bc # in linux but not mac?
-  - scikit-sparse
-  - sqlite # in linux but not mac?
+  - bc=1.07.1 # in linux but not mac?
+  - scikit-sparse=0.4.16
+  - sqlite=3.51.2 # in linux but not mac?
   - tiledb=2.28
   - tiledb-py=0.34.2
-  - scikit-learn
+  - scikit-learn=1.8.0
 
   # Build / compiler dependencies
   - setuptools
   - wheel
-  - clang
-  - gcc
-  - gfortran
-  - go >=1.24
-  - go-cgo >=1.24 
-  - libstdcxx-ng
-  - make
-  - nodejs
+  - clang=21.1.8
+  - gcc=15.2.0
+  - gfortran=15.2.0
+  - go=1.25.7
+  - go-cgo=1.25.7
+  - libstdcxx-ng=15.2.0
+  - make=4.4.1 
+  - nodejs=25.2.1
 
   - pip:
     - -e .[notebook,dev]
