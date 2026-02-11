@@ -19,8 +19,8 @@ dependencies:
   - setuptools
   - wheel
   - clang=21.1.8
-  - gcc=15.2.0
-  - gfortran=15.2.0
+  - gcc=14.3.0
+  - gfortran=14.3.0
   - go=1.25.7
   - go-cgo=1.25.7
   - libstdcxx-ng=15.2.0
