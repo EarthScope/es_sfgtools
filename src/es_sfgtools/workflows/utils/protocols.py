@@ -166,10 +166,8 @@ class WorkflowABC(ABC):
             directory_handler.build()
 
         if asset_catalog is None:
-            if Environment.working_environment() == WorkingEnvironment.LOCAL:
-                asset_catalog = PreProcessCatalogHandler(db_path=directory_handler.asset_catalog_db_path)
-            else:
-                asset_catalog = None
+            asset_catalog = PreProcessCatalogHandler(db_path=directory_handler.asset_catalog_db_path)
+            
         if directory is None:
             directory = directory_handler.location
 
