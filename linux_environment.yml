@@ -11,8 +11,8 @@ dependencies:
   - bc=1.07.1 # in linux but not mac?
   - scikit-sparse=0.4.16
   - sqlite=3.51.2 # in linux but not mac?
-  - tiledb=2.28
-  - tiledb-py=0.34.2
+  - tiledb=2.30.0
+  - tiledb-py=0.36.0
   - scikit-learn=1.8.0
 
   # Build / compiler dependencies
