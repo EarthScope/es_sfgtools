@@ -16,7 +16,7 @@ from es_sfgtools.workflows.workflow_handler import WorkflowHandler
 
 
 def main():
-    main_dir = Path("/path/to/your/project/directory/SFGMain")    
+    main_dir = Path("/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain")
 
     workflow = WorkflowHandler(main_dir)
 
@@ -46,7 +46,7 @@ def main():
             "system": "GREC23J",
             "tides": "SOP",
             "override_products_download": False,
-            "override": False
+            "override": True
             },
             "rinex_config": {
             "n_processes": 14,
@@ -59,12 +59,9 @@ def main():
                 "cutoff_elevation": 7,}
         }
 
-
     NETWORK = "cascadia-gorda"
     CAMPAIGN = "2025_A_1126"
-    STATIONS = ["NTH1", "NCC1", "NBR1", "GCC1"]
-
-
+    STATIONS = ["NTH1"]#, "NCC1", "NBR1", "GCC1"]
 
     for station in STATIONS:
         workflow.set_network_station_campaign(
@@ -80,7 +77,7 @@ def main():
             )
         else:
             workflow.preprocess_run_pipeline_sv3(
-                job='all',
+                job='run_pride',
                 primary_config=global_config,
             )
 
