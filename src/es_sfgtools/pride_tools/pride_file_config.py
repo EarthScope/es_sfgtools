@@ -43,32 +43,21 @@ class ObservationConfig(BaseModel):
 
 class SatelliteProducts(BaseModel):
     product_directory: Optional[str]  = Field(default="Default", description="Directory for satellite products")
-    satellite_orbit: Optional[str] = Field(default= "Default",pattern=r".*\.SP3", description="File name of SP3 file")
-    satellite_clock: Optional[str] = Field(default= "Default",pattern=r".*\.CLK", description="File name of CLK file")
-    erp: Optional[str] = Field(default= "Default",pattern=r".*\.ERP", description="File name of ERP file")
-    quaternions: Optional[str] = Field(default= "Default",pattern=r".*\.OBX", description="File name of quaternions file")
-    code_phase_bias: Optional[str] = Field(default= "Default",pattern=r".*\.BIA", description="File name of code/phase bias file")
+    satellite_orbit: Optional[str] = Field(default="Default", pattern=r"^(Default|.*\.SP3)$", description="File name of SP3 file")
+    satellite_clock: Optional[str] = Field(default="Default", pattern=r"^(Default|.*\.CLK)$", description="File name of CLK file")
+    erp: Optional[str] = Field(default="Default", pattern=r"^(Default|.*\.ERP)$", description="File name of ERP file")
+    quaternions: Optional[str] = Field(default="Default", pattern=r"^(Default|.*\.OBX)$", description="File name of quaternions file")
+    code_phase_bias: Optional[str] = Field(default="Default", pattern=r"^(Default|.*\.BIA)$", description="File name of code/phase bias file")
     leo_quaternions: Optional[str] = Field(default="Default", description="File name of LEO quaternions file")
 
     @field_validator("satellite_orbit", "satellite_clock", "erp", "quaternions", "code_phase_bias",mode='before')
     def override_patternmatch(cls, value: str, field: Field) -> str:
+        if value == None:
+            value = "Default"
         if value != "Default":
             # If the value is not "Default", return it as is
             return value
-        match field.field_name:
-            case "satellite_orbit":
-                return "Default" + ".SP3"
-            case "satellite_clock":
-                return "Default" + ".CLK"
-            case "erp":
-                return "Default" + ".ERP"
-            case "quaternions":
-                return "Default" + ".OBX"
-            case "code_phase_bias":
-                return "Default" + ".BIA"
-            case _:
-                return value
-
+   
 class DataProcessingStrategies(BaseModel):
     strict_editing: str = "Default"
     rck_model: str = "Default"
