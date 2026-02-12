@@ -586,7 +586,8 @@ class SV3Pipeline(WorkflowABC):
                     settings=self.config.rinex_config.settings_path,
                     writedir=rinexDestination,  # where to write the RINEX files
                     time_interval=self.config.rinex_config.time_interval, # seconds
-                processing_year=year,  
+                    processing_year=year,
+                    modulo_millis=self.config.rinex_config.modulo_millis,
                 )
 
                 if len(rinex_paths) == 0:

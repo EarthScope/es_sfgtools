@@ -5,6 +5,7 @@ import (
 
 	tiledb "github.com/TileDB-Inc/TileDB-Go"
 )
+
 func WriteINSPOSRecordToTileDB(arr string, region string, insRecords []INSCompleteRecord) error {
 	if len(insRecords) == 0 {
 		return fmt.Errorf("no INS records to write")
@@ -120,13 +121,13 @@ func WriteINSPOSRecordToTileDB(arr string, region string, insRecords []INSComple
 	if err != nil {
 		return err
 	}
-	ctx,err := tiledb.NewContext(config)
+	ctx, err := tiledb.NewContext(config)
 	if err != nil {
 		return fmt.Errorf("error creating TileDB context with config: %v", err)
 	}
 	defer ctx.Free()
 
-	array,err := tiledb.NewArray(ctx, arr)
+	array, err := tiledb.NewArray(ctx, arr)
 	if err != nil {
 		return fmt.Errorf("error creating TileDB array: %v", err)
 	}

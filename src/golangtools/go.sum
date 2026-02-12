@@ -1,5 +1,5 @@
-github.com/TileDB-Inc/TileDB-Go v0.36.0 h1:GrRWdqeXh9JKN4CAYZj06WMtRBaxMxpPX9WSbw91qp0=
-github.com/TileDB-Inc/TileDB-Go v0.36.0/go.mod h1:E3fel5haYwec/ksIcpsdRYhK/XmhWld8TcuFK1GCE7E=
+github.com/TileDB-Inc/TileDB-Go v0.39.0 h1:ILWCeIMF7GqjyoUglh6dg1XxrEPrUkr7d6+r8OGHfoU=
+github.com/TileDB-Inc/TileDB-Go v0.39.0/go.mod h1:E3fel5haYwec/ksIcpsdRYhK/XmhWld8TcuFK1GCE7E=
 github.com/bamiaux/iobit v0.0.0-20170418073505-498159a04883 h1:XNtOMwxmV2PI/vuTHDZnFzGIFNUh8MK73q7+Kna7AXs=
 github.com/bamiaux/iobit v0.0.0-20170418073505-498159a04883/go.mod h1:9IjZnSQGh45J46HHS45pxuMJ6WFTtSXbaX0FoHDvxh8=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

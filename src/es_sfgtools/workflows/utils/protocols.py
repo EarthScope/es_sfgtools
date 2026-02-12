@@ -708,3 +708,4 @@ class WorkflowABC(ABC):
             current_survey_dir = self.current_campaign_dir.add_survey(name=survey_id)
         self.current_survey_dir = current_survey_dir
         self.current_survey_dir.build()
+    

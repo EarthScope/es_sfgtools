@@ -46,7 +46,7 @@ def novatel_ascii_2tile(files: List[str], gnss_obs_tdb: Path, n_procs: int = 10)
 
     parse_cli_logs(result, logger)
 
-def novatel_ascii_2rinex(file:Path,writedir:Path=None,site:str="SIT1",metadata:dict|MetadataModel|Path|str=None,**kwargs) -> List[Path]:
+def novatel_ascii_2rinex(file:Path,writedir:Path=None,site:str="SIT1",metadata:dict|MetadataModel|Path|str=None,modulo_millis:int=0,**kwargs) -> List[Path]:
     """Convert a NovAtel ASCII file to a daily RINEX file using nova2rnxo.
     This function wraps the external `nova2rnxo` binary to convert a NovAtel ASCII
     observation file into a daily RINEX file. Metadata describing the site and
@@ -76,6 +76,11 @@ def novatel_ascii_2rinex(file:Path,writedir:Path=None,site:str="SIT1",metadata:d
           * A path (or string path) to a JSON file with metadata.
         If provided, it is validated against `MetadataModel`. If provided as a
         dict or `MetadataModel`, a JSON metadata file is written to `writedir`.
+    modulo_millis : int, optional
+        Decimation modulo in milliseconds (e.g., 1000 for 1 Hz, 15000 for 15s
+        intervals). If 0, no decimation is applied. Loss-of-lock indicators
+        from skipped epochs are propagated to the next written epoch. Default
+        is 0 (no decimation).
     **kwargs
         Currently unused; accepted for future extensibility.
 
@@ -148,7 +153,10 @@ def novatel_ascii_2rinex(file:Path,writedir:Path=None,site:str="SIT1",metadata:d
 
     with tempfile.TemporaryDirectory(dir="/tmp/") as workdir:
   
-        cmd = [str(binary_path), "-settings", str(metadata),str(file)]
+        cmd = [str(binary_path), "-settings", str(metadata)]
+        if modulo_millis > 0:
+            cmd.extend(["-modulo", str(modulo_millis)])
+        cmd.append(str(file))
         cmd_str = ' '.join(cmd)
         logger.loginfo(f" Running {cmd_str} in {workdir}")
         result = subprocess.run(cmd, check=True, capture_output=True, cwd=workdir)

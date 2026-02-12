@@ -3,7 +3,7 @@ go 1.24.0
 toolchain go1.24.1
 
 require (
-	github.com/TileDB-Inc/TileDB-Go v0.36.0
+	github.com/TileDB-Inc/TileDB-Go v0.39.0
 	github.com/joho/godotenv v1.5.1
 	github.com/labstack/gommon v0.4.2
 	github.com/sirupsen/logrus v1.9.3
