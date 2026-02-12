@@ -48,8 +48,8 @@ def tile2rinex(
 
     binary_path = get_tile2rinex_binary_path()
 
-    os.environ["LD_LIBRARY_PATH"] = os.environ["CONDA_PREFIX"] + "/lib"
-    os.environ["DYLD_LIBRARY_PATH"] = os.environ["CONDA_PREFIX"] + "/lib"
+    os.environ["LD_LIBRARY_PATH"] = os.environ["CONDA_PREFIX"] + "/lib" + ":" + os.environ.get("LD_LIBRARY_PATH", "")
+    os.environ["DYLD_LIBRARY_PATH"] = os.environ["CONDA_PREFIX"] + "/lib" + ":" + os.environ.get("DYLD_LIBRARY_PATH", "")
     with tempfile.TemporaryDirectory(dir="/tmp/") as workdir:
         # Use a temp dir so as to only return newly created rinex files
         cmd = [

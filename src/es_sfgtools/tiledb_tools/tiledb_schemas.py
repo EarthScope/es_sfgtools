@@ -12,11 +12,12 @@ local and S3 storage.
 import datetime
 import os
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from es_sfgtools.novatel_tools.rangea_parser import GNSSEpoch
 import tiledb
 from cloudpathlib import S3Path
 
@@ -659,3 +660,137 @@ class TDBGNSSObsArray(TBDArray):
             except Exception as e:
                 logger.logerr(e)
                 return None
+
+    def write_epochs(self, epochs: List[GNSSEpoch], region: str = "us-east-2") -> int:
+        """
+        Write GNSS observation epochs to this TileDB array.
+
+        This method is the Python equivalent of the Go WriteObsV3Array function.
+        It flattens the hierarchical epoch/satellite/observation structure into
+        columnar buffers and writes them to the TileDB array.
+
+        Array Schema (dimensions):
+            - time (int64): UTC timestamp in milliseconds since Unix epoch
+            - sys (uint8): GNSS system identifier
+            - sat (uint8): Satellite PRN/slot number
+            - obs (uint16): Observation type code (2-char code as uint16)
+
+        Array Schema (attributes):
+            - range (float64): Pseudorange measurement in meters
+            - phase (float64): Carrier phase in cycles
+            - doppler (float64): Doppler frequency in Hz
+            - snr (float32): Signal-to-noise ratio in dB-Hz
+            - slip (uint16): Lock time / slip counter
+            - flags (uint16): Observation flags
+            - fcn (int8): GLONASS frequency channel number
+
+        Args:
+            epochs: List of GNSSEpoch objects to write
+            region: AWS region for S3 arrays (default: "us-east-2")
+
+        Returns:
+            Number of observations written
+
+        Raises:
+            ValueError: If epochs list is empty
+            tiledb.TileDBError: If array operations fail
+
+        Example:
+            >>> from es_sfgtools.novatel_tools import deserialize_rangea
+            >>> epochs = [deserialize_rangea(s) for s in rangea_strings]
+            >>> gnss_array = TDBGNSSObsArray("/path/to/array")
+            >>> count = gnss_array.write_epochs(epochs)
+            >>> print(f"Wrote {count} observations")
+        """
+        if not epochs:
+            raise ValueError("No epochs provided to write")
+
+        # Dimension buffers (matching Go code)
+        d0_buffer: List[int] = []  # time - int64 (Unix milliseconds)
+        d1_buffer: List[int] = []  # sys - uint8
+        d2_buffer: List[int] = []  # sat - uint8
+        d3_buffer: List[int] = []  # obs - uint16
+
+        # Attribute buffers (matching Go code)
+        a0_buffer: List[float] = []  # range - float64
+        a1_buffer: List[float] = []  # phase - float64
+        a2_buffer: List[float] = []  # doppler - float64
+        a3_buffer: List[float] = []  # snr - float32
+        a4_buffer: List[int] = []  # slip (LLI) - uint16
+        a5_buffer: List[int] = []  # flags - uint16
+        a6_buffer: List[int] = []  # fcn - int8
+
+        # Loop over epochs
+        for epoch in epochs:
+            epoch_time_ms = int(epoch.time.timestamp() * 1000)
+
+            # Loop over satellites
+            for (sys_id, prn), satellite in epoch.satellites.items():
+                # Loop over observations for this satellite
+                for signal_type, obs in satellite.observations.items():
+                    # Convert signal type to observation code uint16
+                    # Using signal_type directly as the obs dimension
+                    obs_code_uint16 = signal_type
+
+                    # Dimensions (coordinates)
+                    d0_buffer.append(epoch_time_ms)
+                    d1_buffer.append(int(sys_id))
+                    d2_buffer.append(int(prn))
+                    d3_buffer.append(int(obs_code_uint16))
+
+                    # Attributes
+                    a0_buffer.append(obs.pseudorange)
+                    a1_buffer.append(obs.carrier_phase)
+                    a2_buffer.append(obs.doppler)
+                    a3_buffer.append(obs.cn0)
+
+                    # Compute slip from locktime (matching Go: obs.LLI)
+                    slip = int(obs.locktime * 10) & 0xFFFF
+                    a4_buffer.append(slip)
+
+                    # Compute flags
+                    flags = 0
+                    if obs.half_cycle_ambiguity:
+                        flags |= 0x02
+                    if not obs.phase_lock:
+                        flags |= 0x01  # LLI
+                    a5_buffer.append(flags)
+
+                    # FCN
+                    a6_buffer.append(int(satellite.fcn))
+
+        if not d0_buffer:
+            raise ValueError("No observations found in epochs")
+
+        # Convert to numpy arrays with correct dtypes
+        d0_arr = np.array(d0_buffer, dtype=np.int64)
+        d1_arr = np.array(d1_buffer, dtype=np.uint8)
+        d2_arr = np.array(d2_buffer, dtype=np.uint8)
+        d3_arr = np.array(d3_buffer, dtype=np.uint16)
+
+        a0_arr = np.array(a0_buffer, dtype=np.float64)
+        a1_arr = np.array(a1_buffer, dtype=np.float64)
+        a2_arr = np.array(a2_buffer, dtype=np.float64)
+        a3_arr = np.array(a3_buffer, dtype=np.float32)
+        a4_arr = np.array(a4_buffer, dtype=np.uint16)
+        a5_arr = np.array(a5_buffer, dtype=np.uint16)
+        a6_arr = np.array(a6_buffer, dtype=np.int8)
+
+        # Configure TileDB context
+        config = tiledb.Config()
+        config["vfs.s3.region"] = region
+        tiledb_ctx = tiledb.Ctx(config=config)
+
+        # Open array and write
+        with tiledb.open(str(self.uri), mode="w", ctx=tiledb_ctx) as array:
+            array[d0_arr, d1_arr, d2_arr, d3_arr] = {
+                "range": a0_arr,
+                "phase": a1_arr,
+                "doppler": a2_arr,
+                "snr": a3_arr,
+                "slip": a4_arr,
+                "flags": a5_arr,
+                "fcn": a6_arr,
+            }
+
+        return len(d0_buffer)
