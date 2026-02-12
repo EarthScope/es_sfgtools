@@ -27,7 +27,11 @@ from .config import (
     SVP_FILE_NAME,
     TILEDB_DIR,
     SURVEY_METADATA_FILE,
-    INTERMEDIATE_DATA_DIR
+    INTERMEDIATE_DATA_DIR,
+    QC_SHOTDATA_TDB,
+    QC_SHOTDATA_PRE_TDB,
+    QC_KIN_POSITION_TDB,
+    QC_GNSS_OBS_TDB,
 )
 
 class _Base(BaseModel):
@@ -269,6 +273,20 @@ class TileDBDir(_Base):
         default=None, description="The acoustic TileDB path"
     )
 
+    # QC-specific TileDB paths (separate from normal pipeline)
+    qc_shot_data: Optional[Union[Path, S3Path]] = Field(
+        default=None, description="The QC shotdata TileDB path"
+    )
+    qc_shot_data_pre: Optional[Union[Path, S3Path]] = Field(
+        default=None, description="The QC preprocessed shotdata TileDB path"
+    )
+    qc_kin_position_data: Optional[Union[Path, S3Path]] = Field(
+        default=None, description="The QC kinematic position TileDB path"
+    )
+    qc_gnss_obs_data: Optional[Union[Path, S3Path]] = Field(
+        default=None, description="The QC GNSS observation TileDB path"
+    )
+
     station: Union[Path, S3Path] = Field(..., description="The station directory path")
 
     def build(self):
@@ -292,6 +310,15 @@ class TileDBDir(_Base):
             self.imu_position_data = self.location / IMU_POSITION_TDB
         if not self.acoustic_data:
             self.acoustic_data = self.location / ACOUSTIC_TDB
+        # QC-specific TileDB paths
+        if not self.qc_shot_data:
+            self.qc_shot_data = self.location / QC_SHOTDATA_TDB
+        if not self.qc_shot_data_pre:
+            self.qc_shot_data_pre = self.location / QC_SHOTDATA_PRE_TDB
+        if not self.qc_kin_position_data:
+            self.qc_kin_position_data = self.location / QC_KIN_POSITION_TDB
+        if not self.qc_gnss_obs_data:
+            self.qc_gnss_obs_data = self.location / QC_GNSS_OBS_TDB
 
     def to_s3(self) -> None:
         # Convert all Path attributes to S3Path
@@ -354,6 +381,23 @@ class TileDBDir(_Base):
         acoustic_data_path = path / ACOUSTIC_TDB
         if acoustic_data_path.exists():
             tiledb_dir.acoustic_data = acoustic_data_path
+
+        # QC-specific TileDB paths
+        qc_shot_data_path = path / QC_SHOTDATA_TDB
+        if qc_shot_data_path.exists():
+            tiledb_dir.qc_shot_data = qc_shot_data_path
+
+        qc_shot_data_pre_path = path / QC_SHOTDATA_PRE_TDB
+        if qc_shot_data_pre_path.exists():
+            tiledb_dir.qc_shot_data_pre = qc_shot_data_pre_path
+
+        qc_kin_position_data_path = path / QC_KIN_POSITION_TDB
+        if qc_kin_position_data_path.exists():
+            tiledb_dir.qc_kin_position_data = qc_kin_position_data_path
+
+        qc_gnss_obs_data_path = path / QC_GNSS_OBS_TDB
+        if qc_gnss_obs_data_path.exists():
+            tiledb_dir.qc_gnss_obs_data = qc_gnss_obs_data_path
 
         return tiledb_dir
 

@@ -24,6 +24,12 @@ SHOTDATA_PRE_TDB = "shotdata_pre.tdb"
 GNSS_OBS_TDB = "gnss_obs.tdb"
 GNSS_OBS_SECONDARY_TDB = "gnss_obs_secondary.tdb"
 
+# QC-specific TileDB array names
+QC_SHOTDATA_TDB = "qc_shotdata.tdb"
+QC_SHOTDATA_PRE_TDB = "qc_shotdata_pre.tdb"
+QC_KIN_POSITION_TDB = "qc_kin_position.tdb"
+QC_GNSS_OBS_TDB = "qc_gnss_obs.tdb"
+
 # Asset catalog database file name
 ASSET_CATALOG = "catalog.sqlite"
 

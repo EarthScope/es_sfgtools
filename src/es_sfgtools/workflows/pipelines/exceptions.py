@@ -35,3 +35,15 @@ class NoLocalData(Exception):
     """Custom exception raised when no data is ingested for processing."""
 
     pass
+
+
+class NoQCPinFound(Exception):
+    """Custom exception raised when no QC PIN files are found for processing."""
+
+    pass
+
+
+class NoNovatelPinFound(Exception):
+    """Custom exception raised when no NOVATEL PIN files are found for processing."""
+
+    pass
