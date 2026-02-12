@@ -612,7 +612,7 @@ class SV3Pipeline(WorkflowABC):
                         timestamp_created=datetime.datetime.now()
                     )
                     rinex_entries.append(rinex_entry)
-                    if self.asset_catalog.add_entry(rinex_entry):
+                    if self.asset_catalog.add_or_update(rinex_entry):
                         uploadCount += 1
 
                 self.asset_catalog.add_merge_job(**merge_signature)

@@ -29,8 +29,8 @@ from src.manifest import PipelineManifest
 
 # This adds the PRIDE binary path to the system's PATH.
 # A better long-term solution is for the user to configure this in their shell.
-pride_path = Path.home() / ".PRIDE_PPPAR_BIN"
-os.environ["PATH"] += os.pathsep + str(pride_path)
+# pride_path = Path.home() / ".PRIDE_PPPAR_BIN"
+# os.environ["PATH"] += os.pathsep + str(pride_path)
 
 ProcessLogger.route_to_console()
 

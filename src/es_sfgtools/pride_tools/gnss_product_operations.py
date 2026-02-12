@@ -79,6 +79,7 @@ def download(source: RemoteResourceFTP, dest: Path) -> Path:
         Path: The local path where the file has been saved.
     Raises:
         ftplib.all_errors: If any FTP-related error occurs during the download process.
+        FileNotFoundError: If the downloaded file is empty (0 bytes).
     Example:
         >>> source = WuhanIGS.get_rinex_3_nav(datetime.date(2021,1,1))
         >>> updated_source = update_source(source)
@@ -91,12 +92,24 @@ def download(source: RemoteResourceFTP, dest: Path) -> Path:
     """
 
     logger.loginfo(f"\nAttempting Download of {str(source)} to {str(dest)}\n")
-    with FTP(source.ftpserver.replace("ftp://", ""), timeout=60) as ftp:
-        ftp.set_pasv(True)
-        ftp.login()
-        ftp.cwd("/" + source.directory)
-        with open(dest, "wb") as f:
-            ftp.retrbinary(f"RETR {source.file_name}", f.write)
+    try:
+        with FTP(source.ftpserver.replace("ftp://", ""), timeout=60) as ftp:
+            ftp.set_pasv(True)
+            ftp.login()
+            ftp.cwd("/" + source.directory)
+            with open(dest, "wb") as f:
+                ftp.retrbinary(f"RETR {source.file_name}", f.write)
+    except Exception as e:
+        # Clean up empty file if download failed
+        if dest.exists() and dest.stat().st_size == 0:
+            dest.unlink()
+        raise e
+    
+    # Verify the file was actually downloaded with content
+    if dest.exists() and dest.stat().st_size == 0:
+        dest.unlink()
+        raise FileNotFoundError(f"Downloaded file {dest} is empty (0 bytes). File may not exist on remote server.")
+    
     logger.loginfo(f"\nDownloaded {str(source)} to {str(dest)}\n")
     return dest
 

@@ -67,10 +67,45 @@ def validate_keys_recursively(config_dict: dict, model_class: BaseModel, path: s
 
     return errors
 
+
+def deep_merge_dicts(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
+    """Recursively merge override dict into base dict.
+    
+    For nested dictionaries, values are merged recursively rather than replaced.
+    For other types, override values replace base values.
+    
+    Parameters
+    ----------
+    base : dict
+        The base dictionary to merge into.
+    override : dict
+        The override dictionary with values to merge.
+    
+    Returns
+    -------
+    dict
+        A new dictionary with merged values.
+    """
+    result = base.copy()
+    for key, value in override.items():
+        if value is None:
+            continue  # Skip None values - don't override with None
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            # Recursively merge nested dicts
+            result[key] = deep_merge_dicts(result[key], value)
+        else:
+            # Override the value
+            result[key] = value
+    return result
+
+
 def validate_and_merge_config(
      base_class: BaseModel, override_config: Union[BaseModel, Dict[str, Any]]
 ) -> BaseModel:
     """Validates and merges override configuration with base config, checking for typos.
+    
+    Performs a deep merge so that nested configuration objects (like pride_config)
+    are merged field-by-field rather than completely replaced.
 
     Parameters
     ----------
@@ -112,11 +147,13 @@ def validate_and_merge_config(
     errors = validate_keys_recursively(override_config, base_class)
     if errors:
         raise ValueError("Configuration validation errors:\n" + "\n".join(errors))
-    # If no errors, proceed to merge
-   
-    merged_config = base_class.model_copy(update=override_config)
-    # create new instance to ensure validation
-    updated_config = base_class.__class__(**dict(merged_config))
+    
+    # Deep merge the override config with the base config
+    base_dict = base_class.model_dump()
+    merged_dict = deep_merge_dicts(base_dict, override_config)
+    
+    # Create new instance to ensure validation
+    updated_config = base_class.__class__(**merged_dict)
     return updated_config
 
 
