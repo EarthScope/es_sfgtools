@@ -6,8 +6,8 @@ import sys
 from functools import partial
 from multiprocessing import Pool
 from pathlib import Path
-from typing import List, Optional
-
+from typing import List, Optional, Tuple
+import pandas as pd
 from tqdm.auto import tqdm
 
 # Local Imports
@@ -55,6 +55,22 @@ from .sv3_pipeline import rinex_to_kin_wrapper
 from ..utils.protocols import WorkflowABC, validate_network_station_campaign
 
 
+def process_single_qcpin(
+    entry: AssetEntry,
+) -> Tuple[
+    AssetEntry, Optional[pd.DataFrame], Optional[List[GNSSEpoch]]
+]:
+    try:
+        df= qcjson_to_shotdata(entry.local_path)
+        epochs: Optional[List[GNSSEpoch]] = extract_rangea_from_qcpin(
+            entry.local_path
+        )
+        entry.is_processed = True
+        return entry, df, epochs
+    except Exception as e:
+        ProcessLogger.logerr(f"Error processing {entry.local_path}: {e}")
+        return entry, None, None
+        
 class QCPipeline(WorkflowABC):
     """Orchestrates the QC data processing pipeline for seafloor geodesy.
 
@@ -175,7 +191,7 @@ class QCPipeline(WorkflowABC):
             self.qcShotDataPreTDB = None
             self.qcKinPositionTDB = None
             self.qcShotDataFinalTDB = None
-            self.qcGnssObsTDBURI = None
+            self.qcGnssObsTDB = None
 
         # Call parent method with correct parameter names
         super().set_network_station_campaign(network_id, station_id, campaign_id)
@@ -232,17 +248,7 @@ class QCPipeline(WorkflowABC):
 
         self.config.rinex_config.settings_path = rinex_metav2
 
-    def qcpin_to_shotdata_tdb(self,source:Path) -> None:
 
-        df: Optional[DataFrame[ShotDataFrame]] = qcjson_to_shotdata(source)
-        if df is not None and not df.empty:
-            self.qcShotDataPreTDB.write_df(df)
-
-    def qcpin_to_gnssobs_tdb(self,source:Path) -> None:
-        gnss_epochs: Optional[List[GNSSEpoch]] = extract_rangea_from_qcpin(source)
-        if gnss_epochs is not None and len(gnss_epochs) > 0:
-            self.qcGnssObsTDB.write_epochs(gnss_epochs)
-    
     @validate_network_station_campaign
     def process_qcpin(self) -> None:
         """Process QC PIN files to generate preliminary shotdata.
@@ -274,24 +280,14 @@ class QCPipeline(WorkflowABC):
         ProcessLogger.loginfo(response)
         count = 0
 
-        def process_single_qcpin(entry: AssetEntry) -> AssetEntry:
-            try:
-                self.qcpin_to_shotdata_tdb(entry.local_path)
-                self.qcpin_to_gnssobs_tdb(entry.local_path)
-                ProcessLogger.logdebug(f"Processed {entry.local_path}")
-                entry.is_processed = True
-                return entry
-            except Exception as e:
-                ProcessLogger.logerr(f"Error processing {entry.local_path}: {e}")
-                return entry
-        
-        with concurrent.futures.ThreadPoolExecutor(max_workers=self.config.qcpin_config.n_processes) as executor:
-            futures = [executor.submit(process_single_qcpin, entry) for entry in qcpin_entries]
-            for future in tqdm(concurrent.futures.as_completed(futures), total=len(futures), desc="Processing QCPIN files"):
-                result_entry = future.result()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=50) as executor:
+            futures = executor.map(process_single_qcpin, qcpin_entries)
+            for result_entry, df, epochs in tqdm(futures, total=len(qcpin_entries), desc="Processing QCPIN files"):
                 if result_entry.is_processed:
-                    count += 1
-                self.asset_catalog.add_or_update(result_entry)
+                    count += 1  
+                    executor.submit(self.qcShotDataPreTDB.write_df, df)
+                    executor.submit(self.qcGnssObsTDB.write_epochs, epochs)
+                    executor.submit(self.asset_catalog.add_or_update, result_entry)
 
         response = f"Processed {count} out of {len(qcpin_entries)} QCPIN Files"
         ProcessLogger.loginfo(response)
@@ -628,7 +624,7 @@ class QCPipeline(WorkflowABC):
             self.process_qcpin()
         except NoQCPinFound:
             pass
-        
+
         try:
             self.get_rinex_files()
         except NoRinexBuilt:
