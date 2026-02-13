@@ -384,6 +384,81 @@ def deserialize_rangea(rangea_string: str) -> GNSSEpoch:
     return epoch
 
 
+def extract_rangea_from_qcpin(data: dict) -> List[GNSSEpoch]:
+    """
+    Extract and parse all RANGEA logs from a SonardyneV3 JSON structure.
+    
+    This function searches through a JSON dictionary (typically from SV3 event data)
+    for NOV_RANGE observations containing raw RANGEA strings, parses them into
+    GNSSEpoch objects, and returns all unique epochs.
+    
+    The JSON structure is expected to have entries like:
+        {
+            "interrogation": {"observations": {"NOV_RANGE": {"raw": "#RANGEA,...", "time": {...}}}},
+            "007BE1": {"observations": {"NOV_RANGE": {"raw": "#RANGEA,...", "time": {...}}}},
+            ...
+        }
+    
+    Args:
+        data: Dictionary containing SV3 event data with NOV_RANGE observations
+        
+    Returns:
+        List of unique GNSSEpoch objects, deduplicated by GPS week/seconds
+        
+    Raises:
+        ValueError: If data is not a valid dictionary
+        
+    Example:
+        >>> import json
+        >>> with open('sv3_event.qcpin') as f:
+        ...     data = json.load(f)
+        >>> epochs = extract_rangea_from_json(data)
+        >>> print(f"Found {len(epochs)} unique epochs")
+    """
+    if not isinstance(data, dict):
+        raise ValueError("Expected a dictionary input")
+    
+    epochs: List[GNSSEpoch] = []
+    seen_epochs: set = set()  # Track (gps_week, gps_seconds) to deduplicate
+    
+    def _extract_nov_range(obj: dict) -> None:
+        """Recursively search for NOV_RANGE entries."""
+        if not isinstance(obj, dict):
+            return
+            
+        # Check if this dict has NOV_RANGE with a raw field
+        if "NOV_RANGE" in obj:
+            nov_range = obj["NOV_RANGE"]
+            if isinstance(nov_range, dict) and "raw" in nov_range:
+                raw_rangea = nov_range["raw"]
+                if isinstance(raw_rangea, str) and "#RANGEA" in raw_rangea:
+                    try:
+                        epoch = deserialize_rangea(raw_rangea)
+                        # Deduplicate by GPS time
+                        epoch_key = (epoch.gps_week, epoch.gps_seconds)
+                        if epoch_key not in seen_epochs:
+                            seen_epochs.add(epoch_key)
+                            epochs.append(epoch)
+                    except ValueError:
+                        pass  # Skip invalid RANGEA strings
+        
+        # Check observations dict specifically
+        if "observations" in obj:
+            _extract_nov_range(obj["observations"])
+        
+        # Recurse into all dict values
+        for key, value in obj.items():
+            if isinstance(value, dict):
+                _extract_nov_range(value)
+    
+    # Process each top-level entry
+    for key, value in data.items():
+        if isinstance(value, dict):
+            _extract_nov_range(value)
+    
+    return epochs
+
+
 def epoch_to_dict(epoch: GNSSEpoch) -> dict:
     """
     Convert an Epoch object to a dictionary for serialization.
