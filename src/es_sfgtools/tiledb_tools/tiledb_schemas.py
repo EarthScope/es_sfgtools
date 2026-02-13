@@ -607,7 +607,7 @@ class TDBShotDataArray(TBDArray):
             validate (bool, optional): Whether to validate the dataframe.
                 Defaults to True.
         """
-        logger.logdebug(f" Writing dataframe to {self.uri}")
+        #logger.logdebug(f" Writing dataframe to {self.uri}")
         if validate:
             df_val = self.dataframe_schema.validate(df, lazy=True)
         else:

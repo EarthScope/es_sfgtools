@@ -12,6 +12,7 @@ measurements for all tracked satellites across multiple constellations.
 
 import datetime
 from enum import IntEnum
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from pydantic import BaseModel, Field, computed_field
@@ -384,12 +385,12 @@ def deserialize_rangea(rangea_string: str) -> GNSSEpoch:
     return epoch
 
 
-def extract_rangea_from_qcpin(data: dict) -> List[GNSSEpoch]:
+def extract_rangea_from_qcpin(source: str | Path) -> List[GNSSEpoch]:
     """
-    Extract and parse all RANGEA logs from a SonardyneV3 JSON structure.
+    Extract and parse all RANGEA logs from a QC PIN file.
     
-    This function searches through a JSON dictionary (typically from SV3 event data)
-    for NOV_RANGE observations containing raw RANGEA strings, parses them into
+    This function loads a QC PIN JSON file and searches through it for
+    NOV_RANGE observations containing raw RANGEA strings, parses them into
     GNSSEpoch objects, and returns all unique epochs.
     
     The JSON structure is expected to have entries like:
@@ -400,23 +401,33 @@ def extract_rangea_from_qcpin(data: dict) -> List[GNSSEpoch]:
         }
     
     Args:
-        data: Dictionary containing SV3 event data with NOV_RANGE observations
+        source: Path to the QC PIN file in JSON format
         
     Returns:
-        List of unique GNSSEpoch objects, deduplicated by GPS week/seconds
-        
-    Raises:
-        ValueError: If data is not a valid dictionary
+        List of unique GNSSEpoch objects, deduplicated by GPS week/seconds.
+        Returns empty list if file cannot be read or contains no valid RANGEA logs.
         
     Example:
-        >>> import json
-        >>> with open('sv3_event.qcpin') as f:
-        ...     data = json.load(f)
-        >>> epochs = extract_rangea_from_json(data)
+        >>> epochs = extract_rangea_from_qcpin("/path/to/file.pin")
         >>> print(f"Found {len(epochs)} unique epochs")
     """
+    import json
+    path = Path(source)
+    
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+    except UnicodeDecodeError:
+        try:
+            with open(path, encoding="latin-1") as f:
+                data = json.load(f)
+        except (FileNotFoundError, PermissionError, json.JSONDecodeError):
+            return []
+    except (FileNotFoundError, PermissionError, json.JSONDecodeError):
+        return []
+    
     if not isinstance(data, dict):
-        raise ValueError("Expected a dictionary input")
+        return []
     
     epochs: List[GNSSEpoch] = []
     seen_epochs: set = set()  # Track (gps_week, gps_seconds) to deduplicate
