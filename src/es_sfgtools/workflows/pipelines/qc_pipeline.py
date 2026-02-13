@@ -20,6 +20,8 @@ from es_sfgtools.data_mgmt.directorymgmt import (
     NetworkDir,
     StationDir,
 )
+from es_sfgtools.data_models.observables import ShotDataFrame
+from pandera.typing import DataFrame
 from es_sfgtools.data_mgmt.utils import get_merge_signature_shotdata
 from es_sfgtools.novatel_tools import novatel_ascii_operations as nova_ops
 from es_sfgtools.novatel_tools.utils import get_metadata, get_metadatav2
@@ -32,6 +34,7 @@ from es_sfgtools.pride_tools import (
     rinex_utils,
 )
 from es_sfgtools.sonardyne_tools.sv3_qc_operations import qcjson_to_shotdata
+from es_sfgtools.novatel_tools.rangea_parser import GNSSEpoch, extract_rangea_from_qcpin
 from es_sfgtools.tiledb_tools.tiledb_operations import tile2rinex
 from es_sfgtools.tiledb_tools.tiledb_schemas import (
     TDBGNSSObsArray,
@@ -208,8 +211,8 @@ class QCPipeline(WorkflowABC):
             self.qcKinPositionTDB = TDBKinPositionArray(tiledb_dir.qc_kin_position_data)
         if self.qcShotDataFinalTDB is None:
             self.qcShotDataFinalTDB = TDBShotDataArray(tiledb_dir.qc_shot_data)
-        if self.qcGnssObsTDBURI is None:
-            self.qcGnssObsTDBURI = tiledb_dir.qc_gnss_obs_data
+        if self.qcGnssObsTDB is None:
+            self.qcGnssObsTDB = TDBGNSSObsArray(tiledb_dir.qc_gnss_obs_data)
 
     def _build_rinex_meta(self) -> None:
         """Build RINEX metadata files for the current campaign if they don't exist."""
@@ -229,6 +232,17 @@ class QCPipeline(WorkflowABC):
 
         self.config.rinex_config.settings_path = rinex_metav2
 
+    def qcpin_to_shotdata_tdb(self,source:Path) -> None:
+
+        df: Optional[DataFrame[ShotDataFrame]] = qcjson_to_shotdata(source)
+        if df is not None and not df.empty:
+            self.qcShotDataPreTDB.write_df(df)
+
+    def qcpin_to_gnssobs_tdb(self,source:Path) -> None:
+        gnss_epochs: Optional[List[GNSSEpoch]] = extract_rangea_from_qcpin(source)
+        if gnss_epochs is not None and len(gnss_epochs) > 0:
+            self.qcGnssObsTDB.write_epochs(gnss_epochs)
+    
     @validate_network_station_campaign
     def process_qcpin(self) -> None:
         """Process QC PIN files to generate preliminary shotdata.
@@ -252,139 +266,35 @@ class QCPipeline(WorkflowABC):
             )
         )
         if not qcpin_entries:
-            response = f"No QCPIN Files Found to Process for {self.current_network_name} {self.current_station_name} {self.current_campaign_name}"
+            response = f"No QCPIN Files Found for {self.current_network_name} {self.current_station_name} {self.current_campaign_name}"
             ProcessLogger.logerr(response)
             raise NoQCPinFound(response)
 
-        response = f"Found {len(qcpin_entries)} QCPIN Files to Process"
+        response = f"Found {len(qcpin_entries)} QCPIN Files"
         ProcessLogger.loginfo(response)
         count = 0
 
-        with Pool(processes=self.config.qcpin_config.n_processes) as pool:
-            results = pool.imap(
-                qcjson_to_shotdata, [x.local_path for x in qcpin_entries]
-            )
-            for shotdata_df, qcpin_entry in tqdm(
-                zip(results, qcpin_entries),
-                total=len(qcpin_entries),
-                desc="Processing QCPIN Files",
-            ):
-                if shotdata_df is not None and not shotdata_df.empty:
-                    self.qcShotDataPreTDB.write_df(shotdata_df)
+        def process_single_qcpin(entry: AssetEntry) -> AssetEntry:
+            try:
+                self.qcpin_to_shotdata_tdb(entry.local_path)
+                self.qcpin_to_gnssobs_tdb(entry.local_path)
+                ProcessLogger.logdebug(f"Processed {entry.local_path}")
+                entry.is_processed = True
+                return entry
+            except Exception as e:
+                ProcessLogger.logerr(f"Error processing {entry.local_path}: {e}")
+                return entry
+        
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.config.qcpin_config.n_processes) as executor:
+            futures = [executor.submit(process_single_qcpin, entry) for entry in qcpin_entries]
+            for future in tqdm(concurrent.futures.as_completed(futures), total=len(futures), desc="Processing QCPIN files"):
+                result_entry = future.result()
+                if result_entry.is_processed:
                     count += 1
-                    qcpin_entry.is_processed = True
-                    self.asset_catalog.add_or_update(qcpin_entry)
-                    ProcessLogger.logdebug(f" Processed {qcpin_entry.local_path}")
-                else:
-                    ProcessLogger.logerr(f"Failed to Process {qcpin_entry.local_path}")
+                self.asset_catalog.add_or_update(result_entry)
 
-        self.qcShotDataPreTDB.consolidate()
-
-        response = f"Generated {count} ShotData dataframes From {len(qcpin_entries)} QCPIN Files"
+        response = f"Processed {count} out of {len(qcpin_entries)} QCPIN Files"
         ProcessLogger.loginfo(response)
-
-    @validate_network_station_campaign
-    def parse_rangea_logs_from_qcpin(self) -> None:
-        """Generate ASCII files containing RANGEA lines from QC PIN files.
-
-        This method extracts RANGEA log entries from QC PIN JSON files and
-        writes them to NOVATEL PIN text files for subsequent GNSS processing.
-        """
-        qcpin_entries: List[AssetEntry] = (
-            self.asset_catalog.get_single_entries_to_process(
-                network=self.current_network_name,
-                station=self.current_station_name,
-                campaign=self.current_campaign_name,
-                parent_type=AssetType.QCPIN,
-                override=self.config.qcpin_config.override,
-            )
-        )
-        if not qcpin_entries:
-            response = f"No QCPIN Files Found to Process for {self.current_network_name} {self.current_station_name} {self.current_campaign_name}"
-            ProcessLogger.logerr(response)
-            raise NoQCPinFound(response)
-
-        response = f"Found {len(qcpin_entries)} QCPIN Files to Process"
-        ProcessLogger.loginfo(response)
-        count = 0
-
-        inter_dir = self.current_campaign_dir.intermediate
-
-        with Pool(processes=self.config.qcpin_config.n_processes) as pool:
-            params = [(x.local_path, inter_dir) for x in qcpin_entries]
-            results = pool.starmap(nova_ops.qcpin_to_novatelpin, params)
-            for path, qcpin_entry in tqdm(
-                zip(results, qcpin_entries),
-                total=len(qcpin_entries),
-                desc="Extracting RANGEA logs from QCPIN Files",
-            ):
-                if path is not None and path.exists():
-                    asset_entry = AssetEntry(
-                        local_path=path,
-                        network=self.current_network_name,
-                        station=self.current_station_name,
-                        campaign=self.current_campaign_name,
-                        type=AssetType.NOVATELPIN,
-                        timestamp_created=datetime.datetime.now(),
-                    )
-
-                    if self.asset_catalog.add_entry(asset_entry):
-                        count += 1
-                    qcpin_entry.is_processed = True
-                    self.asset_catalog.add_or_update(qcpin_entry)
-                    ProcessLogger.logdebug(f" Processed {qcpin_entry.local_path}")
-                else:
-                    ProcessLogger.logerr(f"Failed to Process {qcpin_entry.local_path}")
-
-        ProcessLogger.loginfo(
-            f"Processed {len(qcpin_entries)} and added {count} novatel_pin files to the catalog"
-        )
-
-    @validate_network_station_campaign
-    def process_rangea_logs(self) -> None:
-        """Process NOVATEL PIN files into TileDB GNSS observation array.
-
-        This method retrieves all NOVATEL PIN files and processes them
-        using the nova2tile binary to populate the QC GNSS observation TileDB.
-        """
-        novatel_pin_entries: List[AssetEntry] = (
-            self.asset_catalog.get_single_entries_to_process(
-                network=self.current_network_name,
-                station=self.current_station_name,
-                campaign=self.current_campaign_name,
-                parent_type=AssetType.NOVATELPIN,
-                override=self.config.qcpin_config.override,
-            )
-        )
-        if not novatel_pin_entries:
-            response = f"No NOVATELPIN Files Found to Process for {self.current_network_name} {self.current_station_name} {self.current_campaign_name}"
-            ProcessLogger.logerr(response)
-            raise NoNovatelPinFound(response)
-
-        ProcessLogger.loginfo(
-            f"Processing {len(novatel_pin_entries)} NOVATELPIN files"
-        )
-
-        novatel_pin_files = [x.local_path for x in novatel_pin_entries]
-        # Split into batches of 20
-        batch_size = 20
-        batches = [
-            novatel_pin_files[i : i + batch_size]
-            for i in range(0, len(novatel_pin_files), batch_size)
-        ]
-        for batch in batches:
-            nova_ops.novatel_ascii_2tile(
-                files=batch, gnss_obs_tdb=self.qcGnssObsTDBURI
-            )
-
-        # Mark entries as processed
-        for entry in novatel_pin_entries:
-            entry.is_processed = True
-            self.asset_catalog.add_or_update(entry)
-
-        ProcessLogger.loginfo(
-            f"Processed {len(novatel_pin_entries)} NOVATELPIN files into TileDB"
-        )
 
     @validate_network_station_campaign
     def get_rinex_files(self) -> None:
@@ -409,10 +319,10 @@ class QCPipeline(WorkflowABC):
             f"Generating QC Rinex Files for {self.current_network_name} {self.current_station_name} {year}. This may take a few minutes..."
         )
 
-        parent_ids = f"N-{self.current_network_name}|ST-{self.current_station_name}|SV-{self.current_campaign_name}|TDB-{self.qcGnssObsTDBURI}|YEAR-{year}|QC"
+        parent_ids = f"N-{self.current_network_name}|ST-{self.current_station_name}|SV-{self.current_campaign_name}|TDB-{str(self.qcGnssObsTDB.uri)}|YEAR-{year}|QC"
         merge_signature = {
             "parent_type": AssetType.GNSSOBSTDB.value,
-            "child_type": AssetType.RINEX.value,
+            "child_type": AssetType.RINEX2.value,
             "parent_ids": [parent_ids],
         }
 
@@ -450,7 +360,7 @@ class QCPipeline(WorkflowABC):
                         campaign=self.current_campaign_name,
                         timestamp_data_start=rinex_time_start,
                         timestamp_data_end=rinex_time_end,
-                        type=AssetType.RINEX,
+                        type=AssetType.RINEX2,
                         timestamp_created=datetime.datetime.now(),
                     )
                     rinex_entries.append(rinex_entry)
@@ -482,7 +392,7 @@ class QCPipeline(WorkflowABC):
                 self.current_network_name,
                 self.current_station_name,
                 self.current_campaign_name,
-                AssetType.RINEX,
+                AssetType.RINEX2,
             )
             num_rinex_entries = len(rinex_entries)
             ProcessLogger.logdebug(
@@ -515,7 +425,7 @@ class QCPipeline(WorkflowABC):
                 network=self.current_network_name,
                 station=self.current_station_name,
                 campaign=self.current_campaign_name,
-                parent_type=AssetType.RINEX,
+                parent_type=AssetType.RINEX2,
                 child_type=AssetType.KIN,
                 override=self.config.pride_config.override,
             )
@@ -718,17 +628,7 @@ class QCPipeline(WorkflowABC):
             self.process_qcpin()
         except NoQCPinFound:
             pass
-
-        try:
-            self.parse_rangea_logs_from_qcpin()
-        except NoQCPinFound:
-            pass
-
-        try:
-            self.process_rangea_logs()
-        except NoNovatelPinFound:
-            pass
-
+        
         try:
             self.get_rinex_files()
         except NoRinexBuilt:
