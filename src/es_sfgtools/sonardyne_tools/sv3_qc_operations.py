@@ -5,6 +5,8 @@ from typing import Dict, List
 import pandas as pd
 from pandera.typing import DataFrame
 
+from es_sfgtools.novatel_tools.rangea_parser import GNSSEpoch
+
 from es_sfgtools.data_models.observables import ShotDataFrame
 from es_sfgtools.data_models.sv3_models import NovatelInterrogationEvent, NovatelRangeEvent
 from es_sfgtools.logging import ProcessLogger as logger
@@ -135,3 +137,17 @@ def batch_qc_by_day(dataframes:List[pd.DataFrame], date_column:str='pingTime') -
         batched_data[date] = pd.concat(batched_data[date], ignore_index=True)
 
     return dict(batched_data)
+
+# def qcjson_to_gnssepochs(source: str | Path) -> List[GNSSEpoch] | None:
+#     """Convert a QC.pin file into a list of GNSSEpoch objects.
+
+#     Parameters
+#     ----------
+#     source : str | Path
+#         Path to the QC.pin file in JSON format.
+
+#     Returns
+#     -------
+#     List[GNSSEpoch] | None
+#         A list of GNSSEpoch objects if successful, else None.
+#     """
