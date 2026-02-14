@@ -12,6 +12,7 @@ measurements for all tracked satellites across multiple constellations.
 
 import datetime
 from enum import IntEnum
+import json
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -260,7 +261,7 @@ def _gps_to_utc(gps_week: int, gps_seconds: float, leap_seconds: int = GPS_LEAP_
         UTC datetime with timezone info
     """
     total_seconds = gps_week * 604800 + gps_seconds - leap_seconds
-    return GPS_EPOCH + datetime.timedelta(seconds=total_seconds)
+    return GPS_EPOCH + datetime.timedelta(milliseconds=total_seconds * 1000)
 
 
 def deserialize_rangea(rangea_string: str) -> GNSSEpoch:
@@ -411,64 +412,72 @@ def extract_rangea_from_qcpin(source: str | Path) -> List[GNSSEpoch]:
         >>> epochs = extract_rangea_from_qcpin("/path/to/file.pin")
         >>> print(f"Found {len(epochs)} unique epochs")
     """
-    import json
+
     path = Path(source)
-    
+    epochs: List[GNSSEpoch] = []
+
     try:
-        with open(path, encoding="utf-8") as f:
+        rangea_a_strings: List[str] = extract_rangea_strings_from_qcpin(path)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        print(f"Error reading QC PIN file: {path}")
+        return []
+    epochs.extend(deserialize_rangea(s) for s in rangea_a_strings)
+    
+    return epochs
+
+def extract_rangea_strings_from_qcpin(source: str | Path) -> List[str]:
+    """
+    Extract raw RANGEA strings from a QC PIN file.
+    
+    This function loads a QC PIN JSON file and searches through it for
+    NOV_RANGE observations containing raw RANGEA strings, returning a list
+    of all found RANGEA strings without parsing them into epochs.
+    
+    Args:
+        source: Path to the QC PIN file in JSON format
+    Returns:
+        List of raw RANGEA strings found in the file. Returns empty list if
+        file cannot be read or contains no valid RANGEA logs.
+    """
+    path = Path(source)
+
+    try:
+        with open(path) as f:
             data = json.load(f)
     except UnicodeDecodeError:
-        try:
-            with open(path, encoding="latin-1") as f:
-                data = json.load(f)
-        except (FileNotFoundError, PermissionError, json.JSONDecodeError):
-            return []
-    except (FileNotFoundError, PermissionError, json.JSONDecodeError):
         return []
-    
+
     if not isinstance(data, dict):
         return []
-    
-    epochs: List[GNSSEpoch] = []
-    seen_epochs: set = set()  # Track (gps_week, gps_seconds) to deduplicate
-    
-    def _extract_nov_range(obj: dict) -> None:
+
+    rangea_strings: List[str] = []
+
+    def _extract_nov_range(obj: dict) ->str:
         """Recursively search for NOV_RANGE entries."""
         if not isinstance(obj, dict):
             return
-            
+
         # Check if this dict has NOV_RANGE with a raw field
         if "NOV_RANGE" in obj:
             nov_range = obj["NOV_RANGE"]
             if isinstance(nov_range, dict) and "raw" in nov_range:
                 raw_rangea = nov_range["raw"]
                 if isinstance(raw_rangea, str) and "#RANGEA" in raw_rangea:
-                    try:
-                        epoch = deserialize_rangea(raw_rangea)
-                        # Deduplicate by GPS time
-                        epoch_key = (epoch.gps_week, epoch.gps_seconds)
-                        if epoch_key not in seen_epochs:
-                            seen_epochs.add(epoch_key)
-                            epochs.append(epoch)
-                    except ValueError:
-                        pass  # Skip invalid RANGEA strings
-        
-        # Check observations dict specifically
+                    rangea_strings.append(raw_rangea)
+
         if "observations" in obj:
             _extract_nov_range(obj["observations"])
-        
+
         # Recurse into all dict values
         for key, value in obj.items():
             if isinstance(value, dict):
                 _extract_nov_range(value)
-    
-    # Process each top-level entry
+
     for key, value in data.items():
         if isinstance(value, dict):
             _extract_nov_range(value)
-    
-    return epochs
 
+    return list(set(rangea_strings))
 
 def epoch_to_dict(epoch: GNSSEpoch) -> dict:
     """
