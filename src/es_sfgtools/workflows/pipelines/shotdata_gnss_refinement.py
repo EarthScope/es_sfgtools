@@ -503,10 +503,10 @@ def merge_shotdata_kinposition(
 
         shotdata_df = shotdata_pre.read_df(start=date)
         kin_position_df = kin_position.read_df(start=date)
-        position_df = position_data.read_df(start=date)
-        if position_data is None or position_df is None or kin_position_df is None:
+        position_df = position_data.read_df(start=date) if position_data is not None else None
+        if shotdata_df is None:
             continue
-        if shotdata_df.empty or kin_position_df.empty or position_df.empty:
+        if shotdata_df.empty:
             continue
 
         logger.loginfo(f"Interpolating shotdata for date {str(date)}")
