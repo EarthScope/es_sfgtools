@@ -541,7 +541,7 @@ epochLoop:
 			}
 		}
 	}
-
+	epochs = RemoveDuplicateEpochs(epochs)
 	return epochs
 }
 
@@ -811,3 +811,19 @@ func SortFilesByFirstEpochNOV000(files []string) ([]FileTime, error) {
 	})
 	return fileTimes, nil
 }	
+
+
+func RemoveDuplicateEpochs(epochs []observation.Epoch) []observation.Epoch {
+	seen := make(map[time.Time]observation.Epoch)
+	for _, epoch := range epochs {
+		if _, ok := seen[epoch.Time]; !ok {
+			seen[epoch.Time] = epoch
+		}
+	}
+	var uniqueEpochs []observation.Epoch
+	for _, epoch := range seen {
+		uniqueEpochs = append(uniqueEpochs, epoch)
+	}
+	log.Infof("Removed %d duplicate epochs, %d unique epochs remain", len(epochs)-len(uniqueEpochs), len(uniqueEpochs))
+	return uniqueEpochs
+}

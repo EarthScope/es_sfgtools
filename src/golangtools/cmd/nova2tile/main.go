@@ -46,6 +46,7 @@ func main() {
 				return
 			}
 			log.Infof("processed %d epochs from file %s", len(epochs), filename)
+			// filter for duplicates before writing to TileDB
 			err := tiledbgnss.WriteObsV3Array( *tdbPathPtr,"us-east-2",epochs)
 			if err != nil {
 				log.Errorf("error writing epochs to array: %v",err)

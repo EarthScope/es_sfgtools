@@ -46,7 +46,13 @@ def novatel_ascii_2tile(files: List[str], gnss_obs_tdb: Path, n_procs: int = 10)
 
     parse_cli_logs(result, logger)
 
-def novatel_ascii_2rinex(file:Path,writedir:Path=None,site:str="SIT1",metadata:dict|MetadataModel|Path|str=None,modulo_millis:int=0,**kwargs) -> List[Path]:
+def novatel_ascii_2rinex(
+        file:Path,
+        writedir:Path=None,
+        site:str="SIT1",
+        metadata:dict|MetadataModel|Path|str=None,
+        modulo_millis:int=0,
+        *kwargs) -> List[Path]:
     """Convert a NovAtel ASCII file to a daily RINEX file using nova2rnxo.
     This function wraps the external `nova2rnxo` binary to convert a NovAtel ASCII
     observation file into a daily RINEX file. Metadata describing the site and

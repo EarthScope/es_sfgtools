@@ -34,7 +34,7 @@ from es_sfgtools.pride_tools import (
     rinex_utils,
 )
 from es_sfgtools.sonardyne_tools.sv3_qc_operations import qcjson_to_shotdata
-from es_sfgtools.novatel_tools.rangea_parser import GNSSEpoch, extract_rangea_from_qcpin
+from es_sfgtools.novatel_tools.rangea_parser import GNSSEpoch, extract_rangea_from_qcpin,extract_rangea_strings_from_qcpin
 from es_sfgtools.tiledb_tools.tiledb_operations import tile2rinex
 from es_sfgtools.tiledb_tools.tiledb_schemas import (
     TDBGNSSObsArray,
@@ -57,19 +57,19 @@ from ..utils.protocols import WorkflowABC, validate_network_station_campaign
 
 def process_single_qcpin(
     entry: AssetEntry,
-) -> Tuple[
-    AssetEntry, Optional[pd.DataFrame], Optional[List[GNSSEpoch]]
-]:
+    shotdata_tdb: TDBShotDataArray,
+    gnss_obs_tdb: TDBGNSSObsArray
+) -> AssetEntry:
     try:
         df= qcjson_to_shotdata(entry.local_path)
-        epochs: Optional[List[GNSSEpoch]] = extract_rangea_from_qcpin(
-            entry.local_path
-        )
+        rangea_strings: List[str] = extract_rangea_strings_from_qcpin(entry.local_path)
         entry.is_processed = True
-        return entry, df, epochs
+        shotdata_tdb.write_df(df)
+        gnss_obs_tdb.write_rangea_strings(rangea_strings)
+        return entry
     except Exception as e:
         ProcessLogger.logerr(f"Error processing {entry.local_path}: {e}")
-        return entry, None, None
+        return entry
         
 class QCPipeline(WorkflowABC):
     """Orchestrates the QC data processing pipeline for seafloor geodesy.
@@ -280,13 +280,13 @@ class QCPipeline(WorkflowABC):
         ProcessLogger.loginfo(response)
         count = 0
 
+        process_func_partial = partial(process_single_qcpin, shotdata_tdb=self.qcShotDataPreTDB, gnss_obs_tdb=self.qcGnssObsTDB)
         with concurrent.futures.ThreadPoolExecutor(max_workers=50) as executor:
-            futures = executor.map(process_single_qcpin, qcpin_entries)
-            for result_entry, df, epochs in tqdm(futures, total=len(qcpin_entries), desc="Processing QCPIN files"):
+            futures = executor.map(process_func_partial, qcpin_entries)
+            for result_entry in tqdm(futures, total=len(qcpin_entries), desc="Processing QCPIN files"):
                 if result_entry.is_processed:
                     count += 1  
-                    executor.submit(self.qcShotDataPreTDB.write_df, df)
-                    executor.submit(self.qcGnssObsTDB.write_epochs, epochs)
+                    
                     executor.submit(self.asset_catalog.add_or_update, result_entry)
 
         response = f"Processed {count} out of {len(qcpin_entries)} QCPIN Files"
@@ -328,7 +328,7 @@ class QCPipeline(WorkflowABC):
         ):
             try:
                 rinex_paths: List[Path] = tile2rinex(
-                    gnss_obs_tdb=self.qcGnssObsTDBURI,
+                    gnss_obs_tdb=self.qcGnssObsTDB.uri,
                     settings=self.config.rinex_config.settings_path,
                     writedir=rinexDestination,
                     time_interval=self.config.rinex_config.time_interval,
@@ -474,7 +474,7 @@ class QCPipeline(WorkflowABC):
         res_count = 0
         uploadCount = 0
 
-        with Pool(processes=self.config.rinex_config.n_processes) as pool:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.config.rinex_config.n_processes) as pool:
             results = pool.map(process_rinex_partial, rinex_prideconfigs)
 
             for idx, (kinfile, resfile) in enumerate(
@@ -591,13 +591,12 @@ class QCPipeline(WorkflowABC):
         ):
             dates.append(dates[-1] + datetime.timedelta(days=1))
             merge_shotdata_kinposition(
-                shotdata_pre=self.qcShotDataPreTDB,
-                shotdata=self.qcShotDataFinalTDB,
-                kin_position=self.qcKinPositionTDB,
-                dates=dates,
-                lengthscale=self.config.position_update_config.lengthscale,
-                plot=self.config.position_update_config.plot,
-            )
+                    position_data=None,
+                    shotdata_pre=self.qcShotDataPreTDB,
+                    shotdata=self.qcShotDataFinalTDB,
+                    kin_position=self.qcKinPositionTDB,
+                    dates=dates,
+                )
             self.asset_catalog.add_merge_job(**merge_job)
 
     @validate_network_station_campaign
