@@ -57,12 +57,15 @@ pytest = ">=9.0.2,<10"
 # =============================================================================
 # Platform-specific conda dependencies
 # =============================================================================
-[target.linux-64.dependencies]
+[target.linux-aarch64.dependencies]
 bc = "1.07.*"
-sqlite = ">=3.49"
+sqlite = ">=3.49.1"
 gcc = ">=15"
 libstdcxx-ng = ">=15"
 nodejs = ">=24"
+tiledb="2.28"
+tiledb-py="0.34.2"
+scikit-lean="1.7.2
 
 # =============================================================================
 # PyPI dependencies - install this package in editable mode
