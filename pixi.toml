@@ -58,7 +58,6 @@ pytest = ">=9.0.2,<10"
 # Platform-specific conda dependencies
 # =============================================================================
 [target.linux-aarch64.dependencies]
-no-default-fe
 bc = "1.07.*"
 sqlite = ">=3.49.1"
 gcc = ">=15"
