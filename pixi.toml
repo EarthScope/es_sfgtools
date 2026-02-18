@@ -107,4 +107,10 @@ full = { features = ["dev", "notebook"], solve-group = "default" }
 # Activation - environment variables
 # =============================================================================
 [activation]
-env = { CGO_ENABLED = "1", PIP_INDEX_URL = "https://pypi.org/simple", GARPOS_PATH = "$PIXI_PROJECT_ROOT/external/garpos", PATH = "$PIXI_PROJECT_ROOT/external/.PRIDE_PPPAR_BIN:$PATH",DYLD_LIBRARY_PATH = "$PIXI_PROJECT_ROOT/.pixi/envs/$PIXI_ENVIRONMENT_NAME/lib:$DYLD_LIBRARY_PATH" , LD_LIBRARY_PATH = "$PIXI_PROJECT_ROOT/.pixi/envs/$PIXI_ENVIRONMENT_NAME/lib:$LD_LIBRARY_PATH" }
+[activation.env]
+CGO_ENABLED = "1"
+PIP_INDEX_URL = "https://pypi.org/simple"
+GARPOS_PATH = "$PIXI_PROJECT_ROOT/external/garpos"
+PATH = "$PIXI_PROJECT_ROOT/external/.PRIDE_PPPAR_BIN:$PATH"
+DYLD_LIBRARY_PATH = "$PIXI_PROJECT_ROOT/.pixi/envs/$PIXI_ENVIRONMENT_NAME/lib:$DYLD_LIBRARY_PATH"
+LD_LIBRARY_PATH = "$PIXI_PROJECT_ROOT/.pixi/envs/$PIXI_ENVIRONMENT_NAME/lib:$LD_LIBRARY_PATH"
