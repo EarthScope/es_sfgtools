@@ -39,3 +39,4 @@ src/golangtools/build/
 
 .pixi
 external/*
+!external/README.md

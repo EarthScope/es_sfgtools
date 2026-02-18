@@ -13,12 +13,12 @@ docs = { cmd = "make html", cwd = "docs" }
 build-go = { cmd = "make -B", cwd = "src/golangtools" }
 
 # Clone and install garpos from source
-clone-garpos = {"cmd=git clone https://github.com/s-watanabe-jhod/garpos.git cwd=external"}
+clone-garpos = {cmd="git clone https://github.com/s-watanabe-jhod/garpos.git", cwd="external/"}
 compile-garpos = {cmd = "gfortran -shared -fPIC -fopenmp -O3 -o lib_raytrace.so sub_raytrace.f90 lib_raytrace.f90",cwd = "external/garpos/bin/garpos_v102/f90lib", depends-on = ["clone-garpos"]}
 test-garpos = "pytest tests/test_garpos.py -v"
 
 # Clone and install PRIDE-PPPAR
-clone-pride = { cmd = "if [ -d PRIDE-PPPAR ]; then cd PRIDE-PPPAR && git pull; else git clone --depth 1 https://github.com/PrideLab/PRIDE-PPPAR.git PRIDE-PPPAR; fi", cwd = "external/"}
+clone-pride = { cmd = "git clone --depth 1 https://github.com/PrideLab/PRIDE-PPPAR.git", cwd = "external/"}
 install-pride = { cmd = "chmod +x install.sh && echo 'N' | HOME=$PIXI_PROJECT_ROOT/external ./install.sh", cwd = "external/PRIDE-PPPAR", depends-on = ["clone-pride"] }
 test-pride = { cmd = "chmod +x test.sh && ./test.sh", cwd = "external/PRIDE-PPPAR/example"}
 
