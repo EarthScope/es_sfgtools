@@ -63,9 +63,10 @@ sqlite = ">=3.49.1"
 gcc = ">=15"
 libstdcxx-ng = ">=15"
 nodejs = ">=24"
-tiledb="2.28"
-tiledb-py="0.34.2"
-scikit-lean="1.7.2"
+tiledb="==2.28"
+tiledb-py="==0.34.2"
+scikit-lean="==1.7.2"
+scikit-sparse="==0.4.16"
 
 # =============================================================================
 # PyPI dependencies - install this package in editable mode
