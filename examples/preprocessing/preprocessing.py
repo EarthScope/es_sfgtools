@@ -16,7 +16,8 @@ from es_sfgtools.workflows.workflow_handler import WorkflowHandler
 
 
 def main():
-    main_dir = Path("/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain")
+    default_main_dir = Path.home() / "path" / "to" / "your" / "SFGMain"
+    main_dir = Path(os.environ.get("SFG_MAIN_DIR", str(default_main_dir)))
 
     workflow = WorkflowHandler(main_dir)
 
