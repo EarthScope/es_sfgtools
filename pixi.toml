@@ -36,7 +36,7 @@ uv = "*"
 # Core conda dependencies (native libs / better binary compat)
 numpy = ">=1.23.5,<2"
 proj = "*"
-scikit-sparse = "*"
+
 tiledb = "2.30.*"
 tiledb-py = "*"
 scikit-learn = ">=1.7"
@@ -57,7 +57,7 @@ pytest = ">=9.0.2,<10"
 # =============================================================================
 # Platform-specific conda dependencies
 # =============================================================================
-[feature.linux-aarch64.dependencies]
+[target.linux-aarch64.dependencies]
 bc = "1.07.*"
 sqlite = ">=3.49.1"
 gcc = ">=15"
