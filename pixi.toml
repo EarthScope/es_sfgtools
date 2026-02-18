@@ -65,7 +65,7 @@ libstdcxx-ng = ">=15"
 nodejs = ">=24"
 scikit-learn = "==1.7.2"
 suitesparse = "*"
-scikit-sparse = {version = "==0.4.16",channel = "conda-forge" }
+
 
 
 # =============================================================================
@@ -74,6 +74,7 @@ scikit-sparse = {version = "==0.4.16",channel = "conda-forge" }
 # =============================================================================
 [pypi-dependencies]
 es_sfgtools = { path = ".", editable = true }
+scikit-sparse = "*"
 
 # =============================================================================
 # Feature: dev (adds dev tools)
