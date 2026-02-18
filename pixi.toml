@@ -58,6 +58,7 @@ pytest = ">=9.0.2,<10"
 # Platform-specific conda dependencies
 # =============================================================================
 [target.linux-aarch64.dependencies]
+no-default-fe
 bc = "1.07.*"
 sqlite = ">=3.49.1"
 gcc = ">=15"
@@ -67,7 +68,8 @@ tiledb = "==2.28"
 tiledb-py = "==0.34.2"
 scikit-learn = "==1.7.2"
 suitesparse = "*"
-scikit-sparse = ">=0.4.0"
+scikit-sparse = {version = "0.4.16",channel = "conda-forge" }
+
 
 # =============================================================================
 # PyPI dependencies - install this package in editable mode
