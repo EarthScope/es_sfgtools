@@ -65,7 +65,7 @@ libstdcxx-ng = ">=15"
 nodejs = ">=24"
 tiledb="2.28"
 tiledb-py="0.34.2"
-scikit-lean="1.7.2
+scikit-lean="1.7.2"
 
 # =============================================================================
 # PyPI dependencies - install this package in editable mode
