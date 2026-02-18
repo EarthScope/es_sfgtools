@@ -57,6 +57,8 @@ class SatelliteProducts(BaseModel):
         if value != "Default":
             # If the value is not "Default", return it as is
             return value
+        # For "Default" (or after converting None to "Default"), return the normalized value
+        return value
    
 class DataProcessingStrategies(BaseModel):
     strict_editing: str = "Default"
