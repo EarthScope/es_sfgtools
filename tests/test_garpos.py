@@ -2,9 +2,10 @@ from pathlib import Path
 import os
 import pandas as pd
 import pytest
-from es_sfgtools.modeling.garpos_tools.load_utils import load_lib
-load_lib()
-from garpos import LIB_DIRECTORY, LIB_RAYTRACE,drive_garpos
+from es_sfgtools.modeling.garpos_tools.load_utils import load_lib, load_drive_garpos
+LIB_DIRECTORY, LIB_RAYTRACE = load_lib()
+drive_garpos = load_drive_garpos()
+
 import subprocess
 
 TEST_DATA_DIR = Path(__file__).parent / "resources"/"garpos_run"
