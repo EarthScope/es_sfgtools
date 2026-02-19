@@ -9,7 +9,7 @@ dependencies:
 
   # Code dependencies
   - scikit-sparse
-  - tiledb
+  - tiledb>=2.30
   - tiledb-py
   - scikit-learn
   - pyarrow
