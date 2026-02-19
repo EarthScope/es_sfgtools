@@ -156,7 +156,9 @@ if __name__ == "__main__":
     # # batched = batch_qc_by_day(all_dfs, date_column='pingTime')
     # # for date, df in batched.items():
     # #     print(f"Date: {date}, Number of Shots: {len(df)}")
-
+    from es_sfgtools.logging import ProcessLogger
+    import logging
+    ProcessLogger.set_level(logging.INFO)
     main_dir = Path("/Volumes/DunbarSSD/Project/SeafloorGeodesy/TestQC")
     main_dir.mkdir(parents=False, exist_ok=True)
     wfh = WorkflowHandler(directory=main_dir)
@@ -168,9 +170,9 @@ if __name__ == "__main__":
         station_id=station_id,
         campaign_id=campaign_id,
     )
-    # wfh.ingest_add_local_data(
-    #     directory_path=qc_dir,
-    # )
+    wfh.ingest_add_local_data(
+        directory_path=qc_dir,
+    )
     wfh.qc_process_and_model(run_id="test_qc_001",
                              iterations=2)
     # # wfh.ingest_add_local_data(

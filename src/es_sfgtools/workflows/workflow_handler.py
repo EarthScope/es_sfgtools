@@ -997,13 +997,13 @@ class WorkflowHandler(WorkflowABC):
         )
 
     @validate_network_station_campaign
-    def qc_get_pipeline(self, config: dict = {}) -> "QCPipeline":
+    def qc_get_pipeline(self, config: QCPipelineConfig = None) -> "QCPipeline":
         """Get a configured QCPipeline instance.
 
         Parameters
         ----------
-        config : dict, optional
-            A dictionary of configuration options, by default {}
+        config : QCPipelineConfig, optional
+            A QCPipelineConfig instance with configuration options, by default None.
 
         Returns
         -------
@@ -1030,7 +1030,7 @@ class WorkflowHandler(WorkflowABC):
                              iterations:int = 1,
                              garpos_settings: Optional[dict | InversionParams] = None,
                              garpos_override: bool = False,
-                             pre_process_config: dict = {},
+                             pre_process_config: QCPipelineConfig = None,
                              ) -> None:
         """Process QC files and run GARPOS modeling.
 
@@ -1046,8 +1046,8 @@ class WorkflowHandler(WorkflowABC):
             Custom settings to override GARPOS defaults, by default None.
         garpos_override : bool, optional
             If True, re-runs GARPOS even if results exist, by default False.
-        pre_process_config : dict, optional
-            A dictionary of configuration options, by default {}
+        pre_process_config : QCPipelineConfig, optional
+            A QCPipelineConfig instance with configuration options, by default None.
         
         Raises
         ------
@@ -1056,7 +1056,7 @@ class WorkflowHandler(WorkflowABC):
         """
         # Get and run the QC pipeline
         qc_pipeline: QCPipeline = self.qc_get_pipeline(config=pre_process_config)
-        qc_pipeline.process_qc_files()
+        qc_pipeline.run_pipeline()
 
         # Get the intermediate data processor and parse QC surveys
         try:
