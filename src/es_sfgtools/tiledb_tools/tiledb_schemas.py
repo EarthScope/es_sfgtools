@@ -754,7 +754,7 @@ class TDBGNSSObsArray(TBDArray):
         return len(d0_buffer)
 
 
-    def write_rangea_strings(self, rangea_strings: List[str]) -> int:
+    def write_rangea_strings(self, rangea_strings: List[str], verbose: bool = False) -> int:
         """
         Write GNSS observation epochs to this TileDB array from RINEX 3.05
         observation file lines.
@@ -767,6 +767,8 @@ class TDBGNSSObsArray(TBDArray):
         ----------
             rangea_strings (List[str])
                 A list of strings
+            verbose (bool, optional)
+                Whether to print verbose output during processing. Defaults to False.
         """
 
         with tempfile.NamedTemporaryFile(mode="w+", delete=True) as tmp_file:
@@ -776,6 +778,7 @@ class TDBGNSSObsArray(TBDArray):
             nova_ops.novatel_ascii_2tile(
                 files=[tmp_file.name],
                 gnss_obs_tdb=str(self.uri),
-                n_procs=1
+                n_procs=1,
+                verbose=verbose
             )
       

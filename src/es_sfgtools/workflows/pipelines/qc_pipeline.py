@@ -6,9 +6,12 @@ import sys
 from functools import partial
 from multiprocessing import Pool
 from pathlib import Path
+import threading
 from typing import List, Optional, Tuple
 import pandas as pd
 from tqdm.auto import tqdm
+from collections import deque
+import time
 
 # Local Imports
 from es_sfgtools.logging import ProcessLogger, change_all_logger_dirs
@@ -58,19 +61,56 @@ from ..utils.protocols import WorkflowABC, validate_network_station_campaign
 def process_single_qcpin(
     entry: AssetEntry,
     shotdata_tdb: TDBShotDataArray,
-    gnss_obs_tdb: TDBGNSSObsArray
-) -> AssetEntry:
+    rangea_string_queue: deque,
+    processed_asset_queue: deque,
+) -> bool:
     try:
         df= qcjson_to_shotdata(entry.local_path)
         rangea_strings: List[str] = extract_rangea_strings_from_qcpin(entry.local_path)
         entry.is_processed = True
         shotdata_tdb.write_df(df)
-        gnss_obs_tdb.write_rangea_strings(rangea_strings)
-        return entry
+        rangea_string_queue.extend(rangea_strings)
+        processed_asset_queue.append(entry)
+        return True
     except Exception as e:
         ProcessLogger.logerr(f"Error processing {entry.local_path}: {e}")
-        return entry
-        
+        return False
+
+def rangea_string_epoch(
+        gnss_obs_tdb:TDBGNSSObsArray,
+        rangea_string_queue:deque,
+        processed_asset_queue:deque,
+        asset_catalog:PreProcessCatalogHandler,
+        entries_to_process:int,
+        stop_event:threading.Event) -> None:
+    
+    SLEEP_TIME_SECONDS = 10
+    total_processed = 0
+    sleep_time = SLEEP_TIME_SECONDS
+    while True and not stop_event.is_set():
+        time.sleep(sleep_time)
+        with threading.Lock():
+            rangea_string_list = list(rangea_string_queue)
+            rangea_string_queue.clear()
+        if rangea_string_list:
+            print(f"Processing {len(rangea_string_list)} RANGEA strings. Total processed: {total_processed}/{entries_to_process}")
+            gnss_obs_tdb.write_rangea_strings(rangea_string_list,verbose=False)
+            print(f"Finished processing batch of RANGEA strings. Total processed: {total_processed}/{entries_to_process}")
+        start_time = time.time()
+        while processed_asset_queue:
+            entry = processed_asset_queue.popleft()
+            asset_catalog.add_or_update(entry)
+            total_processed += 1
+            if total_processed >= entries_to_process:
+                return
+        elapsed_time = time.time() - start_time
+        remainder = SLEEP_TIME_SECONDS - elapsed_time
+        if remainder <= 0:
+            sleep_time = 0
+        else:
+            sleep_time = remainder
+       
+
 class QCPipeline(WorkflowABC):
     """Orchestrates the QC data processing pipeline for seafloor geodesy.
 
@@ -125,7 +165,7 @@ class QCPipeline(WorkflowABC):
         self,
         directory_handler: Optional[DirectoryHandler] = None,
         asset_catalog: Optional[PreProcessCatalogHandler] = None,
-        config: QCPipelineConfig = None,
+        config: QCPipelineConfig = QCPipelineConfig(),
     ):
         """Initialize the QCPipeline with directory handler and configuration.
 
@@ -220,15 +260,20 @@ class QCPipeline(WorkflowABC):
     def _build_tiledb_arrays(self) -> None:
         """Initialize QC-specific TileDB arrays for the current station context."""
         tiledb_dir = self.current_station_dir.tiledb_directory
+        tiledb_dir.build()  # Ensure the directory exists
 
         if self.qcShotDataPreTDB is None:
             self.qcShotDataPreTDB = TDBShotDataArray(tiledb_dir.qc_shot_data_pre)
+            self.qcShotDataPreTDB.consolidate()
         if self.qcKinPositionTDB is None:
             self.qcKinPositionTDB = TDBKinPositionArray(tiledb_dir.qc_kin_position_data)
+            self.qcKinPositionTDB.consolidate()
         if self.qcShotDataFinalTDB is None:
             self.qcShotDataFinalTDB = TDBShotDataArray(tiledb_dir.qc_shot_data)
+            self.qcShotDataFinalTDB.consolidate()
         if self.qcGnssObsTDB is None:
             self.qcGnssObsTDB = TDBGNSSObsArray(tiledb_dir.qc_gnss_obs_data)
+            self.qcGnssObsTDB.consolidate()
 
     def _build_rinex_meta(self) -> None:
         """Build RINEX metadata files for the current campaign if they don't exist."""
@@ -279,16 +324,24 @@ class QCPipeline(WorkflowABC):
         response = f"Found {len(qcpin_entries)} QCPIN Files"
         ProcessLogger.loginfo(response)
         count = 0
-
-        process_func_partial = partial(process_single_qcpin, shotdata_tdb=self.qcShotDataPreTDB, gnss_obs_tdb=self.qcGnssObsTDB)
+        rangea_string_queue = deque()
+        processed_asset_queue = deque()
+        process_func_partial = partial(process_single_qcpin, shotdata_tdb=self.qcShotDataPreTDB, rangea_string_queue=rangea_string_queue, processed_asset_queue=processed_asset_queue)
+        stop_event = threading.Event()
+        second_step = threading.Thread(target=rangea_string_epoch, args=(self.qcGnssObsTDB, rangea_string_queue, processed_asset_queue, self.asset_catalog, len(qcpin_entries), stop_event))
+        second_step.start()
         with concurrent.futures.ThreadPoolExecutor(max_workers=50) as executor:
-            futures = executor.map(process_func_partial, qcpin_entries)
-            for result_entry in tqdm(futures, total=len(qcpin_entries), desc="Processing QCPIN files"):
-                if result_entry.is_processed:
-                    count += 1  
-                    
-                    executor.submit(self.asset_catalog.add_or_update, result_entry)
+            # futures = executor.map(process_func_partial, qcpin_entries)
+            futures = [executor.submit(process_func_partial, entry) for entry in qcpin_entries]
+            for future in tqdm(concurrent.futures.as_completed(futures), total=len(qcpin_entries), desc="Processing QCPIN files"):
+                success = future.result()
+                if success:
+                    count += 1
+        if len(rangea_string_queue) == 0 and len(processed_asset_queue) == 0:
+            # stop the second thread if there are no entries to process
+            stop_event.set()
 
+        second_step.join()
         response = f"Processed {count} out of {len(qcpin_entries)} QCPIN Files"
         ProcessLogger.loginfo(response)
 
