@@ -1065,7 +1065,7 @@ class WorkflowHandler(WorkflowABC):
             raise e # for visibility
         
         gp_dir_list = qc_mid_processor.parse_surveys_qc(
-            shotdata_uri=qc_pipeline.shotDataTDB.uri
+            shotdata_uri=qc_pipeline.qcShotDataFinalTDB.uri
         )
 
         # Get the GARPOS handler and run GARPOS
