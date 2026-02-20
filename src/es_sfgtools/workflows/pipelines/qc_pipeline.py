@@ -53,7 +53,7 @@ from .exceptions import (
     NoRinexFound,
     NoKinFound,
 )
-from .shotdata_gnss_refinement import merge_shotdata_kinposition
+from .shotdata_gnss_refinement import merge_shotdata_kinposition,merge_shotdata_qc
 from .sv3_pipeline import rinex_to_kin_wrapper
 from ..utils.protocols import WorkflowABC, validate_network_station_campaign
 
@@ -643,8 +643,7 @@ class QCPipeline(WorkflowABC):
             or self.config.position_update_config.override
         ):
             dates.append(dates[-1] + datetime.timedelta(days=1))
-            merge_shotdata_kinposition(
-                    position_data=None,
+            merge_shotdata_qc(
                     shotdata_pre=self.qcShotDataPreTDB,
                     shotdata=self.qcShotDataFinalTDB,
                     kin_position=self.qcKinPositionTDB,
