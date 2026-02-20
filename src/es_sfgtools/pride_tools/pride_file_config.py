@@ -52,7 +52,7 @@ class SatelliteProducts(BaseModel):
 
     @field_validator("satellite_orbit", "satellite_clock", "erp", "quaternions", "code_phase_bias",mode='before')
     def override_patternmatch(cls, value: str, field: Field) -> str:
-        if value == None:
+        if value is None:
             value = "Default"
         if value != "Default":
             # If the value is not "Default", return it as is
