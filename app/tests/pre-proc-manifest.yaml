@@ -1,21 +1,13 @@
 projectDir: "/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain"
 operations:
   - network: "cascadia-gorda"
-    station: "NCC1"
+    station: "NTH1"
     campaign: "2025_A_1126"
     jobs:
       - type: "preprocessing"
-        config:
-          rinex_config:
-            override: false
-            time_interval: 24
-            
-          pride_config:
-            sample_frequency: 1
-      - type: "garpos"
-        config:
-          run_id: 1
-          override: true
+        
+   
+
 
 
 
@@ -95,10 +87,10 @@ globalConfig:
     start: null
     system: "GREC23J"
     tides: "SOP"
-    override_products_download: false
-    override: false
+    override_products_download: true
+    override: true
   rinex_config:
     n_processes: 14
     time_interval: 24
-    override: false
+    override: true
   

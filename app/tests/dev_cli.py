@@ -6,9 +6,7 @@ import sys
 from pathlib import Path
 
 sys.path.append((test:=str(Path(__file__).parent.parent)))
-os.environ["DYLD_LIBRARY_PATH"] = os.environ.get("CONDA_PREFIX", "") + "/lib"
-# add PRIDE to path
-os.environ["PATH"] += os.pathsep + str(Path.home() / ".PRIDE_PPPAR_BIN")
+
 from pathlib import Path
 
 sys.path.append("/Users/franklyndunbar/Project/SeaFloorGeodesy/gnatss/src")
