@@ -3,11 +3,12 @@ Author: Franklyn Dunbar
 Date: 2024-09-25
 Email: franklyn.dunbar@earthscope.org
 """
+
 # External imports
 from typing import Optional
 
 import pandas as pd
-import pandera as pa
+import pandera.pandas as pa
 from pandera.typing import Series
 
 # Local imports
@@ -42,7 +43,6 @@ class AcousticDataFrame(pa.DataFrameModel):
 
     returnTime: Series[float] = pa.Field(
         ge=GNSS_START_TIME.timestamp() - LEAP_SECONDS,
- 
         coerce=True,
         description="Return time in GPS time [seconds]",
     )
@@ -82,12 +82,13 @@ class AcousticDataFrame(pa.DataFrameModel):
     class Config:
         coerce = True
         add_missing_columns = True
-        #drop_invalid_rows = True
+        # drop_invalid_rows = True
         # check_travel_time = {
         #     "TT": "tt",
         #     "ST": "pingTime",
         #     "RT": "returnTime",
         # }
+
 
 class KinPositionDataFrame(pa.DataFrameModel):
     """
@@ -161,10 +162,11 @@ class KinPositionDataFrame(pa.DataFrameModel):
     @pa.parser("time")
     def parse_time(cls, series: pd.Series) -> pd.Series:
         return pd.to_datetime(series, unit="ms")
-    
+
     class Config:
         coerce = True
         add_missing_columns = True
+
 
 class IMUPositionDataFrame(pa.DataFrameModel):
     time: Series[pd.Timestamp] = pa.Field(
@@ -242,31 +244,44 @@ class IMUPositionDataFrame(pa.DataFrameModel):
     def parse_time(cls, series: pd.Series) -> pd.Series:
         return pd.to_datetime(series, unit="ms")
 
+
 class ShotDataFrame(AcousticDataFrame):
     head0: Series[float] = pa.Field(
-        description="Heading of the vessel at the time of the ping")
+        description="Heading of the vessel at the time of the ping"
+    )
     pitch0: Series[float] = pa.Field(
-        description="Pitch of the vessel at the time of the ping")
+        description="Pitch of the vessel at the time of the ping"
+    )
     roll0: Series[float] = pa.Field(
-        description="Roll of the vessel at the time of the ping")
+        description="Roll of the vessel at the time of the ping"
+    )
     east0: Series[float] = pa.Field(
-        description="ECEF East position of the vessel at the time of the ping [m]")
+        description="ECEF East position of the vessel at the time of the ping [m]"
+    )
     north0: Series[float] = pa.Field(
-        description="ECEF North position of the vessel at the time of the ping [m]")
+        description="ECEF North position of the vessel at the time of the ping [m]"
+    )
     up0: Series[float] = pa.Field(
-        description="Height above ellipsoid of the vessel at the time of the ping")
+        description="Height above ellipsoid of the vessel at the time of the ping"
+    )
     head1: Series[float] = pa.Field(
-        description="Heading of the vessel at the time of the ping")
+        description="Heading of the vessel at the time of the ping"
+    )
     pitch1: Series[float] = pa.Field(
-        description="Pitch of the vessel at the time of the ping")
+        description="Pitch of the vessel at the time of the ping"
+    )
     roll1: Series[float] = pa.Field(
-        description="Roll of the vessel at the time of the ping")
+        description="Roll of the vessel at the time of the ping"
+    )
     east1: Series[float] = pa.Field(
-        description="ECEF East position of the vessel at the time of the ping [m]")
+        description="ECEF East position of the vessel at the time of the ping [m]"
+    )
     north1: Series[float] = pa.Field(
-        description="ECEF North position of the vessel at the time of the ping [m]")
+        description="ECEF North position of the vessel at the time of the ping [m]"
+    )
     up1: Series[float] = pa.Field(
-        description="Height above ellipsoid of the vessel at the time of the ping")
+        description="Height above ellipsoid of the vessel at the time of the ping"
+    )
     east_std0: Optional[Series[float]] = pa.Field(
         description="Standard deviation of the ECEF East position of the vessel at the time of the ping [m]",
         nullable=True,
@@ -296,15 +311,14 @@ class ShotDataFrame(AcousticDataFrame):
         add_missing_columns = True
         coerce = True
         drop_invalid_rows = True
-        
+
 
 class SoundVelocityDataFrame(pa.DataFrameModel):
-
     depth: Series[float] = pa.Field(
         ge=0, le=10000, description="Depth of the speed [m]", coerce=True
     )
-    speed: Series[float] = pa.Field(unique=True,
-        ge=0, le=3800, description="Spee of sound [m/s]", coerce=True
+    speed: Series[float] = pa.Field(
+        unique=True, ge=0, le=3800, description="Spee of sound [m/s]", coerce=True
     )
 
     class Config:

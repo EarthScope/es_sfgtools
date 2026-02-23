@@ -6,7 +6,7 @@ from typing import List, Optional
 
 import julian
 import numpy as np
-import pandera as pa
+import pandera.pandas as pa
 from pandera.typing import Series
 from pydantic import (
     AliasChoices,
@@ -20,7 +20,7 @@ from es_sfgtools.logging import GarposLogger as logger
 from .load_utils import load_lib
 
 try:
-    LIB_DIRECTORY,LIB_RAYTRACE = load_lib()
+    LIB_DIRECTORY, LIB_RAYTRACE = load_lib()
 except Exception:
     from garpos import LIB_DIRECTORY, LIB_RAYTRACE
 
@@ -90,15 +90,9 @@ class ObservationData(pa.DataFrameModel):
     4,S01,L01,M11,2.218846,0.0,0.0,0.0,False,30103.4862,-23.57701,1384.73242,14.65861,192.62,-0.14,-1.5,30106.766555,-24.0478,1377.09283,14.68464,193.04,0.59,-1.81
     """
 
-    SET: Series[str] = pa.Field(
-        description="Set name", default="S01"
-    )
-    LN: Series[str] = pa.Field(
-        description="Line name", default="L01"
-    )
-    MT: Series[str] = pa.Field(
-        description="Station name", coerce=True
-    )
+    SET: Series[str] = pa.Field(description="Set name", default="S01")
+    LN: Series[str] = pa.Field(description="Line name", default="L01")
+    MT: Series[str] = pa.Field(description="Station name", coerce=True)
 
     TT: Series[float] = pa.Field(description="Travel time [sec]")
 
@@ -186,9 +180,7 @@ class ObservationData(pa.DataFrameModel):
 
 
 class GarposObservationOutput(pa.DataFrameModel):
-    MT: Series[str] = pa.Field(
-        description="Station name", coerce=True
-    )
+    MT: Series[str] = pa.Field(description="Station name", coerce=True)
 
     TT: Series[float] = pa.Field(description="Travel time [sec]")
 
@@ -217,9 +209,7 @@ class GarposObservationOutput(pa.DataFrameModel):
         default=0.0, description="Residual travel time [ms]"
     )
 
-    TakeOff: Series[float] = pa.Field(
-        default=0.0, description="Take off angle [deg]"
-    )
+    TakeOff: Series[float] = pa.Field(default=0.0, description="Take off angle [deg]")
     head1: Series[float] = pa.Field(
         description="Antenna heading at the time of the second measurement [deg]"
     )
@@ -253,6 +243,7 @@ class GarposObservationOutput(pa.DataFrameModel):
     class Config:
         coerce = True
         add_missing_columns = True
+
 
 class InversionType(Enum):
     positions = 0  # solve only positions
@@ -312,17 +303,18 @@ class InversionParams(BaseModel):
     deltab: float = Field(
         default=1.0e-6, description="Infinitesimal values to make Jacobian matrix"
     )
-    delta_center_position : GPPositionENU = Field(
-        default=GPPositionENU(east_sigma=1,north_sigma=1,up_sigma=1), description="Delta center position"
+    delta_center_position: GPPositionENU = Field(
+        default=GPPositionENU(east_sigma=1, north_sigma=1, up_sigma=1),
+        description="Delta center position",
     )
 
     def show_params(self) -> None:
         logger.loginfo("Inversion Parameters:")
         for param in self:
-            if param[0] == 'delta_center_position':
+            if param[0] == "delta_center_position":
                 logger.loginfo(f"  {param[0]} : ")
                 for param2 in param[1]:
-                    logger.loginfo(f"    {param2[0]} : {param2[1]}")  
+                    logger.loginfo(f"    {param2[0]} : {param2[1]}")
             else:
                 logger.loginfo(f"  {param[0]} : {param[1]}")
 
@@ -352,9 +344,7 @@ class GarposFixed(BaseModel):
     lib_raytrace: str = LIB_RAYTRACE
     inversion_params: InversionParams = InversionParams()
 
-    def _to_datafile(
-        self,path: Path
-    ) -> None:
+    def _to_datafile(self, path: Path) -> None:
         """
         Generates a data file with fixed parameters for the inversion process.
         This method creates a configuration file with hyperparameters and inversion parameters
@@ -367,7 +357,6 @@ class GarposFixed(BaseModel):
             None
         """
 
-        
         fixed_str = f"""[HyperParameters]
     # Hyperparameters
     #  When setting multiple values, ABIC-minimum HP will be searched.
@@ -422,9 +411,9 @@ class GarposFixed(BaseModel):
 
         with open(path, "w") as f:
             f.write(fixed_str)
-    
+
     @classmethod
-    def from_datafile(cls,path:Path) -> "GarposFixed":
+    def from_datafile(cls, path: Path) -> "GarposFixed":
         config = ConfigParser()
         config.read(path)
         inv_section = config["Inv-parameter"]
@@ -451,6 +440,7 @@ class GarposFixed(BaseModel):
             inversion_params=inv_params,
         )
 
+
 class GarposInput(BaseModel):
     site_name: str
     campaign_id: str
@@ -458,21 +448,21 @@ class GarposInput(BaseModel):
     site_center_llh: GPPositionLLH
     array_center_enu: GPPositionENU
     transponders: List[GPTransponder]
-    sound_speed_data: Optional[Path|str]
+    sound_speed_data: Optional[Path | str]
     atd_offset: GPATDOffset
     start_date: datetime
-    end_date:datetime
-    shot_data: Optional[Path| str]
-    delta_center_position:GPPositionENU = GPPositionENU()
+    end_date: datetime
+    shot_data: Optional[Path | str]
+    delta_center_position: GPPositionENU = GPPositionENU()
     ref_frame: str = "ITRF"
-    n_shot:int
+    n_shot: int
 
-    @field_serializer("shot_data","sound_speed_data")
-    def path_to_str(self,value):
+    @field_serializer("shot_data", "sound_speed_data")
+    def path_to_str(self, value):
         return str(value)
 
-    @field_serializer("start_date","end_date")
-    def dt_to_str(self,value):
+    @field_serializer("start_date", "end_date")
+    def dt_to_str(self, value):
         return value.isoformat()
 
     def to_datafile(self, path: Path) -> None:
@@ -486,14 +476,15 @@ class GarposInput(BaseModel):
         Returns:
             None
         """
+
         def datetime_to_mjd(dt: datetime) -> float:
-            jd = julian.to_jd(dt, fmt='jd')
+            jd = julian.to_jd(dt, fmt="jd")
             mjd = jd - 2400000.5
             return mjd
 
         for transponder in self.transponders:
             if not "M" in transponder.id:
-                transponder.id = "M" + transponder.id 
+                transponder.id = "M" + transponder.id
         # Write the data file
         center_enu: List[float] = self.array_center_enu.get_position()
         delta_center_position: List[float] = (
@@ -507,7 +498,7 @@ class GarposInput(BaseModel):
 [Obs-parameter]
     Site_name   = {self.site_name}
     Campaign    = {self.campaign_id}
-    Date(UTC)   = {self.start_date.strftime('%Y-%m-%d')}
+    Date(UTC)   = {self.start_date.strftime("%Y-%m-%d")}
     Date(jday)  = {date_mjd}
     Ref.Frame   = {self.ref_frame}
     SoundSpeed  = {str(self.sound_speed_data)}
@@ -521,7 +512,7 @@ class GarposInput(BaseModel):
     Latitude0   = {self.site_center_llh.latitude}
     Longitude0  = {self.site_center_llh.longitude}
     Height0     = {self.site_center_llh.height}
-    Stations    = {' '.join([transponder.id for transponder in self.transponders])}
+    Stations    = {" ".join([transponder.id for transponder in self.transponders])}
     Center_ENU  = {center_enu[0]} {center_enu[1]} {center_enu[2]}
 
 [Model-parameter]
@@ -542,7 +533,7 @@ class GarposInput(BaseModel):
             f.write(obs_str)
 
     @classmethod
-    def from_datafile(cls,path:Path,survey_id:str=None) -> "GarposInput":
+    def from_datafile(cls, path: Path, survey_id: str = None) -> "GarposInput":
         config = ConfigParser()
         config.read(path)
 
@@ -579,7 +570,9 @@ class GarposInput(BaseModel):
                 )
                 if "dpos" in key:
                     transponder_id = key.split("_")[0].upper()
-                    transponder = GPTransponder(id=transponder_id, position_enu=position)
+                    transponder = GPTransponder(
+                        id=transponder_id, position_enu=position
+                    )
                     transponder_list.append(transponder)
                 if "dcentpos" in key:
                     delta_center_position = position
@@ -622,7 +615,7 @@ class GarposInput(BaseModel):
             ),
             delta_center_position=delta_center_position,
             ref_frame=observation_section.get("Ref.Frame", "ITRF"),
-            n_shot=data_section["N_shot"]
+            n_shot=data_section["N_shot"],
         )
 
         return garpos_input

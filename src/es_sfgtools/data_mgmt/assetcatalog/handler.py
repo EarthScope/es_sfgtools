@@ -17,6 +17,7 @@ class PreProcessCatalogHandler:
     """
     A class to handle the preprocessing catalog.
     """
+
     def __init__(self, db_path: Path):
         """Initializes the PreProcessCatalog.
 
@@ -31,7 +32,9 @@ class PreProcessCatalogHandler:
         )
         Base.metadata.create_all(self.engine)
 
-    def get_dtype_counts(self, network:str, station:str, campaign:str, **kwargs) -> Dict[str,int]:
+    def get_dtype_counts(
+        self, network: str, station: str, campaign: str, **kwargs
+    ) -> Dict[str, int]:
         """Gets the counts of each data type for a given network, station, and campaign.
 
         Parameters
@@ -66,7 +69,14 @@ class PreProcessCatalogHandler:
                 return {}
         return {x["type"]: x["count_1"] for x in data_type_counts}
 
-    def delete_entries(self, network: str, station: str, campaign: str, type: AssetType|str, where:str=None) -> None:
+    def delete_entries(
+        self,
+        network: str,
+        station: str,
+        campaign: str,
+        type: AssetType | str,
+        where: str = None,
+    ) -> None:
         """Deletes entries from the Assets table based on the specified criteria.
 
         Parameters
@@ -100,7 +110,9 @@ class PreProcessCatalogHandler:
                 logger.logerr(f"Invalid asset type {type}")
                 return False
 
-        logger.logdebug(f" Deleting assets for {network} {station} {campaign} {str(type)}")
+        logger.logdebug(
+            f" Deleting assets for {network} {station} {campaign} {str(type)}"
+        )
 
         with self.engine.begin() as conn:
             try:
@@ -108,23 +120,19 @@ class PreProcessCatalogHandler:
                     Assets.network == network,
                     Assets.station == station,
                     Assets.campaign == campaign,
-                    Assets.type == type.value
+                    Assets.type == type.value,
                 )
                 if where:
                     statement = sa.and_(statement, sa.text(where))
-                conn.execute(
-                    sa.delete(Assets).where(statement)
-                )
+                conn.execute(sa.delete(Assets).where(statement))
                 return True
             except Exception as e:
                 logger.logerr(f"Error deleting entries: {e}")
                 return False
-            
-    def get_assets(self,
-                   network: str,
-                   station: str,
-                   campaign: str,
-                   type: AssetType|str) -> List[AssetEntry]:
+
+    def get_assets(
+        self, network: str, station: str, campaign: str, type: AssetType | str
+    ) -> List[AssetEntry]:
         """Gets assets for a given network, station, campaign, and type.
 
         Parameters
@@ -144,14 +152,16 @@ class PreProcessCatalogHandler:
             A list of assets.
         """
 
-        if isinstance(type,str):
+        if isinstance(type, str):
             try:
                 type = AssetType(type)
             except KeyError:
                 logger.logerr(f"Invalid asset type {type}")
                 return []
 
-        logger.logdebug(f" Getting assets for {network} {station} {campaign} {str(type)}")
+        logger.logdebug(
+            f" Getting assets for {network} {station} {campaign} {str(type)}"
+        )
 
         with self.engine.connect() as conn:
             query = sa.select(Assets).where(
@@ -159,7 +169,7 @@ class PreProcessCatalogHandler:
                     Assets.network == network,
                     Assets.station == station,
                     Assets.campaign == campaign,
-                    Assets.type == type.value
+                    Assets.type == type.value,
                 )
             )
             result = conn.execute(query).fetchall()
@@ -170,7 +180,7 @@ class PreProcessCatalogHandler:
                 except Exception as e:
                     logger.logerr("Unable to add row, error: {}".format(e))
             return out
-        
+
     def get_ctds(self, station: str, campaign: str) -> List[AssetEntry]:
         """Get all svp, ctd and seabird assets for a given station and campaign.
 
@@ -194,7 +204,13 @@ class PreProcessCatalogHandler:
                 sa.and_(
                     Assets.station == station,
                     Assets.campaign == campaign,
-                    Assets.type.in_([AssetType.CTD.value, AssetType.SEABIRD.value, AssetType.SVP.value])
+                    Assets.type.in_(
+                        [
+                            AssetType.CTD.value,
+                            AssetType.SEABIRD.value,
+                            AssetType.SVP.value,
+                        ]
+                    ),
                 )
             )
             result = conn.execute(query).fetchall()
@@ -207,11 +223,9 @@ class PreProcessCatalogHandler:
                     logger.logerr("Unable to add row, error: {}".format(e))
             return out
 
-    def get_local_assets(self,
-                   network: str,
-                   station: str,
-                   campaign: str,
-                   type: AssetType) -> List[AssetEntry]:
+    def get_local_assets(
+        self, network: str, station: str, campaign: str, type: AssetType
+    ) -> List[AssetEntry]:
         """Get local assets for a given network, station, campaign, and type.
 
         Parameters
@@ -231,7 +245,9 @@ class PreProcessCatalogHandler:
             A list of AssetEntry objects.
         """
 
-        logger.logdebug(f" Getting local assets for {network} {station} {campaign} {str(type)}")
+        logger.logdebug(
+            f" Getting local assets for {network} {station} {campaign} {str(type)}"
+        )
 
         with self.engine.connect() as conn:
             query = sa.select(Assets).where(
@@ -240,7 +256,7 @@ class PreProcessCatalogHandler:
                     Assets.station == station,
                     Assets.campaign == campaign,
                     Assets.type == type.value,
-                    Assets.local_path.isnot(None)
+                    Assets.local_path.isnot(None),
                 )
             )
             result = conn.execute(query).fetchall()
@@ -252,13 +268,15 @@ class PreProcessCatalogHandler:
                     logger.logerr("Unable to add row, error: {}".format(e))
             return out
 
-    def get_single_entries_to_process(self,
-                               network:str,
-                               station:str,
-                               campaign:str,
-                               parent_type:AssetType,
-                               child_type:AssetType = None,
-                               override:bool=False) -> List[AssetEntry]:
+    def get_single_entries_to_process(
+        self,
+        network: str,
+        station: str,
+        campaign: str,
+        parent_type: AssetType,
+        child_type: AssetType = None,
+        override: bool = False,
+    ) -> List[AssetEntry]:
         """Get single entries to process.
 
         Parameters
@@ -282,20 +300,24 @@ class PreProcessCatalogHandler:
             A list of assets.
         """
 
-        parent_entries = self.get_assets(network,station,campaign,parent_type)
+        parent_entries = self.get_assets(network, station, campaign, parent_type)
         if child_type is None:
             if override:
                 return parent_entries
             return [entry for entry in parent_entries if not entry.is_processed]
 
-        child_entries = self.get_assets(network,station,campaign,child_type)
-        parent_id_map = {entry.id:entry for entry in parent_entries}
+        child_entries = self.get_assets(network, station, campaign, child_type)
+        parent_id_map = {entry.id: entry for entry in parent_entries}
         if not override:
-            [parent_id_map.pop(child_entry.parent_id) for child_entry in child_entries if child_entry.parent_id in parent_id_map]
+            [
+                parent_id_map.pop(child_entry.parent_id)
+                for child_entry in child_entries
+                if child_entry.parent_id in parent_id_map
+            ]
 
         return list(parent_id_map.values())
 
-    def find_entry(self, entry: AssetEntry ) -> AssetEntry | None:
+    def find_entry(self, entry: AssetEntry) -> AssetEntry | None:
         """Finds an entry in the database.
 
         Parameters
@@ -310,12 +332,15 @@ class PreProcessCatalogHandler:
         """
 
         with self.engine.connect() as conn:
-            results = conn.execute(sa.select(Assets).where(
-                Assets.parent_id == ",".join([str(x) for x in entry.parent_id]),
-                Assets.network == entry.network,
-                Assets.station == entry.station,
-                Assets.campaign == entry.campaign,
-                Assets.type == entry.type.value)).fetchone()
+            results = conn.execute(
+                sa.select(Assets).where(
+                    Assets.parent_id == ",".join([str(x) for x in entry.parent_id]),
+                    Assets.network == entry.network,
+                    Assets.station == entry.station,
+                    Assets.campaign == entry.campaign,
+                    Assets.type == entry.type.value,
+                )
+            ).fetchone()
             if results:
                 return AssetEntry(**results._mapping)
         return None
@@ -331,7 +356,9 @@ class PreProcessCatalogHandler:
             The new local path.
         """
         try:
-            logger.loginfo(f"Updating local path in catalog for id {id} to {local_path}")
+            logger.loginfo(
+                f"Updating local path in catalog for id {id} to {local_path}"
+            )
             with self.engine.begin() as conn:
                 conn.execute(
                     sa.update(Assets)
@@ -341,7 +368,14 @@ class PreProcessCatalogHandler:
         except Exception as e:
             logger.logerr(f"Error updating local path for id {id}: {e}")
 
-    def remote_file_exist(self, network: str, station: str, campaign: str, type: AssetType, remote_path: str) -> bool:
+    def remote_file_exist(
+        self,
+        network: str,
+        station: str,
+        campaign: str,
+        type: AssetType,
+        remote_path: str,
+    ) -> bool:
         """Check if a remote file name exists in the catalog as a local file.
 
         Parameters
@@ -366,21 +400,24 @@ class PreProcessCatalogHandler:
         remote_file_name = os.path.basename(remote_path)
 
         with self.engine.connect() as conn:
-            results = conn.execute(sa.select(Assets).where(
-                sa.and_(
-                Assets.network == network,
-                Assets.station == station,
-                Assets.campaign == campaign,
-                Assets.type == type.value,
-                Assets.local_path.like(f"%{remote_file_name}%")
-            ))).fetchone()
+            results = conn.execute(
+                sa.select(Assets).where(
+                    sa.and_(
+                        Assets.network == network,
+                        Assets.station == station,
+                        Assets.campaign == campaign,
+                        Assets.type == type.value,
+                        Assets.local_path.like(f"%{remote_file_name}%"),
+                    )
+                )
+            ).fetchone()
 
             if results:
                 return True
 
         return False
 
-    def add_or_update(self, entry: AssetEntry ) -> bool:
+    def add_or_update(self, entry: AssetEntry) -> bool:
         """Adds or updates an entry in the database.
 
         Parameters
@@ -399,20 +436,20 @@ class PreProcessCatalogHandler:
 
         with self.engine.begin() as conn:
             try:
-                conn.execute(
-                    sa.insert(Assets).values(entry.model_dump()))
+                conn.execute(sa.insert(Assets).values(entry.model_dump()))
                 return True
             except Exception:
                 try:
-
                     conn.execute(
                         sa.update(table=Assets)
                         .where(Assets.local_path.is_(str(entry.local_path)))
-                        .values(entry.to_update_dict()) 
+                        .values(entry.to_update_dict())
                     )
                     return True
                 except Exception as e:
-                    logger.logerr(f"Error adding or updating entry {entry} to catalog: {e}")
+                    logger.logerr(
+                        f"Error adding or updating entry {entry} to catalog: {e}"
+                    )
                     pass
         return False
 
@@ -435,7 +472,8 @@ class PreProcessCatalogHandler:
             except sa.exc.ResourceClosedError:
                 # handle queries that don't return results
                 conn.execute(sa.text(query))
-    def _does_entry_exist(self, entry:AssetEntry) -> bool:
+
+    def _does_entry_exist(self, entry: AssetEntry) -> bool:
         """Checks if an entry exists in the database.
 
         Parameters
@@ -449,17 +487,20 @@ class PreProcessCatalogHandler:
             True if the entry exists, False otherwise.
         """
         with self.engine.begin() as conn:
-            results = conn.execute(sa.select(Assets).where(
-                Assets.local_path == str(entry.local_path),
-                Assets.network == entry.network,
-                Assets.station == entry.station,
-                Assets.campaign == entry.campaign,
-                Assets.type == entry.type.value)).fetchone()
+            results = conn.execute(
+                sa.select(Assets).where(
+                    Assets.local_path == str(entry.local_path),
+                    Assets.network == entry.network,
+                    Assets.station == entry.station,
+                    Assets.campaign == entry.campaign,
+                    Assets.type == entry.type.value,
+                )
+            ).fetchone()
             if results:
                 return True
         return False
-    
-    def add_entry(self, entry:AssetEntry) -> bool:
+
+    def add_entry(self, entry: AssetEntry) -> bool:
         """Adds an entry to the database.
 
         Parameters
@@ -478,11 +519,13 @@ class PreProcessCatalogHandler:
                     conn.execute(sa.insert(Assets).values(entry.model_dump()))
                 return True
             except sa.exc.IntegrityError as e:
-                logger.logdebug(f" Integrity error adding entry {entry} to catalog: {e}")
+                logger.logdebug(
+                    f" Integrity error adding entry {entry} to catalog: {e}"
+                )
                 return False
         return False
-    
-    def delete_entry(self, entry:AssetEntry) -> bool:
+
+    def delete_entry(self, entry: AssetEntry) -> bool:
         """Deletes an entry from the database.
 
         Parameters
@@ -499,15 +542,15 @@ class PreProcessCatalogHandler:
         logger.loginfo(f"Deleting entry {entry} from catalog")
         with self.engine.begin() as conn:
             try:
-                conn.execute(sa.delete(Assets).where(
-                    Assets.id == entry.id
-                ))
+                conn.execute(sa.delete(Assets).where(Assets.id == entry.id))
                 return True
             except Exception as e:
                 logger.logerr(f"Error deleting entry {entry} | {e}")
         return False
 
-    def add_merge_job(self,parent_type:str,child_type:str,parent_ids:List[int],**kwargs):
+    def add_merge_job(
+        self, parent_type: str, child_type: str, parent_ids: List[int], **kwargs
+    ):
         """Adds a merge job to the database.
 
         Parameters
@@ -523,13 +566,19 @@ class PreProcessCatalogHandler:
         parent_ids.sort()
         parent_id_string = "-".join([str(x) for x in parent_ids])
         with self.engine.begin() as conn:
-            conn.execute(sa.insert(MergeJobs).values({
-                MergeJobs.parent_type.name: parent_type,
-                MergeJobs.child_type.name: child_type,
-                MergeJobs.parent_ids.name: parent_id_string
-            }))
+            conn.execute(
+                sa.insert(MergeJobs).values(
+                    {
+                        MergeJobs.parent_type.name: parent_type,
+                        MergeJobs.child_type.name: child_type,
+                        MergeJobs.parent_ids.name: parent_id_string,
+                    }
+                )
+            )
 
-    def is_merge_complete(self,parent_type:str,child_type:str,parent_ids:List[int],**kwargs) -> bool:
+    def is_merge_complete(
+        self, parent_type: str, child_type: str, parent_ids: List[int], **kwargs
+    ) -> bool:
         """Checks if a merge job is complete.
 
         Parameters
@@ -549,11 +598,13 @@ class PreProcessCatalogHandler:
         parent_ids.sort()
         parent_id_string = "-".join([str(x) for x in parent_ids])
         with self.engine.begin() as conn:
-            results = conn.execute(sa.select(MergeJobs).where(
-                MergeJobs.parent_type == parent_type,
-                MergeJobs.child_type == child_type,
-                MergeJobs.parent_ids == parent_id_string
-            )).fetchone()
+            results = conn.execute(
+                sa.select(MergeJobs).where(
+                    MergeJobs.parent_type == parent_type,
+                    MergeJobs.child_type == child_type,
+                    MergeJobs.parent_ids == parent_id_string,
+                )
+            ).fetchone()
             if results:
                 return True
         return False

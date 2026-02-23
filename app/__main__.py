@@ -4,12 +4,14 @@ This module is the command-line entry point for the application.
 It uses Typer to create a CLI for running and preprocessing data pipelines
 based on manifest files.
 """
+
 import os
 import sys
 from pathlib import Path
 from typing import List
 import typer
 import multiprocessing
+
 try:
     multiprocessing.set_start_method("spawn", force=True)
 except RuntimeError:
@@ -18,6 +20,7 @@ except RuntimeError:
 
 from es_sfgtools.logging import ProcessLogger
 from es_sfgtools.config.env_config import Environment
+
 Environment.load_working_environment()
 
 
@@ -29,8 +32,8 @@ from src.manifest import PipelineManifest
 
 # This adds the PRIDE binary path to the system's PATH.
 # A better long-term solution is for the user to configure this in their shell.
-pride_path = Path.home() / ".PRIDE_PPPAR_BIN"
-os.environ["PATH"] += os.pathsep + str(pride_path)
+# pride_path = Path.home() / ".PRIDE_PPPAR_BIN"
+# os.environ["PATH"] += os.pathsep + str(pride_path)
 
 ProcessLogger.route_to_console()
 

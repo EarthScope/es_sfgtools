@@ -18,12 +18,14 @@ from .utils import (
     get_nova2tile_binary_path,
     MetadataModel,
     check_metadata_path,
-    check_metadata
+    check_metadata,
 )
 from es_sfgtools.utils.command_line_utils import parse_cli_logs
 
 
-def novatel_ascii_2tile(files: List[str], gnss_obs_tdb: Path, n_procs: int = 10) -> None:
+def novatel_ascii_2tile(
+    files: List[str], gnss_obs_tdb: Path, n_procs: int = 10, verbose: bool = True
+) -> None:
     """
     This function is a python wrapper for the nova2tile golang binary.
     Given a list of novatel ascii files, get all the rangea logs and add them to a single tdb array
@@ -39,14 +41,27 @@ def novatel_ascii_2tile(files: List[str], gnss_obs_tdb: Path, n_procs: int = 10)
     cmd = [str(binary_path), "-tdb", str(gnss_obs_tdb), "-procs", str(n_procs)]
     for file in files:
         cmd.append(str(file))
+    if verbose:
+        logger.logdebug(f" Running {cmd}")
+        logger.loginfo(f"Running NOVA2TILE on {len(files)} files")
+        to_stdout = None
+    else:
+        to_stdout = subprocess.DEVNULL
 
-    logger.logdebug(f" Running {cmd}")
-    logger.loginfo(f"Running NOVA2TILE on {len(files)} files")
-    result = subprocess.run(cmd)
+    result = subprocess.run(cmd, stdout=to_stdout, stderr=to_stdout)
 
-    parse_cli_logs(result, logger)
+    if verbose:
+        parse_cli_logs(result, logger)
 
-def novatel_ascii_2rinex(file:Path,writedir:Path=None,site:str="SIT1",metadata:dict|MetadataModel|Path|str=None,modulo_millis:int=0,**kwargs) -> List[Path]:
+
+def novatel_ascii_2rinex(
+    file: Path,
+    writedir: Path = None,
+    site: str = "SIT1",
+    metadata: dict | MetadataModel | Path | str = None,
+    modulo_millis: int = 0,
+    *kwargs,
+) -> List[Path]:
     """Convert a NovAtel ASCII file to a daily RINEX file using nova2rnxo.
     This function wraps the external `nova2rnxo` binary to convert a NovAtel ASCII
     observation file into a daily RINEX file. Metadata describing the site and
@@ -118,14 +133,16 @@ def novatel_ascii_2rinex(file:Path,writedir:Path=None,site:str="SIT1",metadata:d
         writedir = Path(writedir)
 
     if metadata is not None:
-        if isinstance(metadata, (str,Path)):
+        if isinstance(metadata, (str, Path)):
             metadata = check_metadata_path(metadata)
 
         elif isinstance(metadata, (dict, MetadataModel)):
             metadata = check_metadata(metadata)
 
         else:
-            raise ValueError(f"Metadata must be a dict, MetadataModel, or path to a JSON file, got {type(metadata)}")
+            raise ValueError(
+                f"Metadata must be a dict, MetadataModel, or path to a JSON file, got {type(metadata)}"
+            )
     else:
         assert site is not None, "Either metadata or site must be provided"
         assert isinstance(site, str), f"Site must be a string, got {type(site)}"
@@ -138,35 +155,32 @@ def novatel_ascii_2rinex(file:Path,writedir:Path=None,site:str="SIT1",metadata:d
     binary_path = get_nova2rnx_binary_path()
 
     # Get metadata for the site
-    logger.loginfo(
-        f"Converting and merging {file} ascii Novatel to RINEX"
-    )
+    logger.loginfo(f"Converting and merging {file} ascii Novatel to RINEX")
     # write metadata to writedir
-    if isinstance(metadata,dict):
+    if isinstance(metadata, dict):
         outpath = writedir / f"{site}_metadata.json"
         with open(outpath, "w") as f:
             json_object = json.dumps(metadata, indent=4)
             f.write(json_object)
         metadata = outpath
-    
-    assert isinstance(metadata,(str,Path)), "Metadata must be a path to a JSON file at this point"
+
+    assert isinstance(metadata, (str, Path)), (
+        "Metadata must be a path to a JSON file at this point"
+    )
 
     with tempfile.TemporaryDirectory(dir="/tmp/") as workdir:
-  
         cmd = [str(binary_path), "-settings", str(metadata)]
         if modulo_millis > 0:
             cmd.extend(["-modulo", str(modulo_millis)])
         cmd.append(str(file))
-        cmd_str = ' '.join(cmd)
+        cmd_str = " ".join(cmd)
         logger.loginfo(f" Running {cmd_str} in {workdir}")
         result = subprocess.run(cmd, check=True, capture_output=True, cwd=workdir)
 
         parse_cli_logs(result, logger)
 
         rinex_file_paths = list(Path(workdir).rglob(f"*{site}*"))
-        logger.loginfo(
-            f"Converted {file} to {rinex_file_paths} Daily RINEX files"
-        )
+        logger.loginfo(f"Converted {file} to {rinex_file_paths} Daily RINEX files")
         outpaths = []
         for rinex_file in rinex_file_paths:
             logger.logdebug(f" RINEX file: {str(rinex_file)}")
@@ -178,8 +192,8 @@ def novatel_ascii_2rinex(file:Path,writedir:Path=None,site:str="SIT1",metadata:d
     return outpaths
 
 
-def qcpin_to_novatelpin(source: str|Path, writedir: Path) -> Path:
-    """ Convert a QCPIN JSON file to a Novatel PIN text file.
+def qcpin_to_novatelpin(source: str | Path, writedir: Path) -> Path:
+    """Convert a QCPIN JSON file to a Novatel PIN text file.
     Args:
         source (str|Path): Path to the QCPIN JSON file.
         writedir (Path): Directory where the Novatel PIN text file will be saved.

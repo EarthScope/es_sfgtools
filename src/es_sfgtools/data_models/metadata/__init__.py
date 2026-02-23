@@ -1,4 +1,3 @@
-
 from .benchmark import Benchmark
 from .campaign import Campaign, Survey, SurveyType, classify_survey_type
 from .site import Site, import_site

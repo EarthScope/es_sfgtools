@@ -95,8 +95,7 @@ class Site(BaseModel):
 
     def export_site(self, filepath: str):
         with open(filepath, "w") as file:
-            json.dump(self.model_dump(mode='json'), file, indent=4)
-     
+            json.dump(self.model_dump(mode="json"), file, indent=4)
 
     @classmethod
     def from_json(cls, filepath: str) -> "Site":
@@ -161,7 +160,6 @@ class Site(BaseModel):
         tat_info = {}
         for campaign in self.campaigns:
             if campaign.name == campaign_name:
-
                 for benchmark in self.benchmarks:
                     for transponder in benchmark.transponders:
                         TAT = transponder.get_tat_by_datetime(campaign.start)
@@ -352,7 +350,6 @@ class Site(BaseModel):
 
         for component in component_list:
             if component.name == component_name:
-
                 if sub_component_type == SubLevelSiteGroups.TRANSPONDERS:
                     for transponder in component.transponders:
                         if transponder.address == sub_component_metadata["address"]:
@@ -421,7 +418,6 @@ class Site(BaseModel):
                 if sub_component_type == SubLevelSiteGroups.TRANSPONDERS:
                     for transponder in equipment.transponders:
                         if transponder.address == sub_component_metadata["address"]:
-
                             if "extraSensors" in sub_component_metadata:
                                 transponder.extraSensors.append(
                                     sub_component_metadata["extraSensors"]
@@ -481,6 +477,7 @@ class Site(BaseModel):
     class Config:
         validate_assignment = True
         json_encoders = {datetime: lambda v: v.isoformat()}
+
 
 if __name__ == "__main__":
     example_json_filepath = "json_schemas/site_example.json"

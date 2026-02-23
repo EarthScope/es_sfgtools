@@ -100,14 +100,20 @@ class PrepSiteData(BaseModel):
     inter_dir: Path = Field(..., title="Intermediate Directory")
     pride_dir: Path = Field(..., title="Pride Directory")
     gnss_obs_data_dest: str | Path = Field(..., title="GNSS Obs Data Destination")
-    kin_position_data_dest: str | Path = Field(..., title="Kin Position Data Destination")
+    kin_position_data_dest: str | Path = Field(
+        ..., title="Kin Position Data Destination"
+    )
     shot_data_dest: str | Path = Field(..., title="Shot Data Destination")
 
     class Config:
         arbitrary_types_allowed = True
 
     @field_serializer(
-        "inter_dir", "gnss_obs_data_dest", "kin_position_data_dest", "shot_data_dest", "pride_dir"
+        "inter_dir",
+        "gnss_obs_data_dest",
+        "kin_position_data_dest",
+        "shot_data_dest",
+        "pride_dir",
     )
     def _s_path(self, v):
         if isinstance(v, Path):
@@ -119,3 +125,43 @@ class PrepSiteData(BaseModel):
         if isinstance(v, str):
             return Path(v)
         return v
+
+
+class QCPinConfig(BaseModel):
+    """Configuration for QC PIN file processing."""
+
+    override: bool = Field(False, title="Flag to Override Existing Data")
+    n_processes: int = Field(
+        default_factory=cpu_count, title="Number of Processes to Use"
+    )
+
+
+class QCPipelineConfig(BaseModel):
+    """Configuration for the QC Pipeline."""
+
+    qcpin_config: QCPinConfig = QCPinConfig()
+    pride_config: PrideCLIConfig = PrideCLIConfig()
+    rinex_config: RinexConfig = RinexConfig()
+    position_update_config: PositionUpdateConfig = PositionUpdateConfig()
+
+    class Config:
+        title = "QC Pipeline Configuration"
+        arbitrary_types_allowed = True
+
+    def update(self, update_dict: dict) -> "QCPipelineConfig":
+        """Update the object with values from a dict and return a new copy."""
+        copy = self.model_copy().model_dump()
+        for key, value in update_dict.items():
+            if key in copy:
+                copy[key] = value | copy[key]
+        return QCPipelineConfig(**copy)
+
+    def to_yaml(self, filepath: Path):
+        with open(filepath, "w") as f:
+            yaml.dump(self.model_dump(), f)
+
+    @classmethod
+    def load_yaml(cls, filepath: Path):
+        with open(filepath) as f:
+            data = yaml.load(f)
+        return cls(**data)

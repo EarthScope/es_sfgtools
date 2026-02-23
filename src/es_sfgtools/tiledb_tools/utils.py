@@ -25,4 +25,3 @@ def get_tile2rinex_binary_path() -> Path:
         raise FileNotFoundError(f"TILE2RINEX binary not found for {system} {arch}")
 
     return binary_path
-

@@ -70,22 +70,23 @@ def main():
     os.environ["S3_SYNC_BUCKET"] = "seafloor-public-bucket-bucket83908e77-gprctmuztrim"
 
     dir_handler = wfh.directory_handler
-    dir_handler.networks[network].add_station('NTH1')
+    dir_handler.networks[network].add_station("NTH1")
     s3_dir_handler = dir_handler.point_to_s3(os.environ["S3_SYNC_BUCKET"])
 
-
-    local_tdb = dir_handler.networks[network].stations['NTH1'].tiledb_directory.shot_data
-    s3_tdb = s3_dir_handler.networks[network].stations['NTH1'].tiledb_directory.shot_data
-
-    #from es_sfgtools.tiledb_tools.utils import sync_local_to_s3
-    #sync_local_to_s3(local_tdb, s3_tdb)
-
-    s3_dir_handler_new = dir_handler.point_to_s3(
-        os.environ["S3_SYNC_BUCKET"]
+    local_tdb = (
+        dir_handler.networks[network].stations["NTH1"].tiledb_directory.shot_data
     )
-    s3_handler_loaded = dir_handler.load_from_s3(
-        os.environ["S3_SYNC_BUCKET"]
+    s3_tdb = (
+        s3_dir_handler.networks[network].stations["NTH1"].tiledb_directory.shot_data
     )
+
+    # from es_sfgtools.tiledb_tools.utils import sync_local_to_s3
+    # sync_local_to_s3(local_tdb, s3_tdb)
+
+    s3_dir_handler_new = dir_handler.point_to_s3(os.environ["S3_SYNC_BUCKET"])
+    s3_handler_loaded = dir_handler.load_from_s3(os.environ["S3_SYNC_BUCKET"])
     print(s3_handler_loaded.model_dump())
+
+
 if __name__ == "__main__":
     main()

@@ -13,7 +13,7 @@ name = "es_sfgtools"
 description = "Utilities for translating and processing Seafloor Geodesy data"
 readme = "README.md"
 license = { file = "LICENSE" }
-requires-python = ">= 3.10"
+requires-python = ">= 3.11"
 
 # Authors
 authors = [
@@ -31,7 +31,7 @@ classifiers = [
 # Dynamic fields are determined at build time -- 'version' comes from setuptools_scm (git tags)
 dynamic = ["version"]
 
-# --- Runtime dependencies (Python packages your code actually imports) ---
+# --- Runtime dependencies (versions managed by pixi.lock) ---
 dependencies = [
   "numpy==1.26.4",
   "scipy==1.16.3",
@@ -66,13 +66,13 @@ dev = [
   "myst-parser",
   "sphinxcontrib-apidoc",
   "sphinx_pyproject",
+  "build",
+  "twine",
 ]
 notebook = [
   "ipykernel",
+  "jupyterlab",
 ]
-# garpos = [
-#   "garpos @ git+https://github.com/EarthScope/garpos.git",
-# ]
 
 # Project URLs
 [project.urls]

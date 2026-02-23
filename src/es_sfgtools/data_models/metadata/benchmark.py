@@ -56,7 +56,9 @@ class Transponder(AttributeUpdater, BaseModel):
         ..., description="The turn around time (TAT) of the transponder"
     )
     start: Optional[datetime] = Field(
-        default=None, description="The start date of the transponder", gt=datetime(1901, 1, 1)
+        default=None,
+        description="The start date of the transponder",
+        gt=datetime(1901, 1, 1),
     )
 
     # Optional

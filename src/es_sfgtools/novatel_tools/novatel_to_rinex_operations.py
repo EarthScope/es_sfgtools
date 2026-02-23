@@ -9,6 +9,7 @@ from collections import defaultdict
 import os
 from colorama import Fore, Style
 import logging
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ES_SFGTools.NovatelToRinex")
 
@@ -25,6 +26,7 @@ from .utils import (
 
 os.environ["DYLD_LIBRARY_PATH"] = os.environ.get("CONDA_PREFIX", "") + "/lib"
 os.environ["LD_LIBRARY_PATH"] = os.environ.get("CONDA_PREFIX", "") + "/lib"
+
 
 def _novatel_2rinex_wrapper(
     files: List[Path] | List[str],
@@ -72,7 +74,11 @@ def _novatel_2rinex_wrapper(
 
     # Normalise the input file list to Paths for logging and command building
     if not files:
-        raise ValueError(Fore.RED + "No input files provided to _novatel_2rinex_wrapper" + Style.RESET_ALL)
+        raise ValueError(
+            Fore.RED
+            + "No input files provided to _novatel_2rinex_wrapper"
+            + Style.RESET_ALL
+        )
 
     file_paths: List[Path] = [Path(f) for f in files]
 
@@ -85,11 +91,23 @@ def _novatel_2rinex_wrapper(
         elif isinstance(metadata, (Path, str)):
             metadata_path = Path(metadata)
             if not metadata_path.exists():
-                raise FileNotFoundError(Fore.RED + f"Metadata file not found: {metadata_path}" + Style.RESET_ALL)
+                raise FileNotFoundError(
+                    Fore.RED
+                    + f"Metadata file not found: {metadata_path}"
+                    + Style.RESET_ALL
+                )
             if not metadata_path.is_file():
-                raise ValueError(Fore.RED + f"Metadata path is not a file: {metadata_path}" + Style.RESET_ALL)
+                raise ValueError(
+                    Fore.RED
+                    + f"Metadata path is not a file: {metadata_path}"
+                    + Style.RESET_ALL
+                )
             if (suffix := metadata_path.suffix.lower()) != ".json":
-                raise ValueError(Fore.RED + f"Metadata file must be a JSON file, got {suffix}" + Style.RESET_ALL)
+                raise ValueError(
+                    Fore.RED
+                    + f"Metadata file must be a JSON file, got {suffix}"
+                    + Style.RESET_ALL
+                )
             with open(metadata_path) as f:
                 metadata_dict = json.load(f)
         else:
@@ -138,7 +156,7 @@ def _novatel_2rinex_wrapper(
         rinex_file_paths = [
             x for x in workdir.rglob(f"*{site}*") if not x.suffix == ".json"
         ]
-        print(f"\n{'='*40}")
+        print(f"\n{'=' * 40}")
         logger.info(
             f"\nConverted {Fore.GREEN}{len(file_paths)}{Style.RESET_ALL} input files to {Fore.GREEN}{len(rinex_file_paths)}{Style.RESET_ALL} Daily RINEX files"
         )
@@ -252,12 +270,15 @@ def novatel_2rinex(
             metadata = check_metadata(metadata)
         else:
             raise ValueError(
-                Fore.RED + "Metadata must be a dict, MetadataModel, or path to a JSON file, "
+                Fore.RED
+                + "Metadata must be a dict, MetadataModel, or path to a JSON file, "
                 f"got {type(metadata)}" + Style.RESET_ALL,
             )
     else:
         if site is None:
-            raise ValueError(Fore.RED + "Either metadata or site must be provided" + Style.RESET_ALL)
+            raise ValueError(
+                Fore.RED + "Either metadata or site must be provided" + Style.RESET_ALL
+            )
         if not isinstance(site, str):
             raise ValueError(f"Site must be a string, got {type(site)}")
         if len(site) != 4:
@@ -363,7 +384,9 @@ def novatel_2rinex(
 
     if overlapping_paths:
         logger.warning(
-            Fore.YELLOW + f"\nThe following RINEX files were generated multiple times: \n{overlapping_paths}\n" + Style.RESET_ALL,
+            Fore.YELLOW
+            + f"\nThe following RINEX files were generated multiple times: \n{overlapping_paths}\n"
+            + Style.RESET_ALL,
             stacklevel=1,
         )
 

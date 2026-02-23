@@ -2,6 +2,7 @@
 This module contains default configuration settings for the GARPOS model,
 including variance parameters for transponder and DPOS positions.
 """
+
 from es_sfgtools.modeling.garpos_tools.schemas import GPPositionENU, InversionParams
 from pydantic import BaseModel, Field
 

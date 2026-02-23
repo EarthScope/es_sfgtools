@@ -51,13 +51,16 @@ def get_system_architecture() -> Tuple[str, str]:
 
     return system, arch
 
+
 PRIDE_MESSAGE_0 = "input interval is shorter than observation interval"
+
 
 def parse_error(string: str) -> Warning | None:
     for key, warning_ in WARNINGS_DICT.items():
         if key in string:
             return warning_
     return None
+
 
 def raise_exception(string: str) -> Exception | None:
     string = string.strip()
@@ -72,11 +75,16 @@ def raise_exception(string: str) -> Exception | None:
             return exception
     return None
 
-def parse_cli_logs(result, logger: _BaseLogger| logging.Logger):
+
+def parse_cli_logs(result, logger: _BaseLogger | logging.Logger):
     if result.stdout:
-        stdout_decoded = result.stdout.decode("utf-8") if isinstance(result.stdout, bytes) else result.stdout
+        stdout_decoded = (
+            result.stdout.decode("utf-8")
+            if isinstance(result.stdout, bytes)
+            else result.stdout
+        )
         stdout_decoded = remove_ansi_escape(stdout_decoded)
-        if hasattr(logger, 'logdebug'):
+        if hasattr(logger, "logdebug"):
             logger.logdebug(stdout_decoded)
         else:
             logger.debug(stdout_decoded)
@@ -88,30 +96,34 @@ def parse_cli_logs(result, logger: _BaseLogger| logging.Logger):
             if (exception := raise_exception(message)) is not None:
                 raise exception
     if result.stderr:
-        stderr_decoded = result.stderr.decode("utf-8") if isinstance(result.stderr, bytes) else result.stderr
+        stderr_decoded = (
+            result.stderr.decode("utf-8")
+            if isinstance(result.stderr, bytes)
+            else result.stderr
+        )
         stderr_decoded = remove_ansi_escape(stderr_decoded)
         if "error" in stderr_decoded.lower():
-            if hasattr(logger, 'logerr'):
+            if hasattr(logger, "logerr"):
                 logger.logerr(stderr_decoded)
             else:
                 logger.error(stderr_decoded)
             if (warning := parse_error(stderr_decoded)) is not None:
-                if hasattr(logger, 'logwarn'):
+                if hasattr(logger, "logwarn"):
                     logger.logwarn(warning.message)
                 else:
                     logger.warning(warning.message)
                 warnings.warn(warning.message, warning, 3)
         else:
-            if hasattr(logger, 'logwarn'):
+            if hasattr(logger, "logwarn"):
                 logger.logwarn(stderr_decoded)
             else:
                 logger.warning(stderr_decoded)
-        
+
         result_message = stderr_decoded.split("msg=")
         for log_line in result_message:
             message = log_line.split("\n")[0]
             if "Processing" in message or "Created" in message:
-                if hasattr(logger, 'loginfo'):
+                if hasattr(logger, "loginfo"):
                     logger.loginfo(message)
                 else:
                     logger.info(message)

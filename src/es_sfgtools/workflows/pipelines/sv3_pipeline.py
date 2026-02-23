@@ -47,8 +47,17 @@ from es_sfgtools.tiledb_tools.tiledb_schemas import (
 )
 from .config import SV3PipelineConfig
 from .shotdata_gnss_refinement import merge_shotdata_kinposition
-from .exceptions import NoRinexFound, NoNovatelFound,NoRinexBuilt,NoKinFound,NoDFOP00Found,NoSVPFound,NoLocalData
-from ..utils.protocols import WorkflowABC,validate_network_station_campaign
+from .exceptions import (
+    NoRinexFound,
+    NoNovatelFound,
+    NoRinexBuilt,
+    NoKinFound,
+    NoDFOP00Found,
+    NoSVPFound,
+    NoLocalData,
+)
+from ..utils.protocols import WorkflowABC, validate_network_station_campaign
+
 
 def rinex_to_kin_wrapper(
     rinex_prideconfig_path: tuple[AssetEntry, Path],
@@ -112,15 +121,15 @@ def rinex_to_kin_wrapper(
             network=rinex_entry.network,
             station=rinex_entry.station,
             campaign=rinex_entry.campaign,
-        timestamp_data_start=rinex_entry.timestamp_data_start,
-        timestamp_data_end=rinex_entry.timestamp_data_end,
-        type=AssetType.KIN,
-        timestamp_created=datetime.datetime.now(),
-        parent_id=rinex_entry.id
-    )   
+            timestamp_data_start=rinex_entry.timestamp_data_start,
+            timestamp_data_end=rinex_entry.timestamp_data_end,
+            type=AssetType.KIN,
+            timestamp_created=datetime.datetime.now(),
+            parent_id=rinex_entry.id,
+        )
         if resfile is None:
             return kin_entry, None
-        
+
         resfile_entry = AssetEntry(
             local_path=resfile,
             network=rinex_entry.network,
@@ -130,53 +139,54 @@ def rinex_to_kin_wrapper(
             timestamp_data_end=rinex_entry.timestamp_data_end,
             type=AssetType.KINRESIDUALS,
             timestamp_created=datetime.datetime.now(),
-            parent_id=rinex_entry.id
+            parent_id=rinex_entry.id,
         )
     except Exception as e:
         ProcessLogger.logerr(f"Error creating AssetEntry for KIN or RES file: {e}")
         return None, None
     return kin_entry, resfile_entry
 
+
 class SV3Pipeline(WorkflowABC):
     """Orchestrates the end-to-end processing of Sonardyne SV3 and Novatel GNSS data for seafloor geodesy.
-    
+
     This class manages a comprehensive workflow for processing seafloor geodesy
     data, including:
-    
+
     1. **GNSS Data Preprocessing**:
        - Processes Novatel 770 binary files (primary GNSS observations)
        - Processes Novatel 000 binary files (secondary GNSS + IMU positions)
        - Stores observations in TileDB arrays for efficient access
-    
+
     2. **RINEX Generation**:
        - Converts TileDB GNSS observations to daily RINEX files
        - Manages RINEX metadata and file organization
-    
+
     3. **Precise Point Positioning**:
        - Downloads GNSS product files (SP3, OBX, ATT)
        - Runs PRIDE-PPPAR for high-precision positioning
        - Generates kinematic (KIN) and residual files
-    
+
     4. **Kinematic Position Processing**:
        - Converts KIN files to structured dataframes
        - Stores kinematic positions in TileDB for interpolation
-    
+
     5. **Acoustic Data Processing**:
        - Processes Sonardyne DFOP00 files (acoustic ping-reply sequences)
        - Generates preliminary shotdata with acoustic ranges
-    
+
     6. **Shotdata Refinement**:
        - Interpolates high-precision GNSS positions to acoustic ping times
        - Refines shotdata with improved position estimates
-    
+
     7. **Sound Velocity Profile Processing**:
        - Processes CTD and Seabird files
        - Generates sound velocity profiles for acoustic corrections
-    
+
     The pipeline operates on a hierarchical directory structure
     (network/station/campaign) and uses TileDB for efficient storage and
     retrieval of time-series data.
-    
+
     Attributes
     ----------
     directory_handler : DirectoryHandler
@@ -237,6 +247,7 @@ class SV3Pipeline(WorkflowABC):
     run_pipeline()
         Execute the full processing pipeline in sequence.
     """
+
     mid_process_workflow = False
 
     def __init__(
@@ -246,13 +257,13 @@ class SV3Pipeline(WorkflowABC):
         config: SV3PipelineConfig = None,
     ):
         """Initializes the SV3Pipeline with directory handler and configuration.
-        
+
         Sets up the pipeline with necessary infrastructure including:
         - Directory structure management
         - Asset catalog for tracking processed files
         - Configuration for all processing steps
         - Context attributes (network, station, campaign)
-        
+
         Parameters
         ----------
         directory_handler : DirectoryHandler, optional
@@ -261,13 +272,13 @@ class SV3Pipeline(WorkflowABC):
         config : Optional[SV3PipelineConfig], optional
             Configuration settings for the pipeline. If None, uses default
             configuration. Defaults to None.
-            
+
         Raises
         ------
         AttributeError
             If directory_handler is None or doesn't have
             asset_catalog_db_path.
-            
+
         Notes
         -----
         The pipeline will not be ready for processing until
@@ -284,20 +295,27 @@ class SV3Pipeline(WorkflowABC):
 
         # Initialize TileDB array objects to None
         # These will be created when set_network_station_campaign() is called
-        self.shotDataPreTDB: TDBShotDataArray = None  # Preliminary shotdata (before refinement)
-        self.kinPositionTDB: TDBKinPositionArray = None  # High-precision kinematic positions
-        self.imuPositionTDB: TDBIMUPositionArray = None  # IMU positions from Novatel 000
-        self.shotDataFinalTDB: TDBShotDataArray = None  # Final shotdata (after refinement)
+        self.shotDataPreTDB: TDBShotDataArray = (
+            None  # Preliminary shotdata (before refinement)
+        )
+        self.kinPositionTDB: TDBKinPositionArray = (
+            None  # High-precision kinematic positions
+        )
+        self.imuPositionTDB: TDBIMUPositionArray = (
+            None  # IMU positions from Novatel 000
+        )
+        self.shotDataFinalTDB: TDBShotDataArray = (
+            None  # Final shotdata (after refinement)
+        )
 
     def set_network_station_campaign(
         self,
         network_id: str,
         station_id: str,
         campaign_id: str,
-
     ) -> None:
         """Set the current network, station, and campaign context for pipeline processing.
-        
+
         This method establishes the processing context and performs several
         initialization tasks:
         1. Resets previous context and clears TileDB arrays if context changes
@@ -306,7 +324,7 @@ class SV3Pipeline(WorkflowABC):
         4. Initializes TileDB arrays
         5. Configures logging
         6. Prepares RINEX metadata
-        
+
         Parameters
         ----------
         network_id : str
@@ -317,9 +335,11 @@ class SV3Pipeline(WorkflowABC):
             Campaign identifier (e.g., "2023_A_1126").
         """
         # Clear TileDB arrays if switching context to avoid stale references
-        if (network_id != self.current_network_name or 
-            station_id != self.current_station_name or
-            campaign_id != self.current_campaign_name):
+        if (
+            network_id != self.current_network_name
+            or station_id != self.current_station_name
+            or campaign_id != self.current_campaign_name
+        ):
             self.shotDataPreTDB = None
             self.kinPositionTDB = None
             self.imuPositionTDB = None
@@ -328,21 +348,22 @@ class SV3Pipeline(WorkflowABC):
         # Call parent method with correct parameter names
         super().set_network_station_campaign(network_id, station_id, campaign_id)
 
- 
-
         # Make sure there are files to process
-        dtype_counts = self.asset_catalog.get_dtype_counts(network_id, station_id, campaign_id)
+        dtype_counts = self.asset_catalog.get_dtype_counts(
+            network_id, station_id, campaign_id
+        )
         if dtype_counts == {}:
             message = f"No local files found for {network_id}/{station_id}/{campaign_id}. Ensure data is ingested before processing."
             ProcessLogger.logerr(message)
             raise NoLocalData(message)
 
-
         # Update all log directories
         change_all_logger_dirs(self.current_campaign_dir.log_directory)
 
         for dtype, count in dtype_counts.items():
-            ProcessLogger.loginfo(f"Found {count} local files of type {dtype} for {network_id}/{station_id}/{campaign_id}")
+            ProcessLogger.loginfo(
+                f"Found {count} local files of type {dtype} for {network_id}/{station_id}/{campaign_id}"
+            )
 
         # Initialize TileDB arrays if not already created
         self._build_tiledb_arrays()
@@ -350,7 +371,7 @@ class SV3Pipeline(WorkflowABC):
     def _build_tiledb_arrays(self) -> None:
         """Initialize TileDB arrays for the current station context."""
         tiledb_dir = self.current_station_dir.tiledb_directory
-        
+
         if self.shotDataPreTDB is None:
             self.shotDataPreTDB = TDBShotDataArray(tiledb_dir.shot_data_pre)
         if self.kinPositionTDB is None:
@@ -368,23 +389,21 @@ class SV3Pipeline(WorkflowABC):
 
     def _build_rinex_meta(self) -> None:
         """Build RINEX metadata files for the current campaign if they don't exist.
-        
+
         Creates two metadata files:
         - rinex_metav2.json: Updated format with metadata
         - rinex_metav1.json: Legacy format for backward compatibility
-        
+
         These files contain station-specific information needed for RINEX
         generation.
         """
 
         # Get the RINEX metadata
         rinex_metav2 = (
-            self.current_campaign_dir.metadata_directory
-            / "rinex_metav2.json"
+            self.current_campaign_dir.metadata_directory / "rinex_metav2.json"
         )
         rinex_metav1 = (
-            self.current_campaign_dir.metadata_directory
-            / "rinex_metav1.json"
+            self.current_campaign_dir.metadata_directory / "rinex_metav1.json"
         )
         if not rinex_metav2.exists():
             with open(rinex_metav2, "w") as f:
@@ -399,15 +418,15 @@ class SV3Pipeline(WorkflowABC):
     @validate_network_station_campaign
     def pre_process_novatel(self) -> None:
         """Preprocess Novatel 770 and 000 binary files for the current context.
-        
+
         Processing steps:
         1. **Novatel 770**: Extracts GNSS observations to primary TileDB array
         2. **Novatel 000**: Extracts GNSS observations to secondary array + IMU
            positions
-        
+
         Both steps check if processing is needed (via override config or merge
         status) and update the asset catalog upon completion.
-        
+
         Raises
         ------
         Exception
@@ -444,7 +463,7 @@ class SV3Pipeline(WorkflowABC):
             if (
                 self.config.novatel_config.override
                 or not self.asset_catalog.is_merge_complete(**merge_signature)
-            ):  
+            ):
                 try:
                     novb_ops.novatel_770_2tile(
                         files=[x.local_path for x in novatel_770_entries],
@@ -456,14 +475,17 @@ class SV3Pipeline(WorkflowABC):
                     response = f"Added merge job for {len(novatel_770_entries)} Novatel 770 Entries to the catalog"
                     ProcessLogger.loginfo(response)
                 except Exception as e:
-                    if (message := ProcessLogger.logerr(f"Error processing Novatel 770 files: {e}")) is not None:
+                    if (
+                        message := ProcessLogger.logerr(
+                            f"Error processing Novatel 770 files: {e}"
+                        )
+                    ) is not None:
                         print(message)
                     sys.exit(1)
             else:
                 response = f"Novatel 770 Data Already Processed for {self.current_network_name} {self.current_station_name} {self.current_campaign_name}"
                 ProcessLogger.loginfo(response)
         else:
-
             ProcessLogger.loginfo(
                 f"No Novatel 770 Files Found to Process for {self.current_network_name} {self.current_station_name} {self.current_campaign_name}"
             )
@@ -510,7 +532,11 @@ class SV3Pipeline(WorkflowABC):
                         f"Added merge job for {len(novatel_000_entries)} Novatel 000 Entries to the catalog"
                     )
                 except Exception as e:
-                    if (message := ProcessLogger.logerr(f"Error processing Novatel 000 files: {e}")) is not None:
+                    if (
+                        message := ProcessLogger.logerr(
+                            f"Error processing Novatel 000 files: {e}"
+                        )
+                    ) is not None:
                         print(message)
                     sys.exit(1)
 
@@ -520,19 +546,21 @@ class SV3Pipeline(WorkflowABC):
             )
 
         if not found_novatel_770 and not found_novatel_000:
-            raise NoNovatelFound(f"No Novatel 770 or 000 files found for {self.current_network_name} {self.current_station_name} {self.current_campaign_name}. Cannot proceed with GNSS processing.")
+            raise NoNovatelFound(
+                f"No Novatel 770 or 000 files found for {self.current_network_name} {self.current_station_name} {self.current_campaign_name}. Cannot proceed with GNSS processing."
+            )
 
     @validate_network_station_campaign
     def get_rinex_files(self) -> None:
         """Generate and catalog daily RINEX files for the current campaign.
-        
+
         Steps:
         1. Consolidates GNSS observation data
         2. Determines processing year from config or campaign name
         3. Invokes tile2rinex to generate daily RINEX files
         4. Creates AssetEntry for each RINEX file
         5. Updates asset catalog with merge job
-        
+
         Raises
         ------
         ValueError
@@ -585,7 +613,7 @@ class SV3Pipeline(WorkflowABC):
                     gnss_obs_tdb=self.gnssObsTDBURI,
                     settings=self.config.rinex_config.settings_path,
                     writedir=rinexDestination,  # where to write the RINEX files
-                    time_interval=self.config.rinex_config.time_interval, # seconds
+                    time_interval=self.config.rinex_config.time_interval,  # seconds
                     processing_year=year,
                     modulo_millis=self.config.rinex_config.modulo_millis,
                 )
@@ -594,13 +622,17 @@ class SV3Pipeline(WorkflowABC):
                     ProcessLogger.logwarn(
                         f"No Rinex Files generated for {self.current_network_name} {self.current_station_name} {self.current_campaign_name} {year}."
                     )
-                    raise NoRinexBuilt("No RINEX files were built. Try running self.pre_process_novatel() to ensure GNSS data is available.")
+                    raise NoRinexBuilt(
+                        "No RINEX files were built. Try running self.pre_process_novatel() to ensure GNSS data is available."
+                    )
 
                 rinex_entries: List[AssetEntry] = []
                 uploadCount = 0
                 for rinex_path in rinex_paths:
                     # Get the start and end time from the RINEX file for metadata
-                    rinex_time_start, rinex_time_end = rinex_utils.rinex_get_time_range(rinex_path)
+                    rinex_time_start, rinex_time_end = rinex_utils.rinex_get_time_range(
+                        rinex_path
+                    )
                     rinex_entry = AssetEntry(
                         local_path=rinex_path,
                         network=self.current_network_name,
@@ -609,10 +641,10 @@ class SV3Pipeline(WorkflowABC):
                         timestamp_data_start=rinex_time_start,
                         timestamp_data_end=rinex_time_end,
                         type=AssetType.RINEX2,
-                        timestamp_created=datetime.datetime.now()
+                        timestamp_created=datetime.datetime.now(),
                     )
                     rinex_entries.append(rinex_entry)
-                    if self.asset_catalog.add_entry(rinex_entry):
+                    if self.asset_catalog.add_or_update(rinex_entry):
                         uploadCount += 1
 
                 self.asset_catalog.add_merge_job(**merge_signature)
@@ -628,12 +660,19 @@ class SV3Pipeline(WorkflowABC):
                 raise e
 
             except Exception as e:
-                if (message := ProcessLogger.logerr(f"Error generating RINEX files: {e}")) is not None:
+                if (
+                    message := ProcessLogger.logerr(
+                        f"Error generating RINEX files: {e}"
+                    )
+                ) is not None:
                     print(message)
 
         else:
             rinex_entries = self.asset_catalog.get_local_assets(
-                self.current_network_name, self.current_station_name, self.current_campaign_name, AssetType.RINEX2
+                self.current_network_name,
+                self.current_station_name,
+                self.current_campaign_name,
+                AssetType.RINEX2,
             )
             num_rinex_entries = len(rinex_entries)
             ProcessLogger.logdebug(
@@ -643,13 +682,13 @@ class SV3Pipeline(WorkflowABC):
     @validate_network_station_campaign
     def process_rinex(self) -> None:
         """Run PRIDE-PPP on RINEX files to generate KIN and residual files.
-        
+
         Processing steps:
         1. Retrieves RINEX files needing processing
         2. Downloads GNSS product files (SP3, OBX, ATT) for each unique DOY
         3. Runs PRIDE-PPPAR in parallel to convert RINEX to KIN format
         4. Adds KIN and residual files to asset catalog
-        
+
         Uses multiprocessing for efficient parallel processing of multiple RINEX
         files.
         """
@@ -698,7 +737,6 @@ class SV3Pipeline(WorkflowABC):
         )
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
-
             nav_files = [
                 x
                 for x in executor.map(
@@ -740,10 +778,7 @@ class SV3Pipeline(WorkflowABC):
         res_count = 0
         uploadCount = 0
 
-        with Pool(
-            processes=self.config.rinex_config.n_processes
-        ) as pool:
-
+        with Pool(processes=self.config.rinex_config.n_processes) as pool:
             # Map the processing function over the Rinex files
             results = pool.map(process_rinex_partial, rinex_prideconfigs)
 
@@ -776,7 +811,7 @@ class SV3Pipeline(WorkflowABC):
     @validate_network_station_campaign
     def process_kin(self) -> None:
         """Process KIN files to generate kinematic position dataframes.
-        
+
         Steps:
         1. Retrieves KIN files needing processing
         2. Converts each KIN file to a structured dataframe
@@ -811,7 +846,9 @@ class SV3Pipeline(WorkflowABC):
             ProcessLogger.loginfo(message)
             raise NoKinFound(message)
 
-        ProcessLogger.loginfo(f"Found {len(kin_entries)} Kin Files to Process: processing")
+        ProcessLogger.loginfo(
+            f"Found {len(kin_entries)} Kin Files to Process: processing"
+        )
 
         # Process KIN files to generate kinematic position dataframes
         processed_count = 0
@@ -833,14 +870,14 @@ class SV3Pipeline(WorkflowABC):
     @validate_network_station_campaign
     def process_dfop00(self) -> None:
         """Process Sonardyne DFOP00 files to generate preliminary shotdata.
-        
+
         Steps:
         1. Retrieves DFOP00 files needing processing
         2. Converts each file to shotdata dataframe (acoustic ping-reply
            sequences)
         3. Writes dataframes to preliminary shotdata TileDB array
         4. Marks files as processed in asset catalog
-        
+
         Uses multiprocessing for efficient parallel processing.
         """
 
@@ -865,7 +902,9 @@ class SV3Pipeline(WorkflowABC):
 
         # 2. Process DFOP00 files to generate shotdata dataframes
         with Pool() as pool:
-            results = pool.imap(sv3_ops.dfop00_to_shotdata, [x.local_path for x in dfop00_entries])
+            results = pool.imap(
+                sv3_ops.dfop00_to_shotdata, [x.local_path for x in dfop00_entries]
+            )
             for shotdata_df, dfo_entry in tqdm(
                 zip(results, dfop00_entries),
                 total=len(dfop00_entries),
@@ -874,7 +913,7 @@ class SV3Pipeline(WorkflowABC):
                 if shotdata_df is not None and not shotdata_df.empty:
                     self.shotDataPreTDB.write_df(shotdata_df)  # write to pre-shotdata
                     count += 1
-                    dfo_entry.is_processed = True # mark as processed
+                    dfo_entry.is_processed = True  # mark as processed
                     self.asset_catalog.add_or_update(dfo_entry)
                     ProcessLogger.logdebug(f" Processed {dfo_entry.local_path}")
                 else:
@@ -927,22 +966,21 @@ class SV3Pipeline(WorkflowABC):
                 kin_position=self.kinPositionTDB,
                 position_data=self.imuPositionTDB,
                 dates=dates,
-             
             )
             self.asset_catalog.add_merge_job(**merge_job)
 
     @validate_network_station_campaign
     def process_svp(self, override: bool = False) -> None:
         """Process CTD and Seabird files to generate sound velocity profiles (SVP).
-        
+
         Processing order:
         1. Tries CTD files with CTD_to_svp_v2
         2. If that fails, tries CTD_to_svp_v1
         3. If still no success, tries Seabird files
-        
+
         The first successful SVP is saved to the campaign directory and
         processing stops.
-        
+
         Parameters
         ----------
         override : bool, optional
@@ -982,12 +1020,18 @@ class SV3Pipeline(WorkflowABC):
                     if not svp_df.empty:
                         svp_df.to_csv(svp_df_destination, index=False)
                         ctd_entry.is_processed = True
-                        self.asset_catalog.add_or_update(ctd_entry) # mark as processed
-                        ProcessLogger.loginfo(f"Processed SVP data from CTD file {ctd_entry.local_path} to dataframe with {function.__name__}")
-                        ProcessLogger.loginfo(f"Saved SVP dataframe to {str(svp_df_destination)}")
+                        self.asset_catalog.add_or_update(ctd_entry)  # mark as processed
+                        ProcessLogger.loginfo(
+                            f"Processed SVP data from CTD file {ctd_entry.local_path} to dataframe with {function.__name__}"
+                        )
+                        ProcessLogger.loginfo(
+                            f"Saved SVP dataframe to {str(svp_df_destination)}"
+                        )
                         return
                 except Exception as e:
-                    ProcessLogger.logerr(f"Error processing CTD file {ctd_entry.local_path} with {function.__name__}: {e}")
+                    ProcessLogger.logerr(
+                        f"Error processing CTD file {ctd_entry.local_path} with {function.__name__}: {e}"
+                    )
                     continue
 
         # If no CTD files produced SVP, try Seabird files
@@ -998,16 +1042,20 @@ class SV3Pipeline(WorkflowABC):
                     svp_df.to_csv(svp_df_destination, index=False)
                     seabird_entry.is_processed = True
                     self.asset_catalog.add_or_update(seabird_entry)
-                    ProcessLogger.loginfo(f"Processed SVP data from Seabird file {seabird_entry.local_path} and saved to {str(svp_df_destination)}")
+                    ProcessLogger.loginfo(
+                        f"Processed SVP data from Seabird file {seabird_entry.local_path} and saved to {str(svp_df_destination)}"
+                    )
                     return
             except Exception as e:
-                ProcessLogger.logerr(f"Error processing Seabird file {seabird_entry.local_path}: {e}")
+                ProcessLogger.logerr(
+                    f"Error processing Seabird file {seabird_entry.local_path}: {e}"
+                )
                 continue
-    
+
     @validate_network_station_campaign
     def run_pipeline(self) -> None:
         """Execute the complete SV3 data processing pipeline in sequence.
-        
+
         Pipeline steps (in order):
         1. pre_process_novatel(): Process Novatel GNSS data
         2. get_rinex_files(): Generate RINEX files
@@ -1016,7 +1064,7 @@ class SV3Pipeline(WorkflowABC):
         5. process_dfop00(): Process acoustic data
         6. update_shotdata(): Refine shotdata with high-precision positions
         7. process_svp(): Generate sound velocity profile
-        
+
         Each step checks if processing is needed via config overrides or
         catalog status.
         """

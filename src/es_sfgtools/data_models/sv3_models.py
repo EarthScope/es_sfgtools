@@ -25,6 +25,7 @@ class SV3GPSQuality(Enum):
     SIMULATION_MODE = 8  # Simulation Mode
     WAAS_SBAS = 9  # WAAS (SBAS)
 
+
 class NovatelSolutionStatus(Enum):
     SOL_COMPUTED = 0  # Solution computed
     INSUFFICIENT_OBS = 1  # Insufficient observations
@@ -47,55 +48,56 @@ class NovatelSolutionStatus(Enum):
     # 21 Reserved
     INVALID_RATE = 22  # Selected logging rate not supported for this solution type
 
+
 class NovatelPositionType(Enum):
-    NONE = 0                # No solution
-    FIXEDPOS = 1            # Position fixed by FIX position command or averaging
-    FIXEDHEIGHT = 2         # Position fixed by FIX height or FIX auto command or averaging
-    DOPPLER_VELOCITY = 8    # Velocity computed using instantaneous Doppler
-    SINGLE = 16             # Single point position
-    PSRDIFF = 17            # Pseudorange differential solution
-    WAAS = 18               # Solution calculated using corrections from SBAS
-    PROPAGATED = 19         # Propagated by a Kalman filter without new observations
-    FLOAT_L1 = 32           # Floating L1 ambiguity solution
-    NARROW_FLOAT = 34       # Floating narrow-lane ambiguity solution
-    L1_INT = 48             # Integer L1 ambiguity solution
-    WIDE_INT = 49           # Integer wide-lane ambiguity solution
-    NARROW_INT = 50         # Integer narrow-lane ambiguity solution
-    RTK_DIRECT_INS = 51     # RTK status from INS filter
-    INS_SBAS = 52           # INS calculated position corrected for antenna
-    INS_PSRSP = 53          # INS pseudorange single point solution (no DGPS)
-    INS_PSRDIFF = 54        # INS pseudorange differential solution
-    INS_RTKFLOAT = 55       # INS RTK floating point ambiguities solution
-    INS_RTKFIXED = 56       # INS RTK fixed ambiguities solution
-    PPP_CONVERGING = 68     # Converging TerraStar-C, TerraStar-C PRO or TerraStar-X solution
-    PPP = 69                # Converged TerraStar-C, TerraStar-C PRO or TerraStar-X solution
-    OPERATIONAL = 70        # Solution accuracy is within UAL operational limit
-    WARNING = 71            # Solution accuracy is outside UAL operational limit but within warning limit
-    OUT_OF_BOUNDS = 72      # Solution accuracy is outside UAL limits
-    INS_PPP_CONVERGING = 73 # INS with TerraStar-C/PRO/X PPP solution converging
-    INS_PPP = 74            # INS with TerraStar-C/PRO/X PPP solution
-    PPP_BASIC_CONVERGING = 77   # Converging TerraStar-L solution
-    PPP_BASIC = 78              # Converged TerraStar-L solution
-    INS_PPP_BASIC_CONVERGING = 79   # INS with TerraStar-L PPP basic solution converging
-    INS_PPP_BASIC = 80              # INS with TerraStar-L PPP basic solution
+    NONE = 0  # No solution
+    FIXEDPOS = 1  # Position fixed by FIX position command or averaging
+    FIXEDHEIGHT = 2  # Position fixed by FIX height or FIX auto command or averaging
+    DOPPLER_VELOCITY = 8  # Velocity computed using instantaneous Doppler
+    SINGLE = 16  # Single point position
+    PSRDIFF = 17  # Pseudorange differential solution
+    WAAS = 18  # Solution calculated using corrections from SBAS
+    PROPAGATED = 19  # Propagated by a Kalman filter without new observations
+    FLOAT_L1 = 32  # Floating L1 ambiguity solution
+    NARROW_FLOAT = 34  # Floating narrow-lane ambiguity solution
+    L1_INT = 48  # Integer L1 ambiguity solution
+    WIDE_INT = 49  # Integer wide-lane ambiguity solution
+    NARROW_INT = 50  # Integer narrow-lane ambiguity solution
+    RTK_DIRECT_INS = 51  # RTK status from INS filter
+    INS_SBAS = 52  # INS calculated position corrected for antenna
+    INS_PSRSP = 53  # INS pseudorange single point solution (no DGPS)
+    INS_PSRDIFF = 54  # INS pseudorange differential solution
+    INS_RTKFLOAT = 55  # INS RTK floating point ambiguities solution
+    INS_RTKFIXED = 56  # INS RTK fixed ambiguities solution
+    PPP_CONVERGING = (
+        68  # Converging TerraStar-C, TerraStar-C PRO or TerraStar-X solution
+    )
+    PPP = 69  # Converged TerraStar-C, TerraStar-C PRO or TerraStar-X solution
+    OPERATIONAL = 70  # Solution accuracy is within UAL operational limit
+    WARNING = 71  # Solution accuracy is outside UAL operational limit but within warning limit
+    OUT_OF_BOUNDS = 72  # Solution accuracy is outside UAL limits
+    INS_PPP_CONVERGING = 73  # INS with TerraStar-C/PRO/X PPP solution converging
+    INS_PPP = 74  # INS with TerraStar-C/PRO/X PPP solution
+    PPP_BASIC_CONVERGING = 77  # Converging TerraStar-L solution
+    PPP_BASIC = 78  # Converged TerraStar-L solution
+    INS_PPP_BASIC_CONVERGING = 79  # INS with TerraStar-L PPP basic solution converging
+    INS_PPP_BASIC = 80  # INS with TerraStar-L PPP basic solution
+
 
 class TimeData(BaseModel):
     common: Decimal = Field(
         description="TZ unaware UNIX time",
         ge=GNSS_START_TIME.timestamp(),
     )
-    instrument: Decimal = Field(
-        description="Instrument time in seconds",
-        ge=0
-    )
+    instrument: Decimal = Field(description="Instrument time in seconds", ge=0)
     start_count: int = Field(
         description="Start count for the time",
         ge=0,
     )
     status: str = Field(
         description="Status of the time data",
-      
     )
+
 
 class NovatelHeadingData(BaseModel):
     gpst: Decimal = Field(
@@ -112,10 +114,8 @@ class NovatelHeadingData(BaseModel):
         ge=-90,
         le=90,
     )
-    position_type: NovatelPositionType = Field(
-        description="Type of position data"
-    )
-    receiver_status:str = Field(
+    position_type: NovatelPositionType = Field(description="Type of position data")
+    receiver_status: str = Field(
         description="Status of the receiver",
     )
     sdh: Optional[Decimal] = Field(
@@ -129,10 +129,7 @@ class NovatelHeadingData(BaseModel):
     solution_type: NovatelSolutionStatus = Field(
         description="Solution type of the heading data",
     )
-    sv_used: int = Field(
-        description="Number of satellites used in the solution",
-        ge=0
-    )
+    sv_used: int = Field(description="Number of satellites used in the solution", ge=0)
     sv_visible: int = Field(
         description="Number of satellites visible",
         ge=0,
@@ -141,6 +138,7 @@ class NovatelHeadingData(BaseModel):
     time: TimeData = Field(
         description="Time data associated with the log",
     )
+
 
 class NovatelINSData(BaseModel):
     gpst: Decimal = Field(
@@ -184,13 +182,15 @@ class NovatelINSData(BaseModel):
         alias="vz",
     )
 
+
 class NovatelRangeData(BaseModel):
-    raw:str = Field(
+    raw: str = Field(
         description="Raw range data as a string",
     )
     time: TimeData = Field(
         description="Time data associated with the range data",
     )
+
 
 class NovatelGNSSData(BaseModel):
     hae: Decimal = Field(
@@ -224,12 +224,11 @@ class NovatelGNSSData(BaseModel):
         description="Standard deviation in up direction in meters",
         ge=0,
     )
-    separation: Optional[Decimal] = Field(
-        description="Separation"
-    )
+    separation: Optional[Decimal] = Field(description="Separation")
     time: TimeData = Field(
         description="Time data associated with the log",
     )
+
 
 class NovatelAHRSData(BaseModel):
     acx: Decimal = Field(
@@ -244,7 +243,7 @@ class NovatelAHRSData(BaseModel):
     h: Decimal = Field(
         description="Heading in degrees",
         ge=Decimal(0),
-        le= Decimal(360),
+        le=Decimal(360),
     )
     h_mag: Optional[Decimal] = Field(
         description="Magnetic heading in degrees",
@@ -265,6 +264,7 @@ class NovatelAHRSData(BaseModel):
         description="Time data associated with the log",
     )
 
+
 class NovatelRangeDiagnosticData(BaseModel):
     dbv: Decimal = Field(
         description="Decibel voltage in volts",
@@ -272,22 +272,21 @@ class NovatelRangeDiagnosticData(BaseModel):
     snr: Decimal = Field(
         description="Signal-to-noise ratio in dB",
     )
-    
+
     xc: Decimal = Field(
         description="Cross-correlation % - Signal quality",
     )
+
     @field_validator("dbv", "snr", "xc", mode="before")
-    def convert_from_list(cls,value:List[Union[int, float]]):
+    def convert_from_list(cls, value: List[Union[int, float]]):
         if isinstance(value, list) and len(value) == 1:
             return Decimal(value[0])
         return Decimal(value)
 
+
 class NovatelRangeReplyData(BaseModel):
-    cn:str = Field(
-    description="transponder ID",
-    max_length=20
-    )
-    diag:NovatelRangeDiagnosticData = Field(
+    cn: str = Field(description="transponder ID", max_length=20)
+    diag: NovatelRangeDiagnosticData = Field(
         description="Range diagnostic data",
     )
     range: Decimal = Field(
@@ -297,9 +296,11 @@ class NovatelRangeReplyData(BaseModel):
         description="Beacon turn around time in seconds",
         ge=0,
     )
-    @field_validator("tat",mode="after")
-    def convert_tat(cls,value:Decimal):
+
+    @field_validator("tat", mode="after")
+    def convert_tat(cls, value: Decimal):
         return float(value) / 1000.0  # Convert from milliseconds to seconds
+
 
 class NovatelObservations(BaseModel):
     AHRS: Optional[NovatelAHRSData] = Field(
@@ -318,9 +319,10 @@ class NovatelObservations(BaseModel):
         description="Novatel range data",
     )
 
+
 class NovatelRangeEvent(BaseModel):
-    event:str = "range"
-    event_id:int = Field(
+    event: str = "range"
+    event_id: int = Field(
         description="ID of the tracking cycle being used",
         ge=0,
     )
@@ -341,6 +343,7 @@ class NovatelRangeEvent(BaseModel):
         description="Unique identifier for the range event",
         max_length=50,
     )
+
 
 class NovatelInterrogationEvent(BaseModel):
     event: str = "interrogation"

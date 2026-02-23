@@ -17,9 +17,7 @@ test_dir_handler = DirectoryHandler.load_from_path(local_dir)
 
 # print(test_dir_handler)
 
-s3_bucket = S3Path(
-    "s3://seafloor-public-bucket-bucket83908e77-gprctmuztrim"
-)
+s3_bucket = S3Path("s3://seafloor-public-bucket-bucket83908e77-gprctmuztrim")
 
 test_dir_handler_s3 = DirectoryHandler.load_from_path(s3_bucket)
 

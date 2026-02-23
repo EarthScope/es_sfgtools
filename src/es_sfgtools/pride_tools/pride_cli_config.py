@@ -96,9 +96,7 @@ class PrideCLIConfig(BaseModel):
                 Tides.print_options()
                 raise ValueError(f"Invalid tide character: {char}")
 
-    def generate_pdp_command(
-        self, site: str, local_file_path: str
-    ) -> List[str]:
+    def generate_pdp_command(self, site: str, local_file_path: str) -> List[str]:
         """
         Generate the command to run pdp3 with the given parameters
         """

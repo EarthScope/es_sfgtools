@@ -5,7 +5,7 @@
 # import os
 # import logging
 # import json
-# import pandera as pa
+# import pandera.pandas as pa
 # from pandera.typing import DataFrame
 # import pymap3d as pm
 # from warnings import warn
@@ -133,7 +133,7 @@
 #             if tat_pattern.search(line):
 #                 if (offset_dict:=get_transponder_offsets(line)) is not None:
 #                     main_offset_dict.update(offset_dict)
-         
+
 #             if si_pattern.search(line):
 #                 try:
 #                     range_data: List[RangeData] = RangeData.from_sv2(line,main_offset_dict)
@@ -141,14 +141,14 @@
 #                 except ValidationError as e:
 #                     logger.logerr(f"Error parsing into SimultaneousInterrogation from line {line_number} in {source}\n ")
 #                     pass
-                
+
 
 #     # Check if any Simultaneous Interrogation data was found
 #     if not simultaneous_interrogation_set:
 #         logger.logerr(rf"Acoustic: No Simultaneous Interrogation data in FILE {source}")
 #         return None
 
-#     df = pd.DataFrame([x.model_dump() for x in simultaneous_interrogation_set]) 
+#     df = pd.DataFrame([x.model_dump() for x in simultaneous_interrogation_set])
 
 #     acoustic_df = range_data_to_acousticdf(df)
 
@@ -158,8 +158,8 @@
 #     shot_count: int = int(acoustic_df.shape[0] / len(unique_transponders))
 
 #     logger.loginfo(f"Acoustic Parser: {acoustic_df.shape[0]} shots from FILE {source.local_path} | {len(unique_transponders)} transponders | {shot_count} shots per transponder")
-    
-   
+
+
 #     return AcousticDataFrame.validate(acoustic_df, lazy=True)
 
 # def novatel_to_positiondf(source:NovatelFile) -> DataFrame[PositionDataFrame]:
@@ -182,9 +182,9 @@
 #                 if not line:
 #                     break
 #                 if re.search(bestgnss_pattern, line):
-                
+
 #                     gnssMeta = BestGNSSPOSDATA.from_sv2(line)
-           
+
 #                 if re.search(inspvaa_pattern, line):
 #                     try:
 #                         position_data = PositionData.from_sv2_inspvaa(line)
@@ -219,7 +219,7 @@
 
 
 #     acoustic["time"] = acoustic["triggerTime"]
-    
+
 #     acoustic_min_time = acoustic["time"].min()
 #     acoustic_max_time = acoustic["time"].max()
 #     position_min_time = position["time"].min()
@@ -247,7 +247,7 @@
 #         'pitch0': "pitch",
 #         'head0': "head"
 #     }
- 
+
 
 #     return_keys_position = {
 #         'ant_e1':"east",
@@ -261,9 +261,9 @@
 #     def interp(x_new,x,y):
 #         # return CubicSpline(x,y)(x_new)
 #         return np.interp(x_new,x,y)
-    
+
 #     # Convert pingtime and return time to datetime (units are seconds of day)
-#     acoustic_day_start = acoustic["time"].apply(lambda x: (x.replace(hour=0, minute=0, second=0,microsecond=0)).timestamp())    
+#     acoustic_day_start = acoustic["time"].apply(lambda x: (x.replace(hour=0, minute=0, second=0,microsecond=0)).timestamp())
 #     acoustic_return_dt = acoustic["returnTime"].to_numpy() + acoustic_day_start
 #     acoustic_ping_dt = acoustic["pingTime"].to_numpy() + acoustic_day_start
 
@@ -294,59 +294,59 @@
 #     return ShotDataFrame.validate(output_df,lazy=True)
 
 # def multiasset_to_shotdata(acoustic_assets:List[MultiAssetEntry],
-    #                        position_assets:List[MultiAssetEntry],
-    #                        working_dir:Path,
-    #                        **kwargs) -> List[MultiAssetEntry]:
-    # """
-    # Merge acoustic, imu, and gnss data to create observation data.
-    # Args:
-    #     acoustic (DataFrame[AcousticDataFrame]): Acoustic data frame.
-    #     imu (DataFrame[IMUDataFrame]): IMU data frame.
-    #     gnss (DataFrame[PositionDataFrame]): GNSS data frame.
-    # Returns:
-    #     DataFrame[ObservationData]: Merged observation data frame.
-    # """
-    # assert all([x.type == AssetType.ACOUSTIC for x in acoustic_assets]), "All assets must be acoustic"
-    # assert all([x.type == AssetType.POSITION for x in position_assets]), "All assets must be position"
+#                        position_assets:List[MultiAssetEntry],
+#                        working_dir:Path,
+#                        **kwargs) -> List[MultiAssetEntry]:
+# """
+# Merge acoustic, imu, and gnss data to create observation data.
+# Args:
+#     acoustic (DataFrame[AcousticDataFrame]): Acoustic data frame.
+#     imu (DataFrame[IMUDataFrame]): IMU data frame.
+#     gnss (DataFrame[PositionDataFrame]): GNSS data frame.
+# Returns:
+#     DataFrame[ObservationData]: Merged observation data frame.
+# """
+# assert all([x.type == AssetType.ACOUSTIC for x in acoustic_assets]), "All assets must be acoustic"
+# assert all([x.type == AssetType.POSITION for x in position_assets]), "All assets must be position"
 
-    # acoustic_doy_map = {}
-    # position_doy_map = {}
-    # merged_doy_map = {}
-    # for asset in acoustic_assets:
-    #     doy = asset.timestamp_data_start.timetuple().tm_yday
-    #     acoustic_doy_map[doy] = asset
-    # for asset in position_assets:
-    #     doy = asset.timestamp_data_start.timetuple().tm_yday
-    #     position_doy_map[doy] = asset
+# acoustic_doy_map = {}
+# position_doy_map = {}
+# merged_doy_map = {}
+# for asset in acoustic_assets:
+#     doy = asset.timestamp_data_start.timetuple().tm_yday
+#     acoustic_doy_map[doy] = asset
+# for asset in position_assets:
+#     doy = asset.timestamp_data_start.timetuple().tm_yday
+#     position_doy_map[doy] = asset
 
-    # output: List[MultiAssetEntry] = []
-    # for doy,acoustic_asset in acoustic_doy_map.items():
-    #     if doy in position_doy_map:
-    #         position_df = pd.read_csv(position_doy_map[doy].local_path)
-    #         acoustic_df = pd.read_csv(acoustic_asset.local_path)
-    #         try:
-    #             timestamp_data_start = None
-    #             timestamp_data_end = None
-    #             shot_df:DataFrame[ShotDataFrame] = dev_merge_to_shotdata(acoustic_df,position_df)
-    #             for col in shot_df.columns:
-    #                 if pd.api.types.is_datetime64_any_dtype(shot_df[col]):
-    #                     timestamp_data_start = shot_df[col].min()
-    #                     timestamp_data_end = shot_df[col].max()
-    #             local_path = working_dir / f"{acoustic_asset.network}_{acoustic_assets.station}_{acoustic_assets.campaign}_shot_data_{doy}.csv"
-    #             shot_df.to_csv(local_path,index=False)
-    #             new_multi_asset = MultiAssetEntry(
-    #                 local_path = str(local_path),
-    #                 type = AssetType.SHOTDATA,
-    #                 network = acoustic_asset.network,
-    #                 station = acoustic_asset.station,
-    #                 campaign = acoustic_asset.campaign,
-    #                 timestamp_data_start = timestamp_data_start,
-    #                 timestamp_data_end = timestamp_data_end,
-    #                 parent_id = f"{acoustic_asset.id},{position_doy_map[doy].id}"
-    #             )
-    #             output.append(new_multi_asset)
+# output: List[MultiAssetEntry] = []
+# for doy,acoustic_asset in acoustic_doy_map.items():
+#     if doy in position_doy_map:
+#         position_df = pd.read_csv(position_doy_map[doy].local_path)
+#         acoustic_df = pd.read_csv(acoustic_asset.local_path)
+#         try:
+#             timestamp_data_start = None
+#             timestamp_data_end = None
+#             shot_df:DataFrame[ShotDataFrame] = dev_merge_to_shotdata(acoustic_df,position_df)
+#             for col in shot_df.columns:
+#                 if pd.api.types.is_datetime64_any_dtype(shot_df[col]):
+#                     timestamp_data_start = shot_df[col].min()
+#                     timestamp_data_end = shot_df[col].max()
+#             local_path = working_dir / f"{acoustic_asset.network}_{acoustic_assets.station}_{acoustic_assets.campaign}_shot_data_{doy}.csv"
+#             shot_df.to_csv(local_path,index=False)
+#             new_multi_asset = MultiAssetEntry(
+#                 local_path = str(local_path),
+#                 type = AssetType.SHOTDATA,
+#                 network = acoustic_asset.network,
+#                 station = acoustic_asset.station,
+#                 campaign = acoustic_asset.campaign,
+#                 timestamp_data_start = timestamp_data_start,
+#                 timestamp_data_end = timestamp_data_end,
+#                 parent_id = f"{acoustic_asset.id},{position_doy_map[doy].id}"
+#             )
+#             output.append(new_multi_asset)
 
-    #         except Exception as e:
-    #             logger.error(f"Error merging acoustic and position data for DOY {doy} {e}")
-    #             continue
-    # return output
+#         except Exception as e:
+#             logger.error(f"Error merging acoustic and position data for DOY {doy} {e}")
+#             continue
+# return output

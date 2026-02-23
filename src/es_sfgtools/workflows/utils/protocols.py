@@ -1,18 +1,27 @@
-from typing import Callable, Concatenate, Optional, Protocol,TypeVar, ParamSpec
+from typing import Callable, Concatenate, Optional, Protocol, TypeVar, ParamSpec
 from functools import wraps
 from abc import ABC
 from pathlib import Path
 
 from es_sfgtools.config import Environment, WorkingEnvironment
-from es_sfgtools.data_mgmt.directorymgmt import DirectoryHandler, CampaignDir, SurveyDir, NetworkDir, TileDBDir, StationDir
+from es_sfgtools.data_mgmt.directorymgmt import (
+    DirectoryHandler,
+    CampaignDir,
+    SurveyDir,
+    NetworkDir,
+    TileDBDir,
+    StationDir,
+)
 from es_sfgtools.data_mgmt.assetcatalog.handler import PreProcessCatalogHandler
-from es_sfgtools.data_models.metadata import Site,Campaign,Survey
+from es_sfgtools.data_models.metadata import Site, Campaign, Survey
 
 P = ParamSpec("P")
 R = TypeVar("R")
 
+
 class HasNetworkStationCampaign(Protocol):
     """A protocol for classes that have network, station, and campaign attributes."""
+
     current_network_name: Optional[str]
     current_station_name: Optional[str]
     current_campaign_name: Optional[str]
@@ -45,7 +54,7 @@ class WorkflowABC(ABC):
     data across four hierarchical levels: network → station → campaign → survey.
 
     The class supports two operational modes:
-    
+
     1. **Setup workflows** (mid_process_workflow=False): For initial data organization
        and directory structure creation
     2. **Mid-process workflows** (mid_process_workflow=True): For scientific data
@@ -103,13 +112,16 @@ class WorkflowABC(ABC):
     Campaign : Campaign metadata model
     Survey : Survey metadata model
     """
+
     mid_process_workflow: bool = False
 
-    def __init__(self,
-                 directory:Path=None,
-                 asset_catalog:Optional[PreProcessCatalogHandler]=None,
-                 directory_handler:Optional[DirectoryHandler]=None,
-                 station_metadata:Optional[Site]=None):
+    def __init__(
+        self,
+        directory: Path = None,
+        asset_catalog: Optional[PreProcessCatalogHandler] = None,
+        directory_handler: Optional[DirectoryHandler] = None,
+        station_metadata: Optional[Site] = None,
+    ):
         """
         Initialize the workflow with directory structure and handlers.
 
@@ -166,8 +178,12 @@ class WorkflowABC(ABC):
             directory_handler.build()
 
         if asset_catalog is None:
-            asset_catalog = PreProcessCatalogHandler(db_path=directory_handler.asset_catalog_db_path)
-            
+            if Environment.working_environment() == WorkingEnvironment.LOCAL:
+                asset_catalog = PreProcessCatalogHandler(
+                    db_path=directory_handler.asset_catalog_db_path
+                )
+            else:
+                asset_catalog = None
         if directory is None:
             directory = directory_handler.location
 
@@ -194,7 +210,6 @@ class WorkflowABC(ABC):
         self.current_survey_dir: Optional[SurveyDir] = None
         self.current_survey_metadata: Optional[Survey] = None
 
-
     def _reset_survey(self) -> None:
         """
         Reset the survey-level context to None.
@@ -212,7 +227,7 @@ class WorkflowABC(ABC):
 
         The method clears:
         - current_survey_name
-        - current_survey_metadata  
+        - current_survey_metadata
         - current_survey_dir
 
         See Also
@@ -320,7 +335,7 @@ class WorkflowABC(ABC):
         - current_network_name
         - current_network_dir
         - All station-level context (via _reset_station)
-        - All campaign-level context (via _reset_station → _reset_campaign)  
+        - All campaign-level context (via _reset_station → _reset_campaign)
         - All survey-level context (via _reset_station → _reset_campaign → _reset_survey)
 
         This method is called automatically when:
@@ -455,11 +470,11 @@ class WorkflowABC(ABC):
         set_network_station_campaign : Convenience method to set multiple contexts
         Site.from_json : Used internally to load station metadata
         """
-    
+
         self._reset_station()
 
         self.current_station_name = station_id
-    
+
         if (
             current_station_dir := self.current_network_dir.stations.get(
                 self.current_station_name, None
@@ -468,7 +483,7 @@ class WorkflowABC(ABC):
             current_station_dir = self.current_network_dir.add_station(
                 name=self.current_station_name
             )
-        
+
         self.current_station_dir = current_station_dir
         self.current_station_dir.build()
 
@@ -479,8 +494,9 @@ class WorkflowABC(ABC):
 
         if self.mid_process_workflow:
             # Load site metadata for mid-process workflows
-            assert self.current_station_metadata is not None, f"Site metadata file not found for station {station_id}, cannot proceed with mid-process workflow."
-        
+            assert self.current_station_metadata is not None, (
+                f"Site metadata file not found for station {station_id}, cannot proceed with mid-process workflow."
+            )
 
     def set_campaign(self, campaign_id: str):
         """
@@ -603,7 +619,7 @@ class WorkflowABC(ABC):
 
         1. Validate all parameters are strings
         2. Call set_network(network_id)
-        3. Call set_station(station_id)  
+        3. Call set_station(station_id)
         4. Call set_campaign(campaign_id)
 
         This method is particularly useful for workflows that need to establish
@@ -687,7 +703,9 @@ class WorkflowABC(ABC):
         validate_network_station_campaign : Decorator ensuring proper context
         Survey : Survey metadata model used for validation and loading
         """
-        assert self.mid_process_workflow, "set_survey is only available in mid-process workflows"
+        assert self.mid_process_workflow, (
+            "set_survey is only available in mid-process workflows"
+        )
         assert isinstance(survey_id, str), "survey_id must be a string"
 
         self._reset_survey()
@@ -708,4 +726,3 @@ class WorkflowABC(ABC):
             current_survey_dir = self.current_campaign_dir.add_survey(name=survey_id)
         self.current_survey_dir = current_survey_dir
         self.current_survey_dir.build()
-    

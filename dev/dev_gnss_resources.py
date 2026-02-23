@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 root = logging.getLogger()
-filemode = logging.FileHandler('dev_gnss_resources.log',mode='w')
+filemode = logging.FileHandler("dev_gnss_resources.log", mode="w")
 root.setLevel(logging.DEBUG)
 handler = logging.StreamHandler(sys.stdout)
 handler.setLevel(logging.DEBUG)
@@ -45,8 +45,8 @@ with open(rinex_path) as f:
             break
 
 year = str(start_date.year)
-common_product_dir = pride_dir/year/"product"/"common"
-common_product_dir.mkdir(exist_ok=True,parents=True)
+common_product_dir = pride_dir / year / "product" / "common"
+common_product_dir.mkdir(exist_ok=True, parents=True)
 
 sp3 = WuhanIGS.get_product_sp3(start_date)
 clk = WuhanIGS.get_product_clk(start_date)
@@ -59,19 +59,19 @@ sp3_update = update_source(sp3)
 clk_update = update_source(clk)
 erp_update = update_source(erp)
 
-sp3_local_path = common_product_dir/sp3_update.file_name
-clk_local_path = common_product_dir/clk_update.file_name
-erp_local_path = common_product_dir/erp_update.file_name
-rnx_3_local_path = rinex_path.parent/rnx_3_update.file_name
+sp3_local_path = common_product_dir / sp3_update.file_name
+clk_local_path = common_product_dir / clk_update.file_name
+erp_local_path = common_product_dir / erp_update.file_name
+rnx_3_local_path = rinex_path.parent / rnx_3_update.file_name
 
-dl_rnx_3_local_path = get_nav_file(rinex_path,override=False)
+dl_rnx_3_local_path = get_nav_file(rinex_path, override=False)
 if not rnx_3_local_path.exists():
-    download(rnx_3_update,rnx_3_local_path)
+    download(rnx_3_update, rnx_3_local_path)
 if not sp3_local_path.exists():
-    download(sp3_update,sp3_local_path)
+    download(sp3_update, sp3_local_path)
 if not clk_local_path.exists():
-    download(clk_update,clk_local_path)
+    download(clk_update, clk_local_path)
 if not erp_local_path.exists():
-    download(erp_update,erp_local_path)
+    download(erp_update, erp_local_path)
 
-get_gnss_products(rinex_path,pride_dir,override=True,source='cligs')
+get_gnss_products(rinex_path, pride_dir, override=True, source="cligs")

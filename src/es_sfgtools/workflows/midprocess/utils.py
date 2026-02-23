@@ -7,6 +7,7 @@ from es_sfgtools.config.shotdata_filters import (
     CIRCLE_DRIVE_FILTER_CONFIG,
 )
 
+
 def get_survey_filter_config(survey_type: Union[SurveyType, str]) -> FilterConfig:
     """Get the filter configuration based on the survey type.
 

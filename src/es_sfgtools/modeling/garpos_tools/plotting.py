@@ -71,9 +71,10 @@ class DOYPlotter:
 
         self.df_merged = self.df_merged_main.copy()
 
-    def set_df_merged_date(self,start:datetime.datetime,end:datetime.datetime):
+    def set_df_merged_date(self, start: datetime.datetime, end: datetime.datetime):
         self.df_merged = self.df_merged_main[
-            (self.df_merged_main["time"] >= start) & (self.df_merged_main["time"] <= end)
+            (self.df_merged_main["time"] >= start)
+            & (self.df_merged_main["time"] <= end)
         ]
 
     def _plot_residuals_range(self):
@@ -139,27 +140,42 @@ class DOYPlotter:
         plt.show()
         plt.tight_layout()
 
-    def make_survey_image(self,start_date:datetime.datetime=None,end_date:datetime.datetime=None,survey_type="survey",survey_name="survey",filepath="survey_image.png"):
-        '''
+    def make_survey_image(
+        self,
+        start_date: datetime.datetime = None,
+        end_date: datetime.datetime = None,
+        survey_type="survey",
+        survey_name="survey",
+        filepath="survey_image.png",
+    ):
+        """
         Generate a plot of antenna positions along east/north axis with transponder positions
 
         1. plot transponder east, north position as markers
         2. plot antenna east, north position as line plot (from self.df_merged)
 
-        '''
-        self.set_df_merged_date(start_date,end_date)
+        """
+        self.set_df_merged_date(start_date, end_date)
         title = f"{survey_name} {survey_type} from {start_date} to {end_date}"
-        fig, ax = plt.subplots(figsize=(16,10))
+        fig, ax = plt.subplots(figsize=(16, 10))
         fig.suptitle(title)
         ax.set_xlabel("East (m)")
         ax.set_ylabel("North (m)")
-        ax.scatter(0,0,label="Origin",color="magenta",s=100)
+        ax.scatter(0, 0, label="Origin", color="magenta", s=100)
         for result in self.results:
-            for idx,(id, transponder) in enumerate(result.transponders.items()):
-                ax.scatter(transponder.position_enu.east, transponder.position_enu.north, label=f"{id}", color=self.colors[idx],s=100)
+            for idx, (id, transponder) in enumerate(result.transponders.items()):
+                ax.scatter(
+                    transponder.position_enu.east,
+                    transponder.position_enu.north,
+                    label=f"{id}",
+                    color=self.colors[idx],
+                    s=100,
+                )
             break
-        colormap_times = self.df_merged["time"].apply(lambda x:x.timestamp()).to_numpy()
-        colormap_times_scaled = (colormap_times - colormap_times.min())/3600
+        colormap_times = (
+            self.df_merged["time"].apply(lambda x: x.timestamp()).to_numpy()
+        )
+        colormap_times_scaled = (colormap_times - colormap_times.min()) / 3600
 
         norm = Normalize(
             vmin=0,
@@ -173,22 +189,27 @@ class DOYPlotter:
             cmap="viridis",
             label="Antenna Position",
             norm=norm,
-            alpha=0.25
+            alpha=0.25,
         )
         norm = Normalize(
             vmin=0,
-            vmax=(colormap_times.max() - colormap_times.min())/3600,
+            vmax=(colormap_times.max() - colormap_times.min()) / 3600,
         )
-        cbar = plt.colorbar(sc,label="Time (hr)",norm=norm)
+        cbar = plt.colorbar(sc, label="Time (hr)", norm=norm)
         ax.legend()
         plt.savefig(filepath)
         plt.show()
         self.df_merged = self.df_merged_main.copy()
 
-    def make_ts_plots(self,start_date:datetime.datetime=None,end_date:datetime.datetime=None,filepath="ts_plot.png"):
-        self.set_df_merged_date(start_date,end_date)
+    def make_ts_plots(
+        self,
+        start_date: datetime.datetime = None,
+        end_date: datetime.datetime = None,
+        filepath="ts_plot.png",
+    ):
+        self.set_df_merged_date(start_date, end_date)
         plt.clf()
-        fig, ax = plt.subplots(nrows=2,figsize=(16,5))
+        fig, ax = plt.subplots(nrows=2, figsize=(16, 5))
 
         fig.suptitle(f"Residuals from {start_date} to {end_date}")
 
@@ -202,14 +223,11 @@ class DOYPlotter:
                 df["ResiRange"],
                 label=f"{unique_id}",
                 color=self.colors[i],
-                
-             
-                
             )
         ax[0].legend()
         ax[1].clear()
-        ax[1].set_facecolor('white')
-        ax[1].axis('off')  # Turn off the axis
+        ax[1].set_facecolor("white")
+        ax[1].axis("off")  # Turn off the axis
 
         figure_text = "Delta Center Position\n"
         for result in self.results:
@@ -222,11 +240,20 @@ class DOYPlotter:
             dpos = transponder.delta_center_position.get_position()
             figure_text += f"Transponder {id} : East {dpos[0]:.3f} m, North {dpos[1]:.3f} m, Up {dpos[2]:.3f} m \n"
 
-        ax[1].text(0.5, 0.5, figure_text, horizontalalignment='center',verticalalignment='center', transform=ax[1].transAxes,fontsize=12)
+        ax[1].text(
+            0.5,
+            0.5,
+            figure_text,
+            horizontalalignment="center",
+            verticalalignment="center",
+            transform=ax[1].transAxes,
+            fontsize=12,
+        )
 
         plt.savefig(filepath)
         plt.show()
         self.df_merged = self.df_merged_main.copy()
+
 
 if __name__ == "__main__":
     gp_results_path = Path(
@@ -261,6 +288,11 @@ if __name__ == "__main__":
     """
     start = datetime.datetime(2024, 9, 22, 17, 30)
     end = datetime.datetime(2024, 9, 23, 0, 35)
-  
-    plotter.make_survey_image(start_date=start,end_date=end,survey_type="Cascadia NCC1",survey_name="CircleDrive")
-    plotter.make_ts_plots(start_date=start,end_date=end)
+
+    plotter.make_survey_image(
+        start_date=start,
+        end_date=end,
+        survey_type="Cascadia NCC1",
+        survey_name="CircleDrive",
+    )
+    plotter.make_ts_plots(start_date=start, end_date=end)
