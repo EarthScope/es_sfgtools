@@ -8,7 +8,7 @@ import uuid
 from pathlib import Path
 from typing import Dict, List, Optional
 import os
-import warnings 
+import warnings
 from es_sfgtools.logging import ProcessLogger as logger
 from es_sfgtools.utils.command_line_utils import parse_cli_logs
 
@@ -21,10 +21,11 @@ from .utils import (
     get_nov_000_tile_binary_path,
     get_nov_770_tile_binary_path,
     check_metadata,
-    check_metadata_path
+    check_metadata_path,
 )
 
 os.environ["DYLD_LIBRARY_PATH"] = os.environ.get("CONDA_PREFIX", "") + "/lib"
+
 
 def novatel_770_2tile(files: List[str], gnss_obs_tdb: Path, n_procs: int = 10) -> None:
     """Given a list of novatel 770 binary files, get all the range logs and add them to a single tdb array
@@ -44,12 +45,15 @@ def novatel_770_2tile(files: List[str], gnss_obs_tdb: Path, n_procs: int = 10) -
     logger.loginfo(f"Running NOVB2TILE with {' '.join(cmd)}")
 
     # Run the command
-    result = subprocess.run(cmd,capture_output=True)
+    result = subprocess.run(cmd, capture_output=True)
 
     # Parse the output and log messages
-    parse_cli_logs(result,logger)
+    parse_cli_logs(result, logger)
 
-def novatel_000_2tile(files: List[str], gnss_obs_tdb: Path, position_tdb:Path, n_procs: int = 10) -> None:
+
+def novatel_000_2tile(
+    files: List[str], gnss_obs_tdb: Path, position_tdb: Path, n_procs: int = 10
+) -> None:
     """Given a list of novatel 000 binary files, get all the range logs and add them to a single tdb array
 
     Args:
@@ -60,7 +64,15 @@ def novatel_000_2tile(files: List[str], gnss_obs_tdb: Path, position_tdb:Path, n
 
     # Generate the command to run the nov0002tile golang binary
     binary_path = get_nov_000_tile_binary_path()
-    cmd = [str(binary_path), "-tdb", str(gnss_obs_tdb), "-tdbpos", str(position_tdb), "-procs", str(n_procs)]
+    cmd = [
+        str(binary_path),
+        "-tdb",
+        str(gnss_obs_tdb),
+        "-tdbpos",
+        str(position_tdb),
+        "-procs",
+        str(n_procs),
+    ]
     logger.logdebug(f" Running {cmd}")
     for file in files:
         cmd.append(str(file))
@@ -70,7 +82,7 @@ def novatel_000_2tile(files: List[str], gnss_obs_tdb: Path, position_tdb:Path, n
     result = subprocess.run(cmd)
 
     # Parse the output and log messages
-    parse_cli_logs(result,logger)
+    parse_cli_logs(result, logger)
 
 
 def _novatel_2rinex_wrapper(
@@ -121,9 +133,7 @@ def _novatel_2rinex_wrapper(
             if not metadata_path.is_file():
                 raise ValueError(f"Metadata path is not a file: {metadata_path}")
             if (suffix := metadata_path.suffix.lower()) != ".json":
-                raise ValueError(
-                    f"Metadata file must be a JSON file, got {suffix}"
-                )
+                raise ValueError(f"Metadata file must be a JSON file, got {suffix}")
             with open(metadata_path) as f:
                 metadata_dict = json.load(f)
         else:
@@ -169,7 +179,9 @@ def _novatel_2rinex_wrapper(
 
         parse_cli_logs(result, logger)
 
-        rinex_file_paths = [x for x in workdir.rglob(f"*{site}*") if not x.suffix == ".json"]
+        rinex_file_paths = [
+            x for x in workdir.rglob(f"*{site}*") if not x.suffix == ".json"
+        ]
         logger.loginfo(
             f"Converted {len(file_paths)} input files to {len(rinex_file_paths)} Daily RINEX files"
         )
@@ -191,6 +203,7 @@ def _novatel_2rinex_wrapper(
             f"No RINEX files were generated from files: {file_paths}", stacklevel=2
         )
     return outpaths
+
 
 def novatel_2rinex(
     files: List[Path] | List[str] | str | Path,
@@ -284,9 +297,7 @@ def novatel_2rinex(
             )
         else:
             write_dirs = {Path(writedir): bin_files}
-            logger.loginfo(
-                f"Processing NOV000.bin files to writedir: {Path(writedir)}"
-            )
+            logger.loginfo(f"Processing NOV000.bin files to writedir: {Path(writedir)}")
         for write_dir, files_to_process in write_dirs.items():
             rinex_paths = _novatel_2rinex_wrapper(
                 files=files_to_process,
@@ -315,9 +326,7 @@ def novatel_2rinex(
             )
         else:
             write_dirs = {Path(writedir): raw_files}
-            logger.loginfo(
-                f"Processing NOV770.raw files to writedir: {Path(writedir)}"
-            )
+            logger.loginfo(f"Processing NOV770.raw files to writedir: {Path(writedir)}")
         for write_dir, files_to_process in write_dirs.items():
             rinex_paths = _novatel_2rinex_wrapper(
                 files=files_to_process,

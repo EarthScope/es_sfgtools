@@ -34,9 +34,9 @@ def update_source(source: RemoteResourceFTP) -> RemoteResourceFTP:
         "BRDC20210010000.rnx.gz"
     """
     # List the contents of the directory and return the first file that matches the sorted remote query
-    assert isinstance(
-        source.remote_query, RemoteQuery
-    ), f"Remote query not set for {source}"
+    assert isinstance(source.remote_query, RemoteQuery), (
+        f"Remote query not set for {source}"
+    )
 
     try:
         with FTP(source.ftpserver.replace("ftp://", ""), timeout=60) as ftp:
@@ -104,12 +104,14 @@ def download(source: RemoteResourceFTP, dest: Path) -> Path:
         if dest.exists() and dest.stat().st_size == 0:
             dest.unlink()
         raise e
-    
+
     # Verify the file was actually downloaded with content
     if dest.exists() and dest.stat().st_size == 0:
         dest.unlink()
-        raise FileNotFoundError(f"Downloaded file {dest} is empty (0 bytes). File may not exist on remote server.")
-    
+        raise FileNotFoundError(
+            f"Downloaded file {dest} is empty (0 bytes). File may not exist on remote server."
+        )
+
     logger.loginfo(f"\nDownloaded {str(source)} to {str(dest)}\n")
     return dest
 
@@ -331,11 +333,13 @@ def merge_broadcast_files(brdn: Path, brdg: Path, output_folder: Path) -> Path:
                         num3 = eval(line[41:60])
                         num4 = eval(line[60:79])
                         logger.logdebug(f"{t}    {num1} {num2} {num3} {num4}\n")
-                        logger.logdebug(f"    {num1:.12e} {num2:.12e} {num3:.12e} {num4:.12e}\n")
+                        logger.logdebug(
+                            f"    {num1:.12e} {num2:.12e} {num3:.12e} {num4:.12e}\n"
+                        )
                         fm.write(
                             f"    {num1:.12e} {num2:.12e} {num3:.12e} {num4:.12e}\n"
                         )
-                   
+
                     line = lines[i + 7].replace("D", "e")
                     num1 = eval(line[3:22])
                     num2 = eval(line[22:41])
@@ -514,7 +518,6 @@ def get_nav_file(rinex_path: Path, override: bool = False) -> Path:
 
     remote_resource_dict: Dict[str, RemoteResourceFTP] = get_daily_rinex_url(start_date)
     for source, remote_resource in remote_resource_dict["rinex_3"].items():
-
         remote_resource_updated = update_source(remote_resource)
         if remote_resource_updated.file_name is None:
             continue
@@ -561,13 +564,11 @@ def get_nav_file(rinex_path: Path, override: bool = False) -> Path:
             logger.logdebug(f" Attemping to download {source} From {str(gps_url)}")
 
             try:
-
                 download(gps_url, gps_dl_path)
 
                 download(glonass_url, glonass_dl_path)
 
             except Exception as e:
-
                 logger.logerr(
                     f"Failed to download {str(gps_url)} To {str(gps_dl_path.name)} or {str(glonass_url)} To {str(glonass_dl_path.name)} | {e}"
                 )
@@ -581,7 +582,6 @@ def get_nav_file(rinex_path: Path, override: bool = False) -> Path:
                         gps_dl_path, glonass_dl_path, rinex_path.parent
                     )
                 ) is not None:
-
                     logger.logdebug(f" Successfully built {brdm_path}")
 
                     return brdm_path
@@ -601,8 +601,7 @@ def get_gnss_products(
     date: Optional[datetime.date | datetime.datetime] = None,
     override_config: bool = True,
 ) -> Path | None:
- 
-    """ Generates or retrieves GNSS products for a given RINEX file or date and returns a pride config file path that
+    """Generates or retrieves GNSS products for a given RINEX file or date and returns a pride config file path that
     catalogs the products.
 
     Args:
@@ -623,7 +622,7 @@ def get_gnss_products(
     config_template = None
     start_date = None
     if rinex_path is not None:
-        start_date,_ = rinex_get_time_range(rinex_path)
+        start_date, _ = rinex_get_time_range(rinex_path)
         if start_date is None:
             logger.logerr("No TIME OF FIRST OBS found in RINEX file.")
             return
@@ -650,13 +649,15 @@ def get_gnss_products(
     if config_template_file_path.exists():
         # load and validate the config file
         try:
-            config_template = PRIDEPPPFileConfig.read_config_file(config_template_file_path)
+            config_template = PRIDEPPPFileConfig.read_config_file(
+                config_template_file_path
+            )
             product_directory = Path(
                 config_template.satellite_products.product_directory
             )
-            assert (
-                product_directory.exists()
-            ), f"Product directory {product_directory} does not exist"
+            assert product_directory.exists(), (
+                f"Product directory {product_directory} does not exist"
+            )
             # check if the gnss products are already downloaded
             for (
                 name,
@@ -777,4 +778,3 @@ def get_gnss_products(
     config_template_file_path = pride_dir / year / doy / "config_file"
     config_template.write_config_file(config_template_file_path)
     return config_template_file_path
-

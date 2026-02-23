@@ -1,8 +1,20 @@
-from typing import List, Tuple, ParamSpec, Callable, Concatenate, TypeVar, Protocol, Optional
+from typing import (
+    List,
+    Tuple,
+    ParamSpec,
+    Callable,
+    Concatenate,
+    TypeVar,
+    Protocol,
+    Optional,
+)
 import numpy as np
 from functools import wraps
 from es_sfgtools.logging import ProcessLogger as logger
-from es_sfgtools.tiledb_tools.tiledb_schemas import TDBShotDataArray, TDBKinPositionArray
+from es_sfgtools.tiledb_tools.tiledb_schemas import (
+    TDBShotDataArray,
+    TDBKinPositionArray,
+)
 
 P = ParamSpec("P")
 R = TypeVar("R")

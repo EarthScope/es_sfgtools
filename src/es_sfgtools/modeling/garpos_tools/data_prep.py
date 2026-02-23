@@ -9,7 +9,12 @@ from typing import List, Optional, Tuple
 import pandas as pd
 
 from es_sfgtools.data_models.metadata.benchmark import Benchmark, Transponder
-from es_sfgtools.data_models.metadata.campaign import Campaign, Survey, SurveyType, classify_survey_type
+from es_sfgtools.data_models.metadata.campaign import (
+    Campaign,
+    Survey,
+    SurveyType,
+    classify_survey_type,
+)
 from es_sfgtools.data_models.metadata.site import Site
 from es_sfgtools.logging import GarposLogger as logger
 from es_sfgtools.modeling.garpos_tools.functions import (
@@ -26,26 +31,32 @@ from es_sfgtools.modeling.garpos_tools.schemas import (
 
 from es_sfgtools.config.garpos_config import GarposSiteConfig, DEFAULT_SITE_CONFIG
 
+
 class NoShotDataError(Exception):
     """
     Custom exception raised when no shot data is found for a given survey.
     This exception is used to indicate that the shot data for a specific survey is empty or not available.
     """
+
     def __init__(self, message: str):
         super().__init__(message)
         self.message = message
+
 
 class NoGPTranspondersError(Exception):
     """
     Custom exception raised when no GP transponders are found for a given survey.
     This exception is used to indicate that the GP transponders for a specific survey are empty or not available.
     """
+
     def __init__(self, message: str):
         super().__init__(message)
         self.message = message
 
 
-def GP_Transponders_from_benchmarks(coord_transformer: CoordTransformer, survey: Survey, site: Site,is_qc:bool=False) -> List[GPTransponder]:
+def GP_Transponders_from_benchmarks(
+    coord_transformer: CoordTransformer, survey: Survey, site: Site, is_qc: bool = False
+) -> List[GPTransponder]:
     """Get GP transponders from the benchmarks in the survey.
 
     Parameters
@@ -86,7 +97,9 @@ def GP_Transponders_from_benchmarks(coord_transformer: CoordTransformer, survey:
                         break
 
         gp_transponder = create_GPTransponder(
-            coord_transformer=coord_transformer, benchmark=benchmark, transponder=current_transponder
+            coord_transformer=coord_transformer,
+            benchmark=benchmark,
+            transponder=current_transponder,
         )
         GPtransponders.append(gp_transponder)
 
@@ -94,8 +107,9 @@ def GP_Transponders_from_benchmarks(coord_transformer: CoordTransformer, survey:
         raise NoGPTranspondersError(f"No transponders found for survey {survey.id}")
     return GPtransponders
 
+
 def create_GPTransponder(
-    coord_transformer:CoordTransformer, benchmark: Benchmark, transponder: Transponder
+    coord_transformer: CoordTransformer, benchmark: Benchmark, transponder: Transponder
 ) -> GPTransponder:
     """Create a GPTransponder object from a benchmark and transponder.
 
@@ -137,7 +151,10 @@ def create_GPTransponder(
     gp_transponder.position_enu = gp_transponder_enu
     return gp_transponder
 
-def get_array_dpos_center(coord_transformer: CoordTransformer, transponders: List[GPTransponder]):
+
+def get_array_dpos_center(
+    coord_transformer: CoordTransformer, transponders: List[GPTransponder]
+):
     """Get the average transponder position in ENU coordinates.
 
     Parameters
@@ -161,8 +178,9 @@ def get_array_dpos_center(coord_transformer: CoordTransformer, transponders: Lis
 
     return array_dpos_center
 
+
 def avg_transponder_position(
-    transponders: List[GPTransponder]
+    transponders: List[GPTransponder],
 ) -> Tuple[GPPositionENU, GPPositionLLH]:
     """Calculate the average position of the transponders.
 
@@ -198,6 +216,7 @@ def avg_transponder_position(
     )
 
     return out_pos_enu, out_pos_llh
+
 
 def prepare_shotdata_for_garpos(
     coord_transformer: CoordTransformer,
@@ -243,13 +262,14 @@ def prepare_shotdata_for_garpos(
     shot_data_rectified.MT = shot_data_rectified.MT.apply(
         lambda x: "M" + str(x) if str(x)[0].isdigit() else str(x)
     )
-    shot_data_rectified = shot_data_rectified.sort_values(
-        by=["ST", "MT"]
-    ).reset_index(drop=True)
+    shot_data_rectified = shot_data_rectified.sort_values(by=["ST", "MT"]).reset_index(
+        drop=True
+    )
     shot_data_rectified.to_csv(str(shodata_out_path))
     logger.loginfo(f"Shot data prepared and saved to {str(shodata_out_path)}")
 
     return shot_data_rectified
+
 
 def prepare_garpos_input_from_survey(
     shot_data_path: Path,
@@ -317,7 +337,9 @@ def prepare_garpos_input_from_survey(
     return garpos_input
 
 
-def apply_survey_config(config: GarposSiteConfig, garpos_input: GarposInput) -> GarposInput:
+def apply_survey_config(
+    config: GarposSiteConfig, garpos_input: GarposInput
+) -> GarposInput:
     """Apply the site configuration to the GarposInput object.
 
     Parameters
@@ -332,14 +354,25 @@ def apply_survey_config(config: GarposSiteConfig, garpos_input: GarposInput) -> 
     GarposInput
         The modified GarposInput object with the site configuration applied.
     """
-    garpos_input.delta_center_position.east_sigma = config.inversion_params.delta_center_position.east_sigma
-    garpos_input.delta_center_position.north_sigma = config.inversion_params.delta_center_position.north_sigma
-    garpos_input.delta_center_position.up_sigma = config.inversion_params.delta_center_position.up_sigma
-
+    garpos_input.delta_center_position.east_sigma = (
+        config.inversion_params.delta_center_position.east_sigma
+    )
+    garpos_input.delta_center_position.north_sigma = (
+        config.inversion_params.delta_center_position.north_sigma
+    )
+    garpos_input.delta_center_position.up_sigma = (
+        config.inversion_params.delta_center_position.up_sigma
+    )
 
     for transponder in garpos_input.transponders:
-        transponder.position_enu.east_sigma = config.transponder_position_variance.east_sigma
-        transponder.position_enu.north_sigma = config.transponder_position_variance.north_sigma
-        transponder.position_enu.up_sigma = config.transponder_position_variance.up_sigma
-    
+        transponder.position_enu.east_sigma = (
+            config.transponder_position_variance.east_sigma
+        )
+        transponder.position_enu.north_sigma = (
+            config.transponder_position_variance.north_sigma
+        )
+        transponder.position_enu.up_sigma = (
+            config.transponder_position_variance.up_sigma
+        )
+
     return garpos_input

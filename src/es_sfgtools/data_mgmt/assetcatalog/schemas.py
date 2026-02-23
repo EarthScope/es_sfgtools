@@ -36,12 +36,14 @@ class _AssetBase(BaseModel):
         if isinstance(type_value, AssetType):
             return type_value.value
         return type_value
-    
+
     @root_validator(pre=True)
     def _check_at_least_one(cls, values):
         if not values.get("local_path") and not values.get("remote_path"):
-            raise ValueError("At least one of the following must be set: local_path, remote_path")
-        
+            raise ValueError(
+                "At least one of the following must be set: local_path, remote_path"
+            )
+
         if isinstance(values.get("local_path"), str):
             values["local_path"] = Path(values["local_path"])
 
@@ -61,7 +63,7 @@ class AssetEntry(_AssetBase):
     parent_id: Optional[int] = Field(default=None)
 
     def to_update_dict(self) -> Dict[str, Any]:
-        # Drop the id  
+        # Drop the id
         model_dict = self.model_dump()
         model_dict.pop("id")
         return model_dict

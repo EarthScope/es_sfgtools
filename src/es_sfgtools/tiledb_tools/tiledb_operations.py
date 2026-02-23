@@ -66,7 +66,7 @@ def tile2rinex(
         if modulo_millis > 0:
             cmd.extend(["-modulo", str(modulo_millis)])
         logger.loginfo(f" Running {cmd}")
-        result = subprocess.run(cmd, cwd=workdir,capture_output=True)
+        result = subprocess.run(cmd, cwd=workdir, capture_output=True)
 
         parse_cli_logs(result, logger)
 

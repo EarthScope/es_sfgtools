@@ -1,8 +1,11 @@
-from typing import Union,Dict,Any
+from typing import Union, Dict, Any
 from pydantic import BaseModel
 from difflib import get_close_matches
 
-def validate_keys_recursively(config_dict: dict, model_class: BaseModel, path: str = ""):
+
+def validate_keys_recursively(
+    config_dict: dict, model_class: BaseModel, path: str = ""
+):
     """Recursively validate keys and suggest corrections for typos.
 
     Parameters
@@ -13,7 +16,7 @@ def validate_keys_recursively(config_dict: dict, model_class: BaseModel, path: s
         The Pydantic model to validate against.
     path : str, optional
         The current path in the nested dictionary, for error reporting.
-    
+
     Returns
     -------
     list
@@ -48,10 +51,7 @@ def validate_keys_recursively(config_dict: dict, model_class: BaseModel, path: s
             if hasattr(field_info, "annotation"):
                 annotation = field_info.annotation
                 # Handle Optional types
-                if (
-                    hasattr(annotation, "__origin__")
-                    and annotation.__origin__ is Union
-                ):
+                if hasattr(annotation, "__origin__") and annotation.__origin__ is Union:
                     annotation = annotation.__args__[0]  # Get first non-None type
 
                 # If it's a BaseModel subclass, validate recursively
@@ -70,17 +70,17 @@ def validate_keys_recursively(config_dict: dict, model_class: BaseModel, path: s
 
 def deep_merge_dicts(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
     """Recursively merge override dict into base dict.
-    
+
     For nested dictionaries, values are merged recursively rather than replaced.
     For other types, override values replace base values.
-    
+
     Parameters
     ----------
     base : dict
         The base dictionary to merge into.
     override : dict
         The override dictionary with values to merge.
-    
+
     Returns
     -------
     dict
@@ -100,10 +100,10 @@ def deep_merge_dicts(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str
 
 
 def validate_and_merge_config(
-     base_class: BaseModel, override_config: Union[BaseModel, Dict[str, Any]]
+    base_class: BaseModel, override_config: Union[BaseModel, Dict[str, Any]]
 ) -> BaseModel:
     """Validates and merges override configuration with base config, checking for typos.
-    
+
     Performs a deep merge so that nested configuration objects (like pride_config)
     are merged field-by-field rather than completely replaced.
 
@@ -133,25 +133,23 @@ def validate_and_merge_config(
 
     if isinstance(override_config, BaseModel):
         override_config = override_config.model_dump()
+
     # Drop 'description' keys if present
     def drop_description(d):
         if not isinstance(d, dict):
             return d
-        return {
-            k: drop_description(v)
-            for k, v in d.items()
-            if k != "description"
-        }
+        return {k: drop_description(v) for k, v in d.items() if k != "description"}
+
     override_config = drop_description(override_config)
     # Check for typos and validate keys
     errors = validate_keys_recursively(override_config, base_class)
     if errors:
         raise ValueError("Configuration validation errors:\n" + "\n".join(errors))
-    
+
     # Deep merge the override config with the base config
     base_dict = base_class.model_dump()
     merged_dict = deep_merge_dicts(base_dict, override_config)
-    
+
     # Create new instance to ensure validation
     updated_config = base_class.__class__(**merged_dict)
     return updated_config
@@ -164,44 +162,36 @@ if __name__ == "__main__":
 
     os.environ["DYLD_LIBRARY_PATH"] = os.environ.get("CONDA_PREFIX", "") + "/lib"
     from es_sfgtools.pipelines.sv3_pipeline import SV3PipelineConfig
+
     # Validate keys and collect errors
-    primary_config_true =  {
-    "dfop00_config": {
-      "override": False,
-    },
-    "novatel_config": {
-      "n_processes": 14,
-      "override": False
-    },
-    "position_update_config": {
-      "override": False,
-      "lengthscale": 0.1,
-      "plot": False
-    },
-    "pride_config": {
-      "cutoff_elevation": 1000,
-      "end": None,
-      "frequency": ["G12", "R12", "E15", "C26", "J12"],
-      "high_ion": None,
-      "interval": None,
-      "local_pdp3_path": None,
-      "loose_edit": True,
-      "sample_frequency": 1,
-      "start": None,
-      "system": "GREC23J",
-      "tides": "SOP",
-      "override_products_download": False,
-      "override": False
-    },
-    "rinex_config": {
-      "n_processes": 5,
-      "time_interval": 24,
-      "override": False
+    primary_config_true = {
+        "dfop00_config": {
+            "override": False,
+        },
+        "novatel_config": {"n_processes": 14, "override": False},
+        "position_update_config": {
+            "override": False,
+            "lengthscale": 0.1,
+            "plot": False,
+        },
+        "pride_config": {
+            "cutoff_elevation": 1000,
+            "end": None,
+            "frequency": ["G12", "R12", "E15", "C26", "J12"],
+            "high_ion": None,
+            "interval": None,
+            "local_pdp3_path": None,
+            "loose_edit": True,
+            "sample_frequency": 1,
+            "start": None,
+            "system": "GREC23J",
+            "tides": "SOP",
+            "override_products_download": False,
+            "override": False,
+        },
+        "rinex_config": {"n_processes": 5, "time_interval": 24, "override": False},
     }
-  }
-    secondary_config_true = {
-        "pride_config": {"cutoff_elevation": 10, "override": True}
-    }
+    secondary_config_true = {"pride_config": {"cutoff_elevation": 10, "override": True}}
 
     sv3config = SV3PipelineConfig()
     errors = validate_keys_recursively(primary_config_true, SV3PipelineConfig)
@@ -214,7 +204,11 @@ if __name__ == "__main__":
     sv3_config_new2 = validate_and_merge_config(sv3_config_new, secondary_config_true)
     print(sv3_config_new2)
 
-    assert sv3_config_new2.pride_config.cutoff_elevation != sv3config.pride_config.cutoff_elevation != sv3_config_new.pride_config.cutoff_elevation
+    assert (
+        sv3_config_new2.pride_config.cutoff_elevation
+        != sv3config.pride_config.cutoff_elevation
+        != sv3_config_new.pride_config.cutoff_elevation
+    )
 
     update_dict_bogus = {
         "pride_config": {"cutoff_elevation": 10, "override": True, "bogus_key": 123}

@@ -4,6 +4,7 @@ This module manages environment-specific configurations.
 It defines a class `Environment` that detects the current working environment
 (e.g., LOCAL or GEOLAB) and loads relevant settings from environment variables.
 """
+
 import os
 import warnings
 from enum import Enum
@@ -82,12 +83,16 @@ class Environment:
 
         s3_sync_bucket_str = os.environ.get(S3_SYNC_BUCKET_KEY)
         if s3_sync_bucket_str is None:
-            warnings.warn(f"Environment variable {S3_SYNC_BUCKET_KEY} is not set.",stacklevel=2)
+            warnings.warn(
+                f"Environment variable {S3_SYNC_BUCKET_KEY} is not set.", stacklevel=2
+            )
         else:
             cls._s3_sync_bucket = s3_sync_bucket_str
 
     @classmethod
-    def load_aws_credentials(cls) -> tuple[str | None, str | None, str | None, str | None]:
+    def load_aws_credentials(
+        cls,
+    ) -> tuple[str | None, str | None, str | None, str | None]:
         """
         Loads AWS credentials from environment variables or profile.
 

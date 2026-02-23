@@ -131,7 +131,16 @@ class _BaseLogger:
         self.format = BASIC_FORMAT
         self.file_handler.setFormatter(self.format)
 
-    def set_level(self, level: Literal[logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL]) -> None:  # type: ignore
+    def set_level(
+        self,
+        level: Literal[
+            logging.DEBUG,
+            logging.INFO,
+            logging.WARNING,
+            logging.ERROR,
+            logging.CRITICAL,
+        ],
+    ) -> None:  # type: ignore
         """Set the logging level for the logger.
 
         Parameters
@@ -159,7 +168,7 @@ class _BaseLogger:
             self.logger.addHandler(self.console_handler)
             self.logdebug(f"Routing {self.name} logger to console")
 
-    def non_negotiable_console_log(self,message: str) -> str| None:
+    def non_negotiable_console_log(self, message: str) -> str | None:
         """Log a message to the console if a console handler is present.
 
         Parameters
@@ -181,7 +190,7 @@ class _BaseLogger:
         This method detaches the console handler from the logger instance,
         effectively stopping the logger from outputting logs to the console.
         """
-        
+
         for handler in list(self.logger.handlers):
             if type(handler) == logging.StreamHandler:
                 self.logger.removeHandler(handler)
@@ -213,7 +222,7 @@ class _BaseLogger:
         """
         self.logger.info(message, stacklevel=2)
 
-    def logerr(self, message) -> None|str:
+    def logerr(self, message) -> None | str:
         """Log an error message.
 
         This uses stacklevel=2 so the logging module goes up the stack to get
@@ -253,7 +262,6 @@ def route_all_loggers_to_console():
     GarposLogger.route_to_console()
 
 
-
 def remove_all_loggers_from_console():
     """Remove all loggers from the console."""
     PRIDELogger.remove_console()
@@ -261,8 +269,11 @@ def remove_all_loggers_from_console():
     GarposLogger.remove_console()
 
 
-
-def set_all_logger_levels(level: Literal[logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL]):  # type: ignore
+def set_all_logger_levels(
+    level: Literal[
+        logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL
+    ],
+):  # type: ignore
     """Set the level for all loggers.
 
     Parameters
@@ -273,7 +284,6 @@ def set_all_logger_levels(level: Literal[logging.DEBUG, logging.INFO, logging.WA
     PRIDELogger.set_level(level)
     ProcessLogger.set_level(level)
     GarposLogger.set_level(level)
- 
 
 
 def change_all_logger_dirs(dir: Path):
@@ -311,7 +321,6 @@ GarposLogger = _BaseLogger(
     file_name="garpos.log",
 )
 GarposLogger.propagate = True
-
 
 
 # Route all loggers to the console

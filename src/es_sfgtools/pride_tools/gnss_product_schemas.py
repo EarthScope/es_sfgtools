@@ -3,7 +3,9 @@ import re
 from dataclasses import dataclass
 from typing import List, Literal, Optional, Tuple
 
-GNSS_START_TIME = datetime.datetime(1980, 1, 6, tzinfo=datetime.timezone.utc)  # GNSS start time
+GNSS_START_TIME = datetime.datetime(
+    1980, 1, 6, tzinfo=datetime.timezone.utc
+)  # GNSS start time
 
 from ..logging import PRIDELogger as logger
 
@@ -167,12 +169,12 @@ class RemoteQuery:
     @classmethod
     def erp(cls, date: datetime.date) -> "RemoteQuery":
         """
-        Creates a RemoteQuery object to search for Earth Rotation Parameters (ERP) files 
+        Creates a RemoteQuery object to search for Earth Rotation Parameters (ERP) files
         based on the given date.
         Args:
             date (datetime.date): The date for which to search ERP files.
         Returns:
-            RemoteQuery: An instance of RemoteQuery initialized with the search pattern 
+            RemoteQuery: An instance of RemoteQuery initialized with the search pattern
             and order for ERP files.
         """
 
@@ -196,12 +198,14 @@ class RemoteQuery:
         return cls(pattern)
 
     @classmethod
-    def rnx2(cls, date: datetime.date, constellation: Literal["gps", "glonass"]) -> "RemoteQuery":
+    def rnx2(
+        cls, date: datetime.date, constellation: Literal["gps", "glonass"]
+    ) -> "RemoteQuery":
         """
         Generate a RemoteQuery object for RINEX files based on the given date and GNSS constellation.
         Args:
             date (datetime.date): The date for which to generate the query.
-            constellation (Literal["gps", "glonass"]): The GNSS constellation to query. 
+            constellation (Literal["gps", "glonass"]): The GNSS constellation to query.
                 Must be either "gps" or "glonass".
         Returns:
             RemoteQuery: An object representing the query for the specified RINEX files.
@@ -217,6 +221,7 @@ class RemoteQuery:
         const_tag = constellation_tag[constellation]
         pattern = re.compile(rf"brdc{doy}0.{year[2:]}{const_tag}.gz")
         return cls(pattern)
+
 
 @dataclass
 class RemoteResourceFTP:
@@ -238,16 +243,23 @@ class RemoteResourceFTP:
             Returns a string representation of the remote resource.
     """
 
-    ftpserver:str
-    directory:str
-    remote_query:RemoteQuery
-    file_name:Optional[str] = None
+    ftpserver: str
+    directory: str
+    remote_query: RemoteQuery
+    file_name: Optional[str] = None
 
     def __str__(self):
-        return str({"ftpserver":self.ftpserver,"directory":self.directory,"file":self.file_name})
+        return str(
+            {
+                "ftpserver": self.ftpserver,
+                "directory": self.directory,
+                "file": self.file_name,
+            }
+        )
+
 
 class WuhanIGS:
-    '''
+    """
     The `WuhanIGS` class provides methods to retrieve various GNSS (Global Navigation Satellite System) remote resources from the Wuhan IGS (International GNSS Service) FTP server. The class includes methods to get RINEX 2 and 3 navigation files, as well as various GNSS products such as SP3, OBX, clock, sum, bias, and ERP (Earth Rotation Parameters).
 
     Attributes:
@@ -279,23 +291,26 @@ class WuhanIGS:
         get_product_erp(date: datetime.date) -> RemoteResource:
             Retrieve the Earth Rotation Parameters (ERP) GNSS product remote resource for a given date.
 
-    '''
+    """
+
     ftpserver = "ftp://igs.gnsswhu.cn"
     daily_gps_dir = "pub/gps/data/daily"
     daily_product_dir = "pub/whu/phasebias"
 
     constellation_tag = {
-        "gps":'n',
-        "glonass":'g',
+        "gps": "n",
+        "glonass": "g",
     }
 
     @classmethod
-    def get_rinex_2_nav(cls,date:datetime.date, constellation:Literal["gps","glonass"]="gps")->RemoteResourceFTP:
+    def get_rinex_2_nav(
+        cls, date: datetime.date, constellation: Literal["gps", "glonass"] = "gps"
+    ) -> RemoteResourceFTP:
         """
         Retrieve RINEX 2 navigation file remote resource for a given date and constellation.
         Args:
             date (datetime.date): The date for which to retrieve the RINEX 2 navigation file.
-            constellation (Literal["gps", "glonass"], optional): The satellite constellation to use. 
+            constellation (Literal["gps", "glonass"], optional): The satellite constellation to use.
                 Defaults to "gps".
         Returns:
             RemoteResource: An object representing the remote resource for the RINEX 2 navigation file.
@@ -303,17 +318,23 @@ class WuhanIGS:
             AssertionError: If the provided constellation is not recognized.
         """
 
-        logger.logdebug(f" Generating the RemoteResource for RINEX 2 navigation file for {date} and constellation {constellation}")
-        assert constellation in cls.constellation_tag.keys(),f"Constellation {constellation} not recognized"
-        year,doy = _parse_date(date)
+        logger.logdebug(
+            f" Generating the RemoteResource for RINEX 2 navigation file for {date} and constellation {constellation}"
+        )
+        assert constellation in cls.constellation_tag.keys(), (
+            f"Constellation {constellation} not recognized"
+        )
+        year, doy = _parse_date(date)
         dir_extension = f"{year}/{doy}/{year[2:]}p"
         directory = "/".join([cls.daily_gps_dir, dir_extension])
-        remote_query = RemoteQuery.rnx2(date,constellation)
-        remote_resource = RemoteResourceFTP(ftpserver=cls.ftpserver,directory=directory,remote_query=remote_query)
+        remote_query = RemoteQuery.rnx2(date, constellation)
+        remote_resource = RemoteResourceFTP(
+            ftpserver=cls.ftpserver, directory=directory, remote_query=remote_query
+        )
         return remote_resource
 
     @classmethod
-    def get_rinex_3_nav(cls,date:datetime) -> RemoteResourceFTP:
+    def get_rinex_3_nav(cls, date: datetime) -> RemoteResourceFTP:
         """
         Generates the RINEX 3 navigation file remote resource for a given date.
         Args:
@@ -321,16 +342,20 @@ class WuhanIGS:
         Returns:
             RemoteResource: An object representing the remote resource for the RINEX 3 navigation file.
         """
-        logger.logdebug(f" Generating the RemoteResource for RINEX 3 navigation file for {date}")
+        logger.logdebug(
+            f" Generating the RemoteResource for RINEX 3 navigation file for {date}"
+        )
         remote_query = RemoteQuery.rnx3(date)
         year, doy = _parse_date(date)
         dir_extension = f"{year}/{doy}/{year[2:]}p"
         directory = "/".join([cls.daily_gps_dir, dir_extension])
-        remote_resource = RemoteResourceFTP(ftpserver=cls.ftpserver,directory=directory,remote_query=remote_query)
+        remote_resource = RemoteResourceFTP(
+            ftpserver=cls.ftpserver, directory=directory, remote_query=remote_query
+        )
         return remote_resource
 
     @classmethod
-    def get_product_sp3(cls,date:datetime.date)->RemoteResourceFTP:
+    def get_product_sp3(cls, date: datetime.date) -> RemoteResourceFTP:
         """
         Generates the SP3 GNSS product remote resource for a given date.
         Args:
@@ -339,15 +364,19 @@ class WuhanIGS:
             RemoteResource: An object representing the remote resource for the SP3 product.
         """
 
-        logger.logdebug(f" Generating the RemoteResource for SP3 GNSS product for {date}")
-        year,doy = _parse_date(date)
+        logger.logdebug(
+            f" Generating the RemoteResource for SP3 GNSS product for {date}"
+        )
+        year, doy = _parse_date(date)
         dir_extension = f"{year}/orbit"
         directory = "/".join([cls.daily_product_dir, dir_extension])
         remote_query = RemoteQuery.sp3(date)
-        return RemoteResourceFTP(ftpserver=cls.ftpserver,directory=directory,remote_query=remote_query)
+        return RemoteResourceFTP(
+            ftpserver=cls.ftpserver, directory=directory, remote_query=remote_query
+        )
 
     @classmethod
-    def get_product_obx(cls,date:datetime.date)->RemoteResourceFTP:
+    def get_product_obx(cls, date: datetime.date) -> RemoteResourceFTP:
         """
         Generates the OBX GNSS product remote resource for a given date.
         Args:
@@ -356,15 +385,19 @@ class WuhanIGS:
             RemoteResource: An object representing the remote resource for the OBX product.
         """
 
-        logger.logdebug(f" Generating the RemoteResource for OBX GNSS product for {date}")
-        year,doy = _parse_date(date)
+        logger.logdebug(
+            f" Generating the RemoteResource for OBX GNSS product for {date}"
+        )
+        year, doy = _parse_date(date)
         dir_extension = f"{year}/orbit"
         directory = "/".join([cls.daily_product_dir, dir_extension])
         remote_query = RemoteQuery.obx(date)
-        return RemoteResourceFTP(ftpserver=cls.ftpserver,directory=directory,remote_query=remote_query)
+        return RemoteResourceFTP(
+            ftpserver=cls.ftpserver, directory=directory, remote_query=remote_query
+        )
 
     @classmethod
-    def get_product_clk(cls,date:datetime.date)->RemoteResourceFTP:
+    def get_product_clk(cls, date: datetime.date) -> RemoteResourceFTP:
         """
         Generates the clock GNSS product remote resource for a given date.
         Args:
@@ -373,15 +406,19 @@ class WuhanIGS:
             RemoteResource: An object representing the remote resource for the clock product.
         """
 
-        logger.logdebug(f" Generating the RemoteResource for clock GNSS product for {date}")
-        year,doy = _parse_date(date)
+        logger.logdebug(
+            f" Generating the RemoteResource for clock GNSS product for {date}"
+        )
+        year, doy = _parse_date(date)
         dir_extension = f"{year}/clock"
         directory = "/".join([cls.daily_product_dir, dir_extension])
         remote_query = RemoteQuery.clk(date)
-        return RemoteResourceFTP(ftpserver=cls.ftpserver,directory=directory,remote_query=remote_query)
+        return RemoteResourceFTP(
+            ftpserver=cls.ftpserver, directory=directory, remote_query=remote_query
+        )
 
     @classmethod
-    def get_product_sum(cls,date:datetime.date)->RemoteResourceFTP:
+    def get_product_sum(cls, date: datetime.date) -> RemoteResourceFTP:
         """
         Generates the sum GNSS product remote resource for a given date.
         Args:
@@ -390,15 +427,19 @@ class WuhanIGS:
             RemoteResource: An object representing the remote resource containing the GNSS product sum.
         """
 
-        logger.logdebug(f" Generating the RemoteResource for sum GNSS product for {date}")
-        year,doy = _parse_date(date)
+        logger.logdebug(
+            f" Generating the RemoteResource for sum GNSS product for {date}"
+        )
+        year, doy = _parse_date(date)
         dir_extension = f"{year}/clock"
         directory = "/".join([cls.daily_product_dir, dir_extension])
         remote_query = RemoteQuery.sum(date)
-        return RemoteResourceFTP(ftpserver=cls.ftpserver,directory=directory,remote_query=remote_query)
+        return RemoteResourceFTP(
+            ftpserver=cls.ftpserver, directory=directory, remote_query=remote_query
+        )
 
     @classmethod
-    def get_product_bias(cls,date:datetime.date)->RemoteResourceFTP:
+    def get_product_bias(cls, date: datetime.date) -> RemoteResourceFTP:
         """
         Retrieve the bias GNSS product remote resource for a given date.
         Args:
@@ -407,15 +448,19 @@ class WuhanIGS:
             RemoteResource: An object representing the remote resource containing the product bias.
         """
 
-        logger.logdebug(f" Generating the RemoteResource for bias GNSS product for {date}")
-        year,doy = _parse_date(date)
+        logger.logdebug(
+            f" Generating the RemoteResource for bias GNSS product for {date}"
+        )
+        year, doy = _parse_date(date)
         dir_extension = f"{year}/bias"
         directory = "/".join([cls.daily_product_dir, dir_extension])
         remote_query = RemoteQuery.bias(date)
-        return RemoteResourceFTP(ftpserver=cls.ftpserver,directory=directory,remote_query=remote_query)
+        return RemoteResourceFTP(
+            ftpserver=cls.ftpserver, directory=directory, remote_query=remote_query
+        )
 
     @classmethod
-    def get_product_erp(cls,date:datetime.date)->RemoteResourceFTP:
+    def get_product_erp(cls, date: datetime.date) -> RemoteResourceFTP:
         """
         Generates the Earth Rotation Parameters (ERP) GNSS product remote resource for a given date.
         Args:
@@ -424,12 +469,17 @@ class WuhanIGS:
             RemoteResource: An object representing the remote resource containing the ERP product.
         """
 
-        logger.logdebug(f" Generating the RemoteResource for ERP GNSS product for {date}")
-        year,doy = _parse_date(date)
+        logger.logdebug(
+            f" Generating the RemoteResource for ERP GNSS product for {date}"
+        )
+        year, doy = _parse_date(date)
         dir_extension = f"{year}/orbit"
         directory = "/".join([cls.daily_product_dir, dir_extension])
         remote_query = RemoteQuery.erp(date)
-        return RemoteResourceFTP(ftpserver=cls.ftpserver,directory=directory,remote_query=remote_query)
+        return RemoteResourceFTP(
+            ftpserver=cls.ftpserver, directory=directory, remote_query=remote_query
+        )
+
 
 class GSSC:
     """
@@ -454,26 +504,29 @@ class GSSC:
         "gps": "n",
         "glonass": "g",
     }
+
     @classmethod
     def get_rinex_2_nav(
         cls, date: datetime.date, constellation: Literal["gps", "glonass"] = "gps"
     ) -> RemoteResourceFTP:
-        '''
+        """
         Generates a RINEX 2 navigation file remote resource for a given date and constellation.
         Args:
             date (datetime.date): The date for which to retrieve the RINEX 2 navigation file.
-            constellation (Literal["gps", "glonass"], optional): The satellite constellation to use. 
+            constellation (Literal["gps", "glonass"], optional): The satellite constellation to use.
                 Defaults to "gps".
         Returns:
             RemoteResource: An object representing the remote resource for the RINEX 2 navigation file.
         Raises:
             AssertionError: If the provided constellation is not recognized.
-        '''
+        """
 
-        logger.logdebug(f" Generating the RemoteResource for RINEX 2 navigation file for {date} and constellation {constellation}")
-        assert (
-            constellation in cls.constellation_tag.keys()
-        ), f"Constellation {constellation} not recognized"
+        logger.logdebug(
+            f" Generating the RemoteResource for RINEX 2 navigation file for {date} and constellation {constellation}"
+        )
+        assert constellation in cls.constellation_tag.keys(), (
+            f"Constellation {constellation} not recognized"
+        )
 
         year, doy = _parse_date(date)
         dir_extension = f"{year}/{doy}"
@@ -494,7 +547,9 @@ class GSSC:
             RemoteResource: An object representing the remote resource for the RINEX 3 navigation file.
         """
 
-        logger.logdebug(f" Generating the RemoteResource for RINEX 3 navigation file for {date}")
+        logger.logdebug(
+            f" Generating the RemoteResource for RINEX 3 navigation file for {date}"
+        )
         remote_query = RemoteQuery.rnx3(date)
         year, doy = _parse_date(date)
         dir_extension = f"{year}/{doy}"
@@ -512,10 +567,8 @@ class CLSIGS:
 
     @classmethod
     def get_rinex_2_nav(
-
         cls, date: datetime.date, constellation: Literal["gps", "glonass"] = "gps"
     ) -> RemoteResourceFTP:
-
         """
         Generates a RINEX 2 navigation file remote resource for a given date and constellation.
         Args:
@@ -528,10 +581,12 @@ class CLSIGS:
             AssertionError: If the provided constellation is not recognized.
         """
 
-        logger.logdebug(f" Generating the RemoteResource for RINEX 2 navigation file for {date} and constellation {constellation}")
-        assert (
-            constellation in cls.constellation_tag.keys()
-        ), f"Constellation {constellation} not recognized"
+        logger.logdebug(
+            f" Generating the RemoteResource for RINEX 2 navigation file for {date} and constellation {constellation}"
+        )
+        assert constellation in cls.constellation_tag.keys(), (
+            f"Constellation {constellation} not recognized"
+        )
 
         year, doy = _parse_date(date)
         dir_extension = f"{year}/{doy}"
@@ -552,7 +607,9 @@ class CLSIGS:
             RemoteResource: An object representing the remote resource for the RINEX 3 navigation file.
         """
 
-        logger.logdebug(f" Generating the RemoteResource for RINEX 3 navigation file for {date}")
+        logger.logdebug(
+            f" Generating the RemoteResource for RINEX 3 navigation file for {date}"
+        )
         remote_query = RemoteQuery.rnx3(date)
         year, doy = _parse_date(date)
         dir_extension = f"{year}/{doy}"
@@ -563,7 +620,7 @@ class CLSIGS:
         return remote_resource
 
     @classmethod
-    def get_product_sp3(cls,date:datetime.date)->RemoteResourceFTP:
+    def get_product_sp3(cls, date: datetime.date) -> RemoteResourceFTP:
         """
         Generates a SP3 GNSS product remote resource for a given date.
 
@@ -574,15 +631,19 @@ class CLSIGS:
             RemoteResource: An object representing the remote resource for the SP3 product.
         """
 
-        logger.logdebug(f" Generating the RemoteResource for SP3 GNSS product for {date}")
+        logger.logdebug(
+            f" Generating the RemoteResource for SP3 GNSS product for {date}"
+        )
         gps_week = _date_to_gps_week(date)
         dir_extension = f"{gps_week}"
         directory = "/".join([cls.daily_products_dir, dir_extension])
         remote_query = RemoteQuery.sp3(date)
-        return RemoteResourceFTP(ftpserver=cls.ftpserver,directory=directory,remote_query=remote_query)
+        return RemoteResourceFTP(
+            ftpserver=cls.ftpserver, directory=directory, remote_query=remote_query
+        )
 
     @classmethod
-    def get_product_clk(cls,date:datetime.date)->RemoteResourceFTP:
+    def get_product_clk(cls, date: datetime.date) -> RemoteResourceFTP:
         """
         Generates a clock GNSS product remote resource for a given date.
 
@@ -592,15 +653,19 @@ class CLSIGS:
             RemoteResource: An object representing the remote resource for the clock product.
         """
 
-        logger.logdebug(f" Generating the RemoteResource for clock GNSS product for {date}")
+        logger.logdebug(
+            f" Generating the RemoteResource for clock GNSS product for {date}"
+        )
         gps_week = _date_to_gps_week(date)
         dir_extension = f"{gps_week}"
         directory = "/".join([cls.daily_products_dir, dir_extension])
         remote_query = RemoteQuery.clk(date)
-        return RemoteResourceFTP(ftpserver=cls.ftpserver,directory=directory,remote_query=remote_query)
+        return RemoteResourceFTP(
+            ftpserver=cls.ftpserver, directory=directory, remote_query=remote_query
+        )
 
     @classmethod
-    def get_product_erp(cls,date:datetime.date)->RemoteResourceFTP:
+    def get_product_erp(cls, date: datetime.date) -> RemoteResourceFTP:
         """
         Generates a Earth Rotation Parameters (ERP) GNSS product remote resource for a given date.
         Args:
@@ -609,15 +674,19 @@ class CLSIGS:
             RemoteResource: An object representing the remote resource for the ERP product.
         """
 
-        logger.logdebug(f" Generating the RemoteResource for ERP GNSS product for {date}")
+        logger.logdebug(
+            f" Generating the RemoteResource for ERP GNSS product for {date}"
+        )
         gps_week = _date_to_gps_week(date)
         dir_extension = f"{gps_week}"
         directory = "/".join([cls.daily_products_dir, dir_extension])
         remote_query = RemoteQuery.erp(date)
-        return RemoteResourceFTP(ftpserver=cls.ftpserver,directory=directory,remote_query=remote_query)
+        return RemoteResourceFTP(
+            ftpserver=cls.ftpserver, directory=directory, remote_query=remote_query
+        )
 
     @classmethod
-    def get_product_obx(cls,date:datetime.date)->RemoteResourceFTP:
+    def get_product_obx(cls, date: datetime.date) -> RemoteResourceFTP:
         """
         Generates a OBX GNSS product remote resource for a given date.
         Args:
@@ -626,15 +695,19 @@ class CLSIGS:
             RemoteResource: An object representing the remote resource for the OBX product.
         """
 
-        logger.logdebug(f" Generating the RemoteResource for OBX GNSS product for {date}")
+        logger.logdebug(
+            f" Generating the RemoteResource for OBX GNSS product for {date}"
+        )
         gps_week = _date_to_gps_week(date)
         dir_extension = f"{gps_week}"
         directory = "/".join([cls.daily_products_dir, dir_extension])
         remote_query = RemoteQuery.obx(date)
-        return RemoteResourceFTP(ftpserver=cls.ftpserver,directory=directory,remote_query=remote_query)
+        return RemoteResourceFTP(
+            ftpserver=cls.ftpserver, directory=directory, remote_query=remote_query
+        )
 
     @classmethod
-    def get_product_bias(cls,date:datetime.date)->RemoteResourceFTP:
+    def get_product_bias(cls, date: datetime.date) -> RemoteResourceFTP:
         """
         Generates a bias GNSS product remote resource for a given date.
         Args:
@@ -643,12 +716,17 @@ class CLSIGS:
             RemoteResource: An object representing the remote resource for the product bias.
         """
 
-        logger.logdebug(f" Generating the RemoteResource for bias GNSS product for {date}")
+        logger.logdebug(
+            f" Generating the RemoteResource for bias GNSS product for {date}"
+        )
         gps_week = _date_to_gps_week(date)
         dir_extension = f"{gps_week}"
         directory = "/".join([cls.daily_products_dir, dir_extension])
         remote_query = RemoteQuery.bias(date)
-        return RemoteResourceFTP(ftpserver=cls.ftpserver,directory=directory,remote_query=remote_query)
+        return RemoteResourceFTP(
+            ftpserver=cls.ftpserver, directory=directory, remote_query=remote_query
+        )
+
 
 class Potsdam:
     ftpserver = "ftp://isdcftp.gfz-potsdam.de"

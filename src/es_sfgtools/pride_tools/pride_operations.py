@@ -14,6 +14,7 @@ from .kin_file_operations import validate_kin_file
 # make output of subprocess.Popen identical to  subprocess.run
 result = namedtuple("result", ["stdout", "stderr"])
 
+
 def rinex_to_kin(
     source: str,
     writedir: Path,
@@ -99,10 +100,12 @@ def rinex_to_kin(
     if pride_cli_config is None:
         pride_cli_config = PrideCLIConfig()
 
-    '''
+    """
     Step 1: Determine the year and day of year from the RINEX file to construct the expected output file paths.
-    '''
-    timestamps: Tuple[datetime.datetime, datetime.datetime] = rinex_get_time_range(source)
+    """
+    timestamps: Tuple[datetime.datetime, datetime.datetime] = rinex_get_time_range(
+        source
+    )
 
     year, doy = (
         timestamps[0].year,
@@ -110,35 +113,45 @@ def rinex_to_kin(
     )
     file_dir = Path(pridedir) / str(year) / str(doy)
 
-    kin_file_path = file_dir / f"kin_{str(year)}{str(doy)}_{site.lower()}" # Expected kin file path after running pdp3
-    res_file_path = file_dir / f"res_{str(year)}{str(doy)}_{site.lower()}" # Expected res file path after running pdp3
-    kin_file_new = writedir / (kin_file_path.name + ".kin") # Where the kin file will be moved
-    res_file_new = writedir / (res_file_path.name + ".res") # Where the res file will be moved
+    kin_file_path = (
+        file_dir / f"kin_{str(year)}{str(doy)}_{site.lower()}"
+    )  # Expected kin file path after running pdp3
+    res_file_path = (
+        file_dir / f"res_{str(year)}{str(doy)}_{site.lower()}"
+    )  # Expected res file path after running pdp3
+    kin_file_new = writedir / (
+        kin_file_path.name + ".kin"
+    )  # Where the kin file will be moved
+    res_file_new = writedir / (
+        res_file_path.name + ".res"
+    )  # Where the res file will be moved
     kin_file = None
     res_file = None
 
-    '''
+    """
     Step 2: Determine if processing is needed based on the existence of output files and the override flag.
 
     Case 1: If the kin file already exists in the writedir and override is False, skip processing.
     Case 2: If the kin file exists in the pridedir and override is False, move it to writedir and skip processing.
     Case 3: run pdp3 to generate the kin and res files.
-    '''
+    """
     logger.loginfo(f"Determining if processing is needed for RINEX file {source}")
 
     # Case 1
     if validate_kin_file(kin_file_new) and not pride_cli_config.override:
         logger.loginfo(f"Kin file {kin_file_new} already exists, skipping processing")
-            # continue to process the file
+        # continue to process the file
         kin_file = kin_file_new
         if res_file_new.exists():
-            logger.loginfo(f"Res file {res_file_new} already exists, skipping processing")
+            logger.loginfo(
+                f"Res file {res_file_new} already exists, skipping processing"
+            )
             res_file = res_file_new
         else:
             logger.logwarn(f"Res file {res_file_new} not found")
 
         return kin_file, res_file
-    
+
     # Case 2
     if validate_kin_file(kin_file_path) and not pride_cli_config.override:
         shutil.move(src=kin_file_path, dst=kin_file_new)
@@ -147,7 +160,9 @@ def rinex_to_kin(
         if res_file_path.exists():
             shutil.move(src=res_file_path, dst=res_file_new)
             res_file = res_file_new
-            logger.loginfo(f"Res file {res_file} already exists, moved to {res_file_new}")
+            logger.loginfo(
+                f"Res file {res_file} already exists, moved to {res_file_new}"
+            )
         else:
             logger.logwarn(f"Res file {res_file_path} not found")
         return kin_file, res_file
@@ -177,9 +192,7 @@ def rinex_to_kin(
         kin_file_new = writedir / (kin_file_path.name + ".kin")
         shutil.move(src=kin_file_path, dst=kin_file_new)
         kin_file = kin_file_new
-        logger.loginfo(
-            f"Generated kin file {kin_file} from RINEX file {source}"
-        )
+        logger.loginfo(f"Generated kin file {kin_file} from RINEX file {source}")
     else:
         response = f"No kin file generated from RINEX {source}"
         logger.logerr(response)

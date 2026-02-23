@@ -163,9 +163,9 @@ class MetadataModel(BaseModel):
     program: Optional[str] = Field(default="gnsstools", description="Program name")
     run_by: Optional[str] = Field(default="", description="Run by")
     date: Optional[str] = Field(
-        default_factory=lambda: datetime.datetime.now()
-        .astimezone(datetime.timezone.utc)
-        .isoformat(),
+        default_factory=lambda: (
+            datetime.datetime.now().astimezone(datetime.timezone.utc).isoformat()
+        ),
         description="Date",
     )
     receiver_model: Optional[str] = Field(default="NOV", description="Receiver model")
@@ -240,6 +240,7 @@ def get_metadata(site: str, serialNumber: str = "XXXXXXXXXX") -> dict:
         },
     }
 
+
 def check_metadata_path(metadata_path: Path | str) -> str:
     """Validate and normalize a metadata file path.
 
@@ -258,16 +259,14 @@ def check_metadata_path(metadata_path: Path | str) -> str:
 
     Raises
     ------
-    AssertionError 
+    AssertionError
         If the metadata file does not exist.
     ValueError
         If the metadata file cannot be parsed into ``MetadataModel``.
     """
     if isinstance(metadata_path, str):
         metadata_path = Path(metadata_path)
-    assert (
-        metadata_path.exists()
-    ), f"Metadata file {str(metadata_path)} does not exist"
+    assert metadata_path.exists(), f"Metadata file {str(metadata_path)} does not exist"
     with open(metadata_path) as f:
         metadata_dict = json.load(f)
     try:
@@ -275,6 +274,7 @@ def check_metadata_path(metadata_path: Path | str) -> str:
         return str(metadata_path)
     except Exception as e:  # pragma: no cover - defensive logging
         raise ValueError(f"Error parsing metadata file {str(metadata_path)}: {e}")
+
 
 def check_metadata(meta: dict | MetadataModel) -> dict:
     """Validate and normalize metadata input into a dictionary.
@@ -312,6 +312,4 @@ def check_metadata(meta: dict | MetadataModel) -> dict:
     elif isinstance(meta, MetadataModel):
         return meta.model_dump()
     else:
-        raise ValueError(
-            f"Metadata must be a dict or MetadataModel, got {type(meta)}"
-        )
+        raise ValueError(f"Metadata must be a dict or MetadataModel, got {type(meta)}")

@@ -6,11 +6,8 @@ import threading
 import warnings
 from pathlib import Path
 from typing import (
-
     List,
-
     Optional,
-
     Union,
 )
 
@@ -53,7 +50,10 @@ from es_sfgtools.data_mgmt.ingestion.archive_pull import (
     list_campaign_files,
     load_site_metadata,
 )
-from es_sfgtools.workflows.utils.protocols import WorkflowABC,validate_network_station_campaign
+from es_sfgtools.workflows.utils.protocols import (
+    WorkflowABC,
+    validate_network_station_campaign,
+)
 
 from es_sfgtools.config import Environment, WorkingEnvironment
 
@@ -62,6 +62,7 @@ class DataHandler(WorkflowABC):
     """
     Handles data operations including searching, adding, downloading, and processing.
     """
+
     mid_process_workflow: bool = False
 
     def __init__(
@@ -87,7 +88,9 @@ class DataHandler(WorkflowABC):
         self.gnss_obs_secondary_tdb: Optional[TDBGNSSObsArray] = None
         self.s3_directory_handler: Optional[DirectoryHandler] = None
 
-    def _build_station_dir_structure(self, network_id: str, station_id: str, campaign_id: str):
+    def _build_station_dir_structure(
+        self, network_id: str, station_id: str, campaign_id: str
+    ):
         """
         Constructs the necessary directory structure for a given station and campaign.
 
@@ -109,7 +112,9 @@ class DataHandler(WorkflowABC):
         change_all_logger_dirs(log_dir)
         os.environ["LOG_FILE_PATH"] = str(log_dir)
         # Log to the new log
-        logger.loginfo(f"Built directory structure for {network_id} {station_id} {campaign_id}")
+        logger.loginfo(
+            f"Built directory structure for {network_id} {station_id} {campaign_id}"
+        )
 
     def _ensure_tiledb_array(self, array_attr_name: str, array_class, uri_path):
         """
@@ -138,23 +143,39 @@ class DataHandler(WorkflowABC):
         logger.loginfo(f"Creating TileDB arrays for {self.current_station_name}")
 
         tiledb_dir = self.current_station_dir.tiledb_directory
-        if 's3:/' in str(tiledb_dir.location):
+        if "s3:/" in str(tiledb_dir.location):
             tiledb_dir.to_s3()
 
         # Use standardized pattern for all TileDB arrays
-        self._ensure_tiledb_array('acoustic_tdb', TDBAcousticArray, tiledb_dir.acoustic_data)
-        self._ensure_tiledb_array('kin_position_tdb', TDBKinPositionArray, tiledb_dir.kin_position_data)
-        self._ensure_tiledb_array('imu_position_tdb', TDBIMUPositionArray, tiledb_dir.imu_position_data)
-        self._ensure_tiledb_array('shotdata_tdb', TDBShotDataArray, tiledb_dir.shot_data)
+        self._ensure_tiledb_array(
+            "acoustic_tdb", TDBAcousticArray, tiledb_dir.acoustic_data
+        )
+        self._ensure_tiledb_array(
+            "kin_position_tdb", TDBKinPositionArray, tiledb_dir.kin_position_data
+        )
+        self._ensure_tiledb_array(
+            "imu_position_tdb", TDBIMUPositionArray, tiledb_dir.imu_position_data
+        )
+        self._ensure_tiledb_array(
+            "shotdata_tdb", TDBShotDataArray, tiledb_dir.shot_data
+        )
 
         # Use a pre-array for dfo processing, self.shotdata_tdb is where we store the updated version
-        self._ensure_tiledb_array('shotdata_tdb_pre', TDBShotDataArray, tiledb_dir.shot_data_pre)
+        self._ensure_tiledb_array(
+            "shotdata_tdb_pre", TDBShotDataArray, tiledb_dir.shot_data_pre
+        )
 
         # Primary GNSS observables (10hz NOV770 collected on USB3 for SV3, 5hz bcnovatel for SV2)
-        self._ensure_tiledb_array('gnss_obs_tdb', TDBGNSSObsArray, tiledb_dir.gnss_obs_data)
+        self._ensure_tiledb_array(
+            "gnss_obs_tdb", TDBGNSSObsArray, tiledb_dir.gnss_obs_data
+        )
 
         # Secondary GNSS observables (5hz NOV000 collected on USB2 for SV3)
-        self._ensure_tiledb_array('gnss_obs_secondary_tdb', TDBGNSSObsArray, tiledb_dir.gnss_obs_data_secondary)
+        self._ensure_tiledb_array(
+            "gnss_obs_secondary_tdb",
+            TDBGNSSObsArray,
+            tiledb_dir.gnss_obs_data_secondary,
+        )
 
         logger.loginfo(
             f"Consolidating existing TileDB arrays for {self.current_station_name}"
@@ -198,7 +219,9 @@ class DataHandler(WorkflowABC):
         if Environment.working_environment() == WorkingEnvironment.LOCAL:
             self._build_tileDB_arrays()
 
-        logger.loginfo(f"Changed working station to {network_id} {station_id} {campaign_id}")
+        logger.loginfo(
+            f"Changed working station to {network_id} {station_id} {campaign_id}"
+        )
 
     def set_network_station_campaign_with_metadata(
         self,
@@ -400,7 +423,9 @@ class DataHandler(WorkflowABC):
 
     def download_data(
         self,
-        file_types: Union[List[AssetType], List[str], str] = DEFAULT_FILE_TYPES_TO_DOWNLOAD,
+        file_types: Union[
+            List[AssetType], List[str], str
+        ] = DEFAULT_FILE_TYPES_TO_DOWNLOAD,
         override: bool = False,
     ):
         """
@@ -458,7 +483,10 @@ class DataHandler(WorkflowABC):
             else:
                 assets_to_download = []
                 for file_asset in assets:
-                    if file_asset.local_path is None or not Path(file_asset.local_path).exists():
+                    if (
+                        file_asset.local_path is None
+                        or not Path(file_asset.local_path).exists()
+                    ):
                         assets_to_download.append(file_asset)
                     else:
                         # Check to see if the file exists locally anyway
@@ -554,7 +582,7 @@ class DataHandler(WorkflowABC):
 
         except Exception as e:
             logger.logerr(
-                f"Error downloading {prefix} from {bucket }\n {e} \n HINT: $ aws sso login"
+                f"Error downloading {prefix} from {bucket}\n {e} \n HINT: $ aws sso login"
             )
             local_path = None
 
@@ -667,7 +695,6 @@ class DataHandler(WorkflowABC):
             ]  # reverse the list to prioritize the station directory file
 
         for source in sources:
-
             if isinstance(source, str):
                 source = Path(source)
 
@@ -675,7 +702,7 @@ class DataHandler(WorkflowABC):
                 site = source
                 # Write the site metadata to the station directory
                 with open(site_meta_write_dest, "w") as f:
-                    json.dump(site.model_dump(mode='json'), f, indent=4)
+                    json.dump(site.model_dump(mode="json"), f, indent=4)
                 site_meta_read_dest = site_meta_write_dest
                 logger.loginfo(
                     f"Using provided site metadata and wrote to {site_meta_write_dest}"
@@ -693,13 +720,13 @@ class DataHandler(WorkflowABC):
                     logger.logerr(response)
 
             elif source is None:
-
                 try:
                     site = load_site_metadata(
-                        network=self.current_network_name, station=self.current_station_name
+                        network=self.current_network_name,
+                        station=self.current_station_name,
                     )
                     with open(site_meta_write_dest, "w") as f:
-                        json.dump(site.model_dump(mode='json'), f, indent=4)
+                        json.dump(site.model_dump(mode="json"), f, indent=4)
 
                     site_meta_read_dest = site_meta_write_dest
                     logger.loginfo(
@@ -713,7 +740,6 @@ class DataHandler(WorkflowABC):
                     logger.logerr(response)
 
         if site is not None:
-
             if site_meta_read_dest != site_meta_write_dest:
                 # Write the site metadata to the station directory
                 with open(site_meta_write_dest, "w") as f:
@@ -730,43 +756,44 @@ class DataHandler(WorkflowABC):
     def geolab_get_s3(self, overwrite: bool = False):
         """
         Synchronize seafloor geodesy data from S3 storage to local GeoLab environment.
-        
+
         This method downloads and synchronizes data files from AWS S3 to the local
         GeoLab environment for the currently selected network and station. It handles
         both metadata files and campaign data, creating the necessary local directory
         structure and maintaining catalog consistency.
-        
+
         The synchronization process:
         1. Validates GeoLab environment and S3 bucket configuration
         2. Loads or creates an S3 directory catalog
         3. Downloads station metadata files from S3 to local storage
         4. Downloads campaign data files from S3 to local storage
         5. Updates local and remote directory catalogs
-        
+
         Args:
-            overwrite (bool, optional): If True, re-downloads files even if they 
+            overwrite (bool, optional): If True, re-downloads files even if they
                 already exist locally. If False, only downloads missing files.
                 Defaults to False.
-        
+
         Raises:
             AssertionError: If not running in GEOLAB environment
             ValueError: If S3 bucket configuration is missing or invalid
-            
+
         Note:
             - Only processes data for the currently set network and station context
             - Requires valid AWS credentials and S3 bucket access
             - Creates local directory structure to match S3 organization
             - Maintains both local and remote directory catalogs for consistency
         """
-        
+
         # =================================================================
         # ENVIRONMENT AND CONFIGURATION VALIDATION
         # =================================================================
-        
+
         # Ensure we're running in the correct environment for S3 operations
-        assert Environment.working_environment() == WorkingEnvironment.GEOLAB, \
+        assert Environment.working_environment() == WorkingEnvironment.GEOLAB, (
             "S3 sync is only available in the GEOLAB environment."
-        
+        )
+
         # Get the configured S3 bucket for data synchronization
         try:
             s3_bucket = Environment.s3_sync_bucket()
@@ -774,27 +801,29 @@ class DataHandler(WorkflowABC):
             # S3 bucket not configured - skip synchronization
             logger.logwarn(f"S3 synchronization skipped: {e}")
             return
-        
+
         # =================================================================
         # S3 DIRECTORY CATALOG MANAGEMENT
         # =================================================================
-        
+
         # Check if we have a cached remote catalog file
         if self.s3_directory_handler is None or overwrite:
             self.s3_directory_handler = DirectoryHandler.load_from_path(s3_bucket)
         if self.s3_directory_handler is None:
-            raise ValueError(f"Failed to load or create S3 directory catalog from bucket: {s3_bucket}")
+            raise ValueError(
+                f"Failed to load or create S3 directory catalog from bucket: {s3_bucket}"
+            )
 
         # =================================================================
         # DATA SYNCHRONIZATION PROCESS
         # =================================================================
-        
+
         # Iterate through all networks in the S3 directory structure
         for network_name, network_dir in self.s3_directory_handler.networks.items():
             # Only process the currently selected network (skip others)
             if network_name != self.current_network_name:
                 continue
-            
+
             # Create or get the corresponding local network directory
             local_network_dir = self.directory_handler.add_network(network_name)
 
@@ -803,29 +832,32 @@ class DataHandler(WorkflowABC):
                 # Only process the currently selected station (skip others)
                 if station_name != self.current_station_name:
                     continue
-                
+
                 # Create or get the corresponding local station directory
                 local_station_dir = local_network_dir.add_station(station_name)
-                
+
                 # Synchronize TileDB directory reference (array storage location)
                 local_station_dir.tiledb_directory = remote_station_dir.tiledb_directory
-                
+
                 # =================================================================
                 # CAMPAIGN DATA SYNCHRONIZATION
                 # =================================================================
-                
+
                 # Process all campaigns within the current station
-                for campaign_id, remote_campaign_dir in remote_station_dir.campaigns.items():
+                for (
+                    campaign_id,
+                    remote_campaign_dir,
+                ) in remote_station_dir.campaigns.items():
                     # Create or get the corresponding local campaign directory
                     local_campaign_dir = local_station_dir.add_campaign(campaign_id)
-                    
+
                     # Download all files within this campaign from S3
                     for file in remote_campaign_dir.location.rglob("*"):
                         # Calculate the relative path within the campaign directory
                         relative_path = file.relative_to(remote_campaign_dir.location)
                         # Construct the corresponding local file path
                         local_file_path = local_campaign_dir.location / relative_path
-                        
+
                         try:
                             # Download file if it doesn't exist locally or if overwriting
                             if not local_file_path.exists() or overwrite:
@@ -837,12 +869,14 @@ class DataHandler(WorkflowABC):
                                 file.download_to(local_file_path)
                         except Exception as e:
                             # Log download failures but continue with other files
-                            logger.logerr(f"Failed to download campaign file {file} to local: {e}")
-        
+                            logger.logerr(
+                                f"Failed to download campaign file {file} to local: {e}"
+                            )
+
         # =================================================================
         # CATALOG PERSISTENCE
         # =================================================================
-        
+
         # Save the updated local directory catalog to disk
         # This ensures the local catalog reflects all downloaded files
         self.directory_handler.save()

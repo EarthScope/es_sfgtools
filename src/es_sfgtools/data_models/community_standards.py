@@ -170,13 +170,19 @@ class SFGDTSFSite(BaseModel):
     TimeOrigin: datetime.datetime  # Origin of time used in the file [UTC]
     RefFrame: str = "ITRF"  # Reference frame used in the file
     MTlist: list[str] = []  # List of ID of mirror transponders
-    MT_appPos: dict[str, list[float]] = {}  # Approximate positions of transponders in ECEF[m]
+    MT_appPos: dict[
+        str, list[float]
+    ] = {}  # Approximate positions of transponders in ECEF[m]
     ATDoffset: list[float] = [
-        0.0, 0.0, 0.0
+        0.0,
+        0.0,
+        0.0,
     ]  # Antenna to transponder offset [m] with [forward,rightward,downward]
 
     @classmethod
-    def from_site_vessel(cls, site: Site, vessel: Vessel, campaign_id:str) -> "SFGDTSFSite":
+    def from_site_vessel(
+        cls, site: Site, vessel: Vessel, campaign_id: str
+    ) -> "SFGDTSFSite":
         """
         Create a SFGDTSFSite object from internal Site and Vessel objects.
 
@@ -215,7 +221,7 @@ class SFGDTSFSite(BaseModel):
 
         if found_campaign is None:
             raise ValueError(f"Campaign ID {campaign_id} not found in site campaigns.")
-        
+
         return cls(
             Site_name=site.names[0],
             Campaign=found_campaign.name,

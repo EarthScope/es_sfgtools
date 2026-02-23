@@ -8,6 +8,7 @@ from es_sfgtools.config.file_config import AssetType
 from ..assetcatalog.schemas import AssetEntry
 from .config import pattern_map
 
+
 def _get_time(line: str) -> datetime.datetime:
     """Gets the time from a RINEX file line.
 
@@ -31,6 +32,7 @@ def _get_time(line: str) -> datetime.datetime:
         second=int(float(time_values[5])),
     )
     return start_time
+
 
 def _rinex_get_meta(data: AssetEntry) -> AssetEntry:
     """Gets the metadata from a RINEX file.
@@ -61,7 +63,9 @@ def _rinex_get_meta(data: AssetEntry) -> AssetEntry:
     return data
 
 
-def get_file_type_local(file_path: Path) -> tuple[Union[AssetType, None], Union[int, None]]:
+def get_file_type_local(
+    file_path: Path,
+) -> tuple[Union[AssetType, None], Union[int, None]]:
     """Get the file type of a file.
 
     Parameters
@@ -79,17 +83,17 @@ def get_file_type_local(file_path: Path) -> tuple[Union[AssetType, None], Union[
         if pattern.search(str(file_path.name)):
             file_type = ftype
             break
-        
+
     size = file_path.stat().st_size
 
     if size == 0:
         logger.logwarn(f"File {str(file_path)} is empty, not processing")
         return None, None
-    
+
     if file_type is None:
         logger.logdebug(f"File type not recognized for {str(file_path)}")
         return None, None
-    
+
     return file_type, size
 
 
@@ -115,7 +119,7 @@ def get_file_type_remote(file_path: str) -> Optional[AssetType]:
     if file_type is None:
         logger.logwarn(f"File type not recognized for {file_path}")
         return None
-    
+
     return file_type
 
 
@@ -141,9 +145,9 @@ def scrape_directory_local(directory: Path) -> Optional[List[Path]]:
     for file in initial_files:
         if file.is_file() and not file.name.startswith("._"):
             output_files.append(file)
-    
+
     if len(output_files) == 0:
         logger.logwarn("No files found in directory")
         return None
-    
+
     return output_files

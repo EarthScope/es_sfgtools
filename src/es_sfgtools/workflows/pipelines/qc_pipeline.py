@@ -37,7 +37,11 @@ from es_sfgtools.pride_tools import (
     rinex_utils,
 )
 from es_sfgtools.sonardyne_tools.sv3_qc_operations import qcjson_to_shotdata
-from es_sfgtools.novatel_tools.rangea_parser import GNSSEpoch, extract_rangea_from_qcpin,extract_rangea_strings_from_qcpin
+from es_sfgtools.novatel_tools.rangea_parser import (
+    GNSSEpoch,
+    extract_rangea_from_qcpin,
+    extract_rangea_strings_from_qcpin,
+)
 from es_sfgtools.tiledb_tools.tiledb_operations import tile2rinex
 from es_sfgtools.tiledb_tools.tiledb_schemas import (
     TDBGNSSObsArray,
@@ -53,7 +57,7 @@ from .exceptions import (
     NoRinexFound,
     NoKinFound,
 )
-from .shotdata_gnss_refinement import merge_shotdata_kinposition,merge_shotdata_qc
+from .shotdata_gnss_refinement import merge_shotdata_kinposition, merge_shotdata_qc
 from .sv3_pipeline import rinex_to_kin_wrapper
 from ..utils.protocols import WorkflowABC, validate_network_station_campaign
 
@@ -65,7 +69,7 @@ def process_single_qcpin(
     processed_asset_queue: deque,
 ) -> bool:
     try:
-        df= qcjson_to_shotdata(entry.local_path)
+        df = qcjson_to_shotdata(entry.local_path)
         rangea_strings: List[str] = extract_rangea_strings_from_qcpin(entry.local_path)
         entry.is_processed = True
         shotdata_tdb.write_df(df)
@@ -76,14 +80,16 @@ def process_single_qcpin(
         ProcessLogger.logerr(f"Error processing {entry.local_path}: {e}")
         return False
 
+
 def rangea_string_epoch(
-        gnss_obs_tdb:TDBGNSSObsArray,
-        rangea_string_queue:deque,
-        processed_asset_queue:deque,
-        asset_catalog:PreProcessCatalogHandler,
-        entries_to_process:int,
-        stop_event:threading.Event) -> None:
-    
+    gnss_obs_tdb: TDBGNSSObsArray,
+    rangea_string_queue: deque,
+    processed_asset_queue: deque,
+    asset_catalog: PreProcessCatalogHandler,
+    entries_to_process: int,
+    stop_event: threading.Event,
+) -> None:
+
     SLEEP_TIME_SECONDS = 10
     total_processed = 0
     sleep_time = SLEEP_TIME_SECONDS
@@ -93,9 +99,13 @@ def rangea_string_epoch(
             rangea_string_list = list(rangea_string_queue)
             rangea_string_queue.clear()
         if rangea_string_list:
-            print(f"Processing {len(rangea_string_list)} RANGEA strings. Total processed: {total_processed}/{entries_to_process}")
-            gnss_obs_tdb.write_rangea_strings(rangea_string_list,verbose=False)
-            print(f"Finished processing batch of RANGEA strings. Total processed: {total_processed}/{entries_to_process}")
+            print(
+                f"Processing {len(rangea_string_list)} RANGEA strings. Total processed: {total_processed}/{entries_to_process}"
+            )
+            gnss_obs_tdb.write_rangea_strings(rangea_string_list, verbose=False)
+            print(
+                f"Finished processing batch of RANGEA strings. Total processed: {total_processed}/{entries_to_process}"
+            )
         start_time = time.time()
         while processed_asset_queue:
             entry = processed_asset_queue.popleft()
@@ -109,7 +119,7 @@ def rangea_string_epoch(
             sleep_time = 0
         else:
             sleep_time = remainder
-       
+
 
 class QCPipeline(WorkflowABC):
     """Orchestrates the QC data processing pipeline for seafloor geodesy.
@@ -293,7 +303,6 @@ class QCPipeline(WorkflowABC):
 
         self.config.rinex_config.settings_path = rinex_metav2
 
-
     @validate_network_station_campaign
     def process_qcpin(self) -> None:
         """Process QC PIN files to generate preliminary shotdata.
@@ -326,14 +335,35 @@ class QCPipeline(WorkflowABC):
         count = 0
         rangea_string_queue = deque()
         processed_asset_queue = deque()
-        process_func_partial = partial(process_single_qcpin, shotdata_tdb=self.qcShotDataPreTDB, rangea_string_queue=rangea_string_queue, processed_asset_queue=processed_asset_queue)
+        process_func_partial = partial(
+            process_single_qcpin,
+            shotdata_tdb=self.qcShotDataPreTDB,
+            rangea_string_queue=rangea_string_queue,
+            processed_asset_queue=processed_asset_queue,
+        )
         stop_event = threading.Event()
-        second_step = threading.Thread(target=rangea_string_epoch, args=(self.qcGnssObsTDB, rangea_string_queue, processed_asset_queue, self.asset_catalog, len(qcpin_entries), stop_event))
+        second_step = threading.Thread(
+            target=rangea_string_epoch,
+            args=(
+                self.qcGnssObsTDB,
+                rangea_string_queue,
+                processed_asset_queue,
+                self.asset_catalog,
+                len(qcpin_entries),
+                stop_event,
+            ),
+        )
         second_step.start()
         with concurrent.futures.ThreadPoolExecutor(max_workers=50) as executor:
             # futures = executor.map(process_func_partial, qcpin_entries)
-            futures = [executor.submit(process_func_partial, entry) for entry in qcpin_entries]
-            for future in tqdm(concurrent.futures.as_completed(futures), total=len(qcpin_entries), desc="Processing QCPIN files"):
+            futures = [
+                executor.submit(process_func_partial, entry) for entry in qcpin_entries
+            ]
+            for future in tqdm(
+                concurrent.futures.as_completed(futures),
+                total=len(qcpin_entries),
+                desc="Processing QCPIN files",
+            ):
                 success = future.result()
                 if success:
                     count += 1
@@ -527,7 +557,9 @@ class QCPipeline(WorkflowABC):
         res_count = 0
         uploadCount = 0
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=self.config.rinex_config.n_processes) as pool:
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=self.config.rinex_config.n_processes
+        ) as pool:
             results = pool.map(process_rinex_partial, rinex_prideconfigs)
 
             for idx, (kinfile, resfile) in enumerate(
@@ -644,11 +676,11 @@ class QCPipeline(WorkflowABC):
         ):
             dates.append(dates[-1] + datetime.timedelta(days=1))
             merge_shotdata_qc(
-                    shotdata_pre=self.qcShotDataPreTDB,
-                    shotdata=self.qcShotDataFinalTDB,
-                    kin_position=self.qcKinPositionTDB,
-                    dates=dates,
-                )
+                shotdata_pre=self.qcShotDataPreTDB,
+                shotdata=self.qcShotDataFinalTDB,
+                kin_position=self.qcKinPositionTDB,
+                dates=dates,
+            )
             self.asset_catalog.add_merge_job(**merge_job)
 
     @validate_network_station_campaign

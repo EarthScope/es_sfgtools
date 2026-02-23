@@ -1,15 +1,16 @@
 from datetime import datetime, timezone
-from typing import Optional,Union
+from typing import Optional, Union
 import numpy as np
 import pandas as pd
 import pymap3d as pm
 
-from es_sfgtools.data_models.metadata import Site,SurveyType,classify_survey_type
+from es_sfgtools.data_models.metadata import Site, SurveyType, classify_survey_type
 from es_sfgtools.logging import GarposLogger as logger
 from es_sfgtools.tiledb_tools.tiledb_schemas import TDBKinPositionArray
 from es_sfgtools.utils.model_update import validate_and_merge_config
 
-from .schemas import  FilterLevel ,FilterConfig
+from .schemas import FilterLevel, FilterConfig
+
 
 def filter_shotdata(
     survey_type: Union[str, SurveyType],
@@ -73,7 +74,9 @@ def filter_shotdata(
             case FilterLevel.DIFFICULT:
                 new_shot_data_df = difficult_acoustic_diagnostics(new_shot_data_df)
             case _:
-                logger.loginfo("No acoustic filtering applied, using original shot data")
+                logger.loginfo(
+                    "No acoustic filtering applied, using original shot data"
+                )
 
     """
     Apply ping replies filtering. This is based on the minimum number of replies.
@@ -136,7 +139,7 @@ def filter_wg_distance_from_center(
         Longitude of the array center.
     max_distance_m : float, optional
         Maximum distance from center in meters, by default 150.
-    
+
     Returns
     -------
     pd.DataFrame

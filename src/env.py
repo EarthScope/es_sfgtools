@@ -1,6 +1,7 @@
 """
 This module contains functions for getting environment variables.
 """
+
 import os
 
 

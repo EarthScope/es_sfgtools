@@ -49,10 +49,10 @@ def retrieve_token(profile=None):
     token = es.ctx.auth_flow.access_token
     return token
 
-def download_file_from_archive(url, 
-                               dest_dir = "./", 
-                               profile = None, 
-                               show_details: bool = True) -> None:
+
+def download_file_from_archive(
+    url, dest_dir="./", profile=None, show_details: bool = True
+) -> None:
     """Download a file from the public archive using the EarthScope SDK.
 
     Parameters
@@ -89,6 +89,7 @@ def download_file_from_archive(url,
         raise Exception(
             f"Failed to download file from {url}, status code: {r.status_code}, reason: {r.reason}"
         )
+
 
 def list_files_from_archive(url) -> list:
     """List files from the public archive using urllib.
@@ -128,6 +129,7 @@ def list_files_from_archive(url) -> list:
 
     return _parse_output(result)
 
+
 def _parse_output(output) -> list:
     """Parse the output from the public archive.
 
@@ -153,6 +155,7 @@ def _parse_output(output) -> list:
 
     return files
 
+
 def download_file_list_from_archive(file_urls: list, dest_dir="./files") -> None:
     """Download a list of files from the public archive.
 
@@ -170,8 +173,7 @@ def download_file_list_from_archive(file_urls: list, dest_dir="./files") -> None
     logger.loginfo(f"Downloading {len(file_urls)} files to {dest_dir}")
     for url in file_urls:
         try:
-            download_file_from_archive(url=url, 
-                                       dest_dir=dest_dir)
+            download_file_from_archive(url=url, dest_dir=dest_dir)
             successful_files.append(url)
         except Exception as e:
             logger.logerr(f"Failed to download {url}: {e}")
@@ -181,6 +183,7 @@ def download_file_list_from_archive(file_urls: list, dest_dir="./files") -> None
     if len(failed_files) > 0:
         logger.logwarn(f"Failed to download {len(failed_files)} files.")
         print(failed_files)
+
 
 def generate_archive_campaign_url(network, station, campaign):
     """Generate a URL for a campaign in the public archive.
@@ -205,6 +208,7 @@ def generate_archive_campaign_url(network, station, campaign):
 
     return f"{ARCHIVE_PREFIX}/{network}/{year}/{station}/{campaign}/raw"
 
+
 def generate_archive_campaign_metadata_url(network, station, campaign):
     """Generate a URL for campaign metadata in the public archive.
 
@@ -227,6 +231,7 @@ def generate_archive_campaign_metadata_url(network, station, campaign):
     year = campaign.split("_")[0]
 
     return f"{ARCHIVE_PREFIX}/{network}/{year}/{station}/{campaign}/metadata"
+
 
 def generate_archive_site_json_url(network, station, profile: str = None) -> str:
     """Generate a URL for the site JSON file in the public archive.
@@ -252,6 +257,7 @@ def generate_archive_site_json_url(network, station, profile: str = None) -> str
     else:
         raise ValueError("Invalid profile specified.")
 
+
 def generate_archive_vessel_json_url(vessel_code, profile: str = None) -> str:
     """Generate a URL for the vessel JSON file in the public archive.
 
@@ -274,7 +280,10 @@ def generate_archive_vessel_json_url(vessel_code, profile: str = None) -> str:
     else:
         raise ValueError("Invalid profile specified.")
 
-def load_vessel_metadata(vessel_code: str, profile: str = None, local_path: Path|str = None) -> Vessel:
+
+def load_vessel_metadata(
+    vessel_code: str, profile: str = None, local_path: Path | str = None
+) -> Vessel:
     """Load the vessel metadata from the s3 archive.
 
     Note
@@ -304,21 +313,28 @@ def load_vessel_metadata(vessel_code: str, profile: str = None, local_path: Path
         # If a local path is provided, load the vessel metadata from the local file
         json_file_path = Path(local_path)
         if not json_file_path.exists():
-            raise FileNotFoundError(f"Local vessel metadata file {json_file_path} does not exist.")
+            raise FileNotFoundError(
+                f"Local vessel metadata file {json_file_path} does not exist."
+            )
         vessel = import_vessel(json_file_path)
         return vessel
     else:
         vessel_json_url = generate_archive_vessel_json_url(vessel_code, profile)
         logger.loginfo(f"Loading vessel metadata from {vessel_json_url}")
-        download_file_from_archive(vessel_json_url, dest_dir="./", profile=profile, show_details=False)
+        download_file_from_archive(
+            vessel_json_url, dest_dir="./", profile=profile, show_details=False
+        )
         # Load the vessel metadata from the downloaded JSON file
         vessel_file_path = Path(f"./{vessel_code}.json")
         vessel = import_vessel(vessel_file_path)
-        
-        vessel_file_path.unlink()  # Remove the JSON file after loading
-        return vessel   
 
-def load_site_metadata(network: str, station: str, profile: str = None, local_path: Path|str = None) -> Site:
+        vessel_file_path.unlink()  # Remove the JSON file after loading
+        return vessel
+
+
+def load_site_metadata(
+    network: str, station: str, profile: str = None, local_path: Path | str = None
+) -> Site:
     """Load the site metadata from the s3 archive.
 
     Note
@@ -351,13 +367,17 @@ def load_site_metadata(network: str, station: str, profile: str = None, local_pa
         # TODO: allow for local vessel metadata to be loaded as well
         json_file_path = Path(local_path)
         if not json_file_path.exists():
-            raise FileNotFoundError(f"Local site metadata file {json_file_path} does not exist.")
+            raise FileNotFoundError(
+                f"Local site metadata file {json_file_path} does not exist."
+            )
         site = import_site(json_file_path)
 
     else:
         site_json_url = generate_archive_site_json_url(network, station, profile)
         logger.loginfo(f"Loading site metadata from {site_json_url}")
-        download_file_from_archive(site_json_url, dest_dir="./", profile=profile, show_details=False)
+        download_file_from_archive(
+            site_json_url, dest_dir="./", profile=profile, show_details=False
+        )
         # Load the site metadata from the downloaded JSON file
         site_file_path = Path(f"./{station}.json")
         site = import_site(site_file_path)
@@ -367,17 +387,24 @@ def load_site_metadata(network: str, station: str, profile: str = None, local_pa
         try:
             campaign.vessel = load_vessel_metadata(campaign.vesselCode, profile=profile)
         except FileNotFoundError as e:
-            logger.logerr(f"Vessel metadata file not found for campaign {campaign.name}: {e}")
+            logger.logerr(
+                f"Vessel metadata file not found for campaign {campaign.name}: {e}"
+            )
             campaign.vessel = None
         except ValueError as e:
             logger.logerr(f"Invalid vessel metadata for campaign {campaign.name}: {e}")
             campaign.vessel = None
         except requests.exceptions.RequestException as e:
-            logger.logerr(f"Network error while loading vessel metadata for campaign {campaign.name}: {e}")
+            logger.logerr(
+                f"Network error while loading vessel metadata for campaign {campaign.name}: {e}"
+            )
             campaign.vessel = None
     return site
 
-def list_file_counts_by_type(file_list: list, url: Optional[str] = None, show_logs=True) -> dict:
+
+def list_file_counts_by_type(
+    file_list: list, url: Optional[str] = None, show_logs=True
+) -> dict:
     """Counts files by type, and builds a dictionary.
 
     Parameters
@@ -396,7 +423,7 @@ def list_file_counts_by_type(file_list: list, url: Optional[str] = None, show_lo
     """
     file_dict = defaultdict(list)
     for file in file_list:
-        file_type:AssetType = get_file_type_remote(file)
+        file_type: AssetType = get_file_type_remote(file)
 
         if file_type is not None:
             file_dict[file_type.value].append(file)
@@ -410,6 +437,7 @@ def list_file_counts_by_type(file_list: list, url: Optional[str] = None, show_lo
             logger.loginfo(f"    {len(v)} {k} file(s)")
 
     return file_dict
+
 
 def get_campaign_file_dict(url: str) -> dict:
     """Get a dictionary of campaign files by type.
@@ -427,6 +455,7 @@ def get_campaign_file_dict(url: str) -> dict:
 
     file_list = list_files_from_archive(url)
     return list_file_counts_by_type(file_list, url)
+
 
 def list_campaign_files(network: str, station: str, campaign: str) -> list:
     """Returns a list of files for a given campaign in the archive.
@@ -452,7 +481,7 @@ def list_campaign_files(network: str, station: str, campaign: str) -> list:
     raw_url = generate_archive_campaign_url(network, station, campaign)
     metadata_url = generate_archive_campaign_metadata_url(network, station, campaign)
     logger.loginfo(f"Listing raw campaign files from url {raw_url}")
-    
+
     raw_file_list = list_files_from_archive(raw_url)
     list_file_counts_by_type(file_list=raw_file_list, url=raw_url)
 
@@ -466,7 +495,10 @@ def list_campaign_files(network: str, station: str, campaign: str) -> list:
 
     return file_list
 
-def list_campaign_files_by_type(network: str, station: str, campaign: str, show_logs: bool=True) -> dict:
+
+def list_campaign_files_by_type(
+    network: str, station: str, campaign: str, show_logs: bool = True
+) -> dict:
     """List campaign files by type.
 
     Parameters
@@ -493,18 +525,23 @@ def list_campaign_files_by_type(network: str, station: str, campaign: str, show_
     if show_logs:
         logger.loginfo(f"Listing raw campaign files from url {raw_url}")
     raw_file_list = list_files_from_archive(raw_url)
-    raw_file_dict = list_file_counts_by_type(file_list=raw_file_list, url=raw_url, show_logs=show_logs)
+    raw_file_dict = list_file_counts_by_type(
+        file_list=raw_file_list, url=raw_url, show_logs=show_logs
+    )
 
     if show_logs:
         logger.loginfo(f"Listing metadata campaign files from url {metadata_url}")
     metadata_file_list = list_files_from_archive(metadata_url)
     metadata_file_list += list_files_from_archive(f"{metadata_url}/ctd")
-    metadata_file_dict = list_file_counts_by_type(file_list=metadata_file_list, url=metadata_url, show_logs=show_logs)
+    metadata_file_dict = list_file_counts_by_type(
+        file_list=metadata_file_list, url=metadata_url, show_logs=show_logs
+    )
 
     # Concatenate the two lists
     file_dict = raw_file_dict | metadata_file_dict
 
     return file_dict
+
 
 def list_s3_directory_files(bucket_name: str, prefix: str) -> List[str]:
     """Returns a list all files in a given S3 bucket.
@@ -539,14 +576,14 @@ def list_s3_directory_files(bucket_name: str, prefix: str) -> List[str]:
 if __name__ == "__main__":
     # Example usage
 
-    # files = list_campaign_files(network="alaska-shumagins", 
+    # files = list_campaign_files(network="alaska-shumagins",
     #                     station="SPT1",
     #                     campaign="2022_A_1049")
     # print(files)
 
     # # Download file from public arhive
     url = "https://data.dev.earthscope.org/archive/seafloor/alaska-shumagins/SEM1.json"
-    url="https://data.dev.earthscope.org/archive/seafloor/alaska-shumagins/IVB1/2018_A_SFG1/raw/bcnovatel_20180530184921.txt"
+    url = "https://data.dev.earthscope.org/archive/seafloor/alaska-shumagins/IVB1/2018_A_SFG1/raw/bcnovatel_20180530184921.txt"
     # url = "https://gage-data.earthscope.org/archive/seafloor/alaska-shumagins/2018/IVB1/2018_A_SFG1/metadata/IVB1.master"
     download_file_from_archive(url, dest_dir=".")
 

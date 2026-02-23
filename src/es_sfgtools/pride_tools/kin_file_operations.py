@@ -25,6 +25,7 @@ PRIDE_PPP_LOG_INDEX = {
     9: "pdop",
 }
 
+
 class PridePPP(BaseModel):
     """
     Data class for PPP GNSS kinematic position output
@@ -134,17 +135,19 @@ def get_wrms_from_res(res_path):
                 sumOfWeights = 0
                 # parse date fields and make a timestamp
                 seconds_str = line_data[6]  # Keep as string: "49.4000000"
-                
+
                 # Fix the microseconds calculation
-                if '.' in seconds_str:
-                    SS, fractional = seconds_str.split('.')
+                if "." in seconds_str:
+                    SS, fractional = seconds_str.split(".")
                     SS = int(SS)
                     # Pad fractional part to 6 digits or truncate if longer
-                    fractional = fractional.ljust(6, '0')[:6]  # example "4000000" -> "400000"
+                    fractional = fractional.ljust(6, "0")[
+                        :6
+                    ]  # example "4000000" -> "400000"
                 else:
                     SS = int(seconds_str)
                     fractional = "000000"
-                
+
                 isodate = f"{line_data[1]}-{line_data[2].zfill(2)}-{line_data[3].zfill(2)}T{line_data[4].zfill(2)}:{line_data[5].zfill(2)}:{str(SS).zfill(2)}.{fractional}+00:00"
 
                 timestamp = datetime.fromisoformat(isodate)
@@ -216,7 +219,8 @@ def plot_kin_results_wrms(kin_df, title=None, save_as=None):
     if save_as is not None:
         plt.savefig(save_as)
 
-def kin_to_kin_position_df(source: str|Path) -> Union[pd.DataFrame, None]:
+
+def kin_to_kin_position_df(source: str | Path) -> Union[pd.DataFrame, None]:
     """Create a KinPositionDataFrame from a kin file from PRIDE-PPP.
 
     This includes WRMS residuals.
@@ -232,7 +236,7 @@ def kin_to_kin_position_df(source: str|Path) -> Union[pd.DataFrame, None]:
         DataFrame with kinematic data and residuals, or None if the file
         cannot be parsed.
     """
-  
+
     logger.loginfo(f"Parsing KIN file: {source}")
     with open(source, "r") as file:
         lines = file.readlines()
@@ -267,11 +271,11 @@ def kin_to_kin_position_df(source: str|Path) -> Union[pd.DataFrame, None]:
     # Create the main dataframe
     dataframe = pd.DataFrame([dict(pride_ppp) for pride_ppp in data])
     dataframe["time"] = dataframe["time"].dt.tz_localize("UTC")
-    
+
     # Set time as index for easier merging
     dataframe.set_index("time", inplace=True)
     logger.loginfo(f"Parsed {len(dataframe)} records from KIN file {source}")
-    
+
     # Add residuals data
     try:
         # Find corresponding RES file
@@ -280,55 +284,59 @@ def kin_to_kin_position_df(source: str|Path) -> Union[pd.DataFrame, None]:
         # Extract pattern from KIN filename to find RES file
         res_pattern = source_path.stem.replace("kin_", "res_").replace(".kin", "")
         res_file = source_path.parent / f"{res_pattern}.res"
-                
+
         if res_file.exists():
             logger.loginfo(f"Adding residuals from {res_file}")
             wrms_df = get_wrms_from_res(res_file)
-            
+
             if not wrms_df.empty:
                 # Set date as index for merging
                 wrms_df.set_index("date", inplace=True)
 
                 # # Merge on timestamp using exact match
                 # dataframe = dataframe.merge(
-                #     wrms_df, 
-                #     left_index=True, 
-                #     right_index=True, 
+                #     wrms_df,
+                #     left_index=True,
+                #     right_index=True,
                 #     how='left'  # Keep all KIN records, add WRMS where available
                 # )
                 # TODO TIME ISSUE
-                 # Sort both DataFrames by index for merge_asof
+                # Sort both DataFrames by index for merge_asof
                 dataframe_sorted = dataframe.sort_index()
                 wrms_sorted = wrms_df.sort_index()
                 # Merge with 0.01 second tolerance
                 dataframe = pd.merge_asof(
                     dataframe_sorted,
-                    wrms_sorted, 
-                    left_index=True, 
-                    right_index=True, 
-                    direction='nearest',  # Find nearest match
-                    tolerance=pd.Timedelta(seconds=0.01)  # Within 0.01 seconds
+                    wrms_sorted,
+                    left_index=True,
+                    right_index=True,
+                    direction="nearest",  # Find nearest match
+                    tolerance=pd.Timedelta(seconds=0.01),  # Within 0.01 seconds
                 )
 
-                logger.loginfo(f"Added WRMS residuals for {dataframe['wrms'].notna().sum()} of {len(dataframe)} records")
-                
+                logger.loginfo(
+                    f"Added WRMS residuals for {dataframe['wrms'].notna().sum()} of {len(dataframe)} records"
+                )
+
             else:
                 logger.logwarn(f"No WRMS data found in {res_file}")
                 dataframe["wrms"] = None
         else:
             logger.logwarn(f"No corresponding RES file found for {source}")
             dataframe["wrms"] = None
-            
+
     except Exception as e:
         logger.logerr(f"Error adding residuals: {e}")
         dataframe["wrms"] = None
 
     # Drop the MJD and SOD columns and reset index
-    dataframe = dataframe.drop(columns=["modified_julian_date", "second_of_day"], errors='ignore')
+    dataframe = dataframe.drop(
+        columns=["modified_julian_date", "second_of_day"], errors="ignore"
+    )
     dataframe.reset_index(inplace=True)  # Move time back to a column
-    
+
     logger.loginfo(f"GNSS Parser: {dataframe.shape[0]} shots from FILE {str(source)}")
-    
+
     return dataframe
 
 
@@ -403,6 +411,7 @@ def read_kin_data(kin_path):
         inplace=True,
     )
     return kin_df
+
 
 def validate_kin_file(source: Union[str, Path]) -> bool:
     """Validate a kin file.

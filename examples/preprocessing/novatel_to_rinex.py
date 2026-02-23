@@ -11,14 +11,14 @@ from es_sfgtools.novatel_tools import (
     novatel_2rinex,
 )
 
-'''
+"""
 Step 1: Define metadata. 
 
 The MetadataModel is a schema that is used to provide information about the RINEX header.
 It is recommended to instantiate a MetadataModel object to ensure all required fields are provided. 
 See the MetadataModel documentation for details on required and optional fields.
 
-'''
+"""
 NETWORK = "cascadia-gorda"
 STATION = "GCC1"
 CAMPAIGN = "2023_A_1063"
@@ -28,25 +28,25 @@ metadata = MetadataModel(
     run_by="Franklyn Dunbar",
 )
 
-'''
+"""
 Step 2: Define input files.
 
-'''
-novatel_path_dir = PROJECT_DIRECTORY/NETWORK/STATION/CAMPAIGN/"raw"
+"""
+novatel_path_dir = PROJECT_DIRECTORY / NETWORK / STATION / CAMPAIGN / "raw"
 
 nov_bin = list(novatel_path_dir.glob("*NOV*.bin"))
 nov_raw = list(novatel_path_dir.glob("*NOV*.raw"))
 all_files = nov_bin + nov_raw
 
 
-'''
+"""
 Step 3: Define output directory that you want to write RINEX files to.
 Note that if this is not provided, RINEX files will be written to the same directory
 as the input NovAtel files.
-'''
-write_dir = PROJECT_DIRECTORY/NETWORK/STATION/CAMPAIGN/"processed"
+"""
+write_dir = PROJECT_DIRECTORY / NETWORK / STATION / CAMPAIGN / "processed"
 
-'''
+"""
 Step 4 (Optional): Define decimation and parallelism.
 
 The modulo_millis parameter controls epoch decimation. When set to a positive value,
@@ -60,9 +60,9 @@ Examples:
 
 The num_routines parameter controls parallel processing in the Go binary.
 Higher values can speed up processing but use more memory.
-'''
+"""
 MODULO_MILLIS = 1000  # Set to 0 to disable decimation
-NUM_ROUTINES = 1      # Number of concurrent goroutines (default: 1)
+NUM_ROUTINES = 1  # Number of concurrent goroutines (default: 1)
 
 
 rinex_paths = novatel_2rinex(
@@ -73,6 +73,8 @@ rinex_paths = novatel_2rinex(
     num_routines=NUM_ROUTINES,
 )
 
-print(f"{'='*40}\nGenerated {len(rinex_paths)} RINEX files from {len(all_files)} NovAtel files:")
+print(
+    f"{'=' * 40}\nGenerated {len(rinex_paths)} RINEX files from {len(all_files)} NovAtel files:"
+)
 for path in rinex_paths:
     print(f" - {path}")

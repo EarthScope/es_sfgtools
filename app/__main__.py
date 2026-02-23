@@ -4,12 +4,14 @@ This module is the command-line entry point for the application.
 It uses Typer to create a CLI for running and preprocessing data pipelines
 based on manifest files.
 """
+
 import os
 import sys
 from pathlib import Path
 from typing import List
 import typer
 import multiprocessing
+
 try:
     multiprocessing.set_start_method("spawn", force=True)
 except RuntimeError:
@@ -18,6 +20,7 @@ except RuntimeError:
 
 from es_sfgtools.logging import ProcessLogger
 from es_sfgtools.config.env_config import Environment
+
 Environment.load_working_environment()
 
 

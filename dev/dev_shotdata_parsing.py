@@ -17,9 +17,5 @@ if __name__ == "__main__":
     #     'position_update_config': {'override': True}
     # })
 
-    wfh.midprocess_parse_surveys(
-        override=True, write_intermediate=True
-    )
-    wfh.midprocess_prep_garpos(
-        override=True, write_intermediate=True
-    )
+    wfh.midprocess_parse_surveys(override=True, write_intermediate=True)
+    wfh.midprocess_prep_garpos(override=True, write_intermediate=True)

@@ -30,14 +30,16 @@ data = {
                 "raw": "#RANGEA,USB2,0,73.0,FINESTEERING,2379,414837.600,02000000,5103,17136;29,10,0,21227087.610,0.100,-111549153.861782,0.010,-1042.124,50.3,15481.976,1810dc04,10,0,21227096.289,0.034,-86921477.916948,0.012,-812.046,49.8,15481.976,11305c0b*2260ce45"
             }
         }
-    }
+    },
 }
 
 epochs = extract_rangea_from_qcpin(data)
 print(f"Found {len(epochs)} unique epochs (expected 3 - one duplicate)")
 
 for e in epochs:
-    print(f"  GPS week {e.gps_week}, seconds {e.gps_seconds}: {e.satellite_count} satellites, {e.num_observations} obs")
+    print(
+        f"  GPS week {e.gps_week}, seconds {e.gps_seconds}: {e.satellite_count} satellites, {e.num_observations} obs"
+    )
 
 # Verify deduplication
 assert len(epochs) == 3, f"Expected 3 unique epochs, got {len(epochs)}"

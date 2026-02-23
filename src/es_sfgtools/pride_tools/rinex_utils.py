@@ -17,6 +17,7 @@ def _header_get_time(line):
     )
     return start_time
 
+
 def epoch_get_time(line: str) -> datetime:
     """Extracts the epoch time from a RINEX observation line.
     Args:
@@ -35,7 +36,8 @@ def epoch_get_time(line: str) -> datetime:
         second=int(float(date_line[5])),
     )
 
-def rinex_get_time_range(source: str|Path) -> Tuple[datetime, datetime]:
+
+def rinex_get_time_range(source: str | Path) -> Tuple[datetime, datetime]:
     """
     Extracts the time range from a RINEX observation file.
     Args:
@@ -50,7 +52,6 @@ def rinex_get_time_range(source: str|Path) -> Tuple[datetime, datetime]:
         files = f.readlines()
 
         for line in files:
-
             if timestamp_data_start is None:
                 if "TIME OF FIRST OBS" in line:
                     start_time = _header_get_time(line)
@@ -70,10 +71,7 @@ def rinex_get_time_range(source: str|Path) -> Tuple[datetime, datetime]:
                             pass
                     except Exception:
                         pass
-    if (
-        timestamp_data_start is not None
-        and timestamp_data_end == timestamp_data_start
-    ):
+    if timestamp_data_start is not None and timestamp_data_end == timestamp_data_start:
         # If the start and end times are the same, set the end time to the end of the day
         # This is to ensure that the end time is always after the start time
         timestamp_data_end = datetime(
@@ -88,5 +86,5 @@ def rinex_get_time_range(source: str|Path) -> Tuple[datetime, datetime]:
     if timestamp_data_start is None or timestamp_data_end is None:
         logger.logerr(f"Failed to extract time range from {source}")
         raise ValueError(f"Failed to extract time range from {source}")
-    
+
     return timestamp_data_start, timestamp_data_end

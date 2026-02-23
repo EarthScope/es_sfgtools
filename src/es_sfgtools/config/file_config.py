@@ -5,6 +5,7 @@ It includes types for remote storage, file types, data types, and assets,
 providing a centralized and consistent way to refer to them throughout the
 codebase.
 """
+
 from enum import Enum
 
 
@@ -21,7 +22,7 @@ class FILE_TYPE(Enum):
     SONARDYNE = "sonardyne"
     NOVATEL = "novatel"
     KIN = "kin"
-    RINEX2= "rinex2"
+    RINEX2 = "rinex2"
     MASTER = "master"
     LEVERARM = "leverarm"
     SEABIRD = "svpavg"
