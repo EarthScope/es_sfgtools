@@ -55,6 +55,7 @@ dependencies = [
   "regex==2025.11.3",
   "cloudpathlib[s3]==0.23.0",
   "colorama>=0.4.6",
+  # "pyarrow==21.0.0",
 ]
 
 [project.optional-dependencies]
