@@ -6,7 +6,7 @@ from typing import List, Optional
 
 import julian
 import numpy as np
-import pandera as pa
+import pandera.pandas as pa
 from pandera.typing import Series
 from pydantic import (
     AliasChoices,

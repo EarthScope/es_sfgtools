@@ -9,7 +9,7 @@ and site metadata in a standardized format.
 import datetime
 from typing import Optional
 
-import pandera as pa
+import pandera.pandas as pa
 import pymap3d as pm
 from pandera.typing import Series
 from pydantic import BaseModel

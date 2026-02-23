@@ -23,7 +23,7 @@ from .utils import (
 from es_sfgtools.utils.command_line_utils import parse_cli_logs
 
 
-def novatel_ascii_2tile(files: List[str], gnss_obs_tdb: Path, n_procs: int = 10) -> None:
+def novatel_ascii_2tile(files: List[str], gnss_obs_tdb: Path, n_procs: int = 10, verbose: bool = True) -> None:
     """
     This function is a python wrapper for the nova2tile golang binary.
     Given a list of novatel ascii files, get all the rangea logs and add them to a single tdb array
@@ -39,14 +39,26 @@ def novatel_ascii_2tile(files: List[str], gnss_obs_tdb: Path, n_procs: int = 10)
     cmd = [str(binary_path), "-tdb", str(gnss_obs_tdb), "-procs", str(n_procs)]
     for file in files:
         cmd.append(str(file))
+    if verbose:
+        logger.logdebug(f" Running {cmd}")
+        logger.loginfo(f"Running NOVA2TILE on {len(files)} files")
+        to_stdout = None
+    else:
+        to_stdout = subprocess.DEVNULL
+    
 
-    logger.logdebug(f" Running {cmd}")
-    logger.loginfo(f"Running NOVA2TILE on {len(files)} files")
-    result = subprocess.run(cmd)
+    result = subprocess.run(cmd,stdout=to_stdout,stderr=to_stdout)
 
-    parse_cli_logs(result, logger)
+    if verbose:
+        parse_cli_logs(result, logger)
 
-def novatel_ascii_2rinex(file:Path,writedir:Path=None,site:str="SIT1",metadata:dict|MetadataModel|Path|str=None,modulo_millis:int=0,**kwargs) -> List[Path]:
+def novatel_ascii_2rinex(
+        file:Path,
+        writedir:Path=None,
+        site:str="SIT1",
+        metadata:dict|MetadataModel|Path|str=None,
+        modulo_millis:int=0,
+        *kwargs) -> List[Path]:
     """Convert a NovAtel ASCII file to a daily RINEX file using nova2rnxo.
     This function wraps the external `nova2rnxo` binary to convert a NovAtel ASCII
     observation file into a daily RINEX file. Metadata describing the site and

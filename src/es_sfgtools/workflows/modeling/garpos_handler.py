@@ -298,6 +298,9 @@ class GarposHandler(WorkflowABC):
             except Exception as e:
                 logger.logerr(f"Failed to remove existing results directory {results_dir}: {e}")
                 
+        elif results_dir.exists() and not override:
+            logger.loginfo(f"Results directory {results_dir} already exists. Use override=True to overwrite existing results.")
+            return
         results_dir.mkdir(parents=True, exist_ok=True)
 
         obsfile_path = garpos_survey_dir.default_obsfile

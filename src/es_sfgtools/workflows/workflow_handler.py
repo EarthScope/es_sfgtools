@@ -24,11 +24,13 @@ from es_sfgtools.workflows.pipelines import exceptions as pipeline_exceptions
 
 from es_sfgtools.workflows.pipelines.config import (
     SV3PipelineConfig,
+    QCPipelineConfig,
     PrideCLIConfig,
     NovatelConfig,
     RinexConfig,
     DFOP00Config,
     PositionUpdateConfig,
+    QCPinConfig,
 )
 
 
@@ -48,6 +50,15 @@ pipeline_jobs = [
     "process_dfop00",
     "refine_shotdata",
     "process_svp",
+]
+
+qc_pipeline_jobs = [
+    "all",
+    "process_qcpin",
+    "build_rinex",
+    "run_pride",
+    "process_kinematic",
+    "refine_shotdata",
 ]
 
 
@@ -430,6 +441,219 @@ class WorkflowHandler(WorkflowABC):
                 pipeline.run_pipeline()
 
     @validate_network_station_campaign
+    def preprocess_get_pipeline_qc(
+        self,
+        primary_config: Optional[
+            Union[
+                QCPipelineConfig,
+                PrideCLIConfig,
+                RinexConfig,
+                PositionUpdateConfig,
+                QCPinConfig,
+                dict,
+            ]
+        ] = None,
+        secondary_config: Optional[
+            Union[
+                QCPipelineConfig,
+                PrideCLIConfig,
+                RinexConfig,
+                PositionUpdateConfig,
+                QCPinConfig,
+                dict,
+            ]
+        ] = None,
+    ) -> QCPipeline:
+        """Creates and configures a QC processing pipeline.
+
+        Parameters
+        ----------
+        primary_config : Optional[Union[QCPipelineConfig, PrideCLIConfig, RinexConfig, PositionUpdateConfig, QCPinConfig, dict]], optional
+            Optional primary configuration for the pipeline.
+        secondary_config : Optional[Union[QCPipelineConfig, PrideCLIConfig, RinexConfig, PositionUpdateConfig, QCPinConfig, dict]], optional
+            Optional secondary configuration for the pipeline.
+
+        Returns
+        -------
+        QCPipeline
+            Configured QCPipeline instance.
+
+        Raises
+        ------
+        AssertionError
+            If current network, station, or campaign is not set.
+        ValueError
+            If configuration validation fails.
+
+        See Also
+        --------
+        es_sfgtools.workflows.pipelines.qc_pipeline.QCPipeline : The pipeline class used for QC processing.
+        """
+        base_config = QCPipelineConfig()
+        base_config_updated = base_config.model_copy()
+
+        # Merge primary config if provided
+        if primary_config is not None:
+            if isinstance(
+                primary_config,
+                (
+                    QCPipelineConfig,
+                    PrideCLIConfig,
+                    RinexConfig,
+                    PositionUpdateConfig,
+                    QCPinConfig,
+                ),
+            ):
+                primary_config = primary_config.model_dump()
+
+            base_config_updated = validate_and_merge_config(
+                base_class=base_config, override_config=primary_config
+            )
+
+        # Merge secondary config if provided
+        if secondary_config is not None:
+            if isinstance(
+                secondary_config,
+                (
+                    QCPipelineConfig,
+                    PrideCLIConfig,
+                    RinexConfig,
+                    PositionUpdateConfig,
+                    QCPinConfig,
+                ),
+            ):
+                secondary_config = secondary_config.model_dump()
+            base_config_updated = validate_and_merge_config(
+                base_class=base_config_updated, override_config=secondary_config
+            )
+
+        pipeline = QCPipeline(
+            directory_handler=self.data_handler.directory_handler, config=base_config_updated
+        )
+        pipeline.set_network_station_campaign(
+            network_id=self.current_network_name,
+            station_id=self.current_station_name,
+            campaign_id=self.current_campaign_name,
+        )
+        return pipeline
+
+    @validate_network_station_campaign
+    def preprocess_run_pipeline_qc(
+        self,
+        job: Literal[
+            "all",
+            "process_qcpin",
+            "build_rinex",
+            "run_pride",
+            "process_kinematic",
+            "refine_shotdata",
+        ] = "all",
+        primary_config: Optional[
+            Union[
+                QCPipelineConfig,
+                PrideCLIConfig,
+                RinexConfig,
+                PositionUpdateConfig,
+                QCPinConfig,
+                dict,
+            ]
+        ] = None,
+        secondary_config: Optional[
+            Union[
+                QCPipelineConfig,
+                PrideCLIConfig,
+                RinexConfig,
+                PositionUpdateConfig,
+                QCPinConfig,
+                dict,
+            ]
+        ] = None,
+    ) -> None:
+        """Runs the QC processing pipeline with optional configuration overrides.
+
+        This method creates and configures a :class:`~es_sfgtools.workflows.pipelines.qc_pipeline.QCPipeline`
+        instance for processing QC PIN data from Sonardyne equipment.
+
+        Parameters
+        ----------
+        job : Literal["all", "process_qcpin", "build_rinex", "run_pride", "process_kinematic", "refine_shotdata"], optional
+            The specific job to run within the pipeline, by default "all".
+        primary_config : Optional[Union[QCPipelineConfig, dict]], optional
+            Primary configuration to override defaults.
+        secondary_config : Optional[Union[QCPipelineConfig, dict]], optional
+            Secondary configuration to override primary and defaults.
+
+        Raises
+        ------
+        AssertionError
+            If job is not in valid QC pipeline jobs.
+        ValueError
+            If configuration validation fails.
+
+        See Also
+        --------
+        preprocess_get_pipeline_qc : Method that creates the pipeline instance.
+        es_sfgtools.workflows.pipelines.qc_pipeline.QCPipeline : The pipeline class used.
+
+        Examples
+        --------
+        # Run the QC pipeline with custom configuration
+        >>> workflow = WorkflowHandler("/path/to/data")
+        >>> workflow.set_network_station_campaign("network", "station", "campaign")
+        >>> workflow.preprocess_run_pipeline_qc(
+        ...     job="process_qcpin",
+        ...     primary_config={"qcpin_config": {"n_processes": 8}}
+        ... )
+        """
+        assert job in qc_pipeline_jobs, f"Job must be one of {qc_pipeline_jobs}"
+
+        pipeline: QCPipeline = self.preprocess_get_pipeline_qc(
+            primary_config=primary_config, secondary_config=secondary_config
+        )
+
+        match job:
+            case "all":
+                pipeline.run_pipeline()
+
+            case "process_qcpin":
+                try:
+                    pipeline.process_qcpin()
+                except pipeline_exceptions.NoQCPinFound as e:
+                    logger.logerr(f"QC PIN processing failed: {e}")
+                    raise e
+
+            case "build_rinex":
+                try:
+                    pipeline.get_rinex_files()
+                except pipeline_exceptions.NoRinexBuilt as e:
+                    logger.logerr(f"QC RINEX file generation failed: {e}")
+                    raise e
+
+            case "run_pride":
+                try:
+                    pipeline.process_rinex()
+                except pipeline_exceptions.NoRinexFound as e:
+                    logger.logerr(f"QC PRIDE-PPP processing failed: {e}")
+                    raise e
+
+            case "process_kinematic":
+                try:
+                    pipeline.process_kin()
+                except pipeline_exceptions.NoKinFound as e:
+                    logger.logerr(f"QC Kinematic processing failed: {e}")
+                    raise e
+
+            case "refine_shotdata":
+                try:
+                    pipeline.update_shotdata()
+                except Exception as e:
+                    logger.logerr(f"QC Shotdata refinement failed: {e}")
+                    raise e
+
+            case _:
+                pipeline.run_pipeline()
+
+    @validate_network_station_campaign
     def midprocess_get_sitemeta(
         self, site_metadata: Optional[Union[Site, str]] = None
     ) -> Site:
@@ -773,13 +997,13 @@ class WorkflowHandler(WorkflowABC):
         )
 
     @validate_network_station_campaign
-    def qc_get_pipeline(self, config: dict = {}) -> "QCPipeline":
+    def qc_get_pipeline(self, config: QCPipelineConfig = None) -> "QCPipeline":
         """Get a configured QCPipeline instance.
 
         Parameters
         ----------
-        config : dict, optional
-            A dictionary of configuration options, by default {}
+        config : QCPipelineConfig, optional
+            A QCPipelineConfig instance with configuration options, by default None.
 
         Returns
         -------
@@ -806,7 +1030,7 @@ class WorkflowHandler(WorkflowABC):
                              iterations:int = 1,
                              garpos_settings: Optional[dict | InversionParams] = None,
                              garpos_override: bool = False,
-                             pre_process_config: dict = {},
+                             pre_process_config: QCPipelineConfig = None,
                              ) -> None:
         """Process QC files and run GARPOS modeling.
 
@@ -822,8 +1046,8 @@ class WorkflowHandler(WorkflowABC):
             Custom settings to override GARPOS defaults, by default None.
         garpos_override : bool, optional
             If True, re-runs GARPOS even if results exist, by default False.
-        pre_process_config : dict, optional
-            A dictionary of configuration options, by default {}
+        pre_process_config : QCPipelineConfig, optional
+            A QCPipelineConfig instance with configuration options, by default None.
         
         Raises
         ------
@@ -832,7 +1056,7 @@ class WorkflowHandler(WorkflowABC):
         """
         # Get and run the QC pipeline
         qc_pipeline: QCPipeline = self.qc_get_pipeline(config=pre_process_config)
-        qc_pipeline.process_qc_files()
+        qc_pipeline.run_pipeline()
 
         # Get the intermediate data processor and parse QC surveys
         try:
@@ -841,7 +1065,7 @@ class WorkflowHandler(WorkflowABC):
             raise e # for visibility
         
         gp_dir_list = qc_mid_processor.parse_surveys_qc(
-            shotdata_uri=qc_pipeline.shotDataTDB.uri
+            shotdata_uri=qc_pipeline.qcShotDataFinalTDB.uri
         )
 
         # Get the GARPOS handler and run GARPOS

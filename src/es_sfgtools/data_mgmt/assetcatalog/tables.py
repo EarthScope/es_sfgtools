@@ -30,7 +30,7 @@ class Assets(Base):
     campaign = Column(String)
     remote_path = Column(String,nullable=True,unique=True)
     remote_type = Column(String,nullable=True)#Column(Enum("s3","http"),nullable=True)
-    local_path = Column(String,nullable=True,unique=True)
+    local_path = Column(String,nullable=True,unique=False)
     type = Column(String)
     timestamp_data_start = Column(DateTime,nullable=True)
     timestamp_data_end = Column(DateTime,nullable=True)

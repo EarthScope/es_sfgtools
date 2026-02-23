@@ -1,5 +1,5 @@
 from typing import List, Union
-
+from pandera.typing import DataFrame
 import gnatss.constants as constants
 import numpy as np
 import pandas as pd
@@ -20,15 +20,18 @@ from es_sfgtools.logging import ProcessLogger as logger
 # Local imports
 from es_sfgtools.tiledb_tools.tiledb_schemas import (
     TDBIMUPositionArray,
+    IMUPositionDataFrame,
     TDBKinPositionArray,
+    KinPositionDataFrame,
     TDBShotDataArray,
+    ShotDataFrame,
 )
 
 MEDIAN_EAST_POSITION = 0
 MEDIAN_NORTH_POSITION = 0
 MEDIAN_UP_POSITION = 0
 
-def prepare_positions_data(positions_data:pd.DataFrame) -> pd.DataFrame:
+def prepare_positions_data(positions_data:DataFrame[IMUPositionDataFrame]) -> pd.DataFrame:
     """Prepares IMU positions data for Kalman filtering.
 
     This is done by converting geodetic coordinates to ECEF, computing median
@@ -59,7 +62,9 @@ def prepare_positions_data(positions_data:pd.DataFrame) -> pd.DataFrame:
     """
 
     positions_data_copy = positions_data.copy()
-    positions_data_copy.time = positions_data_copy.time.apply(lambda x: x.timestamp())
+    positions_data_copy.time = positions_data_copy.time.apply(
+        lambda x: x.timestamp() if hasattr(x, "timestamp") else x
+    )
 
     global MEDIAN_EAST_POSITION, MEDIAN_NORTH_POSITION, MEDIAN_UP_POSITION
     e, n, u = pymap3d.geodetic2ecef(lat=positions_data_copy.latitude, lon=positions_data_copy.longitude, alt=positions_data_copy.height)
@@ -90,7 +95,7 @@ def prepare_positions_data(positions_data:pd.DataFrame) -> pd.DataFrame:
 
     return positions_data_copy
 
-def prepare_kinematic_data(kin_positions: pd.DataFrame) -> pd.DataFrame:
+def prepare_kinematic_data(kin_positions: DataFrame[KinPositionDataFrame]) -> pd.DataFrame:
     """Prepares kinematic GPS data for Kalman filtering.
 
     This is done by computing velocities and filtering outliers.
@@ -176,16 +181,19 @@ def prepare_kinematic_data(kin_positions: pd.DataFrame) -> pd.DataFrame:
     logger.loginfo(f"Kinematic data filtered from {original_len} to {filtered_len} rows for a {((original_len - filtered_len) / original_len * 100):.2f} % reduction using z-score threshold of {z_thresh}.")
     return gps_df
 
-def combine_data(imu_position_data: pd.DataFrame, ppp_position_data: pd.DataFrame) -> pd.DataFrame:
+def combine_data(
+        imu_position_data: DataFrame[IMUPositionDataFrame], 
+        ppp_position_data: DataFrame[KinPositionDataFrame]
+        ) -> pd.DataFrame:
     """Combines IMU position and PPP position data into a single DataFrame.
 
     This is done with a specified column order.
 
     Parameters
     ----------
-    imu_position_data : pd.DataFrame
+    imu_position_data : DataFrame[IMUPositionDataFrame]
         DataFrame containing IMU position data with columns matching the expected column order.
-    ppp_position_data : pd.DataFrame
+    ppp_position_data : DataFrame[KinPositionDataFrame]
         DataFrame containing PPP position data with columns matching the expected column order.
 
     Returns
@@ -208,7 +216,12 @@ def combine_data(imu_position_data: pd.DataFrame, ppp_position_data: pd.DataFram
     logger.loginfo(f"Combined data shape: {df_all.shape}")
     return df_all
 
-def run_kalman_filter_and_smooth(df_all: pd.DataFrame, start_dt: float, gnss_pos_psd: float, vel_psd: float, cov_err: float) -> pd.DataFrame:
+def run_kalman_filter_and_smooth(
+        df_all: pd.DataFrame, 
+        start_dt: float, 
+        gnss_pos_psd: float, 
+        vel_psd: float, 
+        cov_err: float) -> pd.DataFrame:
     """Runs a Kalman filter simulation on GNSS shot data and processes the results.
 
     Parameters
@@ -391,6 +404,7 @@ def main(
     cov_err: Union[float, np.ndarray] = constants.cov_err,
     start_dt: Union[float, pd.Timestamp] = constants.start_dt,
     filter_radius: float = 5000,
+    prepare_position_data: bool = True
  ) -> pd.DataFrame:
     """Refines shotdata using GNSS and IMU data through Kalman filtering and smoothing.
 
@@ -429,7 +443,10 @@ def main(
         logger.loginfo("No positions data provided.")
         return shotdata
 
-    positions_data_copy = prepare_positions_data(positions_data)
+    if prepare_position_data:
+        positions_data_copy = prepare_positions_data(positions_data)
+    else:
+        positions_data_copy = positions_data.copy()
 
     if kin_positions.empty:
         logger.loginfo("No kinematic positions data provided.")
@@ -503,10 +520,10 @@ def merge_shotdata_kinposition(
 
         shotdata_df = shotdata_pre.read_df(start=date)
         kin_position_df = kin_position.read_df(start=date)
-        position_df = position_data.read_df(start=date)
-        if position_data is None or position_df is None or kin_position_df is None:
+        position_df = position_data.read_df(start=date) if position_data is not None else None
+        if shotdata_df is None or shotdata_df.empty:
             continue
-        if shotdata_df.empty or kin_position_df.empty or position_df.empty:
+        if shotdata_df.empty:
             continue
 
         logger.loginfo(f"Interpolating shotdata for date {str(date)}")
@@ -525,6 +542,59 @@ def merge_shotdata_kinposition(
 
         shotdata.write_df(shotdata_df_updated, validate=False)
 
+def merge_shotdata_qc(
+    shotdata_pre: TDBShotDataArray,
+    shotdata: TDBShotDataArray,
+    kin_position: TDBKinPositionArray,
+    dates: List[datetime64]
+) -> None:
+    """Merge the shotdata and kin_position data for QC purposes.
+
+    Parameters
+    ----------
+    shotdata_pre : TDBShotDataArray
+        The DFOP00 data.
+    shotdata : TDBShotDataArray
+        The shotdata array to write to.
+    kin_position : TDBKinPositionArray
+        The TileDB KinPosition array.
+    dates : List[datetime64]
+        The dates to merge.
+
+    Returns
+    -------
+    None
+        This function writes the updated shotdata to the provided TDBShotDataArray.
+    """
+
+    logger.loginfo("Merging shotdata and kin_position data for QC")
+    for date in dates:
+
+        shotdata_df = shotdata_pre.read_df(start=date)
+        kin_position_df = kin_position.read_df(start=date)
+        if shotdata_df is None or shotdata_df.empty:
+            continue
+        if shotdata_df.empty:
+            continue
+
+        logger.loginfo(f"Interpolating shotdata for date {str(date)}")
+        positions_data: pd.DataFrame = shotdata_to_imu_position_df(
+            shotdata_df
+        )
+        # interpolate the enu values
+        shotdata_df_updated = main(
+            shotdata=shotdata_df,
+            kin_positions=kin_position_df,
+            positions_data=positions_data,
+            gnss_pos_psd=constants.gnss_pos_psd,
+            vel_psd=constants.vel_psd,
+            cov_err=constants.cov_err,
+            start_dt=constants.start_dt,
+            filter_radius=0,  # no spatial filtering for QC purposes
+            prepare_position_data=False,  # positions data is already prepared from shotdata
+        )
+
+        shotdata.write_df(shotdata_df_updated, validate=False)
 
 def interpolate_enu(
     tenu_l: np.ndarray,
@@ -845,3 +915,75 @@ def merge_shotdata_kinposition_radius_regression(
         shotdata.write_df(shotdata_df_updated, validate=False)
 
     return shotdata
+
+def shotdata_to_imu_position_df(shotdata_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Converts a ShotDataFrame DataFrame into an IMUPositionDataFrame DataFrame by splitting *0 (pingTime) and *1 (returnTime) fields,
+    renaming to IMUPositionDataFrame schema, concatenating, sorting by time, and dropping acoustic fields.
+
+    Parameters
+    ----------
+    shotdata_df : pd.DataFrame
+        DataFrame with ShotDataFrame schema.
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with IMUPositionDataFrame schema.
+    """
+    # Map for *0 (pingTime/start)
+    start_map = {
+        "pingTime": "time",
+        "east0": "ant_x",
+        "north0": "ant_y",
+        "up0": "ant_z",
+       "east_std0": "ant_sigx",
+        "north_std0": "ant_sigy",
+        "up_std0": "ant_sigz",
+
+  
+    }
+    # Map for *1 (returnTime/stop)
+    stop_map = {
+        "returnTime": "time",
+        "east1": "ant_x",
+        "north1": "ant_y",
+        "up1": "ant_z",
+        "east_std1": "ant_sigx",
+        "north_std1": "ant_sigy",
+        "up_std1": "ant_sigz",
+    }
+
+    # Select and rename for start (pingTime)
+    start_cols = {k: v for k, v in start_map.items() if k in shotdata_df.columns}
+    start_df = shotdata_df.rename(columns=start_cols)[list(start_map.values())]
+
+    # Select and rename for stop (returnTime)
+    stop_cols = {k: v for k, v in stop_map.items() if k in shotdata_df.columns}
+    stop_df = shotdata_df.rename(columns=stop_cols)[list(stop_map.values())]
+
+    # Concatenate and sort by time
+    imu_df = pd.concat([start_df, stop_df], ignore_index=True)
+    imu_df = imu_df.sort_values("time").reset_index(drop=True)
+
+    imu_df["rho_xy"] = 0
+    imu_df["rho_xz"] = 0
+    imu_df["rho_yz"] = 0
+    imu_df["ant_sigx"] = imu_df["ant_sigx"].bfill().ffill()
+    imu_df["ant_sigy"] = imu_df["ant_sigy"].bfill().ffill()
+    imu_df["ant_sigz"] = imu_df["ant_sigz"].bfill().ffill()
+    imu_df["v_sden"] = 0
+    imu_df["v_sdeu"] = 0
+    imu_df["v_sdnu"] = 0
+
+    # compute kinematic velocities
+    time_diff = imu_df.time.diff().bfill()
+    ant_x_diff = imu_df.ant_x.diff().bfill()
+    ant_y_diff = imu_df.ant_y.diff().bfill()
+    ant_z_diff = imu_df.ant_z.diff().bfill()
+    imu_df["east"] = ant_x_diff / time_diff
+    imu_df["north"] = ant_y_diff / time_diff
+    imu_df["up"] = ant_z_diff / time_diff
+
+
+    return imu_df

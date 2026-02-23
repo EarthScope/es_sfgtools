@@ -12,14 +12,18 @@ local and S3 storage.
 import datetime
 import os
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List
+from collections import defaultdict
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from es_sfgtools.novatel_tools.rangea_parser import GNSSEpoch
 import tiledb
 from cloudpathlib import S3Path
+import tempfile
 
+from es_sfgtools.novatel_tools import novatel_ascii_operations as nova_ops
 from ..data_models.observables import (
     AcousticDataFrame,
     IMUPositionDataFrame,
@@ -606,7 +610,7 @@ class TDBShotDataArray(TBDArray):
             validate (bool, optional): Whether to validate the dataframe.
                 Defaults to True.
         """
-        logger.logdebug(f" Writing dataframe to {self.uri}")
+        #logger.logdebug(f" Writing dataframe to {self.uri}")
         if validate:
             df_val = self.dataframe_schema.validate(df, lazy=True)
         else:
@@ -659,3 +663,122 @@ class TDBGNSSObsArray(TBDArray):
             except Exception as e:
                 logger.logerr(e)
                 return None
+
+    def write_epochs(self, epochs: List[GNSSEpoch], region: str = "us-east-2") -> int:
+        """
+        Write GNSS observation epochs to this TileDB array.
+
+        This method is the Python equivalent of the Go WriteObsV3Array function.
+        It flattens the hierarchical epoch/satellite/observation structure into
+        columnar buffers and writes them to the TileDB array.
+
+        Array Schema (dimensions):
+            - time (int64): UTC timestamp in milliseconds since Unix epoch
+            - sys (uint8): GNSS system identifier
+            - sat (uint8): Satellite PRN/slot number
+            - obs (uint16): Observation type code (2-char code as uint16)
+
+        Array Schema (attributes):
+            - range (float64): Pseudorange measurement in meters
+            - phase (float64): Carrier phase in cycles
+            - doppler (float64): Doppler frequency in Hz
+            - snr (float32): Signal-to-noise ratio in dB-Hz
+            - slip (uint16): Lock time / slip counter
+            - flags (uint16): Observation flags
+            - fcn (int8): GLONASS frequency channel number
+        """
+
+
+
+        # Now build buffers from deduplicated dict
+        d0_buffer, d1_buffer, d2_buffer, d3_buffer = [], [], [], []
+        a0_buffer, a1_buffer, a2_buffer, a3_buffer, a4_buffer, a5_buffer, a6_buffer = [], [], [], [], [], [], []
+        for epoch in epochs:
+            epoch_time_ms = int(epoch.time.timestamp() * 1000)
+            for sat in epoch.satellites.values():
+                sys_id = sat.system.value
+                sat_id = sat.prn
+                for obs in sat.observations.values():
+                    obs_code = obs.signal_type
+                    d0_buffer.append(epoch_time_ms)
+                    d1_buffer.append(sys_id)
+                    d2_buffer.append(sat_id)
+                    d3_buffer.append(obs_code)
+                    a0_buffer.append(obs.pseudorange)
+                    a1_buffer.append(obs.carrier_phase)
+                    a2_buffer.append(obs.doppler)
+                    a3_buffer.append(obs.cn0)
+                    a4_buffer.append(obs.locktime)
+                    a5_buffer.append(obs.tracking_status)
+                    a6_buffer.append(sat.fcn)
+
+        # Convert to numpy arrays
+        d0_arr = np.array(d0_buffer, dtype=np.int64)
+        d1_arr = np.array(d1_buffer, dtype=np.uint8)
+        d2_arr = np.array(d2_buffer, dtype=np.uint8)
+        d3_arr = np.array(d3_buffer, dtype=np.uint16)
+        a0_arr = np.array(a0_buffer, dtype=np.float64)
+        a1_arr = np.array(a1_buffer, dtype=np.float64)
+        a2_arr = np.array(a2_buffer, dtype=np.float64)
+        a3_arr = np.array(a3_buffer, dtype=np.float32)
+        a4_arr = np.array(a4_buffer, dtype=np.uint16)
+        a5_arr = np.array(a5_buffer, dtype=np.uint16)
+        a6_arr = np.array(a6_buffer, dtype=np.int8)
+
+        df = pd.DataFrame({
+            "time": d0_arr,
+            "sys": d1_arr,
+            "sat": d2_arr,
+            "obs": d3_arr,
+            "range": a0_arr,
+            "phase": a1_arr,
+            "doppler": a2_arr,
+            "snr": a3_arr,
+            "slip": a4_arr,
+            "flags": a5_arr,
+            "fcn": a6_arr,
+        }).drop_duplicates(subset=["time", "sys", "sat", "obs"], keep="first")  # Ensure no duplicates based on dimensions
+        # Open array and write
+        # with tiledb.open(str(self.uri), mode="w") as array:
+        #     array[d0_arr, d1_arr, d2_arr, d3_arr] = {
+        #         "range": a0_arr,
+        #         "phase": a1_arr,
+        #         "doppler": a2_arr,
+        #         "snr": a3_arr,
+        #         "slip": a4_arr,
+        #         "flags": a5_arr,
+        #         "fcn": a6_arr,
+        #     }
+
+        tiledb.from_pandas(str(self.uri), df, mode="append")
+        return len(d0_buffer)
+
+
+    def write_rangea_strings(self, rangea_strings: List[str], verbose: bool = False) -> int:
+        """
+        Write GNSS observation epochs to this TileDB array from RINEX 3.05
+        observation file lines.
+
+        This method parses the RINEX observation lines, extracts the relevant
+        data, and writes it to the TileDB array using the same schema as
+        `write_epochs`.
+
+        Parameters
+        ----------
+            rangea_strings (List[str])
+                A list of strings
+            verbose (bool, optional)
+                Whether to print verbose output during processing. Defaults to False.
+        """
+
+        with tempfile.NamedTemporaryFile(mode="w+", delete=True) as tmp_file:
+            for line in rangea_strings:
+                tmp_file.write(line + "\n")
+            tmp_file.flush()
+            nova_ops.novatel_ascii_2tile(
+                files=[tmp_file.name],
+                gnss_obs_tdb=str(self.uri),
+                n_procs=1,
+                verbose=verbose
+            )
+      

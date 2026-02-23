@@ -5,7 +5,7 @@
 # import os
 # import logging
 # import json
-# import pandera as pa
+# import pandera.pandas as pa
 # from pandera.typing import DataFrame
 # import pymap3d as pm
 # from warnings import warn
