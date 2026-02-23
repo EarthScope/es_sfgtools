@@ -40,8 +40,3 @@ src/golangtools/build/
 .pixi
 external/*
 !external/README.md
-<<<<<<< HEAD
-=======
-
-!external/README.md
->>>>>>> pixi-environment
