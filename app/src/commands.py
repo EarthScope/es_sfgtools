@@ -4,6 +4,7 @@ This module contains the core logic for executing pipeline commands.
 It orchestrates the data handling and processing workflows based on the
 parsed manifest file.
 """
+
 from es_sfgtools.data_mgmt.ingestion.archive_pull import list_campaign_files
 from es_sfgtools.modeling.garpos_tools.load_utils import load_lib
 from es_sfgtools.utils.model_update import validate_and_merge_config
@@ -61,7 +62,7 @@ def run_manifest(manifest_object: PipelineManifest):
         )
 
     for job in manifest_object.garpos_jobs:
-        config:GARPOSConfig = validate_and_merge_config(
+        config: GARPOSConfig = validate_and_merge_config(
             base_class=job.global_config,
             override_config=job.secondary_config,
         )
@@ -78,11 +79,7 @@ def run_manifest(manifest_object: PipelineManifest):
             write_intermediate=False,
         )
 
-        surveys = (
-            job.surveys
-            if job.surveys
-            else [None]
-        )
+        surveys = job.surveys if job.surveys else [None]
 
         for survey_id in surveys:
             wfh.modeling_run_garpos(
@@ -94,9 +91,7 @@ def run_manifest(manifest_object: PipelineManifest):
             )
 
 
-def run_preprocessing(
-    network_id: str, campaign_id: str, stations: list, main_dir: str
-):
+def run_preprocessing(network_id: str, campaign_id: str, stations: list, main_dir: str):
     """
     Initializes and runs the preprocessing workflow for a set of stations.
 

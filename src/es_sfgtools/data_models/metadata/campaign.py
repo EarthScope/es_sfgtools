@@ -1,7 +1,7 @@
 from datetime import datetime
-from typing import List, Optional,Union
+from typing import List, Optional, Union
 from enum import Enum
-from pydantic import BaseModel, Field, field_validator,field_serializer,PrivateAttr
+from pydantic import BaseModel, Field, field_validator, field_serializer, PrivateAttr
 from regex import match
 
 from .utils import (
@@ -50,6 +50,7 @@ def campaign_checks(campaign_year, campaign_interval, vessel_code):
     print("Campaign name: " + campaign_name)
     return campaign_name, vessel_code.upper()
 
+
 class SurveyType(str, Enum):
     CIRCLE = "circledrive"
     FIXED_POINT = "fixedpoint"
@@ -58,6 +59,7 @@ class SurveyType(str, Enum):
     GARPOS = "garpos"
     MOVEAROUND = "movearound"
     OTHER = "other"
+
 
 def classify_survey_type(survey_type: str) -> SurveyType:
     """Classifies the survey type based on the provided string.
@@ -93,15 +95,15 @@ def classify_survey_type(survey_type: str) -> SurveyType:
     else:
         return SurveyType.OTHER
 
+
 class Survey(AttributeUpdater, BaseModel):
     """
     Represents a single survey within a campaign.
     """
+
     # Required
-    id: str = Field(
-        ..., description="The unique ID of the survey"
-    )  
-    type: Union[str,SurveyType] = Field(
+    id: str = Field(..., description="The unique ID of the survey")
+    type: Union[str, SurveyType] = Field(
         ..., description="The type of the survey (e.g. circle | fixed point | mixed)"
     )
     benchmarkIDs: List[str] = Field(
@@ -125,30 +127,33 @@ class Survey(AttributeUpdater, BaseModel):
     _check_for_empty_strings = field_validator("notes", "commands")(
         check_fields_for_empty_strings
     )
-    _type_input : Optional[str] = PrivateAttr(default=None)
+    _type_input: Optional[str] = PrivateAttr(default=None)
 
     """
     Gracefully convert survey type from string to SurveyType enum and vice versa for serialization.
     """
+
     @field_validator("type", mode="before")
-    def _validate_survey_type(type:Union[str,SurveyType]) -> SurveyType:
+    def _validate_survey_type(type: Union[str, SurveyType]) -> SurveyType:
         if isinstance(type, str):
             type = classify_survey_type(type)
         elif not isinstance(type, SurveyType):
             raise ValueError("Survey type must be a string or SurveyType enum")
         return type
-   
+
     @field_serializer("type")
-    def _serialize_survey_type(self,type:SurveyType,_info) -> str:
+    def _serialize_survey_type(self, type: SurveyType, _info) -> str:
         if self._type_input is None:
             return type.value
 
         return self._type_input
 
+
 class Campaign(AttributeUpdater, BaseModel):
     """
     Represents a campaign, which is a collection of surveys.
     """
+
     # Required
     name: str = Field(
         ..., description="The name of the campaign in the format YYYY_A_VVVV"
@@ -170,7 +175,10 @@ class Campaign(AttributeUpdater, BaseModel):
     )
 
     # Optional
-    vessel: Optional[Vessel] = Field(default=None, description="Instatiate Vessel object",)
+    vessel: Optional[Vessel] = Field(
+        default=None,
+        description="Instatiate Vessel object",
+    )
     principalInvestigator: Optional[str] = Field(default=None)
     launchVesselName: Optional[str] = Field(default=None)
     recoveryVesselName: Optional[str] = Field(default=None)

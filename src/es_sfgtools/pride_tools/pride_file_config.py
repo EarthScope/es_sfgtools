@@ -1,35 +1,153 @@
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List,Optional
+from typing import Dict, List, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
 pride_default_satellites: Dict[str, int] = {
-    "G01": 1, "G02": 1, "G03": 1, "G04": 1, "G05": 1, "G06": 1,
-    "G07": 1, "G08": 1, "G09": 1, "G10": 1, "G11": 1, "G12": 1,
-    "G13": 1, "G14": 1, "G15": 1, "G16": 1, "G17": 1, "G18": 1,
-    "G19": 1, "G20": 1, "G21": 1, "G22": 1, "G23": 1, "G24": 1,
-    "G25": 1, "G26": 1, "G27":  1, "G28": 1, "G29": 1, "G30": 1,
-    "G31": 1, "G32": 1, "R01": 1, "R02": 1, "R03": 1, "R04": 1,
-    "R05": 1, "R06": 1, "R07": 1, "R08": 1, "R09": 1, "R10": 1,
-    "R11": 1, "R12": 1, "R13": 1, "R14": 1, "R15": 1, "R16": 1,
-    "R17": 1, "R18": 1, "R19": 1, "R20": 1, "R21": 1, "R22": 1,
-    "R23": 1, "R24": 1, "E01": 1, "E02": 1, "E03": 1, "E04": 1,
-    "E05": 1, "E06": 1, "E07": 1, "E08": 1, "E09": 1, "E10": 1,
-    "E11": 1, "E12": 1, "E13": 1, "E14": 1, "E15": 1, "E16": 1,
-    "E17": 1, "E18": 1, "E19": 1, "E20": 1, "E21": 1, "E22": 1,
-    "E23": 1, "E24": 1, "E25": 1, "E26": 1, "E27": 1, "E28": 1,
-    "E29": 1, "E30": 1, "E31": 1, "E32": 1, "E33": 1, "E34": 1,
-    "E35": 1, "E36": 1, "C06": 1, "C07": 1, "C08": 1, "C09": 1,
-    "C10": 1, "C11": 1, "C12": 1, "C13": 1, "C14": 1, "C15": 1,
-    "C16": 1, "C17": 1, "C18": 3, "C19": 1, "C20": 1, "C21": 1,
-    "C22": 1, "C23": 1, "C24": 1, "C25": 1, "C26": 1, "C27": 1,
-    "C28": 1, "C29": 1, "C30": 1, "C31": 1, "C32": 1, "C33": 1,
-    "C34": 1, "C35": 1, "C36": 1, "C37": 1, "C38": 1, "C39": 1,
-    "C40": 1, "C41": 1, "C42": 1, "C43": 1, "C44": 1, "C45": 1,
-    "C46": 1, "C47": 1, "C48": 1, "C56": 1, "C57": 1, "C58": 1,
-     "J01": 1, "J02": 1, "J03": 1
+    "G01": 1,
+    "G02": 1,
+    "G03": 1,
+    "G04": 1,
+    "G05": 1,
+    "G06": 1,
+    "G07": 1,
+    "G08": 1,
+    "G09": 1,
+    "G10": 1,
+    "G11": 1,
+    "G12": 1,
+    "G13": 1,
+    "G14": 1,
+    "G15": 1,
+    "G16": 1,
+    "G17": 1,
+    "G18": 1,
+    "G19": 1,
+    "G20": 1,
+    "G21": 1,
+    "G22": 1,
+    "G23": 1,
+    "G24": 1,
+    "G25": 1,
+    "G26": 1,
+    "G27": 1,
+    "G28": 1,
+    "G29": 1,
+    "G30": 1,
+    "G31": 1,
+    "G32": 1,
+    "R01": 1,
+    "R02": 1,
+    "R03": 1,
+    "R04": 1,
+    "R05": 1,
+    "R06": 1,
+    "R07": 1,
+    "R08": 1,
+    "R09": 1,
+    "R10": 1,
+    "R11": 1,
+    "R12": 1,
+    "R13": 1,
+    "R14": 1,
+    "R15": 1,
+    "R16": 1,
+    "R17": 1,
+    "R18": 1,
+    "R19": 1,
+    "R20": 1,
+    "R21": 1,
+    "R22": 1,
+    "R23": 1,
+    "R24": 1,
+    "E01": 1,
+    "E02": 1,
+    "E03": 1,
+    "E04": 1,
+    "E05": 1,
+    "E06": 1,
+    "E07": 1,
+    "E08": 1,
+    "E09": 1,
+    "E10": 1,
+    "E11": 1,
+    "E12": 1,
+    "E13": 1,
+    "E14": 1,
+    "E15": 1,
+    "E16": 1,
+    "E17": 1,
+    "E18": 1,
+    "E19": 1,
+    "E20": 1,
+    "E21": 1,
+    "E22": 1,
+    "E23": 1,
+    "E24": 1,
+    "E25": 1,
+    "E26": 1,
+    "E27": 1,
+    "E28": 1,
+    "E29": 1,
+    "E30": 1,
+    "E31": 1,
+    "E32": 1,
+    "E33": 1,
+    "E34": 1,
+    "E35": 1,
+    "E36": 1,
+    "C06": 1,
+    "C07": 1,
+    "C08": 1,
+    "C09": 1,
+    "C10": 1,
+    "C11": 1,
+    "C12": 1,
+    "C13": 1,
+    "C14": 1,
+    "C15": 1,
+    "C16": 1,
+    "C17": 1,
+    "C18": 3,
+    "C19": 1,
+    "C20": 1,
+    "C21": 1,
+    "C22": 1,
+    "C23": 1,
+    "C24": 1,
+    "C25": 1,
+    "C26": 1,
+    "C27": 1,
+    "C28": 1,
+    "C29": 1,
+    "C30": 1,
+    "C31": 1,
+    "C32": 1,
+    "C33": 1,
+    "C34": 1,
+    "C35": 1,
+    "C36": 1,
+    "C37": 1,
+    "C38": 1,
+    "C39": 1,
+    "C40": 1,
+    "C41": 1,
+    "C42": 1,
+    "C43": 1,
+    "C44": 1,
+    "C45": 1,
+    "C46": 1,
+    "C47": 1,
+    "C48": 1,
+    "C56": 1,
+    "C57": 1,
+    "C58": 1,
+    "J01": 1,
+    "J02": 1,
+    "J03": 1,
 }
+
 
 class ObservationConfig(BaseModel):
     table_directory: str
@@ -42,15 +160,46 @@ class ObservationConfig(BaseModel):
 
 
 class SatelliteProducts(BaseModel):
-    product_directory: Optional[str]  = Field(default="Default", description="Directory for satellite products")
-    satellite_orbit: Optional[str] = Field(default="Default", pattern=r"^(Default|.*\.SP3)$", description="File name of SP3 file")
-    satellite_clock: Optional[str] = Field(default="Default", pattern=r"^(Default|.*\.CLK)$", description="File name of CLK file")
-    erp: Optional[str] = Field(default="Default", pattern=r"^(Default|.*\.ERP)$", description="File name of ERP file")
-    quaternions: Optional[str] = Field(default="Default", pattern=r"^(Default|.*\.OBX)$", description="File name of quaternions file")
-    code_phase_bias: Optional[str] = Field(default="Default", pattern=r"^(Default|.*\.BIA)$", description="File name of code/phase bias file")
-    leo_quaternions: Optional[str] = Field(default="Default", description="File name of LEO quaternions file")
+    product_directory: Optional[str] = Field(
+        default="Default", description="Directory for satellite products"
+    )
+    satellite_orbit: Optional[str] = Field(
+        default="Default",
+        pattern=r"^(Default|.*\.SP3)$",
+        description="File name of SP3 file",
+    )
+    satellite_clock: Optional[str] = Field(
+        default="Default",
+        pattern=r"^(Default|.*\.CLK)$",
+        description="File name of CLK file",
+    )
+    erp: Optional[str] = Field(
+        default="Default",
+        pattern=r"^(Default|.*\.ERP)$",
+        description="File name of ERP file",
+    )
+    quaternions: Optional[str] = Field(
+        default="Default",
+        pattern=r"^(Default|.*\.OBX)$",
+        description="File name of quaternions file",
+    )
+    code_phase_bias: Optional[str] = Field(
+        default="Default",
+        pattern=r"^(Default|.*\.BIA)$",
+        description="File name of code/phase bias file",
+    )
+    leo_quaternions: Optional[str] = Field(
+        default="Default", description="File name of LEO quaternions file"
+    )
 
-    @field_validator("satellite_orbit", "satellite_clock", "erp", "quaternions", "code_phase_bias",mode='before')
+    @field_validator(
+        "satellite_orbit",
+        "satellite_clock",
+        "erp",
+        "quaternions",
+        "code_phase_bias",
+        mode="before",
+    )
     def override_patternmatch(cls, value: str, field: Field) -> str:
         if value is None:
             value = "Default"
@@ -59,7 +208,8 @@ class SatelliteProducts(BaseModel):
             return value
         # For "Default" (or after converting None to "Default"), return the normalized value
         return value
-   
+
+
 class DataProcessingStrategies(BaseModel):
     strict_editing: str = "Default"
     rck_model: str = "Default"
@@ -78,7 +228,9 @@ class AmbiguityFixingOptions(BaseModel):
     cutoff_elevation: int = 15
     pco_on_wide_lane: str = "YES"
     widelane_decision: List[float] = Field(default_factory=lambda: [0.20, 0.15, 1000.0])
-    narrowlane_decision: List[float] = Field(default_factory=lambda: [0.15, 0.15, 1000.0])
+    narrowlane_decision: List[float] = Field(
+        default_factory=lambda: [0.15, 0.15, 1000.0]
+    )
     critical_search: List[float] = Field(default_factory=lambda: [3, 4, 1.8, 3.0])
     truncate_at_midnight: str = "Default"
     verbose_output: str = "NO"
@@ -88,8 +240,9 @@ class SatelliteList(BaseModel):
     satellites: Dict[str, int] = Field(
         default_factory=lambda: pride_default_satellites,
         description="Dictionary of satellites with their respective codes and PRN variances. "
-                    "Keys are satellite codes (e.g., 'G01', 'R01') and values are their PRN variances (e.g., 1, 2, 3)."
+        "Keys are satellite codes (e.g., 'G01', 'R01') and values are their PRN variances (e.g., 1, 2, 3).",
     )
+
 
 class StationUsed(BaseModel):
     name: str = Field(default="xxxx", description="Station name")
@@ -132,8 +285,7 @@ class PRIDEPPPFileConfig(BaseModel):
         description="List of stations used in the processing, each with its own configuration.",
     )
 
-
-    def write_config_file(self, filepath: str|Path):
+    def write_config_file(self, filepath: str | Path):
         """Write the PRIDE PPP configuration to a file.
 
         Parameters
@@ -254,8 +406,12 @@ class PRIDEPPPFileConfig(BaseModel):
             f.write("#                              P -- piec-wise\n")
             f.write("#                              K -- kinematic\n")
             f.write("#                              F -- fixed\n")
-            f.write("# Available mapping function:  NIE -- Niell Mapping Function (NMF)\n")
-            f.write("#                              GMF -- Global Mapping Function (GMF)\n")
+            f.write(
+                "# Available mapping function:  NIE -- Niell Mapping Function (NMF)\n"
+            )
+            f.write(
+                "#                              GMF -- Global Mapping Function (GMF)\n"
+            )
             f.write(
                 "#                              VM1 -- Vienna Mapping Function (VMF1)\n"
             )
@@ -402,7 +558,9 @@ class PRIDEPPPFileConfig(BaseModel):
                     float(x) for x in get_value(line).split()
                 ]
             elif "Critical search" in line:
-                amb_kwargs["critical_search"] = [float(x) for x in get_value(line).split()]
+                amb_kwargs["critical_search"] = [
+                    float(x) for x in get_value(line).split()
+                ]
             elif "Truncate at midnight" in line:
                 amb_kwargs["truncate_at_midnight"] = get_value(line)
             elif "Verbose output" in line:
@@ -451,7 +609,7 @@ class PRIDEPPPFileConfig(BaseModel):
             pdp_home = Path("/opt/PRIDE-PPPAR/.PRIDE_PPPAR_BIN")
             if not pdp_home.exists():
                 raise FileNotFoundError(f"PRIDE PPPAR directory not found: {pdp_home}")
-            
+
         config_path = pdp_home / "config_template"
         if not config_path.exists():
             raise FileNotFoundError(

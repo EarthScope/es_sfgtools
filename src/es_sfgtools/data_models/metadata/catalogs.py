@@ -11,15 +11,13 @@ from .vessel import Vessel
 
 class CatalogType(Enum):
     Data = "Data"
-    MetaData ="Meta-Data"
+    MetaData = "Meta-Data"
 
 
 class StationData(BaseModel):
     name: str = Field(..., description="The station's name")
     shotdata: str = Field(default=None, description="The station's shotdata TileDB URI")
-    shotdata_pre: str = Field(
-        default=None, description="Pre-update shotdata"
-    )
+    shotdata_pre: str = Field(default=None, description="Pre-update shotdata")
     kinpositiondata: str = Field(
         default=None, description="The station's RINEX derived position TileDB URI"
     )
@@ -39,17 +37,21 @@ class StationData(BaseModel):
 
 class NetworkData(BaseModel):
     name: str = Field(..., description="The network name")
-    stations: Dict[str, StationData|Site] = Field(default={}, description="Stations in the network")
+    stations: Dict[str, StationData | Site] = Field(
+        default={}, description="Stations in the network"
+    )
 
 
 class MetaDataCatalog(BaseModel):
-    name: Optional[str] = Field(default="",description="The catalog name")
-    networks : Dict[str,NetworkData] = Field(default={}, description="Network catalog")
+    name: Optional[str] = Field(default="", description="The catalog name")
+    networks: Dict[str, NetworkData] = Field(default={}, description="Network catalog")
     info: Optional[str] = Field(default="", description="Optional catalog meta")
     type: CatalogType = Field(description="Catalog Type (meta-data or data)")
 
     @classmethod
-    def load_data(cls, path: str | Path | dict, name=None, info=None) -> "MetaDataCatalog":
+    def load_data(
+        cls, path: str | Path | dict, name=None, info=None
+    ) -> "MetaDataCatalog":
         """Load a data catalog from a path or dictionary.
 
         Parameters
@@ -95,7 +97,7 @@ class MetaDataCatalog(BaseModel):
         )
 
     @classmethod
-    def load_metadata(cls, data_path:Path, name=None, info=None) -> 'MetaDataCatalog':
+    def load_metadata(cls, data_path: Path, name=None, info=None) -> "MetaDataCatalog":
         """Load a metadata catalog from a path.
 
         Parameters
@@ -114,7 +116,7 @@ class MetaDataCatalog(BaseModel):
         """
         # load vessels
         vessels = {}
-        for vessel in (data_path/"vessels").iterdir():
+        for vessel in (data_path / "vessels").iterdir():
             if not vessel.is_file() or not vessel.name.endswith(".json"):
                 continue
             # Load the vessel JSON file
@@ -141,21 +143,18 @@ class MetaDataCatalog(BaseModel):
                         # Load the vessel json
                         campaign.vessel = vessels[campaign.vesselCode]
                     except KeyError:
-                        print(f"Unable to load vessel metadata for {station.name} {campaign.name}")
+                        print(
+                            f"Unable to load vessel metadata for {station.name} {campaign.name}"
+                        )
                         campaign.vessel = None
-
 
                 stations[station.stem] = built_site
 
             network_data[network.stem] = NetworkData(
-                name=network.stem,
-                stations=stations
+                name=network.stem, stations=stations
             )
         return cls(
-            type=CatalogType.MetaData,
-            name=name,
-            info=info,
-            networks=network_data
+            type=CatalogType.MetaData, name=name, info=info, networks=network_data
         )
 
     def show(self):
@@ -233,7 +232,6 @@ class MetaDataCatalog(BaseModel):
                         to_show[network_name][station_name] = campaign_info
 
         elif self.type == CatalogType.Data:
-            
             for network_name, network in self.networks.items():
                 if not hasattr(to_show, network_name):
                     to_show[network_name] = {}

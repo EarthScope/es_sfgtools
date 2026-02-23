@@ -2,6 +2,7 @@
 This module provides utility functions for displaying pipeline information
 in the console using the 'rich' library.
 """
+
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table

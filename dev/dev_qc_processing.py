@@ -2,13 +2,17 @@ import sys
 from pathlib import Path
 import json
 from typing import Dict, List
-sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
+
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 import pandas as pd
 from pandera.typing import DataFrame
 
 from es_sfgtools.data_models.observables import ShotDataFrame
-from es_sfgtools.data_models.sv3_models import NovatelInterrogationEvent, NovatelRangeEvent
+from es_sfgtools.data_models.sv3_models import (
+    NovatelInterrogationEvent,
+    NovatelRangeEvent,
+)
 from es_sfgtools.logging import ProcessLogger as logger
 from es_sfgtools.sonardyne_tools.sv3_operations import (
     novatelInterrogation_to_garpos_interrogation,
@@ -18,6 +22,7 @@ from es_sfgtools.sonardyne_tools.sv3_operations import (
 
 from es_sfgtools.workflows.pipelines import qc_pipeline
 from es_sfgtools.workflows.workflow_handler import WorkflowHandler
+
 
 def qcjson_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
     """Convert a QC.pin file into a ShotDataFrame.
@@ -81,7 +86,7 @@ def qcjson_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
             reply_parsed = novatelReply_to_garpos_reply(reply_event)
             merged = merge_interrogation_reply(interrogation_parsed, reply_parsed)
         except Exception as e:  # noqa: BLE001
-            #logger.logerr(f"Failed to parse/merge range entry '{key}' in {path}: {e}")
+            # logger.logerr(f"Failed to parse/merge range entry '{key}' in {path}: {e}")
             continue
 
         if merged is not None:
@@ -96,7 +101,10 @@ def qcjson_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
 
     return ShotDataFrame.validate(df, lazy=True)
 
-def batch_qc_by_day(dataframes:List[pd.DataFrame], date_column:str='pingTime') -> Dict[str, pd.DataFrame]:
+
+def batch_qc_by_day(
+    dataframes: List[pd.DataFrame], date_column: str = "pingTime"
+) -> Dict[str, pd.DataFrame]:
     """Batch QC dataframes by day.
 
     Parameters
@@ -119,19 +127,22 @@ def batch_qc_by_day(dataframes:List[pd.DataFrame], date_column:str='pingTime') -
         if date_column not in df.columns:
             logger.logerr(f"DataFrame missing '{date_column}' column.")
             continue
-        
+
         if df.empty:
             continue
-        df['date'] = pd.to_datetime(df[date_column].apply(lambda x: x*1e9), utc=True).dt.date
+        df["date"] = pd.to_datetime(
+            df[date_column].apply(lambda x: x * 1e9), utc=True
+        ).dt.date
 
-        for date, group in df.groupby('date'):
-            batched_data[str(date)].append(group.drop(columns=['date']))
+        for date, group in df.groupby("date"):
+            batched_data[str(date)].append(group.drop(columns=["date"]))
 
     # Concatenate dataframes for each day
     for date in batched_data:
         batched_data[date] = pd.concat(batched_data[date], ignore_index=True)
 
     return dict(batched_data)
+
 
 if __name__ == "__main__":
     # qc_path = Path(
@@ -158,6 +169,7 @@ if __name__ == "__main__":
     # #     print(f"Date: {date}, Number of Shots: {len(df)}")
     from es_sfgtools.logging import ProcessLogger
     import logging
+
     ProcessLogger.set_level(logging.INFO)
     main_dir = Path("/Volumes/DunbarSSD/Project/SeafloorGeodesy/TestQC")
     main_dir.mkdir(parents=False, exist_ok=True)
@@ -173,8 +185,7 @@ if __name__ == "__main__":
     wfh.ingest_add_local_data(
         directory_path=qc_dir,
     )
-    wfh.qc_process_and_model(run_id="test_qc_001",
-                             iterations=2)
+    wfh.qc_process_and_model(run_id="test_qc_001", iterations=2)
     # # wfh.ingest_add_local_data(
     # #     wfh.current_campaign_dir.raw
     # # )

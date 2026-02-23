@@ -205,8 +205,7 @@ class Vessel(AttributeUpdater, BaseModel):
             The path to the JSON file.
         """
         with open(filepath, "w") as file:
-            json.dump(self.model_dump(mode='json'), file, indent=4)
-     
+            json.dump(self.model_dump(mode="json"), file, indent=4)
 
     @classmethod
     def from_json(cls, filepath: str) -> "Vessel":

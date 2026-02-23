@@ -18,7 +18,7 @@ from ..logging import ProcessLogger as logger
 
 
 def novatelInterrogation_to_garpos_interrogation(
-        novatel_interrogation: NovatelInterrogationEvent
+    novatel_interrogation: NovatelInterrogationEvent,
 ) -> SV3InterrogationData:
     """Converts a NovatelInterrogationEvent to an SV3InterrogationData object.
 
@@ -41,7 +41,9 @@ def novatelInterrogation_to_garpos_interrogation(
         metadata.
     """
     east_ecef, north_ecef, up_ecef = pm.geodetic2ecef(
-        float(novatel_interrogation.observations.GNSS.latitude), float(novatel_interrogation.observations.GNSS.longitude), float(novatel_interrogation.observations.GNSS.hae)
+        float(novatel_interrogation.observations.GNSS.latitude),
+        float(novatel_interrogation.observations.GNSS.longitude),
+        float(novatel_interrogation.observations.GNSS.hae),
     )
     sv3Interrogation = SV3InterrogationData(
         head0=novatel_interrogation.observations.AHRS.h,
@@ -53,13 +55,13 @@ def novatelInterrogation_to_garpos_interrogation(
         east_std0=novatel_interrogation.observations.GNSS.sdx,
         north_std0=novatel_interrogation.observations.GNSS.sdy,
         up_std0=novatel_interrogation.observations.GNSS.sdz,
-        pingTime=float(novatel_interrogation.time.common) + LEAP_SECONDS, #GPS time is ahead of UTC by 18 seconds
+        pingTime=float(novatel_interrogation.time.common)
+        + LEAP_SECONDS,  # GPS time is ahead of UTC by 18 seconds
     )
     return sv3Interrogation
 
-def novatelReply_to_garpos_reply(
-        novatel_reply: NovatelRangeEvent
-) -> SV3ReplyData:
+
+def novatelReply_to_garpos_reply(novatel_reply: NovatelRangeEvent) -> SV3ReplyData:
     """Converts a NovatelRangeEvent object to an SV3ReplyData object.
 
     This function extracts GNSS and AHRS observation data from the
@@ -80,17 +82,23 @@ def novatelReply_to_garpos_reply(
         and travel time.
     """
     east_ecef, north_ecef, up_ecef = pm.geodetic2ecef(
-        float(novatel_reply.observations.GNSS.latitude), float(novatel_reply.observations.GNSS.longitude), float(novatel_reply.observations.GNSS.hae)
+        float(novatel_reply.observations.GNSS.latitude),
+        float(novatel_reply.observations.GNSS.longitude),
+        float(novatel_reply.observations.GNSS.hae),
     )
-    travelTime = float(novatel_reply.range.range) - float(novatel_reply.range.tat) - TRIGGER_DELAY_SV3
+    travelTime = (
+        float(novatel_reply.range.range)
+        - float(novatel_reply.range.tat)
+        - TRIGGER_DELAY_SV3
+    )
     sv3Reply = SV3ReplyData(
         transponderID=novatel_reply.range.cn,
-        head1 = novatel_reply.observations.AHRS.h,
-        pitch1 = novatel_reply.observations.AHRS.p,
-        roll1 = novatel_reply.observations.AHRS.r,
-        east1 = east_ecef,
-        north1 = north_ecef,
-        up1 = up_ecef,
+        head1=novatel_reply.observations.AHRS.h,
+        pitch1=novatel_reply.observations.AHRS.p,
+        roll1=novatel_reply.observations.AHRS.r,
+        east1=east_ecef,
+        north1=north_ecef,
+        up1=up_ecef,
         east_std1=novatel_reply.observations.GNSS.sdx,
         north_std1=novatel_reply.observations.GNSS.sdy,
         up_std1=novatel_reply.observations.GNSS.sdz,
@@ -99,10 +107,12 @@ def novatelReply_to_garpos_reply(
         snr=novatel_reply.range.diag.snr,
         dbv=novatel_reply.range.diag.dbv,
         xc=novatel_reply.range.diag.xc,
-        returnTime=float(novatel_reply.time.common) + LEAP_SECONDS, #GPS time is ahead of UTC by 18 seconds
+        returnTime=float(novatel_reply.time.common)
+        + LEAP_SECONDS,  # GPS time is ahead of UTC by 18 seconds
         tt=travelTime,
     )
     return sv3Reply
+
 
 def merge_interrogation_reply(
     interrogation: SV3InterrogationData,
@@ -134,19 +144,20 @@ def merge_interrogation_reply(
     AssertionError
         If the calculated return time does not match the reply's returnTime.
     """
-    #validate that tt > 0 (we actually got a range value in the reply)
+    # validate that tt > 0 (we actually got a range value in the reply)
     range = float(reply.tt) + float(reply.tat) + TRIGGER_DELAY_SV3
-    assert (abs(range) > 1e-3), (f"Transponder {reply.transponderID} has range={abs(round(range,1))} for ping at {interrogation.pingTime} {datetime.fromtimestamp(float(interrogation.pingTime))}")
+    assert abs(range) > 1e-3, (
+        f"Transponder {reply.transponderID} has range={abs(round(range, 1))} for ping at {interrogation.pingTime} {datetime.fromtimestamp(float(interrogation.pingTime))}"
+    )
     time_difference = abs(float(reply.returnTime) - float(interrogation.pingTime))
-    assert time_difference <= 15, f"Calculated time difference between ping and return is too large: {time_difference} seconds for transponder {reply.transponderID}"
+    assert time_difference <= 15, (
+        f"Calculated time difference between ping and return is too large: {time_difference} seconds for transponder {reply.transponderID}"
+    )
     # Validate that pingTime + tt + tat + TRIGGER_DELAY_SV3 equals returnTime
     # calculate original range
-    range_original = float(reply.tt) + float(reply.tat) 
-    calc_return_time = (
-        float(interrogation.pingTime)
-        + range_original
-    )
-    
+    range_original = float(reply.tt) + float(reply.tat)
+    calc_return_time = float(interrogation.pingTime) + range_original
+
     assert abs(calc_return_time - float(reply.returnTime)) < 1e-6, (
         f"Calculated return time {calc_return_time} does not match reply return time {reply.returnTime}"
     )
@@ -189,27 +200,31 @@ def dfop00_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
     except (FileNotFoundError, PermissionError, UnicodeDecodeError) as e:
         logger.logerr(f"Error reading {source}: {e}")
         return None
-    
+
     interrogation_parsed = None
     reply_data_parsed = None
-    
+
     for line in lines:
         data = json.loads(line)
         if data.get("event") == "interrogation":
             try:
                 interrogation = NovatelInterrogationEvent(**data)
-                interrogation_parsed = novatelInterrogation_to_garpos_interrogation(interrogation)
+                interrogation_parsed = novatelInterrogation_to_garpos_interrogation(
+                    interrogation
+                )
                 good_parse_count_interrogation += 1
-                #logger.loginfo(f"Interrogation: pingTime: {interrogation_parsed.pingTime}")
+                # logger.loginfo(f"Interrogation: pingTime: {interrogation_parsed.pingTime}")
             except Exception:
                 interrogation_parsed = None
                 fail_parse_count_interrogation += 1
         if data.get("event") == "range":
             try:
                 reply_data = NovatelRangeEvent(**data)
-                reply_data_parsed:SV3ReplyData = novatelReply_to_garpos_reply(reply_data)
+                reply_data_parsed: SV3ReplyData = novatelReply_to_garpos_reply(
+                    reply_data
+                )
                 good_parse_count_reply += 1
-                #logger.loginfo(f"Reply: \n  returnTime: {reply_data_parsed.returnTime}\n  tt: {reply_data_parsed.tt}")
+                # logger.loginfo(f"Reply: \n  returnTime: {reply_data_parsed.returnTime}\n  tt: {reply_data_parsed.tt}")
 
             except Exception:
                 reply_data_parsed = None
@@ -217,8 +232,10 @@ def dfop00_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
 
             if reply_data_parsed is not None and interrogation_parsed is not None:
                 try:
-                    merged_data = merge_interrogation_reply(interrogation_parsed, reply_data_parsed)
-                  
+                    merged_data = merge_interrogation_reply(
+                        interrogation_parsed, reply_data_parsed
+                    )
+
                     reply_data_parsed = None  # Reset reply after merging
                     good_merge_count += 1
                 except AssertionError as e:
@@ -226,8 +243,8 @@ def dfop00_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
                     merged_data = None
                     fail_merge_count += 1
 
-                reply_data_parsed = None  # Reset reply after merging attempt  
-                
+                reply_data_parsed = None  # Reset reply after merging attempt
+
                 if merged_data is not None:
                     processed.append(merged_data)
 
@@ -240,10 +257,12 @@ def dfop00_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
     df = pd.DataFrame(processed)
     print(f"Pre-validation dataframe shape: {df.shape}")
     df["isUpdated"] = False
-    return ShotDataFrame.validate(df,lazy=True)
+    return ShotDataFrame.validate(df, lazy=True)
 
 
-def dfop00_to_SFGDSTFSeafloorAcousticData(source: str | Path,siteData:SFGDTSFSite) -> SFGDSTFSeafloorAcousticData | None:
+def dfop00_to_SFGDSTFSeafloorAcousticData(
+    source: str | Path, siteData: SFGDTSFSite
+) -> SFGDSTFSeafloorAcousticData | None:
     """Parses a DFOP00-format file and converts it to SFGDSTFSeafloorAcousticData.
 
     The function reads the specified file line by line, expecting each line
@@ -272,13 +291,13 @@ def dfop00_to_SFGDSTFSeafloorAcousticData(source: str | Path,siteData:SFGDTSFSit
         return None
 
     # Convert ShotDataFrame to SFGDSTFSeafloorAcousticData
-    X_transmit = shotdata.east0.apply(lambda x: x+siteData.ATDoffset[0])
-    Y_transmit = shotdata.north0.apply(lambda x: x+siteData.ATDoffset[1])
-    Z_transmit = shotdata.up0.apply(lambda x: x+siteData.ATDoffset[2])
+    X_transmit = shotdata.east0.apply(lambda x: x + siteData.ATDoffset[0])
+    Y_transmit = shotdata.north0.apply(lambda x: x + siteData.ATDoffset[1])
+    Z_transmit = shotdata.up0.apply(lambda x: x + siteData.ATDoffset[2])
 
-    X_receive = shotdata.east1.apply(lambda x: x+siteData.ATDoffset[0])
-    Y_receive = shotdata.north1.apply(lambda x: x+siteData.ATDoffset[1])
-    Z_receive = shotdata.up1.apply(lambda x: x+siteData.ATDoffset[2])
+    X_receive = shotdata.east1.apply(lambda x: x + siteData.ATDoffset[0])
+    Y_receive = shotdata.north1.apply(lambda x: x + siteData.ATDoffset[1])
+    Z_receive = shotdata.up1.apply(lambda x: x + siteData.ATDoffset[2])
 
     df = pd.DataFrame(
         {
@@ -304,16 +323,15 @@ def dfop00_to_SFGDSTFSeafloorAcousticData(source: str | Path,siteData:SFGDTSFSit
             "ant_X1": shotdata.east1,
             "ant_Y1": shotdata.north1,
             "ant_Z1": shotdata.up1,
-            "aSNR":shotdata.snr,
-            "dBV":shotdata.dbv,
-            "acc":shotdata.xc,
+            "aSNR": shotdata.snr,
+            "dBV": shotdata.dbv,
+            "acc": shotdata.xc,
             "ant_sigX0": shotdata.east_std0,
             "ant_sigY0": shotdata.north_std0,
             "ant_sigZ0": shotdata.up_std0,
             "ant_sigX1": shotdata.east_std1,
             "ant_sigY1": shotdata.north_std1,
             "ant_sigZ1": shotdata.up_std1,
-
         }
     )
 

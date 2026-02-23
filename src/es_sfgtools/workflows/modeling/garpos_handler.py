@@ -5,7 +5,7 @@ GarposHandler class for processing and preparing shot data for the GARPOS model.
 from pathlib import Path
 from typing import Optional
 import shutil
-from datetime import datetime,timezone, UTC
+from datetime import datetime, timezone, UTC
 import numpy as np
 
 # Plotting imports
@@ -16,6 +16,7 @@ import pandas as pd
 import seaborn as sns
 from matplotlib.collections import LineCollection
 from matplotlib.colors import Normalize
+
 sns.set_theme(style="whitegrid")
 
 from es_sfgtools.data_mgmt.directorymgmt import DirectoryHandler, GARPOSSurveyDir
@@ -52,6 +53,7 @@ colors = [
     "pink",
 ]
 
+
 class GarposHandler(WorkflowABC):
     """Handles the processing and preparation of shot data for the GARPOS model.
 
@@ -80,12 +82,10 @@ class GarposHandler(WorkflowABC):
         Path to the sound speed profile file.
 
     """
+
     mid_process_workflow = True
 
-    def __init__(
-                 self,
-                 directory_handler: DirectoryHandler,
-                 station_metadata: Site):
+    def __init__(self, directory_handler: DirectoryHandler, station_metadata: Site):
         """Initializes the GarposHandler.
 
         Parameters
@@ -96,7 +96,9 @@ class GarposHandler(WorkflowABC):
             The site metadata.
         """
 
-        super().__init__(station_metadata=station_metadata,directory_handler=directory_handler)
+        super().__init__(
+            station_metadata=station_metadata, directory_handler=directory_handler
+        )
 
         self.garpos_fixed = GarposFixed()
 
@@ -117,7 +119,6 @@ class GarposHandler(WorkflowABC):
         """
         super().set_network(network_id=network_id)
 
-
         self.current_garpos_survey_dir = None
 
     def set_station(self, station_id: str):
@@ -135,7 +136,6 @@ class GarposHandler(WorkflowABC):
         """
 
         super().set_station(station_id=station_id)
-
 
     def set_campaign(self, campaign_id: str):
         """Sets the current campaign.
@@ -168,8 +168,13 @@ class GarposHandler(WorkflowABC):
 
         super().set_survey(survey_id=survey_id)
 
-        if self.current_survey_dir.shotdata is None or not self.current_survey_dir.shotdata.exists():
-            raise ValueError(f"Shotdata for survey {survey_id} not found in directory handler. Please run intermediate data processing to create shotdata file.")
+        if (
+            self.current_survey_dir.shotdata is None
+            or not self.current_survey_dir.shotdata.exists()
+        ):
+            raise ValueError(
+                f"Shotdata for survey {survey_id} not found in directory handler. Please run intermediate data processing to create shotdata file."
+            )
 
         try:
             if self.current_survey_dir.garpos.shotdata_rectified.exists():
@@ -178,7 +183,9 @@ class GarposHandler(WorkflowABC):
                 return
         except Exception:
             pass
-        raise ValueError(f"Rectified shotdata for survey {survey_id} not found in directory handler. Please run intermediate data processing to create rectified shotdata file.")
+        raise ValueError(
+            f"Rectified shotdata for survey {survey_id} not found in directory handler. Please run intermediate data processing to create rectified shotdata file."
+        )
 
     def set_inversion_params(self, parameters: dict | InversionParams):
         """Set inversion parameters for the model.
@@ -196,8 +203,7 @@ class GarposHandler(WorkflowABC):
         """
 
         self.garpos_fixed.inversion_params = validate_and_merge_config(
-            base_class=self.garpos_fixed.inversion_params,
-            override_config=parameters
+            base_class=self.garpos_fixed.inversion_params, override_config=parameters
         )
 
     def _run_garpos(
@@ -206,7 +212,8 @@ class GarposHandler(WorkflowABC):
         results_dir: Path,
         custom_settings: Optional[dict | InversionParams] = None,
         run_id: int | str = 0,
-        override: bool = False) -> Path:
+        override: bool = False,
+    ) -> Path:
         """Runs the GARPOS model.
 
         Parameters
@@ -232,13 +239,13 @@ class GarposHandler(WorkflowABC):
         if custom_settings is not None:
             garpos_fixed_params.inversion_params = validate_and_merge_config(
                 base_class=garpos_fixed_params.inversion_params,
-                override_config=custom_settings
+                override_config=custom_settings,
             )
 
         garpos_input = GarposInput.from_datafile(obsfile_path)
         results_suffix = f"{garpos_input.survey_id}_{run_id}"
         results_path = results_dir / f"{results_suffix}-res.dat"
-        
+
         if results_path.exists() and not override:
             print(f"Results already exist for {str(results_path)}")
             return None
@@ -257,15 +264,15 @@ class GarposHandler(WorkflowABC):
             f"{garpos_input.survey_id}_{run_id}",
             13,
         )
-        return rf 
+        return rf
 
     def _run_garpos_survey_dir(
-            self,
-            garpos_survey_dir: GARPOSSurveyDir,
-            custom_settings: Optional[dict | InversionParams] = None,
-            run_id: int | str = 0,
-            iterations: int = 1,
-            override: bool = False,
+        self,
+        garpos_survey_dir: GARPOSSurveyDir,
+        custom_settings: Optional[dict | InversionParams] = None,
+        run_id: int | str = 0,
+        iterations: int = 1,
+        override: bool = False,
     ) -> None:
         """Run the GARPOS model for a specific GARPOSSurveyDir.
 
@@ -287,7 +294,9 @@ class GarposHandler(WorkflowABC):
         ValueError
             If the observation file does not exist.
         """
-        logger.loginfo(f"Running GARPOS model for survey {garpos_survey_dir.location.parent.stem}. Run ID: {run_id}")
+        logger.loginfo(
+            f"Running GARPOS model for survey {garpos_survey_dir.location.parent.stem}. Run ID: {run_id}"
+        )
 
         results_dir_main = garpos_survey_dir.results_dir
         results_dir = results_dir_main / f"run_{run_id}"
@@ -296,10 +305,14 @@ class GarposHandler(WorkflowABC):
             try:
                 shutil.rmtree(results_dir)
             except Exception as e:
-                logger.logerr(f"Failed to remove existing results directory {results_dir}: {e}")
-                
+                logger.logerr(
+                    f"Failed to remove existing results directory {results_dir}: {e}"
+                )
+
         elif results_dir.exists() and not override:
-            logger.loginfo(f"Results directory {results_dir} already exists. Use override=True to overwrite existing results.")
+            logger.loginfo(
+                f"Results directory {results_dir} already exists. Use override=True to overwrite existing results."
+            )
             return
         results_dir.mkdir(parents=True, exist_ok=True)
 
@@ -311,7 +324,9 @@ class GarposHandler(WorkflowABC):
         initialInput = GarposInput.from_datafile(obsfile_path)
 
         for i in range(iterations):
-            logger.loginfo(f"Iteration {i+1} of {iterations} for survey {garpos_survey_dir.location.parent.stem}")
+            logger.loginfo(
+                f"Iteration {i + 1} of {iterations} for survey {garpos_survey_dir.location.parent.stem}"
+            )
 
             obsfile_path = self._run_garpos(
                 custom_settings=custom_settings,
@@ -327,7 +342,9 @@ class GarposHandler(WorkflowABC):
                 iterationInput.array_center_enu.north += delta_position[1]
                 iterationInput.array_center_enu.up += delta_position[2]
                 # zero out delta position for next iteration
-                iterationInput.delta_center_position = initialInput.delta_center_position
+                iterationInput.delta_center_position = (
+                    initialInput.delta_center_position
+                )
                 iterationInput.to_datafile(obsfile_path)
             # Add array delta center position to the array center enu
 
@@ -377,8 +394,10 @@ class GarposHandler(WorkflowABC):
             try:
                 shutil.rmtree(results_dir)
             except Exception as e:
-                logger.logerr(f"Failed to remove existing results directory {results_dir}: {e}")
-                
+                logger.logerr(
+                    f"Failed to remove existing results directory {results_dir}: {e}"
+                )
+
         results_dir.mkdir(parents=True, exist_ok=True)
 
         obsfile_path = self.current_garpos_survey_dir.default_obsfile
@@ -389,7 +408,7 @@ class GarposHandler(WorkflowABC):
         initialInput = GarposInput.from_datafile(obsfile_path)
 
         for i in range(iterations):
-            logger.loginfo(f"Iteration {i+1} of {iterations} for survey {survey_id}")
+            logger.loginfo(f"Iteration {i + 1} of {iterations} for survey {survey_id}")
 
             obsfile_path = self._run_garpos(
                 custom_settings=custom_settings,
@@ -405,7 +424,9 @@ class GarposHandler(WorkflowABC):
                 iterationInput.array_center_enu.north += delta_position[1]
                 iterationInput.array_center_enu.up += delta_position[2]
                 # zero out delta position for next iteration
-                iterationInput.delta_center_position = initialInput.delta_center_position
+                iterationInput.delta_center_position = (
+                    initialInput.delta_center_position
+                )
 
                 iterationInput.to_datafile(obsfile_path)
 
@@ -441,7 +462,11 @@ class GarposHandler(WorkflowABC):
 
         logger.loginfo(f"Running GARPOS model. Run ID: {run_id}")
         if surveys is None:
-            surveys_to_process = [s.id for s in self.current_campaign_metadata.surveys] if survey_id is None else [survey_id]
+            surveys_to_process = (
+                [s.id for s in self.current_campaign_metadata.surveys]
+                if survey_id is None
+                else [survey_id]
+            )
         elif all(isinstance(s, GARPOSSurveyDir) for s in surveys):
             for garpos_survey_dir in surveys:
                 self._run_garpos_survey_dir(
@@ -458,9 +483,14 @@ class GarposHandler(WorkflowABC):
                 f"Running GARPOS model for survey {survey_id}. Run ID: {run_id}"
             )
             self._run_garpos_survey(
-                survey_id=survey_id, run_id=run_id, override=override, iterations=iterations, custom_settings=dict(custom_settings).get("inversion_params") if custom_settings else None
+                survey_id=survey_id,
+                run_id=run_id,
+                override=override,
+                iterations=iterations,
+                custom_settings=dict(custom_settings).get("inversion_params")
+                if custom_settings
+                else None,
             )
-
 
     def plot_shotdata_replies_per_transponder(
         self,
@@ -484,9 +514,9 @@ class GarposHandler(WorkflowABC):
         )
 
     def _plot_shotdata_replies_per_transponder(
-            self,
-            savefig: bool,
-            showfig: bool,
+        self,
+        savefig: bool,
+        showfig: bool,
     ) -> None:
         """
         Plots the shotdata replies for a given survey and transponder.
@@ -517,62 +547,125 @@ class GarposHandler(WorkflowABC):
                     if survey.id == survey_name:
                         metadata_start = survey.start.replace(tzinfo=UTC)
                         metadata_end = survey.end.replace(tzinfo=UTC)
-                        metadata_time_windows[survey_name] = (metadata_start, metadata_end)
+                        metadata_time_windows[survey_name] = (
+                            metadata_start,
+                            metadata_end,
+                        )
                     continue
                 try:
-                    shotdata_filepath = self.current_campaign_dir.surveys[survey_name].shotdata
-                    shotdata_df = pd.read_csv(shotdata_filepath, sep=",", header=0, index_col=0)
+                    shotdata_filepath = self.current_campaign_dir.surveys[
+                        survey_name
+                    ].shotdata
+                    shotdata_df = pd.read_csv(
+                        shotdata_filepath, sep=",", header=0, index_col=0
+                    )
                     shotdata_dfs[survey_name] = shotdata_df
-                    #use utc
-                    start = datetime.fromtimestamp(shotdata_df['pingTime'].iloc[0], tz=timezone.utc)
-                    end = datetime.fromtimestamp(shotdata_df['pingTime'].iloc[-1], tz=timezone.utc)
+                    # use utc
+                    start = datetime.fromtimestamp(
+                        shotdata_df["pingTime"].iloc[0], tz=timezone.utc
+                    )
+                    end = datetime.fromtimestamp(
+                        shotdata_df["pingTime"].iloc[-1], tz=timezone.utc
+                    )
                     shotdata_time_windows[survey_name] = (start, end)
 
-                    shotdata_filtered_filepath = self.current_campaign_dir.surveys[survey_name].shotdata_filtered
-                    shotdata_filtered_df = pd.read_csv(shotdata_filtered_filepath, sep=",", header=0, index_col=0)
+                    shotdata_filtered_filepath = self.current_campaign_dir.surveys[
+                        survey_name
+                    ].shotdata_filtered
+                    shotdata_filtered_df = pd.read_csv(
+                        shotdata_filtered_filepath, sep=",", header=0, index_col=0
+                    )
                     shotdata_filtered_dfs[survey_name] = shotdata_filtered_df
-                
+
                 except Exception as e:
                     print(e)
 
         fig, axs = plt.subplots(3, 1, figsize=(20, 15), sharex=False)
-        colors = ['blue', 'orange', 'red', 'green', 'purple', 'brown', 'pink', 'gray', 'olive', 'cyan']
+        colors = [
+            "blue",
+            "orange",
+            "red",
+            "green",
+            "purple",
+            "brown",
+            "pink",
+            "gray",
+            "olive",
+            "cyan",
+        ]
         for i, (survey_name, shotdata_df) in enumerate(shotdata_dfs.items()):
             try:
                 unique_ids = shotdata_df["transponderID"].unique()
                 for j, transponder_id in enumerate(unique_ids):
                     df = shotdata_df[shotdata_df["transponderID"] == transponder_id]
-                    filtered_df = shotdata_filtered_dfs[survey_name][shotdata_filtered_dfs[survey_name]["transponderID"] == transponder_id]
+                    filtered_df = shotdata_filtered_dfs[survey_name][
+                        shotdata_filtered_dfs[survey_name]["transponderID"]
+                        == transponder_id
+                    ]
                     # # Resample the data to 10 minute intervals and count replies
-                    df = df.set_index(pd.to_datetime(df['pingTime'], unit='s'))
-                    filtered_df = filtered_df.set_index(pd.to_datetime(filtered_df['pingTime'], unit='s'))
-                    replies_per_bin = df['pingTime'].resample('10min').count()
-                    filtered_replies_per_bin = filtered_df['pingTime'].resample('10min').count()
-                    axs[j].scatter(replies_per_bin.index, replies_per_bin.values/40*100, label=f"{survey_name} - {transponder_id}", s=10, color='black')
-                    axs[j].scatter(filtered_replies_per_bin.index, filtered_replies_per_bin.values/40*100, label=f"{survey_name} - {transponder_id} (Filtered)", s=10, color=colors[(i) % len(colors)])
-                    total_pings = shotdata_df['pingTime'].nunique()
-                    total_filtered_pings = shotdata_filtered_df['pingTime'].nunique()
-                    survey_midpoint = metadata_time_windows[survey_name][0] + (metadata_time_windows[survey_name][1] - metadata_time_windows[survey_name][0]) / 2
+                    df = df.set_index(pd.to_datetime(df["pingTime"], unit="s"))
+                    filtered_df = filtered_df.set_index(
+                        pd.to_datetime(filtered_df["pingTime"], unit="s")
+                    )
+                    replies_per_bin = df["pingTime"].resample("10min").count()
+                    filtered_replies_per_bin = (
+                        filtered_df["pingTime"].resample("10min").count()
+                    )
+                    axs[j].scatter(
+                        replies_per_bin.index,
+                        replies_per_bin.values / 40 * 100,
+                        label=f"{survey_name} - {transponder_id}",
+                        s=10,
+                        color="black",
+                    )
+                    axs[j].scatter(
+                        filtered_replies_per_bin.index,
+                        filtered_replies_per_bin.values / 40 * 100,
+                        label=f"{survey_name} - {transponder_id} (Filtered)",
+                        s=10,
+                        color=colors[(i) % len(colors)],
+                    )
+                    total_pings = shotdata_df["pingTime"].nunique()
+                    total_filtered_pings = shotdata_filtered_df["pingTime"].nunique()
+                    survey_midpoint = (
+                        metadata_time_windows[survey_name][0]
+                        + (
+                            metadata_time_windows[survey_name][1]
+                            - metadata_time_windows[survey_name][0]
+                        )
+                        / 2
+                    )
                     axs[j].text(
-                        survey_midpoint, 110,
-                        f"{survey_name}\n{next((survey.type.value for survey in metadata_surveys if survey.id == survey_name), 'Unknown')}\ntotal pings: {total_pings}\ntotal replies: {replies_per_bin.sum()}\nfiltered replies: {filtered_replies_per_bin.sum()}\nfiltered reply %: {filtered_replies_per_bin.sum() / total_pings * 100:.2f}%", fontsize=12, ha='center'
+                        survey_midpoint,
+                        110,
+                        f"{survey_name}\n{next((survey.type.value for survey in metadata_surveys if survey.id == survey_name), 'Unknown')}\ntotal pings: {total_pings}\ntotal replies: {replies_per_bin.sum()}\nfiltered replies: {filtered_replies_per_bin.sum()}\nfiltered reply %: {filtered_replies_per_bin.sum() / total_pings * 100:.2f}%",
+                        fontsize=12,
+                        ha="center",
                     )
                     axs[j].set_xlabel("Time")
                     axs[j].set_ylabel("% Expected replies per 10 min bin")
                     axs[j].set_ylim(0, 150)
-                    axs[j].axvspan(xmin=metadata_time_windows[survey_name][0], xmax=metadata_time_windows[survey_name][1], color=colors[(i) % len(colors)], linestyle='--', linewidth=1, alpha=0.1)
+                    axs[j].axvspan(
+                        xmin=metadata_time_windows[survey_name][0],
+                        xmax=metadata_time_windows[survey_name][1],
+                        color=colors[(i) % len(colors)],
+                        linestyle="--",
+                        linewidth=1,
+                        alpha=0.1,
+                    )
             except Exception as e:
                 logger.logwarn(f"Error processing {survey_name}")
-        fig.suptitle(f"Shotdata Reply Percentages for {self.current_station_name} {self.current_campaign_name}")
+        fig.suptitle(
+            f"Shotdata Reply Percentages for {self.current_station_name} {self.current_campaign_name}"
+        )
         axs[0].set_title(f"{self.current_station_name} Transponder 5209")
         axs[1].set_title(f"{self.current_station_name} Transponder 5210")
         axs[2].set_title(f"{self.current_station_name} Transponder 5211")
         fig.tight_layout()
         if showfig:
             plt.show()
-        
-        
-        fig_path =  f"{self.current_campaign_dir.location}/{self.current_station_name}_{self.current_campaign_name}_shotdata_replies.png"
+
+        fig_path = f"{self.current_campaign_dir.location}/{self.current_station_name}_{self.current_campaign_name}_shotdata_replies.png"
         if savefig:
             logger.loginfo(f"Saving figure to {fig_path}")
             plt.savefig(
@@ -581,7 +674,7 @@ class GarposHandler(WorkflowABC):
                 bbox_inches="tight",
                 pad_inches=0.1,
             )
-        
+
     def plot_residuals_per_transponder_before_and_after(
         self,
         survey_id: str,
@@ -592,7 +685,7 @@ class GarposHandler(WorkflowABC):
         surveys_to_process = []
         for survey in self.current_campaign_metadata.surveys:
             if survey.id == survey_id or survey_id is None:
-                surveys_to_process.append((survey.id,survey.type.value))
+                surveys_to_process.append((survey.id, survey.type.value))
 
         for survey_id, survey_type in surveys_to_process:
             try:
@@ -606,7 +699,6 @@ class GarposHandler(WorkflowABC):
             except Exception as e:
                 logger.logwarn(f"Skipping plotting for survey {survey_id}: {e}")
                 continue
-        
 
     def _plot_residuals_per_transponder_before_and_after(
         self,
@@ -649,11 +741,13 @@ class GarposHandler(WorkflowABC):
         logger.loginfo(f"Using data file {data_file} for plotting.")
 
         garpos_results = GarposInput.from_datafile(data_file)
-        
+
         array_enu = garpos_results.array_center_enu
         array_dpos = garpos_results.delta_center_position
         if array_enu is None or array_dpos is None:
-            raise ValueError("Array center or delta position not found in GARPOS results.")
+            raise ValueError(
+                "Array center or delta position not found in GARPOS results."
+            )
 
         array_final_position = array_dpos.model_copy()
         array_final_position.east += array_enu.east
@@ -665,21 +759,44 @@ class GarposHandler(WorkflowABC):
         results_df_raw["time"] = results_df_raw.ST.apply(
             lambda x: datetime.fromtimestamp(x, timezone.utc)
         )
-        #df_filter_1 = results_df_raw["ResiRange"].abs() < res_filter
+        # df_filter_1 = results_df_raw["ResiRange"].abs() < res_filter
         df_filter_2 = results_df_raw["flag"] == False
-        #results_df = results_df_raw[df_filter_1 & df_filter_2]
+        # results_df = results_df_raw[df_filter_1 & df_filter_2]
         results_df = results_df_raw[df_filter_2]
-        #logger.loginfo(results_df_raw.columns)
+        # logger.loginfo(results_df_raw.columns)
         unique_ids = results_df_raw["MT"].unique()
-        #make a plot with 3 subplots showing ResiRange vs time for each unique_id
+        # make a plot with 3 subplots showing ResiRange vs time for each unique_id
         fig, axs = plt.subplots(3, 1, figsize=(20, 8), sharex=True)
-        fig.suptitle(f"Residuals for {self.current_station_name} {survey_id} (Run {run_id})")
+        fig.suptitle(
+            f"Residuals for {self.current_station_name} {survey_id} (Run {run_id})"
+        )
         for i, unique_id in enumerate(unique_ids):
-            transponder_df_raw = results_df_raw[results_df_raw["MT"] == unique_id].sort_values("time")
-            transponder_df = results_df[results_df["MT"] == unique_id].sort_values("time")
-            axs[i].scatter(transponder_df_raw["time"], transponder_df_raw[f"ResiRange"], s=1, label=f"{unique_id}_raw {transponder_df_raw['time'].count()}", color="blue")
-            percent_remaining = round(transponder_df['time'].count() / transponder_df_raw['time'].count() * 100, 1)
-            axs[i].scatter(transponder_df["time"], transponder_df[f"ResiRange"], s=1, label=f"{unique_id}_unflagged {transponder_df['time'].count()} ({percent_remaining} %)", color="orange")
+            transponder_df_raw = results_df_raw[
+                results_df_raw["MT"] == unique_id
+            ].sort_values("time")
+            transponder_df = results_df[results_df["MT"] == unique_id].sort_values(
+                "time"
+            )
+            axs[i].scatter(
+                transponder_df_raw["time"],
+                transponder_df_raw[f"ResiRange"],
+                s=1,
+                label=f"{unique_id}_raw {transponder_df_raw['time'].count()}",
+                color="blue",
+            )
+            percent_remaining = round(
+                transponder_df["time"].count()
+                / transponder_df_raw["time"].count()
+                * 100,
+                1,
+            )
+            axs[i].scatter(
+                transponder_df["time"],
+                transponder_df[f"ResiRange"],
+                s=1,
+                label=f"{unique_id}_unflagged {transponder_df['time'].count()} ({percent_remaining} %)",
+                color="orange",
+            )
             axs[i].set_ylabel("Residual (m)")
             axs[i].legend(loc="upper right")
             axs[i].grid()
@@ -689,7 +806,7 @@ class GarposHandler(WorkflowABC):
         for ax in axs:
             ax.grid()
         plt.tight_layout()
-        fig_path =  f"{self.current_garpos_survey_dir.results_dir}/{self.current_station_name}_{survey_id}_flagged_residuals.png"
+        fig_path = f"{self.current_garpos_survey_dir.results_dir}/{self.current_station_name}_{survey_id}_flagged_residuals.png"
         if savefig:
             logger.loginfo(f"Saving figure to {fig_path}")
             plt.savefig(
@@ -700,7 +817,7 @@ class GarposHandler(WorkflowABC):
             )
         if showfig:
             plt.show()
-    
+
     def plot_remaining_residuals_per_transponder(
         self,
         survey_id: str,
@@ -720,7 +837,7 @@ class GarposHandler(WorkflowABC):
         surveys_to_process = []
         for survey in self.current_campaign_metadata.surveys:
             if survey.id == survey_id or survey_id is None:
-                surveys_to_process.append((survey.id,survey.type.value))
+                surveys_to_process.append((survey.id, survey.type.value))
 
         for survey_id, survey_type in surveys_to_process:
             try:
@@ -735,9 +852,6 @@ class GarposHandler(WorkflowABC):
             except Exception as e:
                 logger.logwarn(f"Skipping plotting for survey {survey_id}: {e}")
                 continue
-        
-        
-        
 
     def _plot_remaining_residuals_per_transponder(
         self,
@@ -782,11 +896,13 @@ class GarposHandler(WorkflowABC):
         logger.loginfo(f"Using data file {data_file} for plotting.")
 
         garpos_results = GarposInput.from_datafile(data_file)
-        
+
         array_enu = garpos_results.array_center_enu
         array_dpos = garpos_results.delta_center_position
         if array_enu is None or array_dpos is None:
-            raise ValueError("Array center or delta position not found in GARPOS results.")
+            raise ValueError(
+                "Array center or delta position not found in GARPOS results."
+            )
 
         array_final_position = array_dpos.model_copy()
         array_final_position.east += array_enu.east
@@ -798,20 +914,30 @@ class GarposHandler(WorkflowABC):
         results_df_raw["time"] = results_df_raw.ST.apply(
             lambda x: datetime.fromtimestamp(x, timezone.utc)
         )
-        #df_filter_1 = results_df_raw["ResiRange"].abs() < res_filter
+        # df_filter_1 = results_df_raw["ResiRange"].abs() < res_filter
         df_filter_2 = results_df_raw["flag"] == False
-        #results_df = results_df_raw[df_filter_1 & df_filter_2]
+        # results_df = results_df_raw[df_filter_1 & df_filter_2]
         results_df = results_df_raw[df_filter_2]
-        #logger.loginfo(results_df_raw.columns)
+        # logger.loginfo(results_df_raw.columns)
         unique_ids = results_df_raw["MT"].unique()
-        colors = ["green", "orange", "blue"] 
+        colors = ["green", "orange", "blue"]
         if subplots:
-            #make a plot with 3 subplots showing ResiRange vs time for each unique_id
+            # make a plot with 3 subplots showing ResiRange vs time for each unique_id
             fig, axs = plt.subplots(3, 1, figsize=(20, 8), sharex=True)
-            fig.suptitle(f"Residuals for {self.current_station_name} {survey_id} (Run {run_id})")
+            fig.suptitle(
+                f"Residuals for {self.current_station_name} {survey_id} (Run {run_id})"
+            )
             for i, unique_id in enumerate(unique_ids):
-                transponder_df = results_df[results_df["MT"] == unique_id].sort_values("time")
-                axs[i].scatter(transponder_df["time"], transponder_df[f"ResiRange"], s=1,label=f"{unique_id}_unflagged {transponder_df['time'].count()}", color=colors[i])
+                transponder_df = results_df[results_df["MT"] == unique_id].sort_values(
+                    "time"
+                )
+                axs[i].scatter(
+                    transponder_df["time"],
+                    transponder_df[f"ResiRange"],
+                    s=1,
+                    label=f"{unique_id}_unflagged {transponder_df['time'].count()}",
+                    color=colors[i],
+                )
                 axs[i].set_ylabel("Residual (m)")
                 axs[i].legend(loc="upper right")
                 axs[i].grid()
@@ -823,8 +949,16 @@ class GarposHandler(WorkflowABC):
         else:
             fig, ax = plt.subplots(figsize=(20, 8))
             for i, unique_id in enumerate(unique_ids):
-                transponder_df = results_df[results_df["MT"] == unique_id].sort_values("time")
-                ax.scatter(transponder_df["time"], transponder_df[f"ResiRange"], s=1,label=f"{unique_id}_unflagged {transponder_df['time'].count()}", color=colors[i])
+                transponder_df = results_df[results_df["MT"] == unique_id].sort_values(
+                    "time"
+                )
+                ax.scatter(
+                    transponder_df["time"],
+                    transponder_df[f"ResiRange"],
+                    s=1,
+                    label=f"{unique_id}_unflagged {transponder_df['time'].count()}",
+                    color=colors[i],
+                )
             ax.set_ylabel("Residual (m)")
             ax.legend()
             ax.grid()
@@ -833,7 +967,7 @@ class GarposHandler(WorkflowABC):
             # add gridlines
             ax.grid()
         plt.tight_layout()
-        fig_path =  f"{self.current_garpos_survey_dir.results_dir}/{self.current_station_name}_{survey_id}_garpos_residuals.png"
+        fig_path = f"{self.current_garpos_survey_dir.results_dir}/{self.current_station_name}_{survey_id}_garpos_residuals.png"
         if savefig:
             logger.loginfo(f"Saving figure to {fig_path}")
             plt.savefig(
@@ -872,7 +1006,7 @@ class GarposHandler(WorkflowABC):
         surveys_to_process = []
         for survey in self.current_campaign_metadata.surveys:
             if survey.id == survey_id or survey_id is None:
-                surveys_to_process.append((survey.id,survey.type.value))
+                surveys_to_process.append((survey.id, survey.type.value))
 
         for survey_id, survey_type in surveys_to_process:
             try:
@@ -888,7 +1022,7 @@ class GarposHandler(WorkflowABC):
             except Exception as e:
                 logger.logwarn(f"Skipping plotting for survey {survey_id}: {e}")
                 continue
-    
+
     def _plot_ts_results(
         self,
         survey_id: str,
@@ -919,8 +1053,8 @@ class GarposHandler(WorkflowABC):
         """
 
         # Clear previous plots
-        #plt.clf()
-        
+        # plt.clf()
+
         results_dir: Path = self.current_garpos_survey_dir.results_dir
         run_dir = results_dir / f"run_{run_id}"
         if not run_dir.exists():
@@ -956,7 +1090,9 @@ class GarposHandler(WorkflowABC):
         array_enu = garpos_results.array_center_enu
         array_dpos = garpos_results.delta_center_position
         if array_enu is None or array_dpos is None:
-            raise ValueError("Array center or delta position not found in GARPOS results.")
+            raise ValueError(
+                "Array center or delta position not found in GARPOS results."
+            )
 
         array_final_position = array_dpos.model_copy()
         array_final_position.east += array_enu.east
@@ -999,7 +1135,9 @@ class GarposHandler(WorkflowABC):
         spacer_rows = 2  # gap between last time-series x ticks and lower panels
         lower_panel_rows = 6  # box (3) + hist (3), map shares these rows on the right
         min_extra_rows = spacer_rows + lower_panel_rows
-        extra_rows = max(int(np.ceil(extra_height_in / ts_row_height_in)), min_extra_rows)
+        extra_rows = max(
+            int(np.ceil(extra_height_in / ts_row_height_in)), min_extra_rows
+        )
         total_height = (total_rows + extra_rows) * ts_row_height_in
 
         plt.figure(figsize=(20, total_height))
@@ -1010,7 +1148,7 @@ class GarposHandler(WorkflowABC):
         plt.suptitle(title, x=0.6, y=0.96, fontsize=16)  # Move title higher up
         # GridSpec: with the figure height above, 1 row ~= 1 inch.
         gs = gridspec.GridSpec(total_rows + extra_rows, 16, hspace=1.35, wspace=0.35)
-        
+
         # Adjust subplot parameters to add more space at the top
         plt.subplots_adjust(top=0.90, left=0.04, right=0.99, bottom=0.06)
 
@@ -1034,7 +1172,7 @@ class GarposHandler(WorkflowABC):
             Plot the waveglider track and transponder positions
             """
         # Make the ENU track plot larger: more columns and a bit more height.
-        ax3 = plt.subplot(gs[lower_start:(lower_start + 6), 9:])
+        ax3 = plt.subplot(gs[lower_start : (lower_start + 6), 9:])
         ax3.set_aspect("equal", "box")
         ax3.set_xlabel("East (m)")
         ax3.set_ylabel("North (m)", labelpad=-1)
@@ -1058,9 +1196,11 @@ class GarposHandler(WorkflowABC):
         """
         Plot the time series of residuals - separate plot for each transponder
         """
-        
+
         # Color mapping per transponder ID
-        id_colors = {uid: colors[idx % len(colors)] for idx, uid in enumerate(unique_ids)}
+        id_colors = {
+            uid: colors[idx % len(colors)] for idx, uid in enumerate(unique_ids)
+        }
 
         # Plot separate unfiltered/filtered plots based on plot_plan
         shared_ax = None
@@ -1073,14 +1213,14 @@ class GarposHandler(WorkflowABC):
                 ax_ts = plt.subplot(gs[row_idx : row_idx + 1, 1:14], sharex=shared_ax)
 
             if kind == "unfiltered":
-                df_ts = results_df_raw[results_df_raw["MT"] == unique_id].sort_values("time")
+                df_ts = results_df_raw[results_df_raw["MT"] == unique_id].sort_values(
+                    "time"
+                )
                 title_ts = f"Transponder {unique_id} - Unfiltered Data"
                 label_ts = f"{unique_id} Unfiltered"
             else:
                 df_ts = results_df[results_df["MT"] == unique_id].sort_values("time")
-                title_ts = (
-                    f"Transponder {unique_id} - Filtered Data (|residuals| < {res_filter}m, flag=False)"
-                )
+                title_ts = f"Transponder {unique_id} - Filtered Data (|residuals| < {res_filter}m, flag=False)"
                 label_ts = f"{unique_id} Filtered"
 
             ax_ts.plot(
@@ -1111,12 +1251,20 @@ class GarposHandler(WorkflowABC):
                 ax_ts.set_xlabel("Time - Month / Day / Hour")
                 plt.setp(ax_ts.xaxis.get_majorticklabels(), rotation=45, ha="right")
 
-        
         # Create a y-label subplot on the left side
         ax_ylabel = plt.subplot(gs[:total_rows, 0])
-        ax_ylabel.text(0.5, 0.5, "Range-Residuals (m)", rotation=90, va='center', ha='center', 
-                      fontsize=14, weight='bold', transform=ax_ylabel.transAxes)
-        ax_ylabel.axis('off')  # Hide the axes
+        ax_ylabel.text(
+            0.5,
+            0.5,
+            "Range-Residuals (m)",
+            rotation=90,
+            va="center",
+            ha="center",
+            fontsize=14,
+            weight="bold",
+            transform=ax_ylabel.transAxes,
+        )
+        ax_ylabel.axis("off")  # Hide the axes
 
         for transponder in garpos_results.transponders:
             try:
@@ -1138,9 +1286,9 @@ class GarposHandler(WorkflowABC):
         """
             Plot the residual range boxplot and histogram
             """
-        ax2 = plt.subplot(gs[lower_start:(lower_start + 3), :9])
+        ax2 = plt.subplot(gs[lower_start : (lower_start + 3), :9])
         resiRange = results_df_raw["ResiRange"].abs()
-        
+
         resiRange_np = resiRange.to_numpy()
         resiRange_filter = np.abs(resiRange_np) < 50
         resiRange = resiRange[resiRange_filter]
@@ -1165,20 +1313,22 @@ class GarposHandler(WorkflowABC):
         ax2.set_title("Box Plot of Residual Range Values")
         bins = np.arange(0, res_filter, 0.05)
         counts, bins = np.histogram(resiRange_np, bins=bins, density=True)
-        ax4 = plt.subplot(gs[(lower_start + 3):(lower_start + 6), :9])
+        ax4 = plt.subplot(gs[(lower_start + 3) : (lower_start + 6), :9])
         ax4.sharex(ax2)
         ax4.hist(bins[:-1], bins, weights=counts, edgecolor="black")
         ax4.axvline(median, color="blue", linestyle="-", label=f"Median: {median:.3f}")
         ax4.set_xlabel("Residual Range (m)", labelpad=-1)
         ax4.set_ylabel("Frequency")
-        ax4.set_title(f"Histogram of Residual Range Values, within {res_filter:.1f} meters")
+        ax4.set_title(
+            f"Histogram of Residual Range Values, within {res_filter:.1f} meters"
+        )
         ax4.legend()
         # add figure text
         plt.gcf().text(0.02, 0.98, figure_text, fontsize=9, ha="left", va="top")
 
         # Avoid tight_layout() here; it tends to compress the GridSpec time-series
         # area when there are only a few transponders.
-        
+
         if showfig:
             plt.show()
         fig_path = run_dir / f"_{run_id}_results.png"
@@ -1191,4 +1341,3 @@ class GarposHandler(WorkflowABC):
                 bbox_inches="tight",
                 pad_inches=0.1,
             )
-        

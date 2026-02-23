@@ -1,6 +1,6 @@
 """Example script for processing QC PIN data from Sonardyne equipment.
 
-This demonstrates how to use the WorkflowHandler to run the QC processing 
+This demonstrates how to use the WorkflowHandler to run the QC processing
 pipeline on QC PIN files, which contain embedded GNSS observations (RANGEA)
 and acoustic ranging data.
 
@@ -44,6 +44,6 @@ if __name__ == "__main__":
 
     # Step 7 (Optional): Get pipeline instance for advanced usage (example shown in comments)
 
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"QC Pipeline processing complete for {NETWORK}/{STATION}/{CAMPAIGN}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")

@@ -16,10 +16,12 @@ DEFAULT_CONFIG = {
     "S3_SYNC_BUCKET": "seafloor-public-bucket-bucket83908e77-gprctmuztrim",
 }
 import os
+
 for key, value in DEFAULT_CONFIG.items():
     os.environ[key] = value
-    
+
 from es_sfgtools.config.env_config import Environment
+
 # This will read the environment variables set above
 Environment.load_working_environment()
 
@@ -61,4 +63,6 @@ for station in STATIONS:
         station_id=station,
         campaign_id=CAMPAIGN,
     )
-    workflow.midprocess_prep_garpos(custom_filters=FILTER_CONFIG,override=False,write_intermediate=False)
+    workflow.midprocess_prep_garpos(
+        custom_filters=FILTER_CONFIG, override=False, write_intermediate=False
+    )

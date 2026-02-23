@@ -5,10 +5,15 @@ It determines which filter settings and GARPOS parameters to use based on the
 type of survey being processed (e.g., CENTER, CIRCLE). It also provides
 helpers for loading settings from the environment.
 """
+
 import re
 from typing import Optional, Tuple, Union
 
-from es_sfgtools.config.env_config import S3_SYNC_BUCKET_KEY, Environment, WorkingEnvironment
+from es_sfgtools.config.env_config import (
+    S3_SYNC_BUCKET_KEY,
+    Environment,
+    WorkingEnvironment,
+)
 from es_sfgtools.config.garpos_config import DEFAULT_SITE_CONFIG, GarposSiteConfig
 from es_sfgtools.config.shotdata_filters import (
     CENTER_DRIVE_FILTER_CONFIG,

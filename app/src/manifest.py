@@ -5,6 +5,7 @@ These models provide data validation and a structured interface for accessing
 manifest contents, which define the ingestion, download, and processing jobs
 for the pipeline.
 """
+
 import json
 import os
 from enum import Enum
@@ -50,8 +51,10 @@ class PipelinePreprocessJob(BaseModel):
     job_type: PreprocessJobType = Field(
         PreprocessJobType.ALL, title="Preprocessing Job Type"
     )
-    global_config: Optional[SV3PipelineConfig] = Field(..., title="Pipeline Configuration")
-    secondary_config:Optional[dict] = Field(
+    global_config: Optional[SV3PipelineConfig] = Field(
+        ..., title="Pipeline Configuration"
+    )
+    secondary_config: Optional[dict] = Field(
         default_factory=dict, title="Secondary Configuration Overrides"
     )
 
@@ -186,7 +189,9 @@ class PipelineManifest(BaseModel):
     global_config: SV3PipelineConfig = Field(..., title="Global Config")
 
     env: Optional[dict] = Field(
-        default_factory=dict, title="Environment Variables", description="Environment variables"
+        default_factory=dict,
+        title="Environment Variables",
+        description="Environment variables",
     )
 
     class Config:
@@ -212,7 +217,7 @@ class PipelineManifest(BaseModel):
 
         else:
             global_config = SV3PipelineConfig()
-        
+
         if (garpos_config_data := data.get("garposConfig")) is not None:
             garpos_config = GARPOSConfig(**garpos_config_data)
         else:
@@ -262,8 +267,6 @@ class PipelineManifest(BaseModel):
                     case PipelineJobType.PREPROCESSING:
                         # Merge job-specific config with global config
 
-                 
-    
                         process_jobs.append(
                             PipelinePreprocessJob(
                                 network=network,
@@ -280,7 +283,6 @@ class PipelineManifest(BaseModel):
                             )
                         )
                     case PipelineJobType.GARPOS:
-            
                         garpos_jobs.append(
                             GARPOSProcessJob(
                                 network=network,
@@ -335,7 +337,7 @@ class PipelineManifest(BaseModel):
         return cls._load(data)
 
     @classmethod
-    def load(cls, file_path: Path|str) -> "PipelineManifest":
+    def load(cls, file_path: Path | str) -> "PipelineManifest":
         """
         Instantiates a PipelineManifest object from a JSON or YAML schema.
 
@@ -346,12 +348,11 @@ class PipelineManifest(BaseModel):
         """
         if isinstance(file_path, str):
             file_path = Path(file_path)
-        
+
         match file_path.suffix:
             case ".json":
                 return cls.from_json(file_path)
             case ".yaml" | ".yml":
                 return cls.from_yaml(file_path)
             case _:
-                raise ValueError(f"Unsupported file type: {file_path.suffix}")  
-            
+                raise ValueError(f"Unsupported file type: {file_path.suffix}")

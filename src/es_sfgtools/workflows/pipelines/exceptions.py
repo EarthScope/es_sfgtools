@@ -31,6 +31,7 @@ class NoSVPFound(Exception):
 
     pass
 
+
 class NoLocalData(Exception):
     """Custom exception raised when no data is ingested for processing."""
 

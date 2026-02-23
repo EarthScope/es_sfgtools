@@ -3,12 +3,13 @@ import os
 import pandas as pd
 import pytest
 from es_sfgtools.modeling.garpos_tools.load_utils import load_lib, load_drive_garpos
+
 LIB_DIRECTORY, LIB_RAYTRACE = load_lib()
 drive_garpos = load_drive_garpos()
 
 import subprocess
 
-TEST_DATA_DIR = Path(__file__).parent / "resources"/"garpos_run"
+TEST_DATA_DIR = Path(__file__).parent / "resources" / "garpos_run"
 
 TEST_GARPOS_SHOTDATA = TEST_DATA_DIR / "SAGA.1903.kaiyo_k4-obs.csv"
 TEST_GARPOS_FIXED = TEST_DATA_DIR / "Settings-fix.ini"
@@ -22,6 +23,7 @@ class TestGarposInstallation:
     def test_garpos_import(self):
         """Verify garpos can be imported."""
         import garpos
+
         assert garpos is not None, "garpos module failed to import"
 
     def test_garpos_lib_directory_exists(self):
@@ -30,11 +32,14 @@ class TestGarposInstallation:
 
     def test_garpos_lib_raytrace_exists(self):
         """Verify the garpos raytrace library exists."""
-        assert (Path(LIB_DIRECTORY) / LIB_RAYTRACE).exists(), f"LIB_RAYTRACE not found: {LIB_RAYTRACE}"
+        assert (Path(LIB_DIRECTORY) / LIB_RAYTRACE).exists(), (
+            f"LIB_RAYTRACE not found: {LIB_RAYTRACE}"
+        )
 
     def test_garpos_raytrace_is_loadable(self):
         """Verify the raytrace shared library can be loaded."""
         import ctypes
+
         try:
             lib = ctypes.CDLL(str(Path(LIB_DIRECTORY) / LIB_RAYTRACE))
             assert lib is not None, "Failed to load raytrace library"
@@ -46,7 +51,9 @@ class TestGarposInstallation:
         try:
             drive_garpos()
         except Exception as e:
-            assert isinstance(e,TypeError), f"drive_garpos raised an unexpected exception: {e}"
+            assert isinstance(e, TypeError), (
+                f"drive_garpos raised an unexpected exception: {e}"
+            )
 
     def test_garpos_run(self, capsys):
         # navigate to the garpos directory to run the test
@@ -57,8 +64,14 @@ class TestGarposInstallation:
         demo_sh = garpos_dir_true / "sample" / "demo.sh"
         if not demo_sh.exists():
             raise FileNotFoundError(f"demo.sh not found in GARPOS_PATH: {demo_sh}")
-        try:            
-            result = subprocess.run(["bash", str(demo_sh)], cwd=demo_sh.parent, check=True, capture_output=True, text=True)
+        try:
+            result = subprocess.run(
+                ["bash", str(demo_sh)],
+                cwd=demo_sh.parent,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
             # Use capsys to show output even when pytest captures stdout
             with capsys.disabled():
                 print("\n=== GARPOS demo.sh stdout ===")
@@ -68,6 +81,7 @@ class TestGarposInstallation:
                     print(result.stderr)
         except subprocess.CalledProcessError as e:
             pytest.fail(f"Failed to run demo.sh: {e}")
+
 
 # class TestGarpos:
 
@@ -89,4 +103,4 @@ class TestGarposInstallation:
 if __name__ == "__main__":
     test_installation = TestGarposInstallation()
     test_installation.test_garpos_import()
-    test_installation.test_garpos_lib_directory_exists()    
+    test_installation.test_garpos_lib_directory_exists()

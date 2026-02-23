@@ -21,13 +21,17 @@ from pydantic import Field, PrivateAttr
 from copy import deepcopy
 from cloudpathlib import S3Path
 from .schemas import (
-    _Base,NetworkDir,StationDir,CampaignDir,SurveyDir,
+    _Base,
+    NetworkDir,
+    StationDir,
+    CampaignDir,
+    SurveyDir,
 )
 from .config import (
     ASSET_CATALOG,
     PRIDE_DIR,
 )
-from es_sfgtools.config.env_config import Environment,WorkingEnvironment
+from es_sfgtools.config.env_config import Environment, WorkingEnvironment
 
 
 def get_s3_client() -> Optional[cloudpathlib.S3Client]:
@@ -48,7 +52,10 @@ def get_s3_client() -> Optional[cloudpathlib.S3Client]:
         s3_client = None
     return s3_client
 
-def load_credentials() -> tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
+
+def load_credentials() -> tuple[
+    Optional[str], Optional[str], Optional[str], Optional[str]
+]:
     """Loads credentials for accessing remote resources.
 
     Returns:
@@ -65,26 +72,30 @@ class DirectoryHandler(_Base):
     """
     The main class for managing the directory structure.
     """
-    _filepath:str = PrivateAttr("directoryCatalog.json")
 
-    filepath: Optional[Path] = Field(default=None, description="Path to the directory structure JSON file")
+    _filepath: str = PrivateAttr("directoryCatalog.json")
 
-    asset_catalog_db_path: Optional[Path] = Field(default=None, description="Path to the asset catalog database")
-
-    networks: Optional[dict[str, NetworkDir]] = {}
-    pride_directory: Optional[Path] = Field(default=None, description="The PRIDE PPPAR binary directory path")
-
-    location: Union[Path, S3Path] = Field(
-     description="The main directory path"
+    filepath: Optional[Path] = Field(
+        default=None, description="Path to the directory structure JSON file"
     )
 
-    
+    asset_catalog_db_path: Optional[Path] = Field(
+        default=None, description="Path to the asset catalog database"
+    )
+
+    networks: Optional[dict[str, NetworkDir]] = {}
+    pride_directory: Optional[Path] = Field(
+        default=None, description="The PRIDE PPPAR binary directory path"
+    )
+
+    location: Union[Path, S3Path] = Field(description="The main directory path")
+
     def save(self):
         """Saves the directory structure to a JSON file."""
         if not self.filepath:
             self.filepath = self.location / self._filepath
         with open(self.filepath, "w") as file:
-            json.dump(self.model_dump(mode='json'), file, indent=4)
+            json.dump(self.model_dump(mode="json"), file, indent=4)
 
     def add_network(self, name: str) -> NetworkDir:
         """Adds a new network to the directory structure.
@@ -102,7 +113,7 @@ class DirectoryHandler(_Base):
         if name in self.networks:
             print(f"Network {name} already exists.")
             return self.networks[name]
-        new_network = NetworkDir(name=name,main_directory=self.location)
+        new_network = NetworkDir(name=name, main_directory=self.location)
         new_network.build()
         self.networks[name] = new_network
         return self.networks[name]
@@ -148,9 +159,13 @@ class DirectoryHandler(_Base):
                 if Environment.working_environment() == WorkingEnvironment.LOCAL:
                     self.asset_catalog_db_path.touch()
 
-
-
-    def build_station_directory(self,network_name:str,station_name:str=None,campaign_name:str=None,survey_name:str=None) -> Optional[tuple[NetworkDir,StationDir,CampaignDir,SurveyDir]]:
+    def build_station_directory(
+        self,
+        network_name: str,
+        station_name: str = None,
+        campaign_name: str = None,
+        survey_name: str = None,
+    ) -> Optional[tuple[NetworkDir, StationDir, CampaignDir, SurveyDir]]:
         """Builds a station directory, and optionally a campaign directory.
 
         Parameters
@@ -185,7 +200,7 @@ class DirectoryHandler(_Base):
         campaignDir: CampaignDir = None
         surveyDir: SurveyDir = None
 
-        if not (networkDir:= self.networks.get(network_name)):
+        if not (networkDir := self.networks.get(network_name)):
             networkDir: NetworkDir = self.add_network(name=network_name)
 
         if station_name:
@@ -194,15 +209,17 @@ class DirectoryHandler(_Base):
 
             if campaign_name:
                 if not (campaignDir := stationDir.campaigns.get(campaign_name)):
-                    campaignDir:CampaignDir = stationDir.add_campaign(name=campaign_name)
+                    campaignDir: CampaignDir = stationDir.add_campaign(
+                        name=campaign_name
+                    )
 
                 if survey_name:
                     if not (surveyDir := campaignDir.surveys.get(survey_name)):
-                        surveyDir:SurveyDir = campaignDir.add_survey(name=survey_name)
+                        surveyDir: SurveyDir = campaignDir.add_survey(name=survey_name)
 
         return networkDir, stationDir, campaignDir, surveyDir
 
-    def point_to_s3(self,bucket_path: str|S3Path) -> "DirectoryHandler":
+    def point_to_s3(self, bucket_path: str | S3Path) -> "DirectoryHandler":
         """Points the directory handler to an S3 bucket using cloudpathlib.
 
         1. Create model copy of current directory handler.
@@ -231,10 +248,12 @@ class DirectoryHandler(_Base):
         new_handler.location = bucket_path
 
         # recursively update all Path attributes to CloudPath
-        def update_paths(model: _Base, old_root_prefix: Path, new_root_prefix: cloudpathlib.S3Path):
+        def update_paths(
+            model: _Base, old_root_prefix: Path, new_root_prefix: cloudpathlib.S3Path
+        ):
             for field_name, field_value in model.model_fields.items():
                 attr = getattr(model, field_name)
-                if isinstance(attr, Path): 
+                if isinstance(attr, Path):
                     relative_path = attr.relative_to(old_root_prefix)
                     new_path = new_root_prefix / relative_path
                     setattr(model, field_name, cloudpathlib.CloudPath(new_path))
@@ -244,7 +263,7 @@ class DirectoryHandler(_Base):
                     for key, value in attr.items():
                         if isinstance(value, _Base):
                             update_paths(value, old_root_prefix, new_root_prefix)
-        
+
         update_paths(new_handler, local_location, new_handler.location)
         return new_handler
 
@@ -270,9 +289,8 @@ class DirectoryHandler(_Base):
 
         return s3_dir_handler
 
-
     @classmethod
-    def load_from_path(cls, path: str|Path|S3Path) -> "DirectoryHandler":
+    def load_from_path(cls, path: str | Path | S3Path) -> "DirectoryHandler":
         """Searches the local or S3 path for existing data.
 
         Parameters
@@ -301,10 +319,10 @@ class DirectoryHandler(_Base):
         asset_catalog_db_path = local_dir_handler.location / ASSET_CATALOG
         if asset_catalog_db_path.exists():
             local_dir_handler.asset_catalog_db_path = asset_catalog_db_path
-        
+
         for sub_dir in local_dir_handler.location.iterdir():
             if NetworkDir.is_network_directory(sub_dir):
-               network_dir = NetworkDir.load_from_path(path=sub_dir)
-               local_dir_handler.networks[network_dir.name] = network_dir
+                network_dir = NetworkDir.load_from_path(path=sub_dir)
+                local_dir_handler.networks[network_dir.name] = network_dir
 
         return local_dir_handler

@@ -12,8 +12,6 @@ from scipy.stats import hmean as harmonic_mean
 sns.set_theme()
 
 
-
-
 from es_sfgtools.modeling.garpos_tools.schemas import (
     GarposInput,
     GarposObservationOutput,
@@ -125,7 +123,7 @@ class CoordTransformer:
             Converts arrays of ECEF coordinates to ENU coordinates.
     """
 
-    def __init__(self, latitude:float,longitude:float,elevation:float):
+    def __init__(self, latitude: float, longitude: float, elevation: float):
         """
         Initialize the object with a position in latitude, longitude, and height.
         Args:
@@ -134,7 +132,6 @@ class CoordTransformer:
                                       or an instance of PositionLLH class.
         """
 
-      
         self.lat0 = latitude
         self.lon0 = longitude
         self.hgt0 = elevation
@@ -261,6 +258,7 @@ class CoordTransformer:
 
         return e, n, u
 
+
 def avg_transponder_position(
     transponders: List[GPTransponder],
 ) -> Tuple[GPPositionENU, GPPositionLLH]:
@@ -381,6 +379,7 @@ def plot_enu_llh_side_by_side(garpos_input: GarposInput):
     plt.tight_layout()
     plt.show()
 
+
 def process_garpos_results(results: GarposInput) -> Tuple[GarposInput, pd.DataFrame]:
     """
     Process garpos results to compute delta x, y, z and relevant fields.
@@ -401,7 +400,7 @@ def process_garpos_results(results: GarposInput) -> Tuple[GarposInput, pd.DataFr
 
     # Get the harmonic mean of the svp data, and use that to convert ResiTT to meters
     svp_df = pd.read_csv(results.sound_speed_data)
-    results_df = pd.read_csv(results.shot_data,skiprows=1)
+    results_df = pd.read_csv(results.shot_data, skiprows=1)
     speed_mean = harmonic_mean(svp_df.speed.values)
     range_residuals = results_df.ResiTT.values * speed_mean / 2
 
@@ -411,16 +410,8 @@ def process_garpos_results(results: GarposInput) -> Tuple[GarposInput, pd.DataFr
     # For each transponder, get the delta x,y,and z respectively
     for transponder in results.transponders:
         id = transponder.id
-        takeoff = np.deg2rad(
-            results_df[
-                results_df.MT == id
-            ].TakeOff.values
-        )
-        azimuth = np.deg2rad(
-            results_df[
-                results_df.MT == id
-            ].head1.values
-        )
+        takeoff = np.deg2rad(results_df[results_df.MT == id].TakeOff.values)
+        azimuth = np.deg2rad(results_df[results_df.MT == id].head1.values)
         delta_x = np.mean(np.cos(takeoff) * np.cos(azimuth))
         delta_y = np.mean(np.cos(takeoff) * np.sin(azimuth))
         delta_z = np.mean(np.sin(azimuth))
@@ -434,7 +425,10 @@ def process_garpos_results(results: GarposInput) -> Tuple[GarposInput, pd.DataFr
     logger.loginfo("GARPOS results processed, returning results tuple")
     return results, results_df
 
-def rectify_shotdata(coord_transformer: CoordTransformer, shot_data: pd.DataFrame) -> pd.DataFrame:
+
+def rectify_shotdata(
+    coord_transformer: CoordTransformer, shot_data: pd.DataFrame
+) -> pd.DataFrame:
     """
     Rectifies the shot data to the site local coordinate system by transforming coordinates and renaming columns.
     This method performs the following operations on the input shot data:

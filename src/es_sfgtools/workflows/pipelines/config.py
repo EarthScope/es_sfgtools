@@ -100,14 +100,20 @@ class PrepSiteData(BaseModel):
     inter_dir: Path = Field(..., title="Intermediate Directory")
     pride_dir: Path = Field(..., title="Pride Directory")
     gnss_obs_data_dest: str | Path = Field(..., title="GNSS Obs Data Destination")
-    kin_position_data_dest: str | Path = Field(..., title="Kin Position Data Destination")
+    kin_position_data_dest: str | Path = Field(
+        ..., title="Kin Position Data Destination"
+    )
     shot_data_dest: str | Path = Field(..., title="Shot Data Destination")
 
     class Config:
         arbitrary_types_allowed = True
 
     @field_serializer(
-        "inter_dir", "gnss_obs_data_dest", "kin_position_data_dest", "shot_data_dest", "pride_dir"
+        "inter_dir",
+        "gnss_obs_data_dest",
+        "kin_position_data_dest",
+        "shot_data_dest",
+        "pride_dir",
     )
     def _s_path(self, v):
         if isinstance(v, Path):
@@ -123,6 +129,7 @@ class PrepSiteData(BaseModel):
 
 class QCPinConfig(BaseModel):
     """Configuration for QC PIN file processing."""
+
     override: bool = Field(False, title="Flag to Override Existing Data")
     n_processes: int = Field(
         default_factory=cpu_count, title="Number of Processes to Use"
@@ -131,6 +138,7 @@ class QCPinConfig(BaseModel):
 
 class QCPipelineConfig(BaseModel):
     """Configuration for the QC Pipeline."""
+
     qcpin_config: QCPinConfig = QCPinConfig()
     pride_config: PrideCLIConfig = PrideCLIConfig()
     rinex_config: RinexConfig = RinexConfig()

@@ -1,6 +1,7 @@
 """
 Functions for processing sound velocity profile (SVP) data from various sources.
 """
+
 # External imports
 import re
 from pathlib import Path
@@ -42,7 +43,7 @@ def seabird_to_soundvelocity(
     ValueError
         If no data is found in the file after the "*END*" marker.
     """
- 
+
     with open(source, "r") as f:
         lines = f.readlines()
         data = []
@@ -53,13 +54,10 @@ def seabird_to_soundvelocity(
                 break
 
         if not lines:
-            logger.logerr(
-                f"No data found in the sound speed profile file {source}"
-            )
+            logger.logerr(f"No data found in the sound speed profile file {source}")
             return None
 
         for line in lines:
-
             values = line.split()
             data.append(
                 {
@@ -129,8 +127,8 @@ def CTD_to_svp_v2(
 
 
 def interpolate_svp(
-        svp:pd.DataFrame,
-        additional_depth:float=200.0,
+    svp: pd.DataFrame,
+    additional_depth: float = 200.0,
 ) -> pd.DataFrame:
     """
     Interpolates a sound velocity profile (SVP) DataFrame to ensure coverage down to a specified additional depth.
@@ -150,11 +148,11 @@ def interpolate_svp(
     pd.DataFrame
         A DataFrame with the interpolated SVP data.
     """
-    max_depth = svp['depth'].max()
+    max_depth = svp["depth"].max()
 
     new_depths = np.arange(max_depth + 1, max_depth + additional_depth)
-    new_speeds = np.interp(new_depths, svp['depth'].to_numpy(), svp['speed'].to_numpy())
-    new_svp = pd.DataFrame({'depth': new_depths, 'speed': new_speeds})
+    new_speeds = np.interp(new_depths, svp["depth"].to_numpy(), svp["speed"].to_numpy())
+    new_svp = pd.DataFrame({"depth": new_depths, "speed": new_speeds})
     svp = pd.concat([svp, new_svp], ignore_index=True)
     logger.loginfo(f"Extended SVP to {additional_depth} m depth with interpolation.")
     return svp

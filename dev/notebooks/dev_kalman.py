@@ -22,7 +22,28 @@ from gnatss.ops.kalman import run_filter_simulation
 GPS_EPOCH = datetime.datetime(1980, 1, 6, 0, 0, 0)
 J200_EPOCH = datetime.datetime(2000, 1, 1, 12, 0, 0)
 
-COLUMN_ORDER = ['time', 'east', 'north', 'up','ant_x', 'ant_y', 'ant_z','ant_sigx', 'ant_sigy', 'ant_sigz','rho_xy', 'rho_xz', 'rho_yz','east_sig', 'north_sig', 'up_sig','v_sden', 'v_sdeu', 'v_sdnu']
+COLUMN_ORDER = [
+    "time",
+    "east",
+    "north",
+    "up",
+    "ant_x",
+    "ant_y",
+    "ant_z",
+    "ant_sigx",
+    "ant_sigy",
+    "ant_sigz",
+    "rho_xy",
+    "rho_xz",
+    "rho_yz",
+    "east_sig",
+    "north_sig",
+    "up_sig",
+    "v_sden",
+    "v_sdeu",
+    "v_sdnu",
+]
+
 
 def time_to_gpsweek_seconds(time: datetime.datetime) -> tuple[int, float]:
     """Convert a datetime object to GPS week and seconds of week.
@@ -72,7 +93,8 @@ def time_to_j200(time: datetime.datetime) -> float:
 
     return total_seconds
 
-def shotData_to_positiondf(shotdata:pd.DataFrame) -> pd.DataFrame:
+
+def shotData_to_positiondf(shotdata: pd.DataFrame) -> pd.DataFrame:
     """Converts shotdata to a position DataFrame.
 
     Parameters
@@ -85,23 +107,80 @@ def shotData_to_positiondf(shotdata:pd.DataFrame) -> pd.DataFrame:
     pd.DataFrame
         The position DataFrame.
     """
-    position_df_0 = shotdata[["pingTime", "east0", "north0", "up0","head0","pitch0","roll0","east_std0","north_std0","up_std0"]]
-    position_df_1 = shotdata[["returnTime", "east1", "north1", "up1","head1","pitch1","roll1","east_std1","north_std1","up_std1"]]
+    position_df_0 = shotdata[
+        [
+            "pingTime",
+            "east0",
+            "north0",
+            "up0",
+            "head0",
+            "pitch0",
+            "roll0",
+            "east_std0",
+            "north_std0",
+            "up_std0",
+        ]
+    ]
+    position_df_1 = shotdata[
+        [
+            "returnTime",
+            "east1",
+            "north1",
+            "up1",
+            "head1",
+            "pitch1",
+            "roll1",
+            "east_std1",
+            "north_std1",
+            "up_std1",
+        ]
+    ]
 
-    east_velocity_0 = (position_df_0["east0"].diff() / position_df_0["pingTime"].diff()).abs()
-    north_velocity_0 = (position_df_0["north0"].diff() / position_df_0["pingTime"].diff()).abs()
-    up_velocity_0 = (position_df_0["up0"].diff() / position_df_0["pingTime"].diff()).abs()
-    east_velocity_1 = (position_df_1["east1"].diff() / position_df_1["returnTime"].diff()).abs()
-    north_velocity_1 = (position_df_1["north1"].diff() / position_df_1["returnTime"].diff()).abs()
-    up_velocity_1 = (position_df_1["up1"].diff() / position_df_1["returnTime"].diff()).abs()
+    east_velocity_0 = (
+        position_df_0["east0"].diff() / position_df_0["pingTime"].diff()
+    ).abs()
+    north_velocity_0 = (
+        position_df_0["north0"].diff() / position_df_0["pingTime"].diff()
+    ).abs()
+    up_velocity_0 = (
+        position_df_0["up0"].diff() / position_df_0["pingTime"].diff()
+    ).abs()
+    east_velocity_1 = (
+        position_df_1["east1"].diff() / position_df_1["returnTime"].diff()
+    ).abs()
+    north_velocity_1 = (
+        position_df_1["north1"].diff() / position_df_1["returnTime"].diff()
+    ).abs()
+    up_velocity_1 = (
+        position_df_1["up1"].diff() / position_df_1["returnTime"].diff()
+    ).abs()
 
-
-    position_df_0 = position_df_0.rename(columns={"east0": "ant_x", "north0": "ant_y", "up0": "ant_z"})
-    position_df_1 = position_df_1.rename(columns={"east1": "ant_x", "north1": "ant_y", "up1": "ant_z"})
-    position_df_0 = position_df_0.rename(columns={"east_std0": "ant_sigx", "north_std0": "ant_sigy", "up_std0": "ant_sigz"})
-    position_df_1 = position_df_1.rename(columns={"east_std1": "ant_sigx", "north_std1": "ant_sigy", "up_std1": "ant_sigz"})
-    position_df_0 = position_df_0.rename(columns={"head0": "heading", "pitch0": "pitch", "roll0": "roll"})
-    position_df_1 = position_df_1.rename(columns={"head1": "heading", "pitch1": "pitch", "roll1": "roll"})
+    position_df_0 = position_df_0.rename(
+        columns={"east0": "ant_x", "north0": "ant_y", "up0": "ant_z"}
+    )
+    position_df_1 = position_df_1.rename(
+        columns={"east1": "ant_x", "north1": "ant_y", "up1": "ant_z"}
+    )
+    position_df_0 = position_df_0.rename(
+        columns={
+            "east_std0": "ant_sigx",
+            "north_std0": "ant_sigy",
+            "up_std0": "ant_sigz",
+        }
+    )
+    position_df_1 = position_df_1.rename(
+        columns={
+            "east_std1": "ant_sigx",
+            "north_std1": "ant_sigy",
+            "up_std1": "ant_sigz",
+        }
+    )
+    position_df_0 = position_df_0.rename(
+        columns={"head0": "heading", "pitch0": "pitch", "roll0": "roll"}
+    )
+    position_df_1 = position_df_1.rename(
+        columns={"head1": "heading", "pitch1": "pitch", "roll1": "roll"}
+    )
 
     position_df_0["east"] = east_velocity_0
     position_df_0["north"] = north_velocity_0
@@ -121,8 +200,8 @@ def shotData_to_positiondf(shotdata:pd.DataFrame) -> pd.DataFrame:
 
     position_df_0["rho_xy"] = position_df_0["rho_xz"] = position_df_0["rho_yz"] = 1
     position_df_1["rho_xy"] = position_df_1["rho_xz"] = position_df_1["rho_yz"] = 1
-    position_df_0["v_sden"] =  position_df_0["v_sdeu"] = position_df_0["v_sdnu"] = 1
-    position_df_1["v_sden"] =  position_df_1["v_sdeu"] = position_df_1["v_sdnu"] = 1
+    position_df_0["v_sden"] = position_df_0["v_sdeu"] = position_df_0["v_sdnu"] = 1
+    position_df_1["v_sden"] = position_df_1["v_sdeu"] = position_df_1["v_sdnu"] = 1
 
     position_df_0 = position_df_0.rename(columns={"pingTime": "time"})
     position_df_1 = position_df_1.rename(columns={"returnTime": "time"})
@@ -130,7 +209,8 @@ def shotData_to_positiondf(shotdata:pd.DataFrame) -> pd.DataFrame:
 
     return position_df
 
-def gpsData_to_positiondf(gpsdata:pd.DataFrame) -> pd.DataFrame:
+
+def gpsData_to_positiondf(gpsdata: pd.DataFrame) -> pd.DataFrame:
     """Converts GPS data to a position DataFrame.
 
     Parameters
@@ -157,9 +237,9 @@ def gpsData_to_positiondf(gpsdata:pd.DataFrame) -> pd.DataFrame:
     gps_df["north"] = north_velocity
     gps_df["up"] = up_velocity
 
-    gps_df["ant_sigx"] = .5
-    gps_df["ant_sigy"] = .5
-    gps_df["ant_sigz"] = .5
+    gps_df["ant_sigx"] = 0.5
+    gps_df["ant_sigy"] = 0.5
+    gps_df["ant_sigz"] = 0.5
 
     gps_df["rho_xy"] = 0
     gps_df["rho_xz"] = 0
@@ -172,11 +252,12 @@ def gpsData_to_positiondf(gpsdata:pd.DataFrame) -> pd.DataFrame:
     gps_df["v_sden"] = 1
     gps_df["v_sdeu"] = 1
     gps_df["v_sdnu"] = 1
-    gps_df["source"] = 'KINEMATIC'
+    gps_df["source"] = "KINEMATIC"
 
     return gps_df
 
-def runFilter(df_all:pd.DataFrame) -> pd.DataFrame:
+
+def runFilter(df_all: pd.DataFrame) -> pd.DataFrame:
     """Runs the Kalman filter.
 
     Parameters
@@ -201,11 +282,12 @@ def runFilter(df_all:pd.DataFrame) -> pd.DataFrame:
 
     # Positions covariance
     ant_cov = P[:, :3, :3]
-    ant_cov_df = pd.DataFrame(ant_cov.reshape(ant_cov.shape[0], -1), columns=constants.ANT_GPS_COV)
+    ant_cov_df = pd.DataFrame(
+        ant_cov.reshape(ant_cov.shape[0], -1), columns=constants.ANT_GPS_COV
+    )
     ant_cov_df[[*constants.ANT_GPS_GEOCENTRIC_STD]] = ant_cov_df[
         [*constants.ANT_GPS_COV_DIAG]
     ].apply(np.sqrt)
-
 
     # Smoothed positions
     smoothed_results = pd.DataFrame(
@@ -216,10 +298,14 @@ def runFilter(df_all:pd.DataFrame) -> pd.DataFrame:
     smoothed_results["merge_idx"] = smoothed_results.index
     ant_cov_df["merge_idx"] = ant_cov_df.index
 
-    smoothed_results[constants.GPS_TIME] = df_all[constants.GPS_TIME].reset_index(drop=True)
+    smoothed_results[constants.GPS_TIME] = df_all[constants.GPS_TIME].reset_index(
+        drop=True
+    )
     ant_cov_df[constants.GPS_TIME] = df_all[constants.GPS_TIME].reset_index(drop=True)
 
-    smoothed_results = smoothed_results.merge(ant_cov_df, on="merge_idx", how="left", suffixes=('', '_cov'))
+    smoothed_results = smoothed_results.merge(
+        ant_cov_df, on="merge_idx", how="left", suffixes=("", "_cov")
+    )
     return smoothed_results
 
 
@@ -358,7 +444,7 @@ station = "NCC1"
 survey = "2024_A_1126"
 
 dh.change_working_station(network=network, station=station, campaign=survey)
-print(dates:=dh.kin_position_tdb.get_unique_dates())
+print(dates := dh.kin_position_tdb.get_unique_dates())
 kin_positions = dh.kin_position_tdb.read_df(dates[8], dates[9])
 shotdata = dh.shotdata_tdb_pre.read_df(dates[8], dates[9])
 positions_data = dh.imu_position_tdb.read_df(dates[8], dates[9])
