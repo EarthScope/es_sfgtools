@@ -10,8 +10,10 @@ import os
 from colorama import Fore, Style
 import logging
 
-logging.basicConfig(level=logging.INFO)
+# Don't use basicConfig as it configures the root logger with default format
+# This interferes with the es_sfgtools logging setup
 logger = logging.getLogger("ES_SFGTools.NovatelToRinex")
+logger.setLevel(logging.INFO)
 
 # Local imports
 from es_sfgtools.utils.command_line_utils import parse_cli_logs
