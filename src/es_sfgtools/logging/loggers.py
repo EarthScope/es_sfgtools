@@ -91,10 +91,11 @@ class _BaseLogger:
             if type(handler) == logging.FileHandler:
                 self.logger.removeHandler(handler)
         try:
-            self.file_handler = logging.FileHandler(self.path)
-            self.file_handler.setFormatter(self.format)
-            self.file_handler.setLevel(logging.DEBUG)
-            self.logger.addHandler(self.file_handler)
+            if os.path.exists(self.path):
+                self.file_handler = logging.FileHandler(self.path)
+                self.file_handler.setFormatter(self.format)
+                self.file_handler.setLevel(logging.DEBUG)
+                self.logger.addHandler(self.file_handler)
         except Exception as e:
             self.logger.error(f"Failed to set file handler: {e}")
 
