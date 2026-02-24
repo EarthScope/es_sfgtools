@@ -18,7 +18,7 @@ compile-garpos = {cmd = "gfortran -shared -fPIC -fopenmp -O3 -o lib_raytrace.so 
 test-garpos = "pytest tests/test_garpos.py -v"
 
 # Clone and install PRIDE-PPPAR
-clone-pride = { cmd = "bash -c 'cd PRIDE_PPPAR && git pull || git clone --depth 1 https://github.com/PrideLab/PRIDE-PPPAR.git'", cwd = "external/"}
+clone-pride = { cmd = "bash -c 'cd PRIDE-PPPAR/ && git pull || git clone --depth 1 https://github.com/PrideLab/PRIDE-PPPAR.git'", cwd = "external/"}
 install-pride = { cmd = "chmod +x install.sh && echo 'N' | HOME=$PIXI_PROJECT_ROOT/external ./install.sh", cwd = "external/PRIDE-PPPAR", depends-on = ["clone-pride"] }
 test-pride = { cmd = "chmod +x test.sh && ./test.sh", cwd = "external/PRIDE-PPPAR/example"}
 
