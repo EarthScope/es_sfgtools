@@ -19,8 +19,8 @@ dependencies:
   - wheel
   - clang
   - gfortran
-  - go
-  - go-cgo
+  - go>=1.25
+  - go-cgo>=1.25
   - make
   
   - pip:
