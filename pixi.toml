@@ -61,7 +61,7 @@ pytest = ">=9.0.2,<10"
 [target.osx-64.dependencies]
 scikit-sparse = "*"
 
-[target.osx-arm.dependencies]
+[target.osx-arm64.dependencies]
 scikit-sparse = "*"
 
 
