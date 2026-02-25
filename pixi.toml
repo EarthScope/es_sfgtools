@@ -37,8 +37,8 @@ uv = "*"
 numpy = ">=1.23.5,<2"
 proj = "*"
 
-tiledb = "2.30.*"
-tiledb-py = "*"
+tiledb = ">=2.30.0"
+tiledb-py = ">=0.36.0"
 scikit-learn = ">=1.7"
 pyarrow = "*"
 

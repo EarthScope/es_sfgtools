@@ -1113,6 +1113,7 @@ class WorkflowHandler(WorkflowABC):
             raise e  # for visibility
 
         gp_dir_list = qc_mid_processor.parse_surveys_qc(
+            override=False,
             shotdata_uri=qc_pipeline.qcShotDataFinalTDB.uri
         )
 
@@ -1129,7 +1130,15 @@ class WorkflowHandler(WorkflowABC):
             override=garpos_override,
             custom_settings=garpos_settings,
         )
-
+        for survey_dir in gp_dir_list:
+            qc_garpos_handler._plot_ts_results(
+                survey_id=survey_dir.survey_dir.name,
+                run_id=run_id,
+                res_filter=10,
+                savefig=True,
+                showfig=False,
+                results_dir=survey_dir.results_dir
+            )
     @validate_network_station_campaign
     def modeling_plot_garpos_results(
         self,

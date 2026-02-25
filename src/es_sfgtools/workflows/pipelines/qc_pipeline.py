@@ -371,7 +371,7 @@ class QCPipeline(WorkflowABC):
             # stop the second thread if there are no entries to process
             stop_event.set()
 
-        second_step.join()
+        second_step.join(timeout=10)
         response = f"Processed {count} out of {len(qcpin_entries)} QCPIN Files"
         ProcessLogger.loginfo(response)
 

@@ -152,7 +152,9 @@ if __name__ == "__main__":
     # if shot_df is not None:
     #     print(shot_df.head())
 
-    qc_dir = Path("/Volumes/DunbarSSD/Project/SeafloorGeodesy/Misc/20250812/")
+    qc_dir = Path(
+        "/Users/franklyndunbar/Project/SeaFloorGeodesy/PSN011153/NCC1_2025/20250907"
+    )
     # qc_files = list(qc_dir.glob("*.pin"))
     # # all_dfs = []
     # # for qc_file in qc_files:
@@ -175,7 +177,7 @@ if __name__ == "__main__":
     main_dir.mkdir(parents=False, exist_ok=True)
     wfh = WorkflowHandler(directory=main_dir)
     network_id = "cascadia-gorda"
-    station_id = "NTH1"
+    station_id = "NCC1"
     campaign_id = "2025_A_1126"
     wfh.set_network_station_campaign(
         network_id=network_id,
@@ -185,7 +187,10 @@ if __name__ == "__main__":
     wfh.ingest_add_local_data(
         directory_path=qc_dir,
     )
-    wfh.qc_process_and_model(run_id="test_qc_001", iterations=2)
+    wfh.ingest_add_local_data(
+        wfh.current_campaign_dir.processed
+    )
+    wfh.qc_process_and_model(run_id="test_qc", iterations=2)
     # # wfh.ingest_add_local_data(
     # #     wfh.current_campaign_dir.raw
     # # )
