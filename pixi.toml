@@ -1,7 +1,7 @@
 [workspace]
 name = "es_sfgtools"
 channels = ["conda-forge"]
-platforms = ["win-64", "linux-64", "osx-64", "osx-arm64"]
+platforms = ["win-64", "linux-64","linux-aarch64", "osx-64", "osx-arm64"]
 
 # =============================================================================
 # Tasks
@@ -47,9 +47,7 @@ setuptools = ">=62.6"
 setuptools_scm = ">=6.2"
 wheel = "*"
 clang = "*"
-gfortran = "*"
 go = ">=1.22"
-go-cgo = "*"
 make = "*"
 requests = ">=2.32.5,<3"
 pytest = ">=9.0.2,<10"
@@ -63,9 +61,11 @@ scikit-sparse = "*"
 
 [target.osx-arm64.dependencies]
 scikit-sparse = "*"
+gfortran = ">=15.2.0"
 
 
 [target.linux-64.dependencies]
+gfortran = ">=15.2.0"
 bc = "1.07.*"
 sqlite = ">=3.49.1"
 gcc = ">=15"
@@ -74,6 +74,7 @@ nodejs = ">=24"
 scikit-learn = ">=1.7.2"
 
 [target.linux-aarch64.dependencies]
+gfortran = ">=15.0"
 bc = "1.07.*"
 sqlite = ">=3.49.1"
 gcc = ">=15"
@@ -81,6 +82,9 @@ libstdcxx-ng = ">=15"
 nodejs = ">=24"
 scikit-learn = ">=1.7.2"
 suitesparse = "*"
+
+[target.linux-aarch64.pypi-dependencies]
+scikit-sparse = ">=0.4.16, <0.5"
 
 
 
