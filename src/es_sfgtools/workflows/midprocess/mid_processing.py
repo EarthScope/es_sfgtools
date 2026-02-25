@@ -590,16 +590,15 @@ class IntermediateDataProcessor(WorkflowABC):
             garposDir.shotdata_rectified = shotdata_out_path
 
             if not shotdata_out_path.exists() or override:
-
                 GPtransponders = GP_Transponders_from_benchmarks(
-                        coord_transformer=self.coordTransformer,
-                        survey=survey,
-                        site=self.current_station_metadata,
-                        is_qc=True,
-                    )
+                    coord_transformer=self.coordTransformer,
+                    survey=survey,
+                    site=self.current_station_metadata,
+                    is_qc=True,
+                )
                 array_dpos_center = get_array_dpos_center(
-                        self.coordTransformer, GPtransponders
-                    )
+                    self.coordTransformer, GPtransponders
+                )
                 garposDir.shotdata_rectified = shotdata_out_path
 
                 if shotdata_out_path.exists():

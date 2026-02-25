@@ -1056,7 +1056,11 @@ class GarposHandler(WorkflowABC):
         # Clear previous plots
         # plt.clf()
 
-        results_dir: Path = self.current_garpos_survey_dir.results_dir if results_dir is None else results_dir
+        results_dir: Path = (
+            self.current_garpos_survey_dir.results_dir
+            if results_dir is None
+            else results_dir
+        )
         run_dir = results_dir / f"run_{run_id}"
         if not run_dir.exists():
             raise FileNotFoundError(f"Run directory {run_dir} does not exist.")
@@ -1064,7 +1068,9 @@ class GarposHandler(WorkflowABC):
         # Get *-res.dat files
         data_files = list(run_dir.glob("*-res.dat"))
         if not data_files:
-            logger.logwarn(f"No *-res.dat files found in run directory {run_dir}. Attempting to find any .dat files.")
+            logger.logwarn(
+                f"No *-res.dat files found in run directory {run_dir}. Attempting to find any .dat files."
+            )
             return
         """
             sort by iteration number if multiple files found

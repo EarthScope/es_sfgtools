@@ -1113,8 +1113,7 @@ class WorkflowHandler(WorkflowABC):
             raise e  # for visibility
 
         gp_dir_list = qc_mid_processor.parse_surveys_qc(
-            override=False,
-            shotdata_uri=qc_pipeline.qcShotDataFinalTDB.uri
+            override=False, shotdata_uri=qc_pipeline.qcShotDataFinalTDB.uri
         )
 
         # Get the GARPOS handler and run GARPOS
@@ -1137,8 +1136,9 @@ class WorkflowHandler(WorkflowABC):
                 res_filter=10,
                 savefig=True,
                 showfig=False,
-                results_dir=survey_dir.results_dir
+                results_dir=survey_dir.results_dir,
             )
+
     @validate_network_station_campaign
     def modeling_plot_garpos_results(
         self,
