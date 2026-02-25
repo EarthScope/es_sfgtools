@@ -82,7 +82,8 @@ def GP_Transponders_from_benchmarks(
     """
     survey_benchmarks = []
     for benchmark in site.benchmarks:
-        if benchmark.name in survey.benchmarkIDs or is_qc:
+        time_condition = benchmark.end is None or benchmark.end >= survey.start
+        if benchmark.name in survey.benchmarkIDs or time_condition:
             survey_benchmarks.append(benchmark)
 
     GPtransponders = []

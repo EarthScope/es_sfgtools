@@ -1031,6 +1031,7 @@ class GarposHandler(WorkflowABC):
         res_filter: float = 10,
         savefig: bool = False,
         showfig: bool = True,
+        results_dir: Optional[Path] = None,
     ) -> None:
         """
         Plots the time series results for a given survey.
@@ -1055,7 +1056,11 @@ class GarposHandler(WorkflowABC):
         # Clear previous plots
         # plt.clf()
 
-        results_dir: Path = self.current_garpos_survey_dir.results_dir
+        results_dir: Path = (
+            self.current_garpos_survey_dir.results_dir
+            if results_dir is None
+            else results_dir
+        )
         run_dir = results_dir / f"run_{run_id}"
         if not run_dir.exists():
             raise FileNotFoundError(f"Run directory {run_dir} does not exist.")
@@ -1063,8 +1068,10 @@ class GarposHandler(WorkflowABC):
         # Get *-res.dat files
         data_files = list(run_dir.glob("*-res.dat"))
         if not data_files:
-            raise FileNotFoundError(f"No .dat files found in run directory {run_dir}.")
-
+            logger.logwarn(
+                f"No *-res.dat files found in run directory {run_dir}. Attempting to find any .dat files."
+            )
+            return
         """
             sort by iteration number if multiple files found
 
@@ -1223,13 +1230,20 @@ class GarposHandler(WorkflowABC):
                 title_ts = f"Transponder {unique_id} - Filtered Data (|residuals| < {res_filter}m, flag=False)"
                 label_ts = f"{unique_id} Filtered"
 
-            ax_ts.plot(
+            # ax_ts.plot(
+            #     df_ts["time"],
+            #     df_ts["ResiRange"].abs(),
+            #     label=label_ts,
+            #     color=id_colors.get(unique_id, "black"),
+            #     linewidth=1,
+            #     alpha=0.85,
+            # )
+            ax_ts.scatter(
                 df_ts["time"],
                 df_ts["ResiRange"].abs(),
                 label=label_ts,
-                color=id_colors.get(unique_id, "black"),
-                linewidth=1,
-                alpha=0.85,
+                c=id_colors.get(unique_id, "black"),
+                linewidths=3,
             )
             ax_ts.set_title(title_ts, fontsize=11, pad=6)
             ax_ts.legend(loc="upper right")
