@@ -1230,13 +1230,20 @@ class GarposHandler(WorkflowABC):
                 title_ts = f"Transponder {unique_id} - Filtered Data (|residuals| < {res_filter}m, flag=False)"
                 label_ts = f"{unique_id} Filtered"
 
-            ax_ts.plot(
+            # ax_ts.plot(
+            #     df_ts["time"],
+            #     df_ts["ResiRange"].abs(),
+            #     label=label_ts,
+            #     color=id_colors.get(unique_id, "black"),
+            #     linewidth=1,
+            #     alpha=0.85,
+            # )
+            ax_ts.scatter(
                 df_ts["time"],
                 df_ts["ResiRange"].abs(),
                 label=label_ts,
-                color=id_colors.get(unique_id, "black"),
-                linewidth=1,
-                alpha=0.85,
+                c=id_colors.get(unique_id, "black"),
+                linewidths=3,
             )
             ax_ts.set_title(title_ts, fontsize=11, pad=6)
             ax_ts.legend(loc="upper right")
