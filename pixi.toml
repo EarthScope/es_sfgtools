@@ -8,17 +8,17 @@ platforms = ["win-64", "linux-64", "osx-64", "osx-arm64","linux-aarch64"]
 # =============================================================================
 [tasks]
 lint = "black --check src/"
-format = "black src/"
+format = "ruff format src/"
 docs = { cmd = "make html", cwd = "docs" }
 build-go = { cmd = "make -B", cwd = "src/golangtools" }
 
 # Clone and install garpos from source
-clone-garpos = { cmd = "git clone https://github.com/s-watanabe-jhod/garpos.git  || (cd garpos/ && git pull)",cwd="external/"}
+clone-garpos = { cmd = "bash -c 'cd garpos/ && git pull || git clone https://github.com/s-watanabe-jhod/garpos.git'",cwd="external/"}
 compile-garpos = {cmd = "gfortran -shared -fPIC -fopenmp -O3 -o lib_raytrace.so sub_raytrace.f90 lib_raytrace.f90",cwd = "external/garpos/bin/garpos_v102/f90lib", depends-on = ["clone-garpos"]}
 test-garpos = "pytest tests/test_garpos.py -v"
 
 # Clone and install PRIDE-PPPAR
-clone-pride = { cmd = "git clone --depth 1 https://github.com/PrideLab/PRIDE-PPPAR.git || (cd PRIDE_PPPAR/ && git pull)", cwd = "external/"}
+clone-pride = { cmd = "bash -c 'cd PRIDE-PPPAR/ && git pull || git clone --depth 1 https://github.com/PrideLab/PRIDE-PPPAR.git'", cwd = "external/"}
 install-pride = { cmd = "chmod +x install.sh && echo 'N' | HOME=$PIXI_PROJECT_ROOT/external ./install.sh", cwd = "external/PRIDE-PPPAR", depends-on = ["clone-pride"] }
 test-pride = { cmd = "chmod +x test.sh && ./test.sh", cwd = "external/PRIDE-PPPAR/example"}
 
@@ -40,7 +40,7 @@ proj = "*"
 tiledb = "2.30.*"
 tiledb-py = "*"
 scikit-learn = ">=1.7"
-pyarrow = "*"
+pyarrow = "==21.0.0"
 
 # Build / compiler dependencies
 setuptools = ">=62.6"
@@ -57,13 +57,29 @@ pytest = ">=9.0.2,<10"
 # =============================================================================
 # Platform-specific conda dependencies
 # =============================================================================
+
+[target.osx-64.dependencies]
+scikit-sparse = "*"
+
+[target.osx-arm64.dependencies]
+scikit-sparse = "*"
+
+
 [target.linux-64.dependencies]
 bc = "1.07.*"
 sqlite = ">=3.49.1"
 gcc = ">=15"
 libstdcxx-ng = ">=15"
 nodejs = ">=24"
-scikit-learn = "==1.7.2"
+scikit-learn = ">=1.7.2"
+
+[target.linux-aarch64.dependencies]
+bc = "1.07.*"
+sqlite = ">=3.49.1"
+gcc = ">=15"
+libstdcxx-ng = ">=15"
+nodejs = ">=24"
+scikit-learn = ">=1.7.2"
 suitesparse = "*"
 
 
@@ -74,7 +90,6 @@ suitesparse = "*"
 # =============================================================================
 [pypi-dependencies]
 es_sfgtools = { path = ".", editable = true }
-scikit-sparse = "*"
 
 # =============================================================================
 # Feature: dev (adds dev tools)
