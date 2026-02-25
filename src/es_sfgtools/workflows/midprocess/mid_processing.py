@@ -304,6 +304,7 @@ class IntermediateDataProcessor(WorkflowABC):
             / f"{self.current_survey_dir.shotdata.stem}_filtered.csv"
         )
         garposDir.shotdata_filtered = file_name_filtered
+        self.current_survey_dir.shotdata_filtered = file_name_filtered
 
         if file_name_filtered.exists():
             shot_data_filtered = pd.read_csv(file_name_filtered)

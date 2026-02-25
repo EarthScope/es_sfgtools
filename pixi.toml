@@ -40,7 +40,7 @@ proj = "*"
 tiledb = ">=2.30.0"
 tiledb-py = ">=0.36.0"
 scikit-learn = ">=1.7"
-pyarrow = "*"
+pyarrow = "==21.0.0"
 
 # Build / compiler dependencies
 setuptools = ">=62.6"
@@ -59,13 +59,29 @@ ruff = ">=0.15.2,<0.16"
 # =============================================================================
 # Platform-specific conda dependencies
 # =============================================================================
+
+[target.osx-64.dependencies]
+scikit-sparse = "*"
+
+[target.osx-arm64.dependencies]
+scikit-sparse = "*"
+
+
 [target.linux-64.dependencies]
 bc = "1.07.*"
 sqlite = ">=3.49.1"
 gcc = ">=15"
 libstdcxx-ng = ">=15"
 nodejs = ">=24"
-scikit-learn = "==1.7.2"
+scikit-learn = ">=1.7.2"
+
+[target.linux-aarch64.dependencies]
+bc = "1.07.*"
+sqlite = ">=3.49.1"
+gcc = ">=15"
+libstdcxx-ng = ">=15"
+nodejs = ">=24"
+scikit-learn = ">=1.7.2"
 suitesparse = "*"
 
 
@@ -76,7 +92,6 @@ suitesparse = "*"
 # =============================================================================
 [pypi-dependencies]
 es_sfgtools = { path = ".", editable = true }
-scikit-sparse = "*"
 
 # =============================================================================
 # Feature: dev (adds dev tools)
