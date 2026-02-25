@@ -57,6 +57,14 @@ pytest = ">=9.0.2,<10"
 # =============================================================================
 # Platform-specific conda dependencies
 # =============================================================================
+
+[target.osx-64.dependencies]
+scikit-sparse = "*"
+
+[target.osx-arm.dependencies]
+scikit-sparse = "*"
+
+
 [target.linux-64.dependencies]
 bc = "1.07.*"
 sqlite = ">=3.49.1"
@@ -74,7 +82,6 @@ suitesparse = "*"
 # =============================================================================
 [pypi-dependencies]
 es_sfgtools = { path = ".", editable = true }
-scikit-sparse = "*"
 
 # =============================================================================
 # Feature: dev (adds dev tools)
