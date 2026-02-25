@@ -40,7 +40,7 @@ proj = "*"
 tiledb = "2.30.*"
 tiledb-py = "*"
 scikit-learn = ">=1.7"
-pyarrow = "*"
+pyarrow = "==21.0.0"
 
 # Build / compiler dependencies
 setuptools = ">=62.6"

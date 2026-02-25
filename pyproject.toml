@@ -34,7 +34,7 @@ dynamic = ["version"]
 # --- Runtime dependencies (versions managed by pixi.lock) ---
 dependencies = [
   "numpy==1.26.4",
-  "scipy==1.16.3",
+  "scipy>=1.16.3",
   "pandas==2.3.3",
   "matplotlib==3.10.6",
   "julian==0.14",
@@ -47,7 +47,7 @@ dependencies = [
   "tqdm==4.67.1",
   "sqlalchemy==2.0.43",
   "python-dotenv==1.1.0",
-  "tiledb==0.34.2",
+  "tiledb>=0.34.2",
   "seaborn==0.13.2",
   "earthscope-sdk==1.1.1",
   "earthscope-cli==1.0.1",
