@@ -71,7 +71,15 @@ sqlite = ">=3.49.1"
 gcc = ">=15"
 libstdcxx-ng = ">=15"
 nodejs = ">=24"
-scikit-learn = "==1.7.2"
+scikit-learn = ">=1.7.2"
+
+[target.linux-aarch64.dependencies]
+bc = "1.07.*"
+sqlite = ">=3.49.1"
+gcc = ">=15"
+libstdcxx-ng = ">=15"
+nodejs = ">=24"
+scikit-learn = ">=1.7.2"
 suitesparse = "*"
 
 
