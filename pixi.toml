@@ -37,8 +37,8 @@ uv = "*"
 numpy = ">=1.23.5,<2"
 proj = "*"
 
-tiledb = ">=2.30.0"
-tiledb-py = ">=0.36.0"
+tiledb = "2.30.*"
+tiledb-py = "*"
 scikit-learn = ">=1.7"
 pyarrow = "==21.0.0"
 
@@ -53,8 +53,6 @@ go-cgo = "*"
 make = "*"
 requests = ">=2.32.5,<3"
 pytest = ">=9.0.2,<10"
-pre-commit = ">=4.5.1,<5"
-ruff = ">=0.15.2,<0.16"
 
 # =============================================================================
 # Platform-specific conda dependencies
