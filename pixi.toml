@@ -26,6 +26,17 @@ setup = {depends-on = ["compile-garpos","install-pride","build-go"]}
 test-setup = {depends-on = ["test-garpos","test-pride"]}
 
 # =============================================================================
+# Platform-specific tasks for Linux system dependencies
+# =============================================================================
+[target.linux-64.tasks]
+install-suitesparse = "sudo apt-get update && sudo apt-get install -y libsuitesparse-dev"
+
+[target.linux-aarch64.tasks]
+install-suitesparse = "sudo apt-get update && sudo apt-get install -y libsuitesparse-dev"
+
+preinstall-scikit-sparse = { depends-on = ["install-suitesparse"] }
+
+# =============================================================================
 # Conda dependencies (things that need to come from conda-forge)
 # =============================================================================
 [dependencies]
@@ -84,7 +95,7 @@ scikit-learn = ">=1.7.2"
 suitesparse = "*"
 
 [target.linux-aarch64.pypi-dependencies]
-scikit-sparse = ">=0.4.16, <0.5"
+scikit-sparse = { version = ">=0.4.16, <0.5", depends-on = ["preinstall-scikit-sparse"] }
 
 
 
