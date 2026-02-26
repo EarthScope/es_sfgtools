@@ -25,6 +25,7 @@ test-pride = { cmd = "chmod +x test.sh && ./test.sh", cwd = "external/PRIDE-PPPA
 setup = {depends-on = ["compile-garpos","install-pride","build-go"]}
 test-setup = {depends-on = ["test-garpos","test-pride"]}
 
+
 # =============================================================================
 # Conda dependencies (things that need to come from conda-forge)
 # =============================================================================
@@ -72,6 +73,7 @@ gcc = ">=15"
 libstdcxx-ng = ">=15"
 nodejs = ">=24"
 scikit-learn = ">=1.7.2"
+scikit-sparse = "*"
 
 [target.linux-aarch64.dependencies]
 gfortran = ">=15.0"
@@ -84,7 +86,7 @@ scikit-learn = ">=1.7.2"
 suitesparse = "*"
 
 [target.linux-aarch64.pypi-dependencies]
-scikit-sparse = ">=0.4.16, <0.5"
+scikit-sparse = { version = ">=0.4.16, <0.5" }
 
 
 
