@@ -40,3 +40,5 @@ src/es_sfgtools/_version.py
 .pixi
 external/*
 !external/README.md
+
+src/golangtools/build/*

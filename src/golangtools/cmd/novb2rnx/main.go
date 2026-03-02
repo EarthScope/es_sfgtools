@@ -93,7 +93,7 @@ func main() {
 			defer func() { <-sem }()
 			
 			for _, fileNameTime := range fileNameTimes {
-				file_epochs, err := sfg_utils.ProcessFileNOVB(fileNameTime.Filename)
+				file_epochs, fails, err := sfg_utils.ProcessFileNOVB(fileNameTime.Filename)
 
 				if err != nil {
 					slog.Error("Error processing file", "filename", fileNameTime.Filename, "error", err)
@@ -106,30 +106,30 @@ func main() {
 				if *moduloPtr > 0 {
 					file_epochs = sfg_utils.DecimateEpochs(file_epochs, *moduloPtr)
 				}
-				epoch_count += len(file_epochs)
+				num_epochs := len(file_epochs)
+				epoch_count += num_epochs
 
-				batched_epochs_sub,err := sfg_utils.BatchEpochsByDay(file_epochs)
+				batched_epochs_sub, err := sfg_utils.BatchEpochsByDay(file_epochs)
 				// delete file_epochs to save RAM
 				if err != nil {
 					slog.Error("Error batching epochs by day", "error", err)
 					return
 				}
 				file_epochs = nil
-			
+
 				for key, day_epoch_batch := range batched_epochs_sub {
 					mu.Lock()
 					// join with main batched_epochs map
 					batched_epochs[key] = append(batched_epochs[key], day_epoch_batch...)
 					delete(batched_epochs_sub, key)
 					mu.Unlock()
-				}	
-			
+				}
 
-					// get year, day of year from first epoch
+				// get year, day of year from first epoch
 				startYear, startMonth, startDay := fileNameTime.Time.Date()
 				currentDate := time.Date(startYear, startMonth, startDay, 0, 0, 0, 0, time.UTC)
 				dayOfYear := currentDate.YearDay()
-				slog.Info("Processed file", "filename", fileNameTime.Filename, "Year", startYear, "Day of Year", dayOfYear, "num_epochs", len(file_epochs))
+				slog.Info("Processed file", "filename", fileNameTime.Filename, "Year", startYear, "Day of Year", dayOfYear, "num_epochs", num_epochs, "num_fails", fails)
 			}
 			// after processing all files for the day, write out the day's epochs and clear from memory to save RAM
 		

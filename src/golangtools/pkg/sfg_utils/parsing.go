@@ -491,13 +491,14 @@ func DeserializeNOV00bin(r *bufio.Reader) (message novatelascii.Message, err err
 // 5. Appends the GNSS epoch to the result slice.
 //
 // If an error occurs while opening the file or reading messages, the function logs the error and terminates the program.
-func ProcessFileNOVASCII(filename string) []observation.Epoch {
+func ProcessFileNOVASCII(filename string) ([]observation.Epoch, int,error) {
 	file, err := os.Open(filename)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer file.Close()
 	epochs := []observation.Epoch{}
+	fail_counter := 0
 	scanner := novatelascii.NewScanner(bufio.NewReader(file))
 epochLoop:
 	for {
@@ -507,6 +508,7 @@ epochLoop:
 				err = file.Close()
 				if err != nil {
 					slog.Error("Error closing file", "error", err)
+					return epochs, fail_counter, err
 				}
 				break epochLoop
 			}
@@ -519,11 +521,13 @@ epochLoop:
 				rangea, err := novatelascii.DeserializeRANGEA(m.Data)
 				if err != nil {
 					slog.Error("Error deserializing RANGEA", "error", err)
+					fail_counter++
 				}
 				// slog.Debug("Message time", "time", m.Time())
 				epoch, err := rangea.SerializeGNSSEpoch(m.Time())
 				if err != nil {
 					slog.Error("Error serializing GNSS epoch", "error", err)
+					fail_counter++
 				}
 				epochs = append(epochs, epoch)
 			}
@@ -532,17 +536,19 @@ epochLoop:
 				rangea, err := novatelascii.DeserializeRANGEA(m.Data)
 				if err != nil {
 					slog.Error("Error deserializing RANGEA", "error", err)
+					fail_counter++
 				}
 				epoch, err := rangea.SerializeGNSSEpoch(m.Time())
 				if err != nil {
 					slog.Error("Error serializing GNSS epoch", "error", err)
+					fail_counter++
 				}
 				epochs = append(epochs, epoch)
 			}
 		}
 	}
 	epochs = RemoveDuplicateEpochs(epochs)
-	return epochs
+	return epochs, fail_counter, nil
 }
 
 // processFileNOVB processes a NOVB file and returns a slice of observation.Epoch.
@@ -557,7 +563,7 @@ epochLoop:
 //
 // Returns:
 //   - A slice of observation.Epoch containing the extracted epochs.
-func ProcessFileNOVB(file string) ([]observation.Epoch, error) {
+func ProcessFileNOVB(file string) ([]observation.Epoch,int,error) {
 	f, err := os.Open(file)
 	if err != nil {
 		log.Fatalf("failed opening file: %s", err)
@@ -566,37 +572,41 @@ func ProcessFileNOVB(file string) ([]observation.Epoch, error) {
 
 	reader := bufio.NewReader(f)
 	epochs := []observation.Epoch{}
-MessageLoop:
-	for {
-		msg, err := novatelbinary.DeserializeMessage(reader)
-		if err != nil {
-			if err == io.EOF {
-				break MessageLoop
-
-			}
-			if err == bufio.ErrBufferFull {
-				log.Warnf("buffer full: %s", err)
-				reader.Reset(f)
-			}
-			//log.Warnf("failed reading message: %s", err)
-			continue MessageLoop
-		}
-		if msg.MessageID == 140 {
-			msg140 := msg.DeserializeMessage140()
-			epoch, err := msg140.SerializeGNSSEpoch(msg.Time())
+	fail_counter := 0
+	MessageLoop:
+		for {
+			msg,err := novatelbinary.DeserializeMessage(reader)
 			if err != nil {
-				log.Errorf("failed serializing epoch: %s", err)
+				if err == io.EOF {
+					break MessageLoop
+
+				}
+				if err == bufio.ErrBufferFull{
+					log.Warnf("buffer full: %s", err)
+					reader.Reset(f)
+				}
+		
+				//log.Warnf("failed reading message: %s", err)
 				continue MessageLoop
 			}
-			if len(epoch.Satellites) == 0 {
+			if msg.MessageID == 140 {
+				msg140 := msg.DeserializeMessage140()
+				epoch, err := msg140.SerializeGNSSEpoch(msg.Time())
+				if err != nil {
+					log.Errorf("failed serializing epoch: %s", err)
+					fail_counter++
+					continue MessageLoop
+				}
+				if len(epoch.Satellites) == 0 {
+					fail_counter++
+					continue MessageLoop
+				}
+				epochs = append(epochs, epoch)
+			} else {
 				continue MessageLoop
 			}
-			epochs = append(epochs, epoch)
-		} else {
-			continue MessageLoop
 		}
-	}
-	return epochs, nil
+	return epochs, fail_counter, nil
 }
 
 // processFileNOV000 processes a NOV000 file containing GNSS and INS messages.
