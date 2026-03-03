@@ -2,73 +2,72 @@
 package main
 
 import (
-	"bufio"
 	"flag"
-	"io"
-	"os"
 	"sync"
 	"time"
 
 	sfg_utils "github.com/EarthScope/es_sfgtools/src/golangtools/pkg/sfg_utils"
 	log "github.com/sirupsen/logrus"
-	"gitlab.com/earthscope/gnsstools/pkg/common/gnss/observation"
-	novatelbinary "gitlab.com/earthscope/gnsstools/pkg/encoding/novatel/novatel_binary"
 	"gitlab.com/earthscope/gnsstools/pkg/encoding/tiledbgnss"
 )
 
-// processFileNOVB processes a NOVB file and returns a slice of observation.Epoch.
-// It reads the file, scans for messages, and extracts epochs from messages with ID 140.
-// If an error occurs while opening the file, it logs a fatal error.
-// If an error occurs while reading a message, it logs a warning and continues.
-// If an error occurs while serializing an epoch, it logs an error and continues.
-// It skips epochs with no satellites.
-//
-// Parameters:
-//   - file: The path to the NOVB file to be processed.
-//
-// Returns:
-//   - A slice of observation.Epoch containing the extracted epochs.
-func processFileNOVB(file string) ([]observation.Epoch,error) {
-	f, err := os.Open(file)
-	if err != nil {
-		log.Fatalf("failed opening file: %s", err)
-	}
-	defer f.Close()
+// // processFileNOVB processes a NOVB file and returns a slice of observation.Epoch.
+// // It reads the file, scans for messages, and extracts epochs from messages with ID 140.
+// // If an error occurs while opening the file, it logs a fatal error.
+// // If an error occurs while reading a message, it logs a warning and continues.
+// // If an error occurs while serializing an epoch, it logs an error and continues.
+// // It skips epochs with no satellites.
+// //
+// // Parameters:
+// //   - file: The path to the NOVB file to be processed.
+// //
+// // Returns:
+// //   - A slice of observation.Epoch containing the extracted epochs.
+// func processFileNOVB(file string) ([]observation.Epoch,int,error) {
+// 	f, err := os.Open(file)
+// 	if err != nil {
+// 		log.Fatalf("failed opening file: %s", err)
+// 	}
+// 	defer f.Close()
 
-	reader := bufio.NewReader(f)
-	epochs := []observation.Epoch{}
-	MessageLoop:
-		for {
-			msg,err := novatelbinary.DeserializeMessage(reader)
-			if err != nil {
-				if err == io.EOF {
-					break MessageLoop
+// 	reader := bufio.NewReader(f)
+// 	epochs := []observation.Epoch{}
+// 	fail_counter := 0
+// 	MessageLoop:
+// 		for {
+// 			msg,err := novatelbinary.DeserializeMessage(reader)
+// 			if err != nil {
+// 				if err == io.EOF {
+// 					break MessageLoop
 
-				}
-				if err == bufio.ErrBufferFull{
-					log.Warnf("buffer full: %s", err)
-					reader.Reset(f)
-				}
-				//log.Warnf("failed reading message: %s", err)
-				continue MessageLoop
-			}
-			if msg.MessageID == 140 {
-				msg140 := msg.DeserializeMessage140()
-				epoch, err := msg140.SerializeGNSSEpoch(msg.Time())
-				if err != nil {
-					log.Errorf("failed serializing epoch: %s", err)
-					continue MessageLoop
-				}
-				if len(epoch.Satellites) == 0 {
-					continue MessageLoop
-				}
-				epochs = append(epochs, epoch)
-			} else {
-				continue MessageLoop
-			}
-		}
-	return epochs,nil
-}
+// 				}
+// 				if err == bufio.ErrBufferFull{
+// 					log.Warnf("buffer full: %s", err)
+// 					reader.Reset(f)
+// 				}
+
+// 				//log.Warnf("failed reading message: %s", err)
+// 				continue MessageLoop
+// 			}
+// 			if msg.MessageID == 140 {
+// 				msg140 := msg.DeserializeMessage140()
+// 				epoch, err := msg140.SerializeGNSSEpoch(msg.Time())
+// 				if err != nil {
+// 					log.Errorf("failed serializing epoch: %s", err)
+// 					fail_counter++
+// 					continue MessageLoop
+// 				}
+// 				if len(epoch.Satellites) == 0 {
+// 					fail_counter++
+// 					continue MessageLoop
+// 				}
+// 				epochs = append(epochs, epoch)
+// 			} else {
+// 				continue MessageLoop
+// 			}
+// 		}
+// 	return epochs, fail_counter, nil
+// }
 
 
 func main() {
@@ -100,7 +99,7 @@ func main() {
 				defer wg.Done()
 				sem <- struct{}{}
 				defer func() { <-sem }()
-			epochs,err := processFileNOVB(filename)
+			epochs, failCounter, err := sfg_utils.ProcessFileNOVB(filename)
 			if err != nil {
 				log.Errorf("error processing file: %v",err)
 				return
@@ -109,7 +108,13 @@ func main() {
 				log.Warnf("no epochs found in file %s", filename)
 				return
 			}
+			if failCounter > 0 {
+				log.Warnf("failed to process %d epochs in file %s", failCounter, filename)
+			}	
+		
 			log.Infof("processed %d epochs from file %s", len(epochs), filename)
+			log.Infof("Total Attempts: %d, Successes: %d, Failures: %d", len(epochs)+failCounter, len(epochs), failCounter)
+			
 			err = tiledbgnss.WriteObsV3Array( *tdbPathPtr,"us-east-2",epochs)
 			if err != nil {
 				log.Errorf("error writing epochs to array: %v",err)

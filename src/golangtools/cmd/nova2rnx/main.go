@@ -62,9 +62,12 @@ func main() {
 	epochs := []observation.Epoch{}
 	for _, novatel_filename := range filenames {
 
-		file_epochs := sfg_utils.ProcessFileNOVASCII(novatel_filename)
+		file_epochs, fails, err := sfg_utils.ProcessFileNOVASCII(novatel_filename)
+		if err != nil {
+			slog.Error("Error processing file", "filename", novatel_filename, "error", err)
+		}
 		epochs = append(epochs, file_epochs...)
-		slog.Info("Processed file", "filename", novatel_filename, "num_epochs", len(file_epochs))
+		slog.Info("Processed file", "filename", novatel_filename, "num_epochs", len(file_epochs), "num_fails", fails)
 	}
 
 	slog.Info("Total epochs processed", "count", len(epochs))

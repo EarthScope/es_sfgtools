@@ -40,14 +40,20 @@ func main() {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			epochs := sfg_utils.ProcessFileNOVASCII(filename)
+			epochs,failCounter, err := sfg_utils.ProcessFileNOVASCII(filename)
+			if err != nil {
+				log.Errorf("error processing file %s: %v", filename, err)
+				return
+			}
 			if len(epochs) == 0 {
 				log.Warnf("no epochs found in file %s", filename)
 				return
 			}
 			log.Infof("processed %d epochs from file %s", len(epochs), filename)
+			log.Infof("Total Attempts: %d, Successes: %d, Failures: %d", len(epochs)+failCounter, len(epochs), failCounter)
+			
 			// filter for duplicates before writing to TileDB
-			err := tiledbgnss.WriteObsV3Array( *tdbPathPtr,"us-east-2",epochs)
+			err = tiledbgnss.WriteObsV3Array( *tdbPathPtr,"us-east-2",epochs)
 			if err != nil {
 				log.Errorf("error writing epochs to array: %v",err)
 			}
