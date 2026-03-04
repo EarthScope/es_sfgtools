@@ -22,6 +22,8 @@ from .config import (
     PROCESSED_DATA_DIR,
     QC_DIR,
     RAW_DATA_DIR,
+    RINEX_1HZ_DIR,
+    RINEX_10HZ_DIR,
     SHOTDATA_PRE_TDB,
     SHOTDATA_TDB,
     SVP_FILE_NAME,
@@ -648,6 +650,8 @@ class CampaignDir(_Base):
         test_intermediate_dir = test_dir.location / INTERMEDIATE_DATA_DIR
         test_logs_dir = test_dir.location / LOGS_DIR
         test_qc_dir = test_dir.location / QC_DIR
+        test_rinex_1Hz_dir = test_dir.location / RINEX_1HZ_DIR
+        test_rinex_10Hz_dir = test_dir.location / RINEX_10HZ_DIR
 
         return any(
             dir.exists()
@@ -657,6 +661,8 @@ class CampaignDir(_Base):
                 test_intermediate_dir,
                 test_logs_dir,
                 test_qc_dir,
+                test_rinex_1Hz_dir,
+                test_rinex_10Hz_dir,
             ]
         )
 

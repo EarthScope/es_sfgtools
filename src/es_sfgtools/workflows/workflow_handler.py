@@ -7,7 +7,7 @@ from typing import (
 )
 
 
-from es_sfgtools.config.file_config import DEFAULT_FILE_TYPES_TO_DOWNLOAD
+from es_sfgtools.config.file_config import DEFAULT_FILE_TYPES_TO_DOWNLOAD, DEFAULT_INTERMEDIATE_FILE_TYPES_TO_DOWNLOAD
 from es_sfgtools.modeling.garpos_tools.schemas import InversionParams
 from es_sfgtools.workflows.pipelines.qc_pipeline import QCPipeline
 
@@ -161,6 +161,7 @@ class WorkflowHandler(WorkflowABC):
         file_types: Optional[
             List[AssetType] | List[str]
         ] = DEFAULT_FILE_TYPES_TO_DOWNLOAD,
+        rinex_1Hz: bool = False
     ) -> None:
         """
         Downloads data files from the Earthscope archive based on the current catalog entries.
@@ -169,7 +170,18 @@ class WorkflowHandler(WorkflowABC):
         -----
         This method requires that the catalog has been populated with remote file paths using `ingest_catalog_archive_data`.
         """
-        self.data_handler.download_data(file_types=file_types)
+        self.data_handler.download_data(file_types=file_types, rinex_1Hz=rinex_1Hz)
+
+    @validate_network_station_campaign
+    def ingest_download_intermediate_archive_data(self, file_types:Optional[List[AssetType] | List[str]]=DEFAULT_INTERMEDIATE_FILE_TYPES_TO_DOWNLOAD, rinex_1Hz: bool = False) -> None:
+        """
+        Downloads intermediate data files from the Earthscope archive based on the current catalog entries. 
+
+        Notes
+        -----
+        This method requires that the catalog has been populated with remote file paths using `ingest_catalog_archive_data`.
+        """
+        self.ingest_download_archive_data(file_types=file_types, rinex_1Hz=rinex_1Hz)
 
     @validate_network_station_campaign
     def preprocess_get_pipeline_sv3(
