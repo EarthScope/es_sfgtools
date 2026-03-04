@@ -4,7 +4,7 @@ import re
 ARCHIVE_PREFIX = "https://data.earthscope.org/archive/seafloor"
 
 pattern_map = {
-    re.compile(r"\.\d{2}O$"): AssetType.RINEX2,
+    re.compile(r"\.\d{2}o$", re.IGNORECASE): AssetType.RINEX2,
     re.compile("sonardyne"): AssetType.SONARDYNE,
     re.compile(r"^(?=.*novatel)(?!.*pin).*$", re.IGNORECASE): AssetType.NOVATELPIN,
     re.compile("novatel"): AssetType.NOVATEL,
