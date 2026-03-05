@@ -80,7 +80,6 @@ class INTERMEDIATE_DOWNLOAD_TYPES(Enum):
 DEFAULT_INTERMEDIATE_FILE_TYPES_TO_DOWNLOAD = [x for x in INTERMEDIATE_DOWNLOAD_TYPES]
 
 
-
 # class DATA_TYPE(Enum):
 #     """Enumeration for processed data types stored in TileDB arrays."""
 

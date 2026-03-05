@@ -427,6 +427,7 @@ class DataHandler(WorkflowABC):
             List[AssetType], List[str], str
         ] = DEFAULT_FILE_TYPES_TO_DOWNLOAD,
         override: bool = False,
+        rinex_1Hz: bool = False,
     ):
         """
         Downloads files of specified types from remote storage.
@@ -437,6 +438,8 @@ class DataHandler(WorkflowABC):
             The types of files to download.
         override : bool, default False
             If True, redownloads files even if they exist locally.
+        rinex_1Hz : bool, default False
+            If True, downloads 1Hz RINEX files instead of higher rate rinex files
 
         Raises
         ------
@@ -466,6 +469,7 @@ class DataHandler(WorkflowABC):
 
         # Pull files from the catalog by type
         for type in file_types:
+            print(f"Processing download for file type: {type.value}")
             assets = self.asset_catalog.get_assets(
                 network=self.current_network_name,
                 station=self.current_station_name,
@@ -476,6 +480,8 @@ class DataHandler(WorkflowABC):
             if len(assets) == 0:
                 logger.logerr(f"No matching data of type {type.value} found in catalog")
                 continue
+            else:
+                logger.loginfo(f"Found {len(assets)} files of type {type.value} in the catalog")
 
             # Find files that we need to download based on the catalog output. If override is True, download all files.
             if override:
@@ -493,8 +499,29 @@ class DataHandler(WorkflowABC):
                         if not file_asset.local_path.exists():
                             assets_to_download.append(file_asset)
 
+            # Distinguish between 1Hz and higher rate RINEX files if the file type is RINEX 
+            if type.value == AssetType.RINEX2.value and rinex_1Hz:
+                logger.loginfo("Filtering for 1Hz RINEX files based on file name, set rinex_1Hz to False to download higher rate RINEX files instead")
+                # If the file type is RINEX and rinex_1Hz is True, filter for 1Hz RINEX files
+                assets_to_download = [
+                    asset for asset in assets_to_download
+                    if "1hz" in asset.remote_path.lower()
+                ]
+            elif type.value == AssetType.RINEX2.value and not rinex_1Hz:
+                logger.loginfo("Filtering for higher rate RINEX files based on file name, set rinex_1Hz to True to download 1Hz RINEX files instead")
+                # If the file type is RINEX and rinex_1Hz is False, filter for non-1Hz RINEX files
+                assets_to_download = [
+                    asset for asset in assets_to_download
+                    if "1hz" not in asset.remote_path.lower()
+                ]
+            else:
+                # If the file type is not RINEX, do not filter
+                pass
+
             if len(assets_to_download) == 0:
                 logger.loginfo(f"No new {type.value} files to download")
+            else:
+                logger.loginfo(f"{len(assets_to_download)} {type.value} files to download")
 
             # split the entries into s3 and http
             s3_assets = [
@@ -878,5 +905,5 @@ class DataHandler(WorkflowABC):
         # =================================================================
 
         # Save the updated local directory catalog to disk
-        # This ensures the local catalog reflects all downloaded files
+        # This ensures the local catalog reflects all downloaded filest()
         self.directory_handler.save()
