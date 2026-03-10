@@ -560,8 +560,16 @@ class DataHandler(WorkflowABC):
         s3_entries_processed = []
         for file in s3_assets:
             _path = Path(file.remote_path)
+
+            if file.type.value == AssetType.RINEX2.value:
+                local_dir = self.current_campaign_dir.intermediate
+            else:
+                local_dir = self.current_campaign_dir.raw
+
             s3_entries_processed.append(
-                {"bucket": (bucket := _path.root), "prefix": _path.relative_to(bucket)}
+                {"bucket": (bucket := _path.root), 
+                 "prefix": _path.relative_to(bucket), 
+                 "local_dir": local_dir}
             )
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
@@ -578,7 +586,7 @@ class DataHandler(WorkflowABC):
                     )
 
     def _S3_download_file(
-        self, client: boto3.client, bucket: str, prefix: str
+        self, client: boto3.client, bucket: str, prefix: str, local_dir: Path
     ) -> Optional[Path]:
         """
         Downloads a single file from an S3 bucket.
@@ -598,7 +606,7 @@ class DataHandler(WorkflowABC):
             The local path of the downloaded file, or None if the download fails.
         """
 
-        local_path = self.current_campaign_dir.raw / Path(prefix).name
+        local_path = local_dir / Path(prefix).name
 
         try:
             logger.logdebug(f"Downloading {prefix} to {local_path}")
@@ -633,8 +641,14 @@ class DataHandler(WorkflowABC):
         for file_asset in tqdm(
             http_assets, desc=f"Downloading {file_type.value} files"
         ):
+            if file_asset.type.value == AssetType.RINEX2.value:
+                # If the file type is RINEX, download to the intermediate directory for processing, otherwise download to the raw directory
+                local_dir = self.current_campaign_dir.intermediate
+            else:
+                local_dir = self.current_campaign_dir.raw 
             if (
-                local_path := self._HTTP_download_file(file_asset.remote_path)
+                local_path := self._HTTP_download_file(remote_url=file_asset.remote_path, 
+                                                       local_dir=local_dir)
             ) is not None:
                 # Update the local path in the AssetEntry
                 file_asset.local_path = str(local_path)
@@ -643,7 +657,7 @@ class DataHandler(WorkflowABC):
                     id=file_asset.id, local_path=file_asset.local_path
                 )
 
-    def _HTTP_download_file(self, remote_url: Path) -> Path:
+    def _HTTP_download_file(self, remote_url: Path, local_dir: Path) -> Path:
         """
         Downloads a single file from an HTTP URL.
 
@@ -658,8 +672,9 @@ class DataHandler(WorkflowABC):
             The local path of the downloaded file, or None if the download fails.
         """
         try:
-            local_path = self.current_campaign_dir.raw / Path(remote_url).name
-            download_file_from_archive(url=remote_url, dest_dir=local_path.parent)
+            local_path = local_dir / Path(remote_url).name
+            download_file_from_archive(url=remote_url, 
+                                       dest_dir=local_path.parent)
 
             if not local_path.exists():
                 raise Exception
