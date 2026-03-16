@@ -680,7 +680,7 @@ class SV3Pipeline(WorkflowABC):
             )
 
     @validate_network_station_campaign
-    def process_rinex(self) -> None:
+    def process_rinex(self, local_only: bool = False) -> None:
         """Run PRIDE-PPP on RINEX files to generate KIN and residual files.
 
         Processing steps:
@@ -709,6 +709,7 @@ class SV3Pipeline(WorkflowABC):
                 parent_type=AssetType.RINEX2,
                 child_type=AssetType.KIN,
                 override=self.config.pride_config.override,
+                local_only=local_only,
             )
         )
         if not rinex_entries:
@@ -1109,4 +1110,50 @@ class SV3Pipeline(WorkflowABC):
 
         ProcessLogger.loginfo(
             f"Completed SV3 Processing Pipeline for {self.current_network_name} {self.current_station_name} {self.current_campaign_name}"
+        )
+
+    @validate_network_station_campaign
+    def run_intermediate_pipeline(self) -> None:
+        """Run only the intermediate steps of the SV3 pipeline. This assumes rinex is already downloaded
+
+        Intermediate steps include:
+        1. process_rinex(): Run PRIDE-PPP on RINEX
+        2. process_kin(): Convert KIN files to dataframes
+        3. process_dfop00(): Process acoustic data to preliminary shotdata
+        4. update_shotdata(): Refine shotdata with interpolated kinematic
+           positions
+        5. process_svp(): Generate sound velocity profile
+
+        This allows for faster iteration on acoustic processing and position
+        refinement without re-running the full GNSS processing steps.
+        """
+
+        ProcessLogger.loginfo(
+            f"Starting SV3 Intermediate Pipeline for {self.current_network_name} {self.current_station_name} {self.current_campaign_name}"
+        )
+
+        try:
+            self.process_rinex(local_only=True)
+        except NoRinexFound as e:
+            pass
+
+        try:
+            self.process_kin()
+        except NoKinFound as e:
+            pass
+
+        try:
+            self.process_dfop00()
+        except NoDFOP00Found as e:
+            pass
+
+        self.update_shotdata()
+
+        try:
+            self.process_svp()
+        except NoSVPFound as e:
+            pass
+
+        ProcessLogger.loginfo(
+            f"Completed SV3 Intermediate Pipeline for {self.current_network_name} {self.current_station_name} {self.current_campaign_name}"
         )

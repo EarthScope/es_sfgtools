@@ -276,6 +276,7 @@ class PreProcessCatalogHandler:
         parent_type: AssetType,
         child_type: AssetType = None,
         override: bool = False,
+        local_only: bool = False,
     ) -> List[AssetEntry]:
         """Get single entries to process.
 
@@ -293,6 +294,8 @@ class PreProcessCatalogHandler:
             The child asset type, by default None.
         override : bool, optional
             Whether to override existing entries, by default False.
+        local_only : bool, optional
+            Whether to consider only local entries, by default False.
 
         Returns
         -------
@@ -308,12 +311,22 @@ class PreProcessCatalogHandler:
 
         child_entries = self.get_assets(network, station, campaign, child_type)
         parent_id_map = {entry.id: entry for entry in parent_entries}
+
+        # If override is False, remove parent entries that have a corresponding child entry
         if not override:
             [
                 parent_id_map.pop(child_entry.parent_id)
                 for child_entry in child_entries
                 if child_entry.parent_id in parent_id_map
             ]
+
+        # If local_only is True, filter out entries that do not have a local path
+        if local_only:
+            parent_id_map = {
+                id: entry
+                for id, entry in parent_id_map.items()
+                if entry.local_path is not None
+            }
 
         return list(parent_id_map.values())
 
