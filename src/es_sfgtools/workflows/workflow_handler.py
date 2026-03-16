@@ -46,6 +46,7 @@ from es_sfgtools.config.env_config import Environment, WorkingEnvironment
 
 pipeline_jobs = [
     "all",
+    "intermediate",
     "process_novatel",
     "build_rinex",
     "run_pride",
@@ -209,6 +210,7 @@ class WorkflowHandler(WorkflowABC):
             ]
         ] = None,
     ) -> SV3Pipeline:
+        
         """Creates and configures an SV3 processing pipeline.
 
         Parameters
@@ -290,6 +292,7 @@ class WorkflowHandler(WorkflowABC):
         self,
         job: Literal[
             "all",
+            "intermediate"
             "process_novatel",
             "build_rinex",
             "run_pride",
@@ -328,7 +331,7 @@ class WorkflowHandler(WorkflowABC):
 
         Parameters
         ----------
-        job : Literal["all", "process_novatel", "build_rinex", "run_pride", "process_kinematic", "process_dfop00", "refine_shotdata", "process_svp"], optional
+        job : Literal["all", "intermediate" "process_novatel", "build_rinex", "run_pride", "process_kinematic", "process_dfop00", "refine_shotdata", "process_svp"], optional
             The specific job to run within the pipeline, by default "all".
         primary_config : Optional[Union[SV3PipelineConfig, dict]], optional
             Primary configuration to override defaults.
@@ -361,11 +364,15 @@ class WorkflowHandler(WorkflowABC):
         assert job in pipeline_jobs, f"Job must be one of {pipeline_jobs}"
 
         pipeline: SV3Pipeline = self.preprocess_get_pipeline_sv3(
-            primary_config=primary_config, secondary_config=secondary_config
+            primary_config=primary_config,
+            secondary_config=secondary_config
         )
         match job:
             case "all":
                 pipeline.run_pipeline()
+
+            case "intermediate":
+                pipeline.run_intermediate_pipeline()
 
             case "process_novatel":
                 assert isinstance(

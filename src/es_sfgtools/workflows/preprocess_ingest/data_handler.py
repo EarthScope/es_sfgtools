@@ -654,7 +654,8 @@ class DataHandler(WorkflowABC):
                 file_asset.local_path = str(local_path)
                 # Update catalog with local path
                 self.asset_catalog.update_local_path(
-                    id=file_asset.id, local_path=file_asset.local_path
+                    id=file_asset.id, 
+                    local_path=file_asset.local_path
                 )
 
     def _HTTP_download_file(self, remote_url: Path, local_dir: Path) -> Path:
