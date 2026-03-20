@@ -164,7 +164,7 @@ class MetadataModel(BaseModel):
     run_by: Optional[str] = Field(default="", description="Run by")
     date: Optional[str] = Field(
         default_factory=lambda: (
-            datetime.datetime.now().astimezone(datetime.timezone.utc).isoformat()
+            datetime.datetime.now(tz=datetime.timezone.utc).isoformat()
         ),
         description="Date",
     )

@@ -25,7 +25,7 @@ def to_timestamp(time: np.datetime64 | datetime.datetime) -> float:
         The UNIX timestamp.
     """
     if isinstance(time, int):
-        time = datetime.datetime.fromtimestamp(time / 1e9)
+        time = datetime.datetime.fromtimestamp(time / 1e9, tz=datetime.timezone.utc)
     if isinstance(time, datetime.datetime) or isinstance(time, datetime.date):
         time = np.datetime64(time)
     unix_epoch = np.datetime64("1970-01-01T00:00:00Z")
