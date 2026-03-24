@@ -38,7 +38,7 @@ def main():
     }
     global_config = {
         "dfop00_config": {"override": True},
-        "novatel_config": {"n_processes": 14, "override": False},
+        "novatel_config": {"n_processes": 5, "override": False},
         "position_update_config": {"override": True, "lengthscale": 0.1, "plot": False},
         "pride_config": {
             "cutoff_elevation": 7,
@@ -55,7 +55,7 @@ def main():
             "override_products_download": False,
             "override": False,
         },
-        "rinex_config": {"n_processes": 14, "time_interval": 24, "override": False},
+        "rinex_config": {"n_processes": 5, "time_interval": 24, "override": False},
     }
 
     ncc1_config = {

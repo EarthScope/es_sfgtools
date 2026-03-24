@@ -16,7 +16,7 @@ from es_sfgtools.workflows.workflow_handler import WorkflowHandler
 
 global_config = {
     "dfop00_config": {"override": False},
-    "novatel_config": {"n_processes": 14, "override": False},
+    "novatel_config": {"n_processes": 5, "override": False},
     "position_update_config": {"override": False, "lengthscale": 0.1, "plot": False},
     "pride_config": {
         "cutoff_elevation": 7,
@@ -34,7 +34,7 @@ global_config = {
         "override": True,
     },
     "rinex_config": {
-        "n_processes": 3, 
+        "n_processes": 5, 
         "time_interval": 24, 
         "override": False},
 }

@@ -111,7 +111,7 @@ The preprocessing example (``examples/preprocessing/preprocessing.py``) shows th
        # Configure processing parameters
        global_config = {
            "novatel_config": {
-               "n_processes": 14,
+               "n_processes": 5,
                "override": False
            },
            "pride_config": {
@@ -207,7 +207,7 @@ Customize processing with configuration dictionaries:
            "system": "GREC23J"
        },
        "novatel_config": {
-           "n_processes": 8,
+           "n_processes": 5,
            "override": False
        }
    }
