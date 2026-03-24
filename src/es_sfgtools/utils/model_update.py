@@ -168,7 +168,7 @@ if __name__ == "__main__":
         "dfop00_config": {
             "override": False,
         },
-        "novatel_config": {"n_processes": 14, "override": False},
+        "novatel_config": {"n_processes": 5, "override": False},
         "position_update_config": {
             "override": False,
             "lengthscale": 0.1,

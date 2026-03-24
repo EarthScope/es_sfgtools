@@ -121,7 +121,7 @@
       "override": false
     },
     "novatel_config": {
-      "n_processes": 14,
+      "n_processes": 5,
       "override": false
     },
     "position_update_config": {
