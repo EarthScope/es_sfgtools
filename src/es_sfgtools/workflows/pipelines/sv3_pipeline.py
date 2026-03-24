@@ -124,7 +124,7 @@ def rinex_to_kin_wrapper(
             timestamp_data_start=rinex_entry.timestamp_data_start,
             timestamp_data_end=rinex_entry.timestamp_data_end,
             type=AssetType.KIN,
-            timestamp_created=datetime.datetime.now(),
+            timestamp_created=datetime.datetime.now(tz=datetime.timezone.utc),
             parent_id=rinex_entry.id,
         )
         if resfile is None:
@@ -138,7 +138,7 @@ def rinex_to_kin_wrapper(
             timestamp_data_start=rinex_entry.timestamp_data_start,
             timestamp_data_end=rinex_entry.timestamp_data_end,
             type=AssetType.KINRESIDUALS,
-            timestamp_created=datetime.datetime.now(),
+            timestamp_created=datetime.datetime.now(tz=datetime.timezone.utc),
             parent_id=rinex_entry.id,
         )
     except Exception as e:
@@ -641,7 +641,7 @@ class SV3Pipeline(WorkflowABC):
                         timestamp_data_start=rinex_time_start,
                         timestamp_data_end=rinex_time_end,
                         type=AssetType.RINEX2,
-                        timestamp_created=datetime.datetime.now(),
+                        timestamp_created=datetime.datetime.now(tz=datetime.timezone.utc),
                     )
                     rinex_entries.append(rinex_entry)
                     if self.asset_catalog.add_or_update(rinex_entry):
