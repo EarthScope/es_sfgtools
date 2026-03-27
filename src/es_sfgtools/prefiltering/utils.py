@@ -107,8 +107,8 @@ def filter_shotdata(
         new_shot_data_df = filter_pride_residuals(
             df=new_shot_data_df,
             kinPostionTDBUri=kinPostionTDBUri,
-            start_time=start_time.astimezone(timezone.utc),
-            end_time=end_time.astimezone(timezone.utc),
+            start_time=start_time.replace(tzinfo=timezone.utc),
+            end_time=end_time.replace(tzinfo=timezone.utc),
             max_wrms=filter_config.pride_residuals.max_residual_mm,
         )
 

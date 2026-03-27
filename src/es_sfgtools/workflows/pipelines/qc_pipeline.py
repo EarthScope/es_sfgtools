@@ -440,7 +440,7 @@ class QCPipeline(WorkflowABC):
                         timestamp_data_start=rinex_time_start,
                         timestamp_data_end=rinex_time_end,
                         type=AssetType.RINEX2,
-                        timestamp_created=datetime.datetime.now(),
+                        timestamp_created=datetime.datetime.now(tz=datetime.timezone.utc),
                     )
                     rinex_entries.append(rinex_entry)
                     if self.asset_catalog.add_entry(rinex_entry):

@@ -1,6 +1,6 @@
 # External imports
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -147,7 +147,7 @@ def merge_interrogation_reply(
     # validate that tt > 0 (we actually got a range value in the reply)
     range = float(reply.tt) + float(reply.tat) + TRIGGER_DELAY_SV3
     assert abs(range) > 1e-3, (
-        f"Transponder {reply.transponderID} has range={abs(round(range, 1))} for ping at {interrogation.pingTime} {datetime.fromtimestamp(float(interrogation.pingTime))}"
+        f"Transponder {reply.transponderID} has range={abs(round(range, 1))} for ping at {interrogation.pingTime} {datetime.fromtimestamp(float(interrogation.pingTime), tz=timezone.utc)}"
     )
     time_difference = abs(float(reply.returnTime) - float(interrogation.pingTime))
     assert time_difference <= 15, (
