@@ -1,18 +1,7 @@
 import os
 from pathlib import Path
 
-# os.environ["GARPOS_PATH"] = str(Path.home() / "path" / "to" / "your" / "garpos")
-
-# os.environ["DYLD_LIBRARY_PATH"] = (
-#     os.environ.get("CONDA_PREFIX", "")
-#     + "/lib:"
-#     + os.environ.get("DYLD_LIBRARY_PATH", "")
-# )
-# PRIDE_DIR = Path.home() / ".PRIDE_PPPAR_BIN"
-# os.environ["PATH"] += os.pathsep + str(PRIDE_DIR)
-
 from es_sfgtools.workflows.workflow_handler import WorkflowHandler
-
 
 global_config = {
     "dfop00_config": {"override": False},
