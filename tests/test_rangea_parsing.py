@@ -20,7 +20,7 @@ fake_rinex_settings = {
     "receiver_model": "NOV",
     "receiver_serial": "XXXXXXXXXX",
     "receiver_firmware": "0.0.0",
-    "antenna_model": "TRM59800.00 SCIT",
+    "antenna_model": "NOV850 NONE",
     "antenna_serial": "987654321",
     "antenna_position": [0, 0, 0],
     "antenna_offsetHEN": [0, 0, 0],
