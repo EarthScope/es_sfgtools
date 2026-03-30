@@ -8,6 +8,10 @@ network='cascadia-gorda'
 site='NCC1'
 campaign='2025_A_1126'
 
+# Set data directory path for local environment
+data_dir = Path(f"{os.path.expanduser('~/data/sfg')}")
+raw_data_dir = data_dir / network / site / campaign / "raw"
+
 global_config = {
     "dfop00_config": {"override": False},
     "novatel_config": {"n_processes": 5, "override": False},
@@ -40,9 +44,6 @@ ncc1_config = {
 }
 
 
-# Set data directory path for local environment
-data_dir = Path(f"{os.path.expanduser('~/data/sfg_march15')}")
-raw_data_dir = data_dir / network / site / campaign / "raw"
 
 def main():
     #### USE THE FOLLOWING DEFAULTS UNLESS DESIRED ####
