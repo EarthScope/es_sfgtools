@@ -91,7 +91,7 @@ func main() {
 			defer func() { <-sem }()
 			
 			for _, fileNameTime := range fileNameTimes {
-				file_epochs, _ := sfg_utils.ProcessFileNOV000(fileNameTime.Filename)
+				file_epochs, _, fails := sfg_utils.ProcessFileNOV000(fileNameTime.Filename)
 
 				
 				if len(file_epochs) == 0 {
@@ -124,7 +124,7 @@ func main() {
 				startYear, startMonth, startDay := fileNameTime.Time.Date()
 				currentDate := time.Date(startYear, startMonth, startDay, 0, 0, 0, 0, time.UTC)
 				dayOfYear := currentDate.YearDay()
-				slog.Info("Processed file", "filename", fileNameTime.Filename, "Year", startYear, "Day of Year", dayOfYear, "num_epochs", len(file_epochs))
+				slog.Info("Processed file", "filename", fileNameTime.Filename, "Year", startYear, "Day of Year", dayOfYear, "num_epochs", len(file_epochs), "num_fails", fails)
 			}
 			// after processing all files for the day, write out the day's epochs and clear from memory to save RAM
 		

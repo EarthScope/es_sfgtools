@@ -60,7 +60,7 @@ func main() {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			epochs,insCompleteRecords := sfg_utils.ProcessFileNOV000(filename)
+			epochs, insCompleteRecords, fails := sfg_utils.ProcessFileNOV000(filename)
 			if len(epochs) == 0 {
 				log.Warnf("no GNSS epochs found in file %s", filename)
 				return
@@ -69,7 +69,11 @@ func main() {
 				log.Warnf("no INS records found in file %s", filename)
 				return
 			}
+			if fails > 0 {
+				log.Warnf("failed to process %d records in file %s", fails, filename)
+			}
 			log.Infof("Writing %d GNS epochs from file %s to TileDB array %s", len(epochs), filename, *tdbPathPtr)
+			log.Infof("Total Attempts: %d, Successes: %d, Failures: %d", len(epochs)+fails, len(epochs), fails)
 			err := tiledbgnss.WriteObsV3Array(*tdbPathPtr, "us-east-2", epochs)
 			if err != nil {
 				log.Errorf("error writing epochs to array: %v",err)
