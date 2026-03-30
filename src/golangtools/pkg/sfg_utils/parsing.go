@@ -504,6 +504,7 @@ epochLoop:
 	for {
 		msg, err := scanner.NextMessage()
 		if err != nil {
+			fail_counter++
 			if err == io.EOF {
 				err = file.Close()
 				if err != nil {
@@ -513,6 +514,7 @@ epochLoop:
 				break epochLoop
 			}
 			slog.Debug("Error reading message", "error", err)
+
 		}
 		// log.Debugf("%+v", msg)
 		switch m := msg.(type) {
@@ -577,6 +579,7 @@ func ProcessFileNOVB(file string) ([]observation.Epoch,int,error) {
 		for {
 			msg,err := novatelbinary.DeserializeMessage(reader)
 			if err != nil {
+				fail_counter++
 				if err == io.EOF {
 					break MessageLoop
 
@@ -621,10 +624,11 @@ func ProcessFileNOVB(file string) ([]observation.Epoch,int,error) {
 // Returns:
 //   - []observation.Epoch: A slice of GNSS epoch records parsed from the file.
 //   - []INSCompleteRecord: A slice of merged INS complete records.
+//   - int: The number of failed parsing attempts.
 //
 // The function logs errors encountered during file reading and message deserialization,
 // and logs the number of INSPVAA and INSSTDEVA records found.
-func ProcessFileNOV000(file string) ([]observation.Epoch, []INSCompleteRecord) {
+func ProcessFileNOV000(file string) ([]observation.Epoch, []INSCompleteRecord, int) {
 
 	f, err := os.Open(file)
 	if err != nil {
@@ -635,19 +639,21 @@ func ProcessFileNOV000(file string) ([]observation.Epoch, []INSCompleteRecord) {
 	epochs := []observation.Epoch{}
 	insEpochs := []InspvaaRecord{}
 	insStdDevEpochs := []INSSTDEVARecord{}
+	fail_counter := 0
 
 epochLoop:
 	for {
 		message, err := reader.nextMessageNOV00bin()
 		if err != nil {
+			fail_counter++
 			if err == io.EOF {
 				err = f.Close()
 				if err != nil {
-					log.Error(err)
+					slog.Error("Error closing file", "error", err)
 				}
 				break epochLoop
 			}
-			log.Print(err)
+			slog.Debug("Error reading message", "error", err)
 		}
 
 		switch m := message.(type) {
@@ -659,10 +665,14 @@ epochLoop:
 			if m.Msg == "RANGEA" {
 				rangea, err := novatelascii.DeserializeRANGEA(m.Data)
 				if err != nil {
+					slog.Error("Error deserializing RANGEA", "error", err)
+					fail_counter++
 					continue epochLoop
 				}
 				epoch, err := rangea.SerializeGNSSEpoch(m.Time())
 				if err != nil {
+					slog.Error("Error serializing GNSS epoch", "error", err)
+					fail_counter++
 					continue epochLoop
 				}
 				epochs = append(epochs, epoch)
@@ -670,7 +680,8 @@ epochLoop:
 			} else if m.Msg == "INSPVAA" {
 				record, err := DeserializeINSPVAARecord(m.Data, m.Time())
 				if err != nil {
-					log.Errorf("error deserializing INSPVAA record: %s", err)
+					slog.Error("Error deserializing INSPVAA record", "error", err)
+					fail_counter++
 					continue epochLoop
 				}
 				insEpochs = append(insEpochs, record)
@@ -679,19 +690,20 @@ epochLoop:
 			} else if m.Msg == "INSSTDEVA" {
 				record, err := DeserializeINSSTDEVARecord(m.Data, m.Time())
 				if err != nil {
-					log.Errorf("error deserializing INSSTDEVA record: %s", err)
+					slog.Error("Error deserializing INSSTDEVA record", "error", err)
+					fail_counter++
 					continue epochLoop
 				}
 				insStdDevEpochs = append(insStdDevEpochs, record)
 			}
 		}
 	}
-	log.Infof("Found %d INSPVAA records, %d INSSTDEVA records", len(insEpochs), len(insStdDevEpochs))
+	slog.Info("Found records", "INSPVAA", len(insEpochs), "INSSTDEVA", len(insStdDevEpochs), "num_fails", fail_counter)
 	// Merge INSPVAA and INSSTDEVA records
 	insCompleteRecords := MergeINSPVAAAndINSSTDEVA(insEpochs, insStdDevEpochs)
 	GetTimeDiffGNSS(epochs)
 	GetTimeDiffsINSPVA(insCompleteRecords)
-	return epochs, insCompleteRecords
+	return epochs, insCompleteRecords, fail_counter
 }
 
 func GetFirstEpochTimeNOV000(file string) (time.Time, error) {
