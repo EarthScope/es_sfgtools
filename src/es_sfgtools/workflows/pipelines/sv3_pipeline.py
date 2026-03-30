@@ -680,7 +680,7 @@ class SV3Pipeline(WorkflowABC):
             )
 
     @validate_network_station_campaign
-    def process_rinex(self, local_only: bool = False) -> None:
+    def process_rinex(self) -> None:
         """Run PRIDE-PPP on RINEX files to generate KIN and residual files.
 
         Processing steps:
@@ -709,7 +709,6 @@ class SV3Pipeline(WorkflowABC):
                 parent_type=AssetType.RINEX2,
                 child_type=AssetType.KIN,
                 override=self.config.pride_config.override,
-                local_only=local_only,
             )
         )
         if not rinex_entries:
@@ -1133,7 +1132,7 @@ class SV3Pipeline(WorkflowABC):
         )
 
         try:
-            self.process_rinex(local_only=True)
+            self.process_rinex()
         except NoRinexFound as e:
             pass
 
