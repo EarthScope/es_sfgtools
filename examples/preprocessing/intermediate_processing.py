@@ -3,6 +3,11 @@ from pathlib import Path
 
 from es_sfgtools.workflows.workflow_handler import WorkflowHandler
 
+# Input survey parameters
+network='cascadia-gorda'
+site='NCC1'
+campaign='2025_A_1126'
+
 global_config = {
     "dfop00_config": {"override": False},
     "novatel_config": {"n_processes": 5, "override": False},
@@ -34,10 +39,6 @@ ncc1_config = {
     }
 }
 
-# Input survey parameters
-network='cascadia-gorda'
-site='NCC1'
-campaign='2025_A_1126'
 
 # Set data directory path for local environment
 data_dir = Path(f"{os.path.expanduser('~/data/sfg_march15')}")
