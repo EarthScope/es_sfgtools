@@ -469,7 +469,7 @@ class DataHandler(WorkflowABC):
 
         # Pull files from the catalog by type
         for type in file_types:
-            print(f"Processing download for file type: {type.value}")
+            logger.loginfo(f"Processing download for file type: {type.value}")
             assets = self.asset_catalog.get_assets(
                 network=self.current_network_name,
                 station=self.current_station_name,
