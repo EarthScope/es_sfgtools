@@ -618,9 +618,20 @@ class SV3Pipeline(WorkflowABC):
             response = f"No Rinex Files Found to Process for {self.current_network_name} {self.current_station_name} {self.current_campaign_name}"
             ProcessLogger.logerr(response)
             raise NoRinexFound(response)
-        
+
         # Only keep entries with a local path (should be all, in case only using a version of rinex (1hz vs 10hz)
-        rinex_entries = [rinex_entry for rinex_entry in rinex_entries if rinex_entry.local_path is not None]
+        rinex_entries = [
+            rinex_entry
+            for rinex_entry in rinex_entries
+            if rinex_entry.local_path is not None
+        ]
+        if not rinex_entries:
+            response = (
+                f"No Rinex Files with local paths found to Process for "
+                f"{self.current_network_name} {self.current_station_name} {self.current_campaign_name}"
+            )
+            ProcessLogger.logerr(response)
+            raise NoRinexFound(response)
 
         response = f"Found {len(rinex_entries)} Rinex Files to Process"
         ProcessLogger.loginfo(response)
