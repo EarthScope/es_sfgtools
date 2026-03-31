@@ -142,7 +142,7 @@
       "system": "GREC23J",
       "tides": "SOP",
       "override_products_download": false,
-      "override": true,
+      "override": false,
         "n_processes": 15
     },
     "rinex_config": {
