@@ -427,6 +427,7 @@ class DataHandler(WorkflowABC):
             List[AssetType], List[str], str
         ] = DEFAULT_FILE_TYPES_TO_DOWNLOAD,
         override: bool = False,
+        rinex_1Hz: bool = False,
     ):
         """
         Downloads files of specified types from remote storage.
@@ -437,6 +438,8 @@ class DataHandler(WorkflowABC):
             The types of files to download.
         override : bool, default False
             If True, redownloads files even if they exist locally.
+        rinex_1Hz : bool, default False
+            If True, downloads 1Hz RINEX files instead of higher rate rinex files
 
         Raises
         ------
@@ -466,6 +469,7 @@ class DataHandler(WorkflowABC):
 
         # Pull files from the catalog by type
         for type in file_types:
+            logger.loginfo(f"Processing download for file type: {type.value}")
             assets = self.asset_catalog.get_assets(
                 network=self.current_network_name,
                 station=self.current_station_name,
@@ -476,6 +480,8 @@ class DataHandler(WorkflowABC):
             if len(assets) == 0:
                 logger.logerr(f"No matching data of type {type.value} found in catalog")
                 continue
+            else:
+                logger.loginfo(f"Found {len(assets)} files of type {type.value} in the catalog")
 
             # Find files that we need to download based on the catalog output. If override is True, download all files.
             if override:
@@ -490,11 +496,32 @@ class DataHandler(WorkflowABC):
                         assets_to_download.append(file_asset)
                     else:
                         # Check to see if the file exists locally anyway
-                        if not file_asset.local_path.exists():
+                        if not Path(file_asset.local_path).exists():
                             assets_to_download.append(file_asset)
+
+            # Distinguish between 1Hz and higher rate RINEX files if the file type is RINEX 
+            if type.value == AssetType.RINEX2.value and rinex_1Hz:
+                logger.loginfo("Filtering for 1Hz RINEX files based on file name, set rinex_1Hz to False to download higher rate RINEX files instead")
+                # If the file type is RINEX and rinex_1Hz is True, filter for 1Hz RINEX files
+                assets_to_download = [
+                    asset for asset in assets_to_download
+                    if "1hz" in asset.remote_path.lower()
+                ]
+            elif type.value == AssetType.RINEX2.value and not rinex_1Hz:
+                logger.loginfo("Filtering for higher rate RINEX files based on file name, set rinex_1Hz to True to download 1Hz RINEX files instead")
+                # If the file type is RINEX and rinex_1Hz is False, filter for non-1Hz RINEX files
+                assets_to_download = [
+                    asset for asset in assets_to_download
+                    if "1hz" not in asset.remote_path.lower()
+                ]
+            else:
+                # If the file type is not RINEX, do not filter
+                pass
 
             if len(assets_to_download) == 0:
                 logger.loginfo(f"No new {type.value} files to download")
+            else:
+                logger.loginfo(f"{len(assets_to_download)} {type.value} files to download")
 
             # split the entries into s3 and http
             s3_assets = [
@@ -533,8 +560,16 @@ class DataHandler(WorkflowABC):
         s3_entries_processed = []
         for file in s3_assets:
             _path = Path(file.remote_path)
+
+            if file.type.value == AssetType.RINEX2.value:
+                local_dir = self.current_campaign_dir.intermediate
+            else:
+                local_dir = self.current_campaign_dir.raw
+
             s3_entries_processed.append(
-                {"bucket": (bucket := _path.root), "prefix": _path.relative_to(bucket)}
+                {"bucket": (bucket := _path.root), 
+                 "prefix": _path.relative_to(bucket), 
+                 "local_dir": local_dir}
             )
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
@@ -551,7 +586,7 @@ class DataHandler(WorkflowABC):
                     )
 
     def _S3_download_file(
-        self, client: boto3.client, bucket: str, prefix: str
+        self, client: boto3.client, bucket: str, prefix: str, local_dir: Path
     ) -> Optional[Path]:
         """
         Downloads a single file from an S3 bucket.
@@ -571,7 +606,7 @@ class DataHandler(WorkflowABC):
             The local path of the downloaded file, or None if the download fails.
         """
 
-        local_path = self.current_campaign_dir.raw / Path(prefix).name
+        local_path = local_dir / Path(prefix).name
 
         try:
             logger.logdebug(f"Downloading {prefix} to {local_path}")
@@ -606,17 +641,24 @@ class DataHandler(WorkflowABC):
         for file_asset in tqdm(
             http_assets, desc=f"Downloading {file_type.value} files"
         ):
+            if file_asset.type.value == AssetType.RINEX2.value:
+                # If the file type is RINEX, download to the intermediate directory for processing, otherwise download to the raw directory
+                local_dir = self.current_campaign_dir.intermediate
+            else:
+                local_dir = self.current_campaign_dir.raw 
             if (
-                local_path := self._HTTP_download_file(file_asset.remote_path)
+                local_path := self._HTTP_download_file(remote_url=file_asset.remote_path, 
+                                                       local_dir=local_dir)
             ) is not None:
                 # Update the local path in the AssetEntry
                 file_asset.local_path = str(local_path)
                 # Update catalog with local path
                 self.asset_catalog.update_local_path(
-                    id=file_asset.id, local_path=file_asset.local_path
+                    id=file_asset.id, 
+                    local_path=file_asset.local_path
                 )
 
-    def _HTTP_download_file(self, remote_url: Path) -> Path:
+    def _HTTP_download_file(self, remote_url: Path, local_dir: Path) -> Path:
         """
         Downloads a single file from an HTTP URL.
 
@@ -631,8 +673,9 @@ class DataHandler(WorkflowABC):
             The local path of the downloaded file, or None if the download fails.
         """
         try:
-            local_path = self.current_campaign_dir.raw / Path(remote_url).name
-            download_file_from_archive(url=remote_url, dest_dir=local_path.parent)
+            local_path = local_dir / Path(remote_url).name
+            download_file_from_archive(url=remote_url, 
+                                       dest_dir=local_path.parent)
 
             if not local_path.exists():
                 raise Exception

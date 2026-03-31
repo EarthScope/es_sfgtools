@@ -232,6 +232,30 @@ def generate_archive_campaign_metadata_url(network, station, campaign):
 
     return f"{ARCHIVE_PREFIX}/{network}/{year}/{station}/{campaign}/metadata"
 
+def generate_archive_rinex_url(network, station, campaign, hz):
+    """Generate a URL for campaign RINEX files in the public archive.
+
+    Parameters
+    ----------
+    network : str
+        The network name.
+    station : str
+        The station name.
+    campaign : str
+        The campaign name (e.g YYYY_A_WVGL).
+    hz : str
+        The RINEX frequency (e.g., '1Hz', '10Hz').
+
+    Returns
+    -------
+    str
+        The URL of the campaign RINEX directory.
+    """
+
+    # Grab the year out of the campaign name
+    year = campaign.split("_")[0]
+
+    return f"{ARCHIVE_PREFIX}/{network}/{year}/{station}/{campaign}/rinex_{hz}"
 
 def generate_archive_site_json_url(network, station, profile: str = None) -> str:
     """Generate a URL for the site JSON file in the public archive.
@@ -480,6 +504,8 @@ def list_campaign_files(network: str, station: str, campaign: str) -> list:
     # Generate the URLs for raw data & metadata
     raw_url = generate_archive_campaign_url(network, station, campaign)
     metadata_url = generate_archive_campaign_metadata_url(network, station, campaign)
+    rinex_1hz_url = generate_archive_rinex_url(network, station, campaign, "1Hz")
+    rinex_10hz_url = generate_archive_rinex_url(network, station, campaign, "10Hz")
     logger.loginfo(f"Listing raw campaign files from url {raw_url}")
 
     raw_file_list = list_files_from_archive(raw_url)
@@ -490,8 +516,16 @@ def list_campaign_files(network: str, station: str, campaign: str) -> list:
     metadata_file_list += list_files_from_archive(f"{metadata_url}/ctd")
     list_file_counts_by_type(file_list=metadata_file_list, url=metadata_url)
 
+    logger.loginfo(f"Listing RINEX 1Hz campaign files from url {rinex_1hz_url}")
+    rinex_1hz_file_list = list_files_from_archive(rinex_1hz_url)
+    list_file_counts_by_type(file_list=rinex_1hz_file_list, url=rinex_1hz_url)
+
+    logger.loginfo(f"Listing RINEX 10Hz campaign files from url {rinex_10hz_url}")
+    rinex_10hz_file_list = list_files_from_archive(rinex_10hz_url)
+    list_file_counts_by_type(file_list=rinex_10hz_file_list, url=rinex_10hz_url)
+
     # Concatenate the two lists
-    file_list = raw_file_list + metadata_file_list
+    file_list = raw_file_list + metadata_file_list + rinex_1hz_file_list + rinex_10hz_file_list
 
     return file_list
 

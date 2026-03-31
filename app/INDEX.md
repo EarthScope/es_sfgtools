@@ -4,13 +4,13 @@
 This configuration class handles Novatel-specific settings.
 
 - `override` (bool): If `True`, existing data will be overridden.
-- `n_processes` (int): Number of processes to use for processing Novatel data. Defaults to `14`.
+- `n_processes` (int): Number of processes to use for processing Novatel data. Defaults to `5`.
 
 ## RinexConfig
 This configuration class manages settings for RINEX processing.
 
 - `override` (bool): If `True`, existing data will be overridden.
-- `n_processes` (int): Number of processes to use for processing RINEX data. Defaults to `14`.
+- `n_processes` (int): Number of processes to use for processing RINEX data. Defaults to `5`.
 - `time_interval` (Optional[int]): Time interval in hours for RINEX file pagination. Higher numbers (24 is the max) mean faster processing but higher memory consumption. Defaults to `24`.
 - `processing_year` (Optional[int]): Sets the specific calendar years to generate RINEX files from the tiledb array. Defaults to `-1` which reads the year as the first 4 digits of the campaign name.
 - `modulo_millis` (int): Decimation modulo in milliseconds. When set to a positive value, only epochs where `epoch_time_ms % modulo_millis == 0` are kept. Loss-of-Lock Indicators (LLI) from skipped epochs are propagated to the next written epoch. Examples: `1000` for 1 Hz output, `15000` for 15-second intervals. Defaults to `0` (no decimation).

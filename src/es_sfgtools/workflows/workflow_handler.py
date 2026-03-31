@@ -7,7 +7,7 @@ from typing import (
 )
 
 
-from es_sfgtools.config.file_config import DEFAULT_FILE_TYPES_TO_DOWNLOAD
+from es_sfgtools.config.file_config import DEFAULT_FILE_TYPES_TO_DOWNLOAD, DEFAULT_INTERMEDIATE_FILE_TYPES_TO_DOWNLOAD
 from es_sfgtools.modeling.garpos_tools.schemas import InversionParams
 from es_sfgtools.workflows.pipelines.qc_pipeline import QCPipeline
 
@@ -46,6 +46,7 @@ from es_sfgtools.config.env_config import Environment, WorkingEnvironment
 
 pipeline_jobs = [
     "all",
+    "intermediate",
     "process_novatel",
     "build_rinex",
     "run_pride",
@@ -161,6 +162,7 @@ class WorkflowHandler(WorkflowABC):
         file_types: Optional[
             List[AssetType] | List[str]
         ] = DEFAULT_FILE_TYPES_TO_DOWNLOAD,
+        rinex_1Hz: bool = False
     ) -> None:
         """
         Downloads data files from the Earthscope archive based on the current catalog entries.
@@ -169,7 +171,18 @@ class WorkflowHandler(WorkflowABC):
         -----
         This method requires that the catalog has been populated with remote file paths using `ingest_catalog_archive_data`.
         """
-        self.data_handler.download_data(file_types=file_types)
+        self.data_handler.download_data(file_types=file_types, rinex_1Hz=rinex_1Hz)
+
+    @validate_network_station_campaign
+    def ingest_download_intermediate_archive_data(self, file_types:Optional[List[AssetType] | List[str]]=DEFAULT_INTERMEDIATE_FILE_TYPES_TO_DOWNLOAD, rinex_1Hz: bool = False) -> None:
+        """
+        Downloads intermediate data files from the Earthscope archive based on the current catalog entries. 
+
+        Notes
+        -----
+        This method requires that the catalog has been populated with remote file paths using `ingest_catalog_archive_data`.
+        """
+        self.ingest_download_archive_data(file_types=file_types, rinex_1Hz=rinex_1Hz)
 
     @validate_network_station_campaign
     def preprocess_get_pipeline_sv3(
@@ -197,6 +210,7 @@ class WorkflowHandler(WorkflowABC):
             ]
         ] = None,
     ) -> SV3Pipeline:
+        
         """Creates and configures an SV3 processing pipeline.
 
         Parameters
@@ -278,6 +292,7 @@ class WorkflowHandler(WorkflowABC):
         self,
         job: Literal[
             "all",
+            "intermediate",
             "process_novatel",
             "build_rinex",
             "run_pride",
@@ -316,7 +331,7 @@ class WorkflowHandler(WorkflowABC):
 
         Parameters
         ----------
-        job : Literal["all", "process_novatel", "build_rinex", "run_pride", "process_kinematic", "process_dfop00", "refine_shotdata", "process_svp"], optional
+        job : Literal["all", "intermediate" "process_novatel", "build_rinex", "run_pride", "process_kinematic", "process_dfop00", "refine_shotdata", "process_svp"], optional
             The specific job to run within the pipeline, by default "all".
         primary_config : Optional[Union[SV3PipelineConfig, dict]], optional
             Primary configuration to override defaults.
@@ -349,11 +364,15 @@ class WorkflowHandler(WorkflowABC):
         assert job in pipeline_jobs, f"Job must be one of {pipeline_jobs}"
 
         pipeline: SV3Pipeline = self.preprocess_get_pipeline_sv3(
-            primary_config=primary_config, secondary_config=secondary_config
+            primary_config=primary_config,
+            secondary_config=secondary_config
         )
         match job:
             case "all":
                 pipeline.run_pipeline()
+
+            case "intermediate":
+                pipeline.run_intermediate_pipeline()
 
             case "process_novatel":
                 assert isinstance(

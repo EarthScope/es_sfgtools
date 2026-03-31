@@ -1,0 +1,40 @@
+{
+  "dfop00_config": {
+    "override": true
+  },
+  "novatel_config": {
+    "n_processes": 5,
+    "override": false
+  },
+  "position_update_config": {
+    "override": true,
+    "lengthscale": 0.1,
+    "plot": false
+  },
+  "pride_config": {
+    "cutoff_elevation": 7,
+    "end": null,
+    "frequency": [
+      "G12",
+      "R12",
+      "E15",
+      "C26",
+      "J12"
+    ],
+    "high_ion": null,
+    "interval": null,
+    "local_pdp3_path": null,
+    "loose_edit": true,
+    "sample_frequency": 1,
+    "start": null,
+    "system": "GREC23J",
+    "tides": "SOP",
+    "override_products_download": false,
+    "override": true
+  },
+  "rinex_config": {
+    "n_processes": 5,
+    "time_interval": 24,
+    "override": false
+  }
+}

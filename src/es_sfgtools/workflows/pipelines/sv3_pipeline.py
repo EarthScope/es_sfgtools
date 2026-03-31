@@ -716,6 +716,20 @@ class SV3Pipeline(WorkflowABC):
             ProcessLogger.logerr(response)
             raise NoRinexFound(response)
 
+        # Only keep entries with a local path (should be all, in case only using a version of rinex (1hz vs 10hz)
+        rinex_entries = [
+            rinex_entry
+            for rinex_entry in rinex_entries
+            if rinex_entry.local_path is not None
+        ]
+        if not rinex_entries:
+            response = (
+                f"No Rinex Files with local paths found to Process for "
+                f"{self.current_network_name} {self.current_station_name} {self.current_campaign_name}"
+            )
+            ProcessLogger.logerr(response)
+            raise NoRinexFound(response)
+
         response = f"Found {len(rinex_entries)} Rinex Files to Process"
         ProcessLogger.loginfo(response)
 
@@ -1106,4 +1120,50 @@ class SV3Pipeline(WorkflowABC):
 
         ProcessLogger.loginfo(
             f"Completed SV3 Processing Pipeline for {self.current_network_name} {self.current_station_name} {self.current_campaign_name}"
+        )
+
+    @validate_network_station_campaign
+    def run_intermediate_pipeline(self) -> None:
+        """Run only the intermediate steps of the SV3 pipeline. This assumes rinex is already downloaded
+
+        Intermediate steps include:
+        1. process_rinex(): Run PRIDE-PPP on RINEX
+        2. process_kin(): Convert KIN files to dataframes
+        3. process_dfop00(): Process acoustic data to preliminary shotdata
+        4. update_shotdata(): Refine shotdata with interpolated kinematic
+           positions
+        5. process_svp(): Generate sound velocity profile
+
+        This allows for faster iteration on acoustic processing and position
+        refinement without re-running the full GNSS processing steps.
+        """
+
+        ProcessLogger.loginfo(
+            f"Starting SV3 Intermediate Pipeline for {self.current_network_name} {self.current_station_name} {self.current_campaign_name}"
+        )
+
+        try:
+            self.process_rinex()
+        except NoRinexFound as e:
+            pass
+
+        try:
+            self.process_kin()
+        except NoKinFound as e:
+            pass
+
+        try:
+            self.process_dfop00()
+        except NoDFOP00Found as e:
+            pass
+
+        self.update_shotdata()
+
+        try:
+            self.process_svp()
+        except NoSVPFound as e:
+            pass
+
+        ProcessLogger.loginfo(
+            f"Completed SV3 Intermediate Pipeline for {self.current_network_name} {self.current_station_name} {self.current_campaign_name}"
         )
