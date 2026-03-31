@@ -231,10 +231,10 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/6a/bd/d91c5e39f490a49df14320f4e8c80161cfcce09f1e2cde1edd16a551abb3/frozenlist-1.8.0-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/de/86/5486b0188d08aa643e127774a99bac51ffa6cf343e3deb0583956dca5b22/fsspec-2024.12.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/41/52/be5c8a17759d78d7cc56b4e60c1763b5fed40368368475a5e4ed491c8bac/gnatss-0.3.1-py3-none-any.whl
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-management-specs#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-product-management#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fpride-ppp#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-management-specs#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-product-management#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fpride-ppp#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
       - pypi: https://files.pythonhosted.org/packages/50/1f/5155f55bd71cabd03765a4aac9ac446be129895271f73872c36ebd4b04b6/greenlet-3.3.2-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/14/2f/967ba146e6d58cf6a652da73885f52fc68001525b4197effc174321d70b4/jmespath-1.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e4/40/3454dc78fea47fb634eb82f28473bab7ca376f4c68cd6e889edf67d10b51/julian-0.14.zip
@@ -500,10 +500,10 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/8f/83/f61505a05109ef3293dfb1ff594d13d64a2324ac3482be2cedc2be818256/frozenlist-1.8.0-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl
       - pypi: https://files.pythonhosted.org/packages/de/86/5486b0188d08aa643e127774a99bac51ffa6cf343e3deb0583956dca5b22/fsspec-2024.12.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/41/52/be5c8a17759d78d7cc56b4e60c1763b5fed40368368475a5e4ed491c8bac/gnatss-0.3.1-py3-none-any.whl
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-management-specs#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-product-management#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fpride-ppp#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-management-specs#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-product-management#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fpride-ppp#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
       - pypi: https://files.pythonhosted.org/packages/a5/23/0eae412a4ade4e6623ff7626e38998cb9b11e9ff1ebacaa021e4e108ec15/greenlet-3.3.2-cp312-cp312-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl
       - pypi: https://files.pythonhosted.org/packages/14/2f/967ba146e6d58cf6a652da73885f52fc68001525b4197effc174321d70b4/jmespath-1.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e4/40/3454dc78fea47fb634eb82f28473bab7ca376f4c68cd6e889edf67d10b51/julian-0.14.zip
@@ -757,10 +757,10 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/64/80/4f6e318ee2a7c0750ed724fa33a4bdf1eacdc5a39a7a24e818a773cd91af/frozenlist-1.8.0-cp312-cp312-macosx_10_13_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/de/86/5486b0188d08aa643e127774a99bac51ffa6cf343e3deb0583956dca5b22/fsspec-2024.12.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/41/52/be5c8a17759d78d7cc56b4e60c1763b5fed40368368475a5e4ed491c8bac/gnatss-0.3.1-py3-none-any.whl
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-management-specs#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-product-management#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fpride-ppp#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-management-specs#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-product-management#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fpride-ppp#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
       - pypi: https://files.pythonhosted.org/packages/ea/ab/1608e5a7578e62113506740b88066bf09888322a311cff602105e619bd87/greenlet-3.3.2-cp312-cp312-macosx_11_0_universal2.whl
       - pypi: https://files.pythonhosted.org/packages/14/2f/967ba146e6d58cf6a652da73885f52fc68001525b4197effc174321d70b4/jmespath-1.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e4/40/3454dc78fea47fb634eb82f28473bab7ca376f4c68cd6e889edf67d10b51/julian-0.14.zip
@@ -1019,10 +1019,10 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/2b/94/5c8a2b50a496b11dd519f4a24cb5496cf125681dd99e94c604ccdea9419a/frozenlist-1.8.0-cp312-cp312-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/de/86/5486b0188d08aa643e127774a99bac51ffa6cf343e3deb0583956dca5b22/fsspec-2024.12.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/41/52/be5c8a17759d78d7cc56b4e60c1763b5fed40368368475a5e4ed491c8bac/gnatss-0.3.1-py3-none-any.whl
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-management-specs#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-product-management#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fpride-ppp#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-management-specs#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-product-management#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fpride-ppp#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
       - pypi: https://files.pythonhosted.org/packages/14/2f/967ba146e6d58cf6a652da73885f52fc68001525b4197effc174321d70b4/jmespath-1.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e4/40/3454dc78fea47fb634eb82f28473bab7ca376f4c68cd6e889edf67d10b51/julian-0.14.zip
       - pypi: https://files.pythonhosted.org/packages/99/9f/795fedf35634f746151ca8839d05681ceb6287fbed6cc1c9bf235f7887c2/kiwisolver-1.5.0-cp312-cp312-macosx_11_0_arm64.whl
@@ -1241,10 +1241,10 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/b8/af/38e51a553dd66eb064cdf193841f16f077585d4d28394c2fa6235cb41765/frozenlist-1.8.0-cp312-cp312-win_amd64.whl
       - pypi: https://files.pythonhosted.org/packages/de/86/5486b0188d08aa643e127774a99bac51ffa6cf343e3deb0583956dca5b22/fsspec-2024.12.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/41/52/be5c8a17759d78d7cc56b4e60c1763b5fed40368368475a5e4ed491c8bac/gnatss-0.3.1-py3-none-any.whl
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-management-specs#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-product-management#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fpride-ppp#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-management-specs#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-product-management#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fpride-ppp#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
       - pypi: https://files.pythonhosted.org/packages/9b/40/cc802e067d02af8b60b6771cea7d57e21ef5e6659912814babb42b864713/greenlet-3.3.2-cp312-cp312-win_amd64.whl
       - pypi: https://files.pythonhosted.org/packages/14/2f/967ba146e6d58cf6a652da73885f52fc68001525b4197effc174321d70b4/jmespath-1.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e4/40/3454dc78fea47fb634eb82f28473bab7ca376f4c68cd6e889edf67d10b51/julian-0.14.zip
@@ -1523,10 +1523,10 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/6a/bd/d91c5e39f490a49df14320f4e8c80161cfcce09f1e2cde1edd16a551abb3/frozenlist-1.8.0-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/de/86/5486b0188d08aa643e127774a99bac51ffa6cf343e3deb0583956dca5b22/fsspec-2024.12.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/41/52/be5c8a17759d78d7cc56b4e60c1763b5fed40368368475a5e4ed491c8bac/gnatss-0.3.1-py3-none-any.whl
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-management-specs#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-product-management#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fpride-ppp#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-management-specs#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-product-management#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fpride-ppp#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
       - pypi: https://files.pythonhosted.org/packages/50/1f/5155f55bd71cabd03765a4aac9ac446be129895271f73872c36ebd4b04b6/greenlet-3.3.2-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/14/2f/967ba146e6d58cf6a652da73885f52fc68001525b4197effc174321d70b4/jmespath-1.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e4/40/3454dc78fea47fb634eb82f28473bab7ca376f4c68cd6e889edf67d10b51/julian-0.14.zip
@@ -1796,10 +1796,10 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/8f/83/f61505a05109ef3293dfb1ff594d13d64a2324ac3482be2cedc2be818256/frozenlist-1.8.0-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl
       - pypi: https://files.pythonhosted.org/packages/de/86/5486b0188d08aa643e127774a99bac51ffa6cf343e3deb0583956dca5b22/fsspec-2024.12.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/41/52/be5c8a17759d78d7cc56b4e60c1763b5fed40368368475a5e4ed491c8bac/gnatss-0.3.1-py3-none-any.whl
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-management-specs#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-product-management#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fpride-ppp#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-management-specs#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-product-management#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fpride-ppp#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
       - pypi: https://files.pythonhosted.org/packages/a5/23/0eae412a4ade4e6623ff7626e38998cb9b11e9ff1ebacaa021e4e108ec15/greenlet-3.3.2-cp312-cp312-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl
       - pypi: https://files.pythonhosted.org/packages/14/2f/967ba146e6d58cf6a652da73885f52fc68001525b4197effc174321d70b4/jmespath-1.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e4/40/3454dc78fea47fb634eb82f28473bab7ca376f4c68cd6e889edf67d10b51/julian-0.14.zip
@@ -2057,10 +2057,10 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/64/80/4f6e318ee2a7c0750ed724fa33a4bdf1eacdc5a39a7a24e818a773cd91af/frozenlist-1.8.0-cp312-cp312-macosx_10_13_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/de/86/5486b0188d08aa643e127774a99bac51ffa6cf343e3deb0583956dca5b22/fsspec-2024.12.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/41/52/be5c8a17759d78d7cc56b4e60c1763b5fed40368368475a5e4ed491c8bac/gnatss-0.3.1-py3-none-any.whl
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-management-specs#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-product-management#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fpride-ppp#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-management-specs#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-product-management#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fpride-ppp#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
       - pypi: https://files.pythonhosted.org/packages/ea/ab/1608e5a7578e62113506740b88066bf09888322a311cff602105e619bd87/greenlet-3.3.2-cp312-cp312-macosx_11_0_universal2.whl
       - pypi: https://files.pythonhosted.org/packages/14/2f/967ba146e6d58cf6a652da73885f52fc68001525b4197effc174321d70b4/jmespath-1.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e4/40/3454dc78fea47fb634eb82f28473bab7ca376f4c68cd6e889edf67d10b51/julian-0.14.zip
@@ -2323,10 +2323,10 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/2b/94/5c8a2b50a496b11dd519f4a24cb5496cf125681dd99e94c604ccdea9419a/frozenlist-1.8.0-cp312-cp312-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/de/86/5486b0188d08aa643e127774a99bac51ffa6cf343e3deb0583956dca5b22/fsspec-2024.12.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/41/52/be5c8a17759d78d7cc56b4e60c1763b5fed40368368475a5e4ed491c8bac/gnatss-0.3.1-py3-none-any.whl
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-management-specs#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-product-management#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fpride-ppp#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-management-specs#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-product-management#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fpride-ppp#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
       - pypi: https://files.pythonhosted.org/packages/14/2f/967ba146e6d58cf6a652da73885f52fc68001525b4197effc174321d70b4/jmespath-1.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e4/40/3454dc78fea47fb634eb82f28473bab7ca376f4c68cd6e889edf67d10b51/julian-0.14.zip
       - pypi: https://files.pythonhosted.org/packages/99/9f/795fedf35634f746151ca8839d05681ceb6287fbed6cc1c9bf235f7887c2/kiwisolver-1.5.0-cp312-cp312-macosx_11_0_arm64.whl
@@ -2549,10 +2549,10 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/b8/af/38e51a553dd66eb064cdf193841f16f077585d4d28394c2fa6235cb41765/frozenlist-1.8.0-cp312-cp312-win_amd64.whl
       - pypi: https://files.pythonhosted.org/packages/de/86/5486b0188d08aa643e127774a99bac51ffa6cf343e3deb0583956dca5b22/fsspec-2024.12.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/41/52/be5c8a17759d78d7cc56b4e60c1763b5fed40368368475a5e4ed491c8bac/gnatss-0.3.1-py3-none-any.whl
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-management-specs#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-product-management#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fpride-ppp#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-management-specs#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-product-management#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fpride-ppp#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
       - pypi: https://files.pythonhosted.org/packages/9b/40/cc802e067d02af8b60b6771cea7d57e21ef5e6659912814babb42b864713/greenlet-3.3.2-cp312-cp312-win_amd64.whl
       - pypi: https://files.pythonhosted.org/packages/14/2f/967ba146e6d58cf6a652da73885f52fc68001525b4197effc174321d70b4/jmespath-1.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e4/40/3454dc78fea47fb634eb82f28473bab7ca376f4c68cd6e889edf67d10b51/julian-0.14.zip
@@ -2914,10 +2914,10 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/6a/bd/d91c5e39f490a49df14320f4e8c80161cfcce09f1e2cde1edd16a551abb3/frozenlist-1.8.0-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/de/86/5486b0188d08aa643e127774a99bac51ffa6cf343e3deb0583956dca5b22/fsspec-2024.12.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/41/52/be5c8a17759d78d7cc56b4e60c1763b5fed40368368475a5e4ed491c8bac/gnatss-0.3.1-py3-none-any.whl
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-management-specs#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-product-management#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fpride-ppp#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-management-specs#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-product-management#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fpride-ppp#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
       - pypi: https://files.pythonhosted.org/packages/50/1f/5155f55bd71cabd03765a4aac9ac446be129895271f73872c36ebd4b04b6/greenlet-3.3.2-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/14/2f/967ba146e6d58cf6a652da73885f52fc68001525b4197effc174321d70b4/jmespath-1.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e4/40/3454dc78fea47fb634eb82f28473bab7ca376f4c68cd6e889edf67d10b51/julian-0.14.zip
@@ -3270,10 +3270,10 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/8f/83/f61505a05109ef3293dfb1ff594d13d64a2324ac3482be2cedc2be818256/frozenlist-1.8.0-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl
       - pypi: https://files.pythonhosted.org/packages/de/86/5486b0188d08aa643e127774a99bac51ffa6cf343e3deb0583956dca5b22/fsspec-2024.12.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/41/52/be5c8a17759d78d7cc56b4e60c1763b5fed40368368475a5e4ed491c8bac/gnatss-0.3.1-py3-none-any.whl
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-management-specs#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-product-management#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fpride-ppp#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-management-specs#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-product-management#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fpride-ppp#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
       - pypi: https://files.pythonhosted.org/packages/a5/23/0eae412a4ade4e6623ff7626e38998cb9b11e9ff1ebacaa021e4e108ec15/greenlet-3.3.2-cp312-cp312-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl
       - pypi: https://files.pythonhosted.org/packages/14/2f/967ba146e6d58cf6a652da73885f52fc68001525b4197effc174321d70b4/jmespath-1.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e4/40/3454dc78fea47fb634eb82f28473bab7ca376f4c68cd6e889edf67d10b51/julian-0.14.zip
@@ -3617,10 +3617,10 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/64/80/4f6e318ee2a7c0750ed724fa33a4bdf1eacdc5a39a7a24e818a773cd91af/frozenlist-1.8.0-cp312-cp312-macosx_10_13_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/de/86/5486b0188d08aa643e127774a99bac51ffa6cf343e3deb0583956dca5b22/fsspec-2024.12.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/41/52/be5c8a17759d78d7cc56b4e60c1763b5fed40368368475a5e4ed491c8bac/gnatss-0.3.1-py3-none-any.whl
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-management-specs#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-product-management#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fpride-ppp#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-management-specs#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-product-management#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fpride-ppp#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
       - pypi: https://files.pythonhosted.org/packages/ea/ab/1608e5a7578e62113506740b88066bf09888322a311cff602105e619bd87/greenlet-3.3.2-cp312-cp312-macosx_11_0_universal2.whl
       - pypi: https://files.pythonhosted.org/packages/14/2f/967ba146e6d58cf6a652da73885f52fc68001525b4197effc174321d70b4/jmespath-1.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e4/40/3454dc78fea47fb634eb82f28473bab7ca376f4c68cd6e889edf67d10b51/julian-0.14.zip
@@ -3969,10 +3969,10 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/2b/94/5c8a2b50a496b11dd519f4a24cb5496cf125681dd99e94c604ccdea9419a/frozenlist-1.8.0-cp312-cp312-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/de/86/5486b0188d08aa643e127774a99bac51ffa6cf343e3deb0583956dca5b22/fsspec-2024.12.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/41/52/be5c8a17759d78d7cc56b4e60c1763b5fed40368368475a5e4ed491c8bac/gnatss-0.3.1-py3-none-any.whl
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-management-specs#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-product-management#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fpride-ppp#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-management-specs#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-product-management#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fpride-ppp#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
       - pypi: https://files.pythonhosted.org/packages/14/2f/967ba146e6d58cf6a652da73885f52fc68001525b4197effc174321d70b4/jmespath-1.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e4/40/3454dc78fea47fb634eb82f28473bab7ca376f4c68cd6e889edf67d10b51/julian-0.14.zip
       - pypi: https://files.pythonhosted.org/packages/99/9f/795fedf35634f746151ca8839d05681ceb6287fbed6cc1c9bf235f7887c2/kiwisolver-1.5.0-cp312-cp312-macosx_11_0_arm64.whl
@@ -4279,10 +4279,10 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/b8/af/38e51a553dd66eb064cdf193841f16f077585d4d28394c2fa6235cb41765/frozenlist-1.8.0-cp312-cp312-win_amd64.whl
       - pypi: https://files.pythonhosted.org/packages/de/86/5486b0188d08aa643e127774a99bac51ffa6cf343e3deb0583956dca5b22/fsspec-2024.12.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/41/52/be5c8a17759d78d7cc56b4e60c1763b5fed40368368475a5e4ed491c8bac/gnatss-0.3.1-py3-none-any.whl
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-management-specs#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-product-management#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fpride-ppp#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-management-specs#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-product-management#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fpride-ppp#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
       - pypi: https://files.pythonhosted.org/packages/9b/40/cc802e067d02af8b60b6771cea7d57e21ef5e6659912814babb42b864713/greenlet-3.3.2-cp312-cp312-win_amd64.whl
       - pypi: https://files.pythonhosted.org/packages/14/2f/967ba146e6d58cf6a652da73885f52fc68001525b4197effc174321d70b4/jmespath-1.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e4/40/3454dc78fea47fb634eb82f28473bab7ca376f4c68cd6e889edf67d10b51/julian-0.14.zip
@@ -4641,10 +4641,10 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/6a/bd/d91c5e39f490a49df14320f4e8c80161cfcce09f1e2cde1edd16a551abb3/frozenlist-1.8.0-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/de/86/5486b0188d08aa643e127774a99bac51ffa6cf343e3deb0583956dca5b22/fsspec-2024.12.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/41/52/be5c8a17759d78d7cc56b4e60c1763b5fed40368368475a5e4ed491c8bac/gnatss-0.3.1-py3-none-any.whl
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-management-specs#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-product-management#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fpride-ppp#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-management-specs#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-product-management#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fpride-ppp#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
       - pypi: https://files.pythonhosted.org/packages/50/1f/5155f55bd71cabd03765a4aac9ac446be129895271f73872c36ebd4b04b6/greenlet-3.3.2-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/14/2f/967ba146e6d58cf6a652da73885f52fc68001525b4197effc174321d70b4/jmespath-1.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e4/40/3454dc78fea47fb634eb82f28473bab7ca376f4c68cd6e889edf67d10b51/julian-0.14.zip
@@ -4994,10 +4994,10 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/8f/83/f61505a05109ef3293dfb1ff594d13d64a2324ac3482be2cedc2be818256/frozenlist-1.8.0-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl
       - pypi: https://files.pythonhosted.org/packages/de/86/5486b0188d08aa643e127774a99bac51ffa6cf343e3deb0583956dca5b22/fsspec-2024.12.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/41/52/be5c8a17759d78d7cc56b4e60c1763b5fed40368368475a5e4ed491c8bac/gnatss-0.3.1-py3-none-any.whl
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-management-specs#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-product-management#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fpride-ppp#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-management-specs#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-product-management#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fpride-ppp#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
       - pypi: https://files.pythonhosted.org/packages/a5/23/0eae412a4ade4e6623ff7626e38998cb9b11e9ff1ebacaa021e4e108ec15/greenlet-3.3.2-cp312-cp312-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl
       - pypi: https://files.pythonhosted.org/packages/14/2f/967ba146e6d58cf6a652da73885f52fc68001525b4197effc174321d70b4/jmespath-1.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e4/40/3454dc78fea47fb634eb82f28473bab7ca376f4c68cd6e889edf67d10b51/julian-0.14.zip
@@ -5338,10 +5338,10 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/64/80/4f6e318ee2a7c0750ed724fa33a4bdf1eacdc5a39a7a24e818a773cd91af/frozenlist-1.8.0-cp312-cp312-macosx_10_13_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/de/86/5486b0188d08aa643e127774a99bac51ffa6cf343e3deb0583956dca5b22/fsspec-2024.12.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/41/52/be5c8a17759d78d7cc56b4e60c1763b5fed40368368475a5e4ed491c8bac/gnatss-0.3.1-py3-none-any.whl
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-management-specs#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-product-management#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fpride-ppp#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-management-specs#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-product-management#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fpride-ppp#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
       - pypi: https://files.pythonhosted.org/packages/ea/ab/1608e5a7578e62113506740b88066bf09888322a311cff602105e619bd87/greenlet-3.3.2-cp312-cp312-macosx_11_0_universal2.whl
       - pypi: https://files.pythonhosted.org/packages/14/2f/967ba146e6d58cf6a652da73885f52fc68001525b4197effc174321d70b4/jmespath-1.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e4/40/3454dc78fea47fb634eb82f28473bab7ca376f4c68cd6e889edf67d10b51/julian-0.14.zip
@@ -5687,10 +5687,10 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/2b/94/5c8a2b50a496b11dd519f4a24cb5496cf125681dd99e94c604ccdea9419a/frozenlist-1.8.0-cp312-cp312-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/de/86/5486b0188d08aa643e127774a99bac51ffa6cf343e3deb0583956dca5b22/fsspec-2024.12.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/41/52/be5c8a17759d78d7cc56b4e60c1763b5fed40368368475a5e4ed491c8bac/gnatss-0.3.1-py3-none-any.whl
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-management-specs#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-product-management#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fpride-ppp#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-management-specs#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-product-management#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fpride-ppp#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
       - pypi: https://files.pythonhosted.org/packages/14/2f/967ba146e6d58cf6a652da73885f52fc68001525b4197effc174321d70b4/jmespath-1.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e4/40/3454dc78fea47fb634eb82f28473bab7ca376f4c68cd6e889edf67d10b51/julian-0.14.zip
       - pypi: https://files.pythonhosted.org/packages/99/9f/795fedf35634f746151ca8839d05681ceb6287fbed6cc1c9bf235f7887c2/kiwisolver-1.5.0-cp312-cp312-macosx_11_0_arm64.whl
@@ -5994,10 +5994,10 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/b8/af/38e51a553dd66eb064cdf193841f16f077585d4d28394c2fa6235cb41765/frozenlist-1.8.0-cp312-cp312-win_amd64.whl
       - pypi: https://files.pythonhosted.org/packages/de/86/5486b0188d08aa643e127774a99bac51ffa6cf343e3deb0583956dca5b22/fsspec-2024.12.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/41/52/be5c8a17759d78d7cc56b4e60c1763b5fed40368368475a5e4ed491c8bac/gnatss-0.3.1-py3-none-any.whl
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-management-specs#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-product-management#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
-      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fpride-ppp#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-management-specs#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-product-management#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
+      - pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fpride-ppp#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
       - pypi: https://files.pythonhosted.org/packages/9b/40/cc802e067d02af8b60b6771cea7d57e21ef5e6659912814babb42b864713/greenlet-3.3.2-cp312-cp312-win_amd64.whl
       - pypi: https://files.pythonhosted.org/packages/14/2f/967ba146e6d58cf6a652da73885f52fc68001525b4197effc174321d70b4/jmespath-1.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e4/40/3454dc78fea47fb634eb82f28473bab7ca376f4c68cd6e889edf67d10b51/julian-0.14.zip
@@ -10613,11 +10613,11 @@ packages:
   - pytest-mock ; extra == 'test'
   - pytest-xdist ; extra == 'test'
   requires_python: '>=3.10'
-- pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-management-specs#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
+- pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-management-specs#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
   name: gnss-management-specs
   version: 0.1.dev197+g6bfb039a1
   requires_python: '>=3.10,<3.15'
-- pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
+- pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
   name: gnss-ppp-etl
   version: 0.1.0
   requires_dist:
@@ -10625,7 +10625,7 @@ packages:
   - pride-ppp @ git+https://github.com/EarthScope/GNSS-PPP-ETL.git@main#subdirectory=packages/pride-ppp
   - ruff>=0.15.8
   requires_python: '>=3.10,<3.15'
-- pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-product-management#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
+- pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fgnss-product-management#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
   name: gnss-product-management
   version: 0.1.dev197+g6bfb039a1
   requires_dist:
@@ -18646,7 +18646,7 @@ packages:
   - pkg:pypi/pluggy?source=compressed-mapping
   size: 25877
   timestamp: 1764896838868
-- pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fpride-ppp#6bfb039a1c5376ae8f1e18aae3df59036a2aaf31
+- pypi: git+https://github.com/EarthScope/GNSS-PPP-ETL.git?subdirectory=packages%2Fpride-ppp#08f6a43f0af734ca7c63718bd4ed80baea73f0dc
   name: pride-ppp
   version: 0.1.dev197+g6bfb039a1
   requires_dist:
