@@ -25,7 +25,7 @@ if __name__ == "__main__":
 
     rinex_files = list(output_dir.glob("*.25o"))
     start_time = time.time()
-    results = processor.process_batch(rinex_files, max_workers=10, override=True)
+    results = list(processor.process_batch(rinex_files, max_workers=10, override=True))
 
     end_time = time.time()
     elapsed_time = end_time - start_time

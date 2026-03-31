@@ -6,8 +6,24 @@ from typing import Optional
 import yaml
 from pydantic import BaseModel, Field, field_serializer, field_validator
 
-# Local imports
-from es_sfgtools.pride_tools.pride_cli_config import PrideCLIConfig
+# External package imports
+from pride_ppp import PrideCLIConfig
+
+
+class PrideConfig(BaseModel):
+    """Pipeline-level configuration for PRIDE processing.
+    
+    Holds settings that control the pipeline behavior (concurrency, overrides)
+    separately from PrideCLIConfig which holds pdp3 CLI flags.
+    """
+    cli: PrideCLIConfig = PrideCLIConfig()
+    override: bool = Field(False, title="Flag to Override Existing Data")
+    n_processes: int = Field(
+        default=1, title="Number of PRIDE Processes to Use", ge=1
+    )
+    override_products_download: bool = Field(
+        False, title="Flag to Override Existing Products Download"
+    )
 
 
 class NovatelConfig(BaseModel):
@@ -64,7 +80,7 @@ class PositionUpdateConfig(BaseModel):
 
 
 class SV3PipelineConfig(BaseModel):
-    pride_config: PrideCLIConfig = PrideCLIConfig()
+    pride_config: PrideConfig = PrideConfig()
     novatel_config: NovatelConfig = NovatelConfig()
     rinex_config: RinexConfig = RinexConfig()
     dfop00_config: DFOP00Config = DFOP00Config()
@@ -140,7 +156,7 @@ class QCPipelineConfig(BaseModel):
     """Configuration for the QC Pipeline."""
 
     qcpin_config: QCPinConfig = QCPinConfig()
-    pride_config: PrideCLIConfig = PrideCLIConfig()
+    pride_config: PrideConfig = PrideConfig()
     rinex_config: RinexConfig = RinexConfig()
     position_update_config: PositionUpdateConfig = PositionUpdateConfig()
 

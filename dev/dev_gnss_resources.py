@@ -10,14 +10,14 @@ handler = logging.StreamHandler(sys.stdout)
 handler.setLevel(logging.DEBUG)
 root.addHandler(handler)
 root.addHandler(filemode)
-from es_sfgtools.pride_tools.pride_utils import (
+from es_sfgtools.pride_tools.pride_utils import (  # DEPRECATED: pride_tools removed; use pride_ppp package instead
     download,
     get_gnss_products,
     get_nav_file,
     update_source,
 )
 
-from es_sfgtools.pride_tools.gnss_product_schemas import WuhanIGS
+from es_sfgtools.pride_tools.gnss_product_schemas import WuhanIGS  # DEPRECATED: pride_tools removed; use pride_ppp package instead
 
 pride_dir = Path(
     "/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/Cascadia2023/NFL1/Pride"
