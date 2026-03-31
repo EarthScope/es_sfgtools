@@ -496,7 +496,7 @@ class DataHandler(WorkflowABC):
                         assets_to_download.append(file_asset)
                     else:
                         # Check to see if the file exists locally anyway
-                        if not file_asset.local_path.exists():
+                        if not Path(file_asset.local_path).exists():
                             assets_to_download.append(file_asset)
 
             # Distinguish between 1Hz and higher rate RINEX files if the file type is RINEX 
@@ -921,5 +921,5 @@ class DataHandler(WorkflowABC):
         # =================================================================
 
         # Save the updated local directory catalog to disk
-        # This ensures the local catalog reflects all downloaded filest()
+        # This ensures the local catalog reflects all downloaded files
         self.directory_handler.save()
