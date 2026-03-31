@@ -292,7 +292,7 @@ class WorkflowHandler(WorkflowABC):
         self,
         job: Literal[
             "all",
-            "intermediate"
+            "intermediate",
             "process_novatel",
             "build_rinex",
             "run_pride",
