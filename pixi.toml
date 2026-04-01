@@ -11,7 +11,7 @@ conda-pypi-map = {}
 lint = "black --check src/"
 format = "ruff format src/"
 docs = { cmd = "make html", cwd = "docs" }
-build-novatel-go = { cmd = "make -B", cwd = "packages/earthscope-sfg" }
+build-novatel-go = { cmd = "make -B", cwd = "packages/earthscope-sfg/go" }
 
 # Clone and install garpos from source
 clone-garpos = { cmd = "bash -c 'cd garpos/ && git pull || git clone https://github.com/s-watanabe-jhod/garpos.git'",cwd="external/"}

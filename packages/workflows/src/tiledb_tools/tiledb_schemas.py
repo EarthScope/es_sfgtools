@@ -7,22 +7,25 @@ re-exports them so that existing ``es_sfgtools.tiledb_tools.tiledb_schemas``
 imports within the workflows package continue to work unchanged.
 """
 
-from es_sfgtools.tiledb_schemas import (  # noqa: F401 -- re-exports
-    AcousticArraySchema,
-    GNSSObsSchema,
-    IMUPositionArraySchema,
-    KinPositionArraySchema,
-    ShotDataArraySchema,
-    TBDArray,
-    TDBAcousticArray,
-    TDBGNSSObsArray,
-    TDBIMUPositionArray,
-    TDBKinPositionArray,
-    TDBShotDataArray,
-    config,
-    ctx,
-    filters,
-)
+from es_sfgtools.tiledb_schemas import TILEDB_AVAILABLE  # noqa: F401 -- re-export
+
+if TILEDB_AVAILABLE:
+    from es_sfgtools.tiledb_schemas import (  # noqa: F401 -- re-exports
+        AcousticArraySchema,
+        GNSSObsSchema,
+        IMUPositionArraySchema,
+        KinPositionArraySchema,
+        ShotDataArraySchema,
+        TBDArray,
+        TDBAcousticArray,
+        TDBGNSSObsArray,
+        TDBIMUPositionArray,
+        TDBKinPositionArray,
+        TDBShotDataArray,
+        config,
+        ctx,
+        filters,
+    )
 
 # Some callers also import DataFrame schemas from this module; re-export them
 # so the import path stays compatible.
@@ -33,16 +36,12 @@ from es_sfgtools.data_models.observables import (  # noqa: F401 -- re-exports
     ShotDataFrame,
 )
 
-__all__ = [
+_TILEDB_NAMES = [
     "AcousticArraySchema",
-    "AcousticDataFrame",
     "GNSSObsSchema",
     "IMUPositionArraySchema",
-    "IMUPositionDataFrame",
     "KinPositionArraySchema",
-    "KinPositionDataFrame",
     "ShotDataArraySchema",
-    "ShotDataFrame",
     "TBDArray",
     "TDBAcousticArray",
     "TDBGNSSObsArray",
@@ -53,3 +52,11 @@ __all__ = [
     "ctx",
     "filters",
 ]
+
+__all__ = [
+    "TILEDB_AVAILABLE",
+    "AcousticDataFrame",
+    "IMUPositionDataFrame",
+    "KinPositionDataFrame",
+    "ShotDataFrame",
+] + _TILEDB_NAMES

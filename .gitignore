@@ -44,3 +44,4 @@ external/*
 src/golangtools/build/*
 
 .github/skills/*
+packages/earthscope-sfg/go/build/*
