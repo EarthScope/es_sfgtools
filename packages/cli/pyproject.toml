@@ -9,8 +9,6 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "es-sfgtools-cli"
 description = "EarthScope seafloor geodesy CLI — manifest-driven pipeline execution"
-readme = "../../README.md"
-license = { file = "../../LICENSE" }
 requires-python = ">= 3.11"
 authors = [
     { name = "Mike Gottlieb", email = "mike.gottlieb@earthscope.org" },
@@ -39,7 +37,5 @@ ReadTheDocs = "https://es-sfgtools.readthedocs.io/en/latest/"
 root = "../.."
 
 [tool.setuptools]
-package-dir = { "" = "src" }
-
-[tool.setuptools.packages.find]
-where = ["src"]
+package-dir = { "es_sfgtools" = "src" }
+packages = ["es_sfgtools.cli"]

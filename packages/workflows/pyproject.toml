@@ -9,8 +9,6 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "es-sfgtools-workflows"
 description = "EarthScope seafloor geodesy workflow orchestration — pipelines, data management, modeling, and configuration"
-readme = "../../README.md"
-license = { file = "../../LICENSE" }
 requires-python = ">= 3.11"
 authors = [
     { name = "Mike Gottlieb", email = "mike.gottlieb@earthscope.org" },
@@ -44,10 +42,27 @@ Homepage = "https://github.com/EarthScope/es_sfgtools"
 ReadTheDocs = "https://es-sfgtools.readthedocs.io/en/latest/"
 
 [tool.setuptools_scm]
-root = "../.."
+root = "../.."  
 
 [tool.setuptools]
-package-dir = { "" = "src" }
-
-[tool.setuptools.packages.find]
-where = ["src"]
+package-dir = { "es_sfgtools" = "src" }
+packages = [
+  "es_sfgtools.config",
+  "es_sfgtools.data_mgmt",
+  "es_sfgtools.data_mgmt.assetcatalog",
+  "es_sfgtools.data_mgmt.directorymgmt",
+  "es_sfgtools.data_mgmt.ingestion",
+  "es_sfgtools.data_models",
+  "es_sfgtools.data_models.metadata",
+  "es_sfgtools.logging",
+  "es_sfgtools.modeling",
+  "es_sfgtools.modeling.garpos_tools",
+  "es_sfgtools.prefiltering",
+  "es_sfgtools.tiledb_tools",
+  "es_sfgtools.workflows",
+  "es_sfgtools.workflows.midprocess",
+  "es_sfgtools.workflows.modeling",
+  "es_sfgtools.workflows.pipelines",
+  "es_sfgtools.workflows.preprocess_ingest",
+  "es_sfgtools.workflows.utils",
+]

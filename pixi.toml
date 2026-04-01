@@ -3,12 +3,6 @@ name = "es_sfgtools"
 channels = ["conda-forge"]
 platforms = ["win-64", "linux-64","linux-aarch64", "osx-64", "osx-arm64"]
 conda-pypi-map = {}
-members = [
-  "packages/earthscope-sfg",
-  "packages/workflows",
-  "packages/cli",
-  "packages/meta",
-]
 
 # =============================================================================
 # Tasks

@@ -9,8 +9,6 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "earthscope-sfg"
 description = "EarthScope seafloor geodesy parsing — NovaTel, Sonardyne, PRIDE-PPPAR, and shared data models"
-readme = "../../README.md"
-license = { file = "../../LICENSE" }
 requires-python = ">= 3.11"
 authors = [
     { name = "Mike Gottlieb", email = "mike.gottlieb@earthscope.org" },
@@ -49,11 +47,16 @@ Homepage = "https://github.com/EarthScope/es_sfgtools"
 ReadTheDocs = "https://es-sfgtools.readthedocs.io/en/latest/"
 
 [tool.setuptools_scm]
-root = "../.."
-write_to = "src/es_sfgtools/_version.py"
+root = "../.."  
 
 [tool.setuptools]
-package-dir = { "" = "src" }
-
-[tool.setuptools.packages.find]
-where = ["src"]
+package-dir = { "es_sfgtools" = "src" }
+packages = [
+  "es_sfgtools.novatel_tools",
+  "es_sfgtools.sonardyne_tools",
+  "es_sfgtools.pride_tools",
+  "es_sfgtools.seafloor_site_tools",
+  "es_sfgtools.utils",
+  "es_sfgtools.data_models",
+  "es_sfgtools.tiledb_schemas",
+]
