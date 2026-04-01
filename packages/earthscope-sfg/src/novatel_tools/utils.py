@@ -8,7 +8,7 @@ import json
 # Local imports
 from ..utils.command_line_utils import (
     GOLANG_BINARY_BUILD_DIR,
-    get_system_architecture,
+    get_binary_path,
 )
 
 RINEX_BIN_PATH = {
@@ -57,62 +57,32 @@ NOV0002TILE_BIN_PATH = {
 
 def get_nova2rnx_binary_path() -> Path:
     """Get the path to the nova2rnxo golang binary based on the current platform."""
-    system, arch = get_system_architecture()
-    binary_path = RINEX_BIN_PATH.get(f"{system}_{arch}")
-    if not binary_path:
-        raise FileNotFoundError(f"NOVA2RNXO binary not found for {system} {arch}")
-
-    return binary_path
+    return get_binary_path(RINEX_BIN_PATH, "NOVA2RNXO")
 
 
 def get_novb2rnxo_binary_path() -> Path:
     """Get the path to the novb2rnxo binary based on the current platform."""
-    system, arch = get_system_architecture()
-    binary_path = RINEX_BIN_PATH_BINARY.get(f"{system}_{arch}")
-    if not binary_path:
-        raise FileNotFoundError(f"NOVB2RNXO binary not found for {system} {arch}")
-
-    return binary_path
+    return get_binary_path(RINEX_BIN_PATH_BINARY, "NOVB2RNXO")
 
 
 def get_nov0002rnx_binary_path() -> Path:
     """Get the path to the nov0002rnx binary based on the current platform."""
-    system, arch = get_system_architecture()
-    binary_path = RINEX_0000_PATH_BINARY.get(f"{system}_{arch}")
-    if not binary_path:
-        raise FileNotFoundError(f"NOV0002RNX binary not found for {system} {arch}")
-
-    return binary_path
+    return get_binary_path(RINEX_0000_PATH_BINARY, "NOV0002RNX")
 
 
 def get_nova2tile_binary_path() -> Path:
     """Get the path to the nova2tile golang binary based on the current platform."""
-    system, arch = get_system_architecture()
-    binary_path = NOVA2TILE_BIN_PATH.get(f"{system}_{arch}")
-    if not binary_path:
-        raise FileNotFoundError(f"NOVA2TILE binary not found for {system} {arch}")
-
-    return binary_path
+    return get_binary_path(NOVA2TILE_BIN_PATH, "NOVA2TILE")
 
 
 def get_nov_770_tile_binary_path() -> Path:
     """Get the path to the novb2tile golang binary based on the current platform."""
-    system, arch = get_system_architecture()
-    binary_path = NOVB2TILE_BIN_PATH.get(f"{system}_{arch}")
-    if not binary_path:
-        raise FileNotFoundError(f"NOVB2TILE binary not found for {system} {arch}")
-
-    return binary_path
+    return get_binary_path(NOVB2TILE_BIN_PATH, "NOVB2TILE")
 
 
 def get_nov_000_tile_binary_path() -> Path:
     """Get the path to the nov0002tile golang binary based on the current platform."""
-    system, arch = get_system_architecture()
-    binary_path = NOV0002TILE_BIN_PATH.get(f"{system}_{arch}")
-    if not binary_path:
-        raise FileNotFoundError(f"NOV0002TILE binary not found for {system} {arch}")
-
-    return binary_path
+    return get_binary_path(NOV0002TILE_BIN_PATH, "NOV0002TILE")
 
 
 """

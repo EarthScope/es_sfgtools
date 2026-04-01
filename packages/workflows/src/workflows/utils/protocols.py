@@ -1,3 +1,4 @@
+from dataclasses import dataclass, field
 from typing import Callable, Concatenate, Optional, Protocol, TypeVar, ParamSpec
 from functools import wraps
 from abc import ABC
@@ -17,6 +18,56 @@ from es_sfgtools.data_models.metadata import Site, Campaign, Survey
 
 P = ParamSpec("P")
 R = TypeVar("R")
+
+
+@dataclass
+class WorkflowContext:
+    """Value-object that tracks the current network/station/campaign/survey context.
+
+    Replaces the 15+ individual attributes previously scattered across WorkflowABC.
+    Resetting a higher level automatically clears all dependent lower levels.
+    """
+
+    network_name: Optional[str] = None
+    network_dir: Optional[NetworkDir] = None
+
+    station_name: Optional[str] = None
+    station_dir: Optional[StationDir] = None
+    station_metadata: Optional[Site] = None
+
+    campaign_name: Optional[str] = None
+    campaign_dir: Optional[CampaignDir] = None
+    campaign_metadata: Optional[Campaign] = None
+
+    survey_name: Optional[str] = None
+    survey_dir: Optional[SurveyDir] = None
+    survey_metadata: Optional[Survey] = None
+
+    def reset_survey(self) -> None:
+        self.survey_name = None
+        self.survey_dir = None
+        self.survey_metadata = None
+
+    def reset_campaign(self) -> None:
+        self.campaign_name = None
+        self.campaign_dir = None
+        self.campaign_metadata = None
+        self.reset_survey()
+
+    def reset_station(self) -> None:
+        self.station_name = None
+        self.station_dir = None
+        self.station_metadata = None
+        self.reset_campaign()
+
+    def reset_network(self) -> None:
+        self.network_name = None
+        self.network_dir = None
+        self.reset_station()
+
+    @property
+    def has_network_station_campaign(self) -> bool:
+        return all([self.network_name, self.station_name, self.campaign_name])
 
 
 class HasNetworkStationCampaign(Protocol):
@@ -189,168 +240,118 @@ class WorkflowABC(ABC):
         self.directory_handler = directory_handler
         self.asset_catalog = asset_catalog
 
-        # Network tracking attributes
-        self.current_network_name: Optional[str] = None
-        self.current_network_dir: Optional[NetworkDir] = None
+        # Consolidated hierarchical context
+        self.ctx = WorkflowContext(station_metadata=station_metadata)
 
-        # Station tracking attributes
-        self.current_station_name: Optional[str] = None
-        self.current_station_dir: Optional[StationDir] = None
-        self.current_station_metadata: Optional[Site] = station_metadata
+    # ---- Backward-compatible property accessors ----
+    # These delegate to self.ctx so existing code using self.current_*
+    # keeps working without changes in downstream files.
 
-        # Campaign tracking attributes
-        self.current_campaign_name: Optional[str] = None
-        self.current_campaign_dir: Optional[CampaignDir] = None
-        self.current_campaign_metadata: Optional[Campaign] = None
+    @property
+    def current_network_name(self) -> Optional[str]:
+        return self.ctx.network_name
 
-        # Survey tracking attributes
-        self.current_survey_name: Optional[str] = None
-        self.current_survey_dir: Optional[SurveyDir] = None
-        self.current_survey_metadata: Optional[Survey] = None
+    @current_network_name.setter
+    def current_network_name(self, value: Optional[str]):
+        self.ctx.network_name = value
+
+    @property
+    def current_network_dir(self) -> Optional[NetworkDir]:
+        return self.ctx.network_dir
+
+    @current_network_dir.setter
+    def current_network_dir(self, value: Optional[NetworkDir]):
+        self.ctx.network_dir = value
+
+    @property
+    def current_station_name(self) -> Optional[str]:
+        return self.ctx.station_name
+
+    @current_station_name.setter
+    def current_station_name(self, value: Optional[str]):
+        self.ctx.station_name = value
+
+    @property
+    def current_station_dir(self) -> Optional[StationDir]:
+        return self.ctx.station_dir
+
+    @current_station_dir.setter
+    def current_station_dir(self, value: Optional[StationDir]):
+        self.ctx.station_dir = value
+
+    @property
+    def current_station_metadata(self) -> Optional[Site]:
+        return self.ctx.station_metadata
+
+    @current_station_metadata.setter
+    def current_station_metadata(self, value: Optional[Site]):
+        self.ctx.station_metadata = value
+
+    @property
+    def current_campaign_name(self) -> Optional[str]:
+        return self.ctx.campaign_name
+
+    @current_campaign_name.setter
+    def current_campaign_name(self, value: Optional[str]):
+        self.ctx.campaign_name = value
+
+    @property
+    def current_campaign_dir(self) -> Optional[CampaignDir]:
+        return self.ctx.campaign_dir
+
+    @current_campaign_dir.setter
+    def current_campaign_dir(self, value: Optional[CampaignDir]):
+        self.ctx.campaign_dir = value
+
+    @property
+    def current_campaign_metadata(self) -> Optional[Campaign]:
+        return self.ctx.campaign_metadata
+
+    @current_campaign_metadata.setter
+    def current_campaign_metadata(self, value: Optional[Campaign]):
+        self.ctx.campaign_metadata = value
+
+    @property
+    def current_survey_name(self) -> Optional[str]:
+        return self.ctx.survey_name
+
+    @current_survey_name.setter
+    def current_survey_name(self, value: Optional[str]):
+        self.ctx.survey_name = value
+
+    @property
+    def current_survey_dir(self) -> Optional[SurveyDir]:
+        return self.ctx.survey_dir
+
+    @current_survey_dir.setter
+    def current_survey_dir(self, value: Optional[SurveyDir]):
+        self.ctx.survey_dir = value
+
+    @property
+    def current_survey_metadata(self) -> Optional[Survey]:
+        return self.ctx.survey_metadata
+
+    @current_survey_metadata.setter
+    def current_survey_metadata(self, value: Optional[Survey]):
+        self.ctx.survey_metadata = value
+
+    # ---- Context reset methods (delegate to WorkflowContext) ----
 
     def _reset_survey(self) -> None:
-        """
-        Reset the survey-level context to None.
-
-        Clears the current survey context by setting survey name, directory handler,
-        and metadata to None. This method is called automatically when higher-level
-        contexts (campaign, station, or network) are changed to prevent orphaned
-        survey contexts.
-
-        Notes
-        -----
-        This is a private method used internally by the context management system.
-        It ensures that survey context is properly cleared when parent contexts
-        change, maintaining the hierarchical integrity of the workflow state.
-
-        The method clears:
-        - current_survey_name
-        - current_survey_metadata
-        - current_survey_dir
-
-        See Also
-        --------
-        _reset_campaign : Calls this method when resetting campaign context
-        _reset_station : Calls this method via _reset_campaign
-        _reset_network : Calls this method via _reset_station
-        """
-        self.current_survey_name = None
-        self.current_survey_metadata = None
-        self.current_survey_dir = None
+        """Reset the survey-level context to None."""
+        self.ctx.reset_survey()
 
     def _reset_campaign(self) -> None:
-        """
-        Reset the campaign-level context and all dependent survey context.
-
-        Clears the current campaign context and automatically resets the survey
-        context via _reset_survey(). This ensures that when a campaign changes,
-        no orphaned survey context remains from the previous campaign.
-
-        Notes
-        -----
-        This is a private method used internally by the context management system.
-        It maintains the hierarchical integrity by cascading the reset operation
-        to all dependent contexts.
-
-        The method clears:
-        - current_campaign_name
-        - current_campaign_metadata
-        - current_campaign_dir
-        - All survey-level context (via _reset_survey)
-
-        This method is called automatically when:
-        - Station context changes (via _reset_station)
-        - Network context changes (via _reset_network)
-        - Campaign context is explicitly changed (via set_campaign)
-
-        See Also
-        --------
-        _reset_survey : Called by this method to clear survey context
-        _reset_station : Calls this method when resetting station context
-        _reset_network : Calls this method via _reset_station
-        """
-        self.current_campaign_name = None
-        self.current_campaign_metadata = None
-        self.current_campaign_dir = None
-        self._reset_survey()
+        """Reset the campaign-level context and all dependent survey context."""
+        self.ctx.reset_campaign()
 
     def _reset_station(self) -> None:
-        """
-        Reset the station-level context and all dependent campaign and survey contexts.
-
-        Clears the current station context and automatically resets all dependent
-        contexts (campaign and survey) via _reset_campaign(). This ensures that
-        when a station changes, no orphaned lower-level context remains from the
-        previous station.
-
-        Notes
-        -----
-        This is a private method used internally by the context management system.
-        It maintains the hierarchical integrity by cascading the reset operation
-        to all dependent contexts in the proper order.
-
-        The method clears:
-        - current_station_name
-        - current_station_dir
-        - current_station_metadata
-        - All campaign-level context (via _reset_campaign)
-        - All survey-level context (via _reset_campaign → _reset_survey)
-
-        This method is called automatically when:
-        - Network context changes (via _reset_network)
-        - Station context is explicitly changed (via set_station)
-
-        The station metadata is particularly important in mid-process workflows
-        as it contains critical information about transponder configurations,
-        site parameters, and campaign definitions required for scientific processing.
-
-        See Also
-        --------
-        _reset_campaign : Called by this method to clear campaign/survey context
-        _reset_network : Calls this method when resetting network context
-        set_station : Calls this method before setting new station context
-        """
-        self.current_station_name = None
-        self.current_station_dir = None
-        self.current_station_metadata = None
-        self._reset_campaign()
+        """Reset the station-level context and all dependent contexts."""
+        self.ctx.reset_station()
 
     def _reset_network(self) -> None:
-        """
-        Reset the network-level context and all dependent contexts.
-
-        Clears the current network context and automatically resets all dependent
-        contexts (station, campaign, and survey) via _reset_station(). This ensures
-        complete context isolation when switching between different networks.
-
-        Notes
-        -----
-        This is a private method used internally by the context management system.
-        It represents the top level of the hierarchical reset cascade and ensures
-        that all lower-level contexts are properly cleared when the network changes.
-
-        The method clears:
-        - current_network_name
-        - current_network_dir
-        - All station-level context (via _reset_station)
-        - All campaign-level context (via _reset_station → _reset_campaign)
-        - All survey-level context (via _reset_station → _reset_campaign → _reset_survey)
-
-        This method is called automatically when:
-        - Network context is explicitly changed (via set_network)
-
-        The network represents the highest level of organization in the seafloor
-        geodesy data hierarchy and typically corresponds to a geographic region
-        or institutional boundary containing multiple seafloor sites.
-
-        See Also
-        --------
-        _reset_station : Called by this method to clear all station-dependent context
-        set_network : Calls this method before setting new network context
-        """
-        self.current_network_name = None
-        self.current_network_dir = None
-        self._reset_station()
+        """Reset the network-level context and all dependent contexts."""
+        self.ctx.reset_network()
 
     def set_network(self, network_id: str):
         """

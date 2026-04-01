@@ -1,9 +1,10 @@
 import logging
 import platform
 import re
+import subprocess
 import warnings
 from pathlib import Path
-from typing import Tuple
+from typing import Dict, List, Tuple
 
 from es_sfgtools.logging.loggers import _BaseLogger
 
@@ -129,3 +130,70 @@ def parse_cli_logs(result, logger: _BaseLogger | logging.Logger):
                     logger.info(message)
             if (exception := raise_exception(message)) is not None:
                 raise exception
+
+
+def get_binary_path(
+    path_map: Dict[str, Path],
+    binary_name: str,
+) -> Path:
+    """Resolve a platform-specific binary path from a ``{system_arch: path}`` map.
+
+    Parameters
+    ----------
+    path_map : dict[str, Path]
+        Mapping of ``"system_arch"`` keys (e.g. ``"darwin_arm64"``) to binary paths.
+    binary_name : str
+        Human-readable name used in error messages when the binary is missing.
+
+    Returns
+    -------
+    Path
+        Resolved binary path for the current platform.
+
+    Raises
+    ------
+    FileNotFoundError
+        If no binary is available for the current platform.
+    """
+    system, arch = get_system_architecture()
+    binary_path = path_map.get(f"{system}_{arch}")
+    if not binary_path:
+        raise FileNotFoundError(
+            f"{binary_name} binary not found for {system} {arch}"
+        )
+    return binary_path
+
+
+def run_binary(
+    cmd: List[str],
+    log: "_BaseLogger | logging.Logger | None" = None,
+    cwd: "str | Path | None" = None,
+    capture: bool = True,
+) -> subprocess.CompletedProcess:
+    """Run an external binary, parse its CLI logs, and return the result.
+
+    Parameters
+    ----------
+    cmd : list[str]
+        Command and arguments to execute.
+    log : logger, optional
+        Logger instance for output parsing.  Falls back to module-level logger.
+    cwd : str or Path, optional
+        Working directory for the subprocess.
+    capture : bool, optional
+        Whether to capture stdout/stderr.  Defaults to True.
+
+    Returns
+    -------
+    subprocess.CompletedProcess
+    """
+    if log is None:
+        log = logger
+    result = subprocess.run(
+        cmd,
+        cwd=cwd,
+        capture_output=capture,
+    )
+    if capture:
+        parse_cli_logs(result, log)
+    return result

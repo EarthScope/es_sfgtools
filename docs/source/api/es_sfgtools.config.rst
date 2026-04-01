@@ -17,4 +17,3 @@ Submodules
    es_sfgtools.config.garpos_config
    es_sfgtools.config.loadconfigs
    es_sfgtools.config.shotdata_filters
-   es_sfgtools.config.tiledb_s3_config

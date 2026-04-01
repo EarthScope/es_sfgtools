@@ -1,12 +1,10 @@
 # External imports
 from pathlib import Path
-import tiledb
-from cloudpathlib import S3Path
 
 # Local imports
-from ..utils.command_line_utils import (
+from es_sfgtools.utils.command_line_utils import (
     GOLANG_BINARY_BUILD_DIR,
-    get_system_architecture,
+    get_binary_path,
 )
 
 TILE2RINEX_BIN_PATH = {
@@ -19,9 +17,4 @@ TILE2RINEX_BIN_PATH = {
 
 def get_tile2rinex_binary_path() -> Path:
     """Get the path to the tile2rinex golang binary based on the current platform."""
-    system, arch = get_system_architecture()
-    binary_path = TILE2RINEX_BIN_PATH.get(f"{system}_{arch}")
-    if not binary_path:
-        raise FileNotFoundError(f"TILE2RINEX binary not found for {system} {arch}")
-
-    return binary_path
+    return get_binary_path(TILE2RINEX_BIN_PATH, "TILE2RINEX")

@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import List
 
 # Local imports
-from es_sfgtools.utils.command_line_utils import parse_cli_logs
+from es_sfgtools.utils.command_line_utils import run_binary
 
 from ..logging import ProcessLogger as logger
 from .utils import get_tile2rinex_binary_path
@@ -66,9 +66,7 @@ def tile2rinex(
         if modulo_millis > 0:
             cmd.extend(["-modulo", str(modulo_millis)])
         logger.loginfo(f" Running {cmd}")
-        result = subprocess.run(cmd, cwd=workdir, capture_output=True)
-
-        parse_cli_logs(result, logger)
+        result = run_binary(cmd, log=logger, cwd=workdir)
 
         rinex_files = list(Path(workdir).rglob("*"))
         rinex_assets = []

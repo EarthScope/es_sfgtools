@@ -80,26 +80,6 @@ class INTERMEDIATE_DOWNLOAD_TYPES(Enum):
 DEFAULT_INTERMEDIATE_FILE_TYPES_TO_DOWNLOAD = [x for x in INTERMEDIATE_DOWNLOAD_TYPES]
 
 
-# class DATA_TYPE(Enum):
-#     """Enumeration for processed data types stored in TileDB arrays."""
-
-#     KINPOSITION = "kinposition"
-#     ACOUSTIC = "acoustic"
-#     SITECONFIG = "siteconfig"
-#     ATDOFFSET = "atdoffset"
-#     SVP = "svp"
-#     SHOTDATA = "shotdata"
-#     IMUPOSITION = "imuposition"
-
-#     @classmethod
-#     def to_schema(cls):
-#         """Returns a list of all enum member names."""
-#         return [x.name for x in cls]
-
-
-# DATA_TYPES = [x.value for x in DATA_TYPE]
-
-
 class AssetType(Enum):
     """Enumeration for all asset types, both raw and processed."""
 

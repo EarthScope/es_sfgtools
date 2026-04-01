@@ -12,6 +12,5 @@ Submodules
 .. toctree::
    :maxdepth: 4
 
-   es_sfgtools.sonardyne_tools.sv2_operations
    es_sfgtools.sonardyne_tools.sv3_operations
    es_sfgtools.sonardyne_tools.utils
