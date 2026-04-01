@@ -3,6 +3,12 @@ name = "es_sfgtools"
 channels = ["conda-forge"]
 platforms = ["win-64", "linux-64","linux-aarch64", "osx-64", "osx-arm64"]
 conda-pypi-map = {}
+members = [
+  "packages/earthscope-sfg",
+  "packages/workflows",
+  "packages/cli",
+  "packages/meta",
+]
 
 # =============================================================================
 # Tasks
@@ -11,7 +17,7 @@ conda-pypi-map = {}
 lint = "black --check src/"
 format = "ruff format src/"
 docs = { cmd = "make html", cwd = "docs" }
-build-go = { cmd = "make -B", cwd = "src/golangtools" }
+build-novatel-go = { cmd = "make -B", cwd = "packages/earthscope-sfg" }
 
 # Clone and install garpos from source
 clone-garpos = { cmd = "bash -c 'cd garpos/ && git pull || git clone https://github.com/s-watanabe-jhod/garpos.git'",cwd="external/"}
@@ -23,7 +29,7 @@ clone-pride = { cmd = "bash -c 'cd PRIDE-PPPAR/ && git pull || git clone --depth
 install-pride = { cmd = "chmod +x install.sh && echo 'N' | HOME=$PIXI_PROJECT_ROOT/external ./install.sh", cwd = "external/PRIDE-PPPAR", depends-on = ["clone-pride"] }
 test-pride = { cmd = "chmod +x test.sh && ./test.sh", cwd = "external/PRIDE-PPPAR/example"}
 
-setup = {depends-on = ["compile-garpos","install-pride","build-go"]}
+setup = {depends-on = ["compile-garpos","install-pride","build-novatel-go"]}
 test-setup = {depends-on = ["test-garpos","test-pride"]}
 
 
@@ -96,7 +102,9 @@ scikit-sparse = { version = ">=0.4.16, <0.5" }
 # This pulls in all dependencies from pyproject.toml [project.dependencies]
 # =============================================================================
 [pypi-dependencies]
-es_sfgtools = { path = ".", editable = true }
+earthscope-sfg = { path = "packages/earthscope-sfg", editable = true }
+es-sfgtools-workflows = { path = "packages/workflows", editable = true }
+es-sfgtools-cli = { path = "packages/cli", editable = true }
 
 # =============================================================================
 # Feature: dev (adds dev tools)

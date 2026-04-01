@@ -23,12 +23,8 @@ from es_sfgtools.config.env_config import Environment
 
 Environment.load_working_environment()
 
-
-# This is a temporary workaround for the import system.
-# A better long-term solution is to install the package in editable mode.
-sys.path.append(str(Path(__file__).parent))
-from src.commands import run_manifest, run_preprocessing
-from src.manifest import PipelineManifest
+from es_sfgtools.cli.commands import run_manifest, run_preprocessing
+from es_sfgtools.cli.manifest import PipelineManifest
 
 # This adds the PRIDE binary path to the system's PATH.
 # A better long-term solution is for the user to configure this in their shell.
