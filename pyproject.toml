@@ -56,6 +56,7 @@ dependencies = [
   "cloudpathlib[s3]==0.23.0",
   "colorama>=0.4.6",
   "pyarrow==21.0.0",
+  "gnss-ppp-etl @ git+https://github.com/EarthScope/GNSS-PPP-ETL.git@main",
 ]
 
 [project.optional-dependencies]

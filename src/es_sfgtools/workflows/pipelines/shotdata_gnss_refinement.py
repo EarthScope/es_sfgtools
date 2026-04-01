@@ -591,9 +591,16 @@ def merge_shotdata_kinposition(
     for date in dates:
         shotdata_df = shotdata_pre.read_df(start=date)
         kin_position_df = kin_position.read_df(start=date)
-        position_df = (
-            position_data.read_df(start=date) if position_data is not None else None
-        )
+
+        try:
+            position_df = (
+                position_data.read_df(start=date) if position_data is not None else None
+            )
+        except Exception as e:
+            logger.loginfo(
+                f"Error reading position data for date {str(date)}: {e}. Proceeding without position data."
+            )
+            position_df = None
         if shotdata_df is None or shotdata_df.empty:
             continue
         if shotdata_df.empty:

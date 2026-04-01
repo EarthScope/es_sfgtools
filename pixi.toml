@@ -2,6 +2,7 @@
 name = "es_sfgtools"
 channels = ["conda-forge"]
 platforms = ["win-64", "linux-64","linux-aarch64", "osx-64", "osx-arm64"]
+conda-pypi-map = {}
 
 # =============================================================================
 # Tasks
@@ -50,7 +51,7 @@ wheel = "*"
 clang = "*"
 go = ">=1.22"
 make = "*"
-requests = ">=2.32.5,<3"
+requests = ">=2.33.1,<3"
 pytest = ">=9.0.2,<10"
 
 # =============================================================================
@@ -131,6 +132,6 @@ full = { features = ["dev", "notebook"], solve-group = "default" }
 CGO_ENABLED = "1"
 PIP_INDEX_URL = "https://pypi.org/simple"
 GARPOS_PATH = "$PIXI_PROJECT_ROOT/external/garpos"
-PATH = "$PIXI_PROJECT_ROOT/external/.PRIDE_PPPAR_BIN:$PATH"
+PATH = "~/.PRIDE_PPPAR_BIN:$PATH"
 DYLD_LIBRARY_PATH = "$PIXI_PROJECT_ROOT/.pixi/envs/$PIXI_ENVIRONMENT_NAME/lib:$DYLD_LIBRARY_PATH"
 LD_LIBRARY_PATH = "$PIXI_PROJECT_ROOT/.pixi/envs/$PIXI_ENVIRONMENT_NAME/lib:$LD_LIBRARY_PATH"

@@ -34,9 +34,9 @@ def update_source(source: RemoteResourceFTP) -> RemoteResourceFTP:
         "BRDC20210010000.rnx.gz"
     """
     # List the contents of the directory and return the first file that matches the sorted remote query
-    assert isinstance(source.remote_query, RemoteQuery), (
-        f"Remote query not set for {source}"
-    )
+    assert isinstance(
+        source.remote_query, RemoteQuery
+    ), f"Remote query not set for {source}"
 
     try:
         with FTP(source.ftpserver.replace("ftp://", ""), timeout=60) as ftp:
@@ -655,9 +655,9 @@ def get_gnss_products(
             product_directory = Path(
                 config_template.satellite_products.product_directory
             )
-            assert product_directory.exists(), (
-                f"Product directory {product_directory} does not exist"
-            )
+            assert (
+                product_directory.exists()
+            ), f"Product directory {product_directory} does not exist"
             # check if the gnss products are already downloaded
             for (
                 name,

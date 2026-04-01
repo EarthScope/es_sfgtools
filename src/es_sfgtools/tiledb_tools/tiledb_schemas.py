@@ -50,7 +50,7 @@ def as_py_datetime_object_col(s: pd.Series) -> pd.Series:
     dt = pd.to_datetime(
         s, errors="coerce", utc=True
     )  # handles numpy datetime64, Timestamp, strings
-    py = dt.dt.to_pydatetime()  # ndarray[datetime.datetime]
+    py = np.array(dt.dt.to_pydatetime())  # ndarray[datetime.datetime]
     return pd.Series(py, index=s.index, dtype=object)
 
 

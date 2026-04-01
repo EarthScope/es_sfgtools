@@ -174,53 +174,26 @@ class IMUPositionDataFrame(pa.DataFrameModel):
         coerce=True,
         description="Timestamp of the measurement in millisecond precision (UTC) [Y-M-D-H-M-S]",
     )
-    head: Series[float] = pa.Field(
+    azimuth: Series[float] = pa.Field(
         ge=-180,
-        le=180,
+        le=360,
         coerce=True,
-        description="Heading of the vessel at the time of the ping",
+        nullable=True,
+        description="Heading/azimuth of the vessel at the time of the measurement [degrees]",
     )
     pitch: Series[float] = pa.Field(
         ge=-90,
         le=90,
         coerce=True,
-        description="Pitch of the vessel at the time of the ping",
+        nullable=True,
+        description="Pitch of the vessel at the time of the measurement [degrees]",
     )
     roll: Series[float] = pa.Field(
         ge=-180,
         le=180,
         coerce=True,
-        description="Roll of the vessel at the time of the ping",
-    )
-    east: Series[float] = pa.Field(
-        ge=-6378100,
-        le=6378100,
-        coerce=True,
-        description="ECEF East position of the vessel at the time of the ping [m]",
-    )
-    north: Series[float] = pa.Field(
-        ge=-6378100,
-        le=6378100,
-        coerce=True,
-        description="ECEF North position of the vessel at the time of the ping [m]",
-    )
-    up: Series[float] = pa.Field(
-        ge=-6378100,
-        le=6378100,
-        coerce=True,
-        description="Height above ellipsoid of the vessel at the time of the ping",
-    )
-    east_std: Series[float] = pa.Field(
         nullable=True,
-        description="Standard deviation of the ECEF East position of the vessel at the time of the ping [m]",
-    )
-    north_std: Series[float] = pa.Field(
-        nullable=True,
-        description="Standard deviation of the ECEF North position of the vessel at the time of the ping [m]",
-    )
-    up_std: Series[float] = pa.Field(
-        nullable=True,
-        description="Standard deviation of the height above ellipsoid of the vessel at the time of the ping",
+        description="Roll of the vessel at the time of the measurement [degrees]",
     )
     latitude: Series[float] = pa.Field(
         ge=-90,
@@ -233,6 +206,63 @@ class IMUPositionDataFrame(pa.DataFrameModel):
         le=360,
         coerce=True,
         description="Longitude from the GNSS receiver (WGS84) [degrees]",
+    )
+    height: Series[float] = pa.Field(
+        ge=-6378100,
+        le=6378100,
+        coerce=True,
+        description="Height above ellipsoid [m]",
+    )
+    latitude_std: Series[float] = pa.Field(
+        nullable=True,
+        description="Standard deviation of latitude [degrees]",
+    )
+    longitude_std: Series[float] = pa.Field(
+        nullable=True,
+        description="Standard deviation of longitude [degrees]",
+    )
+    height_std: Series[float] = pa.Field(
+        nullable=True,
+        description="Standard deviation of height [m]",
+    )
+    northVelocity: Series[float] = pa.Field(
+        coerce=True,
+        nullable=True,
+        description="North velocity [m/s]",
+    )
+    eastVelocity: Series[float] = pa.Field(
+        coerce=True,
+        nullable=True,
+        description="East velocity [m/s]",
+    )
+    upVelocity: Series[float] = pa.Field(
+        coerce=True,
+        nullable=True,
+        description="Up velocity [m/s]",
+    )
+    northVelocity_std: Series[float] = pa.Field(
+        nullable=True,
+        description="Standard deviation of north velocity [m/s]",
+    )
+    eastVelocity_std: Series[float] = pa.Field(
+        nullable=True,
+        description="Standard deviation of east velocity [m/s]",
+    )
+    upVelocity_std: Series[float] = pa.Field(
+        nullable=True,
+        description="Standard deviation of up velocity [m/s]",
+    )
+    roll_std: Series[float] = pa.Field(
+        nullable=True,
+        description="Standard deviation of roll [degrees]",
+    )
+    pitch_std: Series[float] = pa.Field(
+        nullable=True,
+        description="Standard deviation of pitch [degrees]",
+    )
+    azimuth_std: Series[float] = pa.Field(
+        nullable=True,
+        description="Standard deviation of azimuth/heading [degrees]",
     )
 
     class Config:

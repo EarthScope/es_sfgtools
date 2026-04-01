@@ -179,7 +179,7 @@ class MetadataModel(BaseModel):
         default=[0.0, 0.0, 0.0], description="Antenna offset [H, E, N]"
     )
     antenna_model: Optional[str] = Field(
-        default="TRM59800.00 SCIT", description="Antenna model"
+        default="NOV850 NONE", description="Antenna model"
     )
     antenna_serial: Optional[str] = Field(
         default="987654321", description="Antenna serial number"
@@ -209,7 +209,7 @@ def get_metadatav2(
         "receiver_model": "NOV",
         "receiver_serial": serialNumber,
         "receiver_firmware": "0.0.0",
-        "antenna_model": "TRM59800.00 SCIT",
+        "antenna_model": "NOV850 NONE",
         "antenna_serial": "987654321",
         "antenna_position": antennaPosition,
         "antenna_offsetHEN": antennaeOffsetHEN,

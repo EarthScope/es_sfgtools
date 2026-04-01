@@ -1,15 +1,14 @@
 # External Imports
-import concurrent.futures
 import datetime
 import json
 import sys
-from functools import partial
 from multiprocessing import Pool
 from pathlib import Path
 from typing import List, Optional
 
 from tqdm.auto import tqdm
 
+from pride_ppp import PrideProcessor, ProcessingMode, kin_to_kin_position_df, rinex_get_time_range
 # Local imports
 from es_sfgtools.data_mgmt.assetcatalog.handler import PreProcessCatalogHandler
 from es_sfgtools.data_mgmt.assetcatalog.schemas import AssetEntry, AssetType
@@ -25,14 +24,6 @@ from es_sfgtools.data_mgmt.utils import (
 from es_sfgtools.logging import ProcessLogger, change_all_logger_dirs
 from es_sfgtools.novatel_tools import novatel_binary_operations as novb_ops
 from es_sfgtools.novatel_tools.utils import get_metadata, get_metadatav2
-from es_sfgtools.pride_tools import (
-    PrideCLIConfig,
-    get_gnss_products,
-    get_nav_file,
-    kin_to_kin_position_df,
-    rinex_to_kin,
-    rinex_utils,
-)
 from es_sfgtools.seafloor_site_tools.soundspeed_operations import (
     CTD_to_svp_v1,
     CTD_to_svp_v2,
@@ -57,94 +48,6 @@ from .exceptions import (
     NoLocalData,
 )
 from ..utils.protocols import WorkflowABC, validate_network_station_campaign
-
-
-def rinex_to_kin_wrapper(
-    rinex_prideconfig_path: tuple[AssetEntry, Path],
-    writedir: Path,
-    pridedir: Path,
-    site: str,
-    pride_config: PrideCLIConfig,
-) -> tuple[Optional[AssetEntry], Optional[AssetEntry]]:
-    """Wrapper function to convert a RINEX file to KIN format using PRIDE configuration.
-
-    This function takes a tuple containing an AssetEntry for the RINEX file and the
-    path to the PRIDE configuration file, along with directories for writing
-    output and PRIDE processing, the site name, and a PRIDE CLI configuration
-    object. It updates the PRIDE configuration with the provided config file
-    path, then calls `rinex_to_kin` to perform the conversion. If successful,
-    it returns AssetEntry objects for the generated KIN file and its
-    residuals file; otherwise, returns (None, None).
-
-    Parameters
-    ----------
-    rinex_prideconfig_path : tuple[AssetEntry, Path]
-        Tuple containing the RINEX AssetEntry and PRIDE config file path.
-    writedir : Path
-        Directory where output files should be written.
-    pridedir : Path
-        Directory for PRIDE processing.
-    site : str
-        Name of the site/station.
-    pride_config : PrideCLIConfig
-        PRIDE CLI configuration object.
-
-    Returns
-    -------
-    tuple[Optional[AssetEntry], Optional[AssetEntry]]
-        AssetEntry for the generated KIN file and AssetEntry for the
-        residuals file, or (None, None) if conversion fails.
-
-    Raises
-    ------
-    Exception
-        If an error occurs during AssetEntry creation for KIN or RES file.
-    """
-
-    rinex_entry, pride_config_path = rinex_prideconfig_path
-    pride_config = pride_config.model_copy()
-    pride_config.pride_configfile_path = pride_config_path
-
-    kinfile, resfile = rinex_to_kin(
-        source=rinex_entry.local_path,
-        writedir=writedir,
-        pridedir=pridedir,
-        site=site,
-        pride_cli_config=pride_config,
-    )
-    if kinfile is None:
-        return None, None
-
-    try:
-        kin_entry = AssetEntry(
-            local_path=kinfile,
-            network=rinex_entry.network,
-            station=rinex_entry.station,
-            campaign=rinex_entry.campaign,
-            timestamp_data_start=rinex_entry.timestamp_data_start,
-            timestamp_data_end=rinex_entry.timestamp_data_end,
-            type=AssetType.KIN,
-            timestamp_created=datetime.datetime.now(tz=datetime.timezone.utc),
-            parent_id=rinex_entry.id,
-        )
-        if resfile is None:
-            return kin_entry, None
-
-        resfile_entry = AssetEntry(
-            local_path=resfile,
-            network=rinex_entry.network,
-            station=rinex_entry.station,
-            campaign=rinex_entry.campaign,
-            timestamp_data_start=rinex_entry.timestamp_data_start,
-            timestamp_data_end=rinex_entry.timestamp_data_end,
-            type=AssetType.KINRESIDUALS,
-            timestamp_created=datetime.datetime.now(tz=datetime.timezone.utc),
-            parent_id=rinex_entry.id,
-        )
-    except Exception as e:
-        ProcessLogger.logerr(f"Error creating AssetEntry for KIN or RES file: {e}")
-        return None, None
-    return kin_entry, resfile_entry
 
 
 class SV3Pipeline(WorkflowABC):
@@ -630,7 +533,7 @@ class SV3Pipeline(WorkflowABC):
                 uploadCount = 0
                 for rinex_path in rinex_paths:
                     # Get the start and end time from the RINEX file for metadata
-                    rinex_time_start, rinex_time_end = rinex_utils.rinex_get_time_range(
+                    rinex_time_start, rinex_time_end = rinex_get_time_range(
                         rinex_path
                     )
                     rinex_entry = AssetEntry(
@@ -733,91 +636,66 @@ class SV3Pipeline(WorkflowABC):
         response = f"Found {len(rinex_entries)} Rinex Files to Process"
         ProcessLogger.loginfo(response)
 
-        """
-        Get the PRIDE GNSS product files for each unique DOY
-
-        1, Build partial functions for getting nav files and pride config files
-        2. Use ThreadPoolExecutor to download files in parallel
-        3. Create list of tuples (rinex_entry, pride_config_path) for processing
-        4. Filter out any entries where pride_config_path is None
-        """
-        get_nav_file_partial = partial(
-            get_nav_file, override=self.config.pride_config.override_products_download
-        )
-        get_pride_config_partial = partial(
-            get_gnss_products,
+        # Process the Rinex files using PrideProcessor
+        # 1. Convert each Rinex to KIN using PRIDE
+        # 2. Create AssetEntry for each KIN and residual file
+        # 3. Add to the catalog
+        # 4. Mark Rinex as processed
+        processor = PrideProcessor(
             pride_dir=prideDir,
-            override=self.config.pride_config.override_products_download,
+            output_dir=intermediateDir,
+            mode = ProcessingMode.DEFAULT,
         )
-
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            nav_files = [
-                x
-                for x in executor.map(
-                    get_nav_file_partial, [x.local_path for x in rinex_entries]
-                )
-            ]
-            pride_configs = [
-                x
-                for x in executor.map(
-                    get_pride_config_partial, [x.local_path for x in rinex_entries]
-                )
-            ]
-
-        rinex_prideconfigs = [
-            (rinex_entry, pride_config_path)
-            for rinex_entry, pride_config_path in zip(rinex_entries, pride_configs)
-            if pride_config_path is not None
-        ]
-        """
-        Now process the Rinex files in parallel
-        1. Convert each Rinex to KIN using the appropriate PRIDE config
-        2. Create AssetEntry for each KIN and residual file
-        3. Add to the catalog
-        4. Mark Rinex as processed
-   
-        """
 
         # Build the partial function for multi processing Rinex to KIN
-        process_rinex_partial = partial(
-            rinex_to_kin_wrapper,
-            writedir=intermediateDir,
-            pridedir=prideDir,
-            site=self.current_station_name,
-            pride_config=self.config.pride_config,
-        )
-        kin_entries = []
-        resfile_entries = []
+        rinex_path_entry_map = {entry.local_path: entry for entry in rinex_entries}
+
         kin_count = 0
         res_count = 0
         uploadCount = 0
 
-        with Pool(processes=self.config.rinex_config.n_processes) as pool:
-            # Map the processing function over the Rinex files
-            results = pool.map(process_rinex_partial, rinex_prideconfigs)
-
-            for idx, (kinfile, resfile) in enumerate(
-                tqdm(
-                    results,
-                    total=len(rinex_entries),
-                    desc="Processing Rinex Files",
-                    mininterval=0.5,
+        for result in tqdm(processor.process_batch(
+            [x.local_path for x in rinex_entries],
+            max_workers=self.config.pride_config.n_processes,
+            override=self.config.pride_config.override), desc=f"Processing Rinex Files with PRIDE-PPPAR for {self.current_network_name} {self.current_station_name} {self.current_campaign_name} using {self.config.pride_config.n_processes} workers",total=len(rinex_entries)):
+            ProcessLogger.loginfo(f"Completed PRIDE-PPPAR processing for {result.rinex_path.name}")
+            rinex_entry = rinex_path_entry_map.get(result.rinex_path)
+            if result.kin_path is not None:
+                ProcessLogger.loginfo(f"Generated KIN file for {result.rinex_path.name} at {result.kin_path}")
+                kin_entry = AssetEntry(
+                    local_path=result.kin_path,
+                    network=self.current_network_name,
+                    station=self.current_station_name,
+                    campaign=self.current_campaign_name,
+                    timestamp_data_start=rinex_entry.timestamp_data_start,
+                    timestamp_data_end=rinex_entry.timestamp_data_end,
+                    type=AssetType.KIN,
+                    timestamp_created=datetime.datetime.now(tz=datetime.timezone.utc),
+                    parent_id=rinex_entry.id,
                 )
-            ):
-                if kinfile is not None:
-                    kin_count += 1
-                    rinex_entries[idx].is_processed = True
-                    self.asset_catalog.add_or_update(rinex_entries[idx])
+                rinex_entry.is_processed = True
+                kin_count += 1
+                self.asset_catalog.add_or_update(rinex_entry)
+                if self.asset_catalog.add_or_update(kin_entry):
+                    uploadCount += 1
+            if result.res_path is not None:
+                resfile = AssetEntry(
+                    local_path=result.res_path,
+                    network=self.current_network_name,
+                    station=self.current_station_name,
+                    campaign=self.current_campaign_name,
+                    timestamp_data_start=rinex_entry.timestamp_data_start,
+                    timestamp_data_end=rinex_entry.timestamp_data_end,
+                    type=AssetType.KINRESIDUALS,
+                    timestamp_created=datetime.datetime.now(tz=datetime.timezone.utc),
+                    parent_id=rinex_entry.id,
+                )
 
-                    if self.asset_catalog.add_or_update(kinfile):
-                        uploadCount += 1
+                res_count += 1
+                if self.asset_catalog.add_or_update(resfile):
+                    uploadCount += 1
 
-                    if resfile is not None:
-                        res_count += 1
 
-                        if self.asset_catalog.add_or_update(resfile):
-                            uploadCount += 1
-                            resfile_entries.append(resfile)
 
         response = f"Generated {kin_count} Kin Files and {res_count} Residual Files From {len(rinex_entries)} Rinex Files, Added {uploadCount} to the Catalog"
         ProcessLogger.loginfo(response)
