@@ -3,17 +3,16 @@ This module is for development and testing of the CLI.
 """
 
 import os
-import sys
 from pathlib import Path
-
-sys.path.append((test := str(Path(__file__).parent.parent)))
-
-from pathlib import Path
-
-sys.path.append("/Users/franklyndunbar/Project/SeaFloorGeodesy/gnatss/src")
 
 if __name__ == "__main__":
-    from src import PipelineManifest, run_manifest
+    from es_sfgtools.cli.manifest import PipelineManifest
+    from es_sfgtools.cli.commands import run_manifest
+    from es_sfgtools.logging import ProcessLogger
+    from es_sfgtools.config.env_config import Environment
+
+    Environment.load_working_environment()
+    ProcessLogger.route_to_console()
 
     pride_path = Path.home() / ".PRIDE_PPPAR_BIN"
     os.environ["PATH"] += os.pathsep + str(pride_path)
