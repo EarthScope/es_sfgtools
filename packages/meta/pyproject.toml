@@ -1,0 +1,52 @@
+[build-system]
+requires = [
+    "setuptools>=62.6",
+    "setuptools_scm[toml]>=6.2",
+    "wheel",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "es-sfgtools"
+description = "EarthScope seafloor geodesy tools — meta-package that installs all sub-packages"
+readme = "../../README.md"
+license = { file = "../../LICENSE" }
+requires-python = ">= 3.11"
+authors = [
+    { name = "Mike Gottlieb", email = "mike.gottlieb@earthscope.org" },
+    { name = "Franklyn Dunbar", email = "franklyn.dunbar@earthscope.org" },
+    { name = "Rachel Akie", email = "rachel.akie@earthscope.org" },
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+dynamic = ["version"]
+
+dependencies = [
+    "earthscope-sfg",
+    "es-sfgtools-workflows",
+    "es-sfgtools-cli",
+]
+
+[project.optional-dependencies]
+dev = [
+    "sphinx",
+    "sphinx-rtd-theme",
+    "myst-parser",
+    "sphinxcontrib-apidoc",
+    "sphinx_pyproject",
+    "build",
+    "twine",
+]
+notebook = [
+    "ipykernel",
+    "jupyterlab",
+]
+
+[project.urls]
+Homepage = "https://github.com/EarthScope/es_sfgtools"
+ReadTheDocs = "https://es-sfgtools.readthedocs.io/en/latest/"
+
+[tool.setuptools_scm]
+root = "../.."

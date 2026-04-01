@@ -1,0 +1,53 @@
+[build-system]
+requires = [
+    "setuptools>=62.6",
+    "setuptools_scm[toml]>=6.2",
+    "wheel",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "es-sfgtools-workflows"
+description = "EarthScope seafloor geodesy workflow orchestration — pipelines, data management, modeling, and configuration"
+readme = "../../README.md"
+license = { file = "../../LICENSE" }
+requires-python = ">= 3.11"
+authors = [
+    { name = "Mike Gottlieb", email = "mike.gottlieb@earthscope.org" },
+    { name = "Franklyn Dunbar", email = "franklyn.dunbar@earthscope.org" },
+    { name = "Rachel Akie", email = "rachel.akie@earthscope.org" },
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+dynamic = ["version"]
+
+dependencies = [
+    "earthscope-sfg[tiledb]",
+    "boto3>=1.40",
+    "botocore>=1.40",
+    "sqlalchemy>=2.0",
+    "python-dotenv>=1.1",
+    "tqdm>=4.60",
+    "seaborn>=0.13",
+    "earthscope-sdk>=1.1",
+    "earthscope-cli>=1.0",
+    "gnatss>=0.3.1",
+    "cloudpathlib[s3]>=0.20",
+    "pyarrow>=21.0",
+    "gnss-ppp-etl @ git+https://github.com/EarthScope/GNSS-PPP-ETL.git@main",
+]
+
+[project.urls]
+Homepage = "https://github.com/EarthScope/es_sfgtools"
+ReadTheDocs = "https://es-sfgtools.readthedocs.io/en/latest/"
+
+[tool.setuptools_scm]
+root = "../.."
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]

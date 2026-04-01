@@ -1,0 +1,59 @@
+[build-system]
+requires = [
+    "setuptools>=62.6",
+    "setuptools_scm[toml]>=6.2",
+    "wheel",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "earthscope-sfg"
+description = "EarthScope seafloor geodesy parsing — NovaTel, Sonardyne, PRIDE-PPPAR, and shared data models"
+readme = "../../README.md"
+license = { file = "../../LICENSE" }
+requires-python = ">= 3.11"
+authors = [
+    { name = "Mike Gottlieb", email = "mike.gottlieb@earthscope.org" },
+    { name = "Franklyn Dunbar", email = "franklyn.dunbar@earthscope.org" },
+    { name = "Rachel Akie", email = "rachel.akie@earthscope.org" },
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+dynamic = ["version"]
+
+dependencies = [
+    "numpy>=1.23.5,<2",
+    "scipy>=1.16.3",
+    "pandas>=2.0",
+    "matplotlib>=3.7",
+    "julian>=0.14",
+    "pandera>=0.18",
+    "pydantic>=2.0",
+    "pyproj>=3.6",
+    "pymap3d>=3.0",
+    "regex>=2023.0",
+    "colorama>=0.4.6",
+    "tqdm>=4.60",
+]
+
+[project.optional-dependencies]
+tiledb = [
+    "tiledb>=0.34.2",
+    "cloudpathlib[s3]>=0.20",
+]
+
+[project.urls]
+Homepage = "https://github.com/EarthScope/es_sfgtools"
+ReadTheDocs = "https://es-sfgtools.readthedocs.io/en/latest/"
+
+[tool.setuptools_scm]
+root = "../.."
+write_to = "src/es_sfgtools/_version.py"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
