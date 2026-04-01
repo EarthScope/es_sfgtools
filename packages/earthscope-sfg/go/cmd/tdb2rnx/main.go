@@ -2,6 +2,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -12,20 +13,20 @@ import (
 
 	"github.com/EarthScope/es_sfgtools/src/golangtools/pkg/sfg_utils"
 	log "github.com/sirupsen/logrus"
-	"gitlab.com/earthscope/gnsstools/pkg/common/gnss/observation"
-	"gitlab.com/earthscope/gnsstools/pkg/encoding/rinex"
-	"gitlab.com/earthscope/gnsstools/pkg/encoding/tiledbgnss"
+	"gitlab.com/earthscope/gnsstools/codecs/rinex"
+	"gitlab.com/earthscope/gnsstools/core/gnss/observation"
+	"gitlab.com/earthscope/gnsstools/geodata/gnsstiledb"
 )
 
 type BodyParameters struct {
 	URI         string                    `json:"uri"`
 	Region      string                    `json:"region"`
-	QueryParams tiledbgnss.ObsQueryParams `json:"query"`
+	QueryParams gnsstiledb.ObsQueryParams `json:"query"`
 }
 
 func WriteFirstEpochBatch(epochs []observation.Epoch, settings *rinex.Settings) (string, error) {
 
-	if settings.RinexVersion.Major == rinex.RinexMajorVersion3 || settings.RinexVersion.Major == rinex.RinexMajorVersion4 {
+	if settings.RinexVersion.Major == rinex.MajorVersion3 || settings.RinexVersion.Major == rinex.MajorVersion4 {
 		// Write the RINEX header
 		for _, epoch := range epochs {
 
@@ -126,7 +127,7 @@ func ParseSettings(path string) (*rinex.Settings, error) {
 	return settings, nil
 }
 
-func GetHourSlice(daySlice tiledbgnss.TimeRange, interval int) []tiledbgnss.TimeRange {
+func GetHourSlice(daySlice gnsstiledb.TimeRange, interval int) []gnsstiledb.TimeRange {
 	if interval < 1 {
 		log.Warn("Invalid interval (%d), defaulting to 1 hour from ", interval)
 		interval = 1
@@ -135,7 +136,7 @@ func GetHourSlice(daySlice tiledbgnss.TimeRange, interval int) []tiledbgnss.Time
 		interval = 24
 	}
 	// break daySlice into 1 hour slices
-	hourSlices := []tiledbgnss.TimeRange{}
+	hourSlices := []gnsstiledb.TimeRange{}
 	prevTime := daySlice.Start
 	for i := interval; i <= 24; i += interval {
 		log.Debugf("PrevTime: %s, Interval: %d", prevTime, i)
@@ -145,13 +146,13 @@ func GetHourSlice(daySlice tiledbgnss.TimeRange, interval int) []tiledbgnss.Time
 		if endTime.After(daySlice.End) {
 			endTime = daySlice.End
 		}
-		hourSlices = append(hourSlices, tiledbgnss.TimeRange{Start: prevTime, End: endTime})
+		hourSlices = append(hourSlices, gnsstiledb.TimeRange{Start: prevTime, End: endTime})
 		prevTime = endTime
 	}
 	return hourSlices
 }
 
-func FilterDaySlices(daySlices []tiledbgnss.TimeRange, year int) (daySlicesModified []tiledbgnss.TimeRange, err error) {
+func FilterDaySlices(daySlices []gnsstiledb.TimeRange, year int) (daySlicesModified []gnsstiledb.TimeRange, err error) {
 	if len(daySlices) == 0 {
 		log.Warn("No Day Slices Found")
 		return nil, fmt.Errorf("No Day Slices Found")
@@ -160,7 +161,7 @@ func FilterDaySlices(daySlices []tiledbgnss.TimeRange, year int) (daySlicesModif
 		log.Warn("Year not specified, generating daily RINEX for all years")
 		return daySlices, nil
 	}
-	daySlicesModified = []tiledbgnss.TimeRange{}
+	daySlicesModified = []gnsstiledb.TimeRange{}
 	for _, slice := range daySlices {
 		if slice.Start.Year() == year {
 			daySlicesModified = append(daySlicesModified, slice)
@@ -173,18 +174,17 @@ func FilterDaySlices(daySlices []tiledbgnss.TimeRange, year int) (daySlicesModif
 	return daySlicesModified, nil
 }
 
-func ProcessDaySlice(daySlice tiledbgnss.TimeRange, tdbPath string, interval int, settings *rinex.Settings, moduloMillis int64) {
+func ProcessDaySlice(ctx context.Context, client *gnsstiledb.Client, daySlice gnsstiledb.TimeRange, tdbPath string, interval int, settings *rinex.Settings, moduloMillis int64) {
 	// break daySlice into 1 hour slices
 	hourSlices := GetHourSlice(daySlice, interval)
 	batchNum := 0
 	var currentFile string
 	for _, hourSlice := range hourSlices {
 		// Read the epochs from the TDB
-		queryParams := tiledbgnss.ObsQueryParams{
-			Time: []tiledbgnss.TimeRange{hourSlice},
+		queryParams := gnsstiledb.ObsQueryParams{
+			Time: []gnsstiledb.TimeRange{hourSlice},
 		}
-		epochs, err := tiledbgnss.ReadObsV3Array(
-			tdbPath, "us-east-2", queryParams)
+		epochs, err := client.ReadObservations(ctx, tdbPath, queryParams)
 		if err != nil {
 			log.Debug("Error Reading TDB: ", err)
 		}
@@ -254,12 +254,20 @@ func main() {
 	if _, err := os.Stat(*tdbPathPtr); err != nil {
 		log.Fatalf("TileDB array not found at %s: %v", *tdbPathPtr, err)
 	}
-	timeStart, timeEnd, err := tiledbgnss.GetTimeRange(*tdbPathPtr, "us-east-2")
+
+	ctx := context.Background()
+	client, err := gnsstiledb.NewClient(ctx, nil, "us-east-2")
+	if err != nil {
+		log.Fatalf("error creating gnsstiledb client: %v", err)
+	}
+	defer client.Close()
+
+	timeStart, timeEnd, err := client.NonEmptyTimeDomain(ctx, *tdbPathPtr)
 	if err != nil {
 		log.Fatalln(err)
 	}
 	log.Infof("Time Range: %s - %s Found At %s", timeStart, timeEnd, *tdbPathPtr)
-	daySlices := tiledbgnss.GetDateArranged(timeStart, timeEnd)
+	daySlices := gnsstiledb.SplitTimeRangeCalendar(timeStart, timeEnd, gnsstiledb.PeriodDaily)
 	daySlices, err = FilterDaySlices(daySlices, *processingYear)
 	if err != nil {
 		log.Warnf("Error Filtering Day Slices: %s", err)
@@ -268,6 +276,6 @@ func main() {
 
 	for _, daySlice := range daySlices {
 
-		ProcessDaySlice(daySlice, *tdbPathPtr, *timeIntervals, settings, *moduloPtr)
+		ProcessDaySlice(ctx, client, daySlice, *tdbPathPtr, *timeIntervals, settings, *moduloPtr)
 	}
 }

@@ -2,13 +2,14 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"sync"
 	"time"
 
 	sfg_utils "github.com/EarthScope/es_sfgtools/src/golangtools/pkg/sfg_utils"
 	log "github.com/sirupsen/logrus"
-	"gitlab.com/earthscope/gnsstools/pkg/encoding/tiledbgnss"
+	"gitlab.com/earthscope/gnsstools/geodata/gnsstiledb"
 )
 
 // // processFileNOVB processes a NOVB file and returns a slice of observation.Epoch.
@@ -82,8 +83,16 @@ func main() {
 		
 	}
 	log.Info("Num procs: ", *numProcsPtr)
-	if !sfg_utils.ArrayExists(*tdbPathPtr) {
-		err := tiledbgnss.CreateArray("s3://earthscope-tiledb-schema-dev-us-east-2-ebamji/GNSS_OBS_SCHEMA_V3.tdb/", *tdbPathPtr, "us-east-2")
+
+	ctx := context.Background()
+	client, err := gnsstiledb.NewClient(ctx, nil, "us-east-2")
+	if err != nil {
+		log.Fatalf("error creating gnsstiledb client: %v", err)
+	}
+	defer client.Close()
+
+	if !client.ArrayExists(*tdbPathPtr) {
+		err := client.CreateArray(ctx, "s3://earthscope-tiledb-schema-dev-us-east-2-ebamji/GNSS_OBS_SCHEMA_V3.tdb/", *tdbPathPtr)
 		if err != nil {
 			log.Errorf("error creating array: %v",err)
 		}
@@ -115,7 +124,7 @@ func main() {
 			log.Infof("processed %d epochs from file %s", len(epochs), filename)
 			log.Infof("Total Attempts: %d, Successes: %d, Failures: %d", len(epochs)+failCounter, len(epochs), failCounter)
 			
-			err = tiledbgnss.WriteObsV3Array( *tdbPathPtr,"us-east-2",epochs)
+			err = client.WriteObservations(ctx, *tdbPathPtr, epochs)
 			if err != nil {
 				log.Errorf("error writing epochs to array: %v",err)
 			}

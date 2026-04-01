@@ -14,9 +14,9 @@ import (
 	tiledb "github.com/TileDB-Inc/TileDB-Go"
 	"github.com/joho/godotenv"
 	log "github.com/sirupsen/logrus"
-	"gitlab.com/earthscope/gnsstools/pkg/common/gnss/observation"
-	novatelascii "gitlab.com/earthscope/gnsstools/pkg/encoding/novatel/novatel_ascii"
-	"gitlab.com/earthscope/gnsstools/pkg/encoding/rinex"
+	novatelascii "gitlab.com/earthscope/gnsstools/codecs/novatel/novatel_ascii"
+	"gitlab.com/earthscope/gnsstools/codecs/rinex"
+	"gitlab.com/earthscope/gnsstools/core/gnss/observation"
 )
 
 func ArrayExists(arrayPath string) bool {
@@ -179,7 +179,7 @@ func DecimateEpochs(epochs []observation.Epoch, moduloMillis int64) []observatio
 
 	// Track accumulated LLI bits for each satellite/observation pair
 	// Key: SatelliteKey string + ObservationKey string
-	accumulatedLLI := make(map[string]uint16)
+	accumulatedLLI := make(map[string]observation.ObservationFlags)
 
 	for _, epoch := range epochs {
 		epochMillis := epoch.Time.UnixMilli()
@@ -187,13 +187,12 @@ func DecimateEpochs(epochs []observation.Epoch, moduloMillis int64) []observatio
 		// Check if this epoch falls on the modulo boundary
 		if epochMillis%moduloMillis == 0 {
 			// Apply accumulated LLI bits to this epoch's observations
-			for satKey, obsMap := range epoch.Satellites {
-				for obsKey, obs := range obsMap {
-					lliKey := fmt.Sprintf("%s_%s", satKey, obsKey)
-					if accLLI, exists := accumulatedLLI[lliKey]; exists {
-						// OR the accumulated LLI bits with this observation's LLI
-						obs.LLI |= accLLI
-						obsMap[obsKey] = obs
+			for _, sat := range epoch.Satellites {
+				for i := range sat.Observations {
+					lliKey := fmt.Sprintf("%s_%s", sat.SatelliteKey, sat.Observations[i].Code)
+					if accFlags, exists := accumulatedLLI[lliKey]; exists {
+						// OR the accumulated flags with this observation's flags
+						sat.Observations[i].Flags |= accFlags
 					}
 				}
 			}
@@ -201,14 +200,14 @@ func DecimateEpochs(epochs []observation.Epoch, moduloMillis int64) []observatio
 			decimatedEpochs = append(decimatedEpochs, epoch)
 
 			// Clear accumulated LLI after writing an epoch
-			accumulatedLLI = make(map[string]uint16)
+			accumulatedLLI = make(map[string]observation.ObservationFlags)
 		} else {
 			// This epoch is being skipped - accumulate any LLI bits
-			for satKey, obsMap := range epoch.Satellites {
-				for obsKey, obs := range obsMap {
-					if obs.LLI != 0 {
-						lliKey := fmt.Sprintf("%s_%s", satKey, obsKey)
-						accumulatedLLI[lliKey] |= obs.LLI
+			for _, sat := range epoch.Satellites {
+				for _, obs := range sat.Observations {
+					if obs.Flags&observation.FlagLossOfLock != 0 {
+						lliKey := fmt.Sprintf("%s_%s", sat.SatelliteKey, obs.Code)
+						accumulatedLLI[lliKey] |= obs.Flags
 					}
 				}
 			}

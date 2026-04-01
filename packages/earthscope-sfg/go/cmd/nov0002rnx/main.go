@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/EarthScope/es_sfgtools/src/golangtools/pkg/sfg_utils"
-	"gitlab.com/earthscope/gnsstools/pkg/common/gnss/observation"
-	"gitlab.com/earthscope/gnsstools/pkg/encoding/rinex"
+	"gitlab.com/earthscope/gnsstools/core/gnss/observation"
+	"gitlab.com/earthscope/gnsstools/codecs/rinex"
 )
 
 var (

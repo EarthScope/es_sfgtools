@@ -3,14 +3,15 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"flag"
 	"io"
 	"sync"
 
 	sfg_utils "github.com/EarthScope/es_sfgtools/src/golangtools/pkg/sfg_utils"
 	log "github.com/sirupsen/logrus"
-	novatelascii "gitlab.com/earthscope/gnsstools/pkg/encoding/novatel/novatel_ascii"
-	"gitlab.com/earthscope/gnsstools/pkg/encoding/tiledbgnss"
+	novatelascii "gitlab.com/earthscope/gnsstools/codecs/novatel/novatel_ascii"
+	"gitlab.com/earthscope/gnsstools/geodata/gnsstiledb"
 )
 
 
@@ -44,8 +45,15 @@ func main() {
 		flag.PrintDefaults()
 		log.Fatalln("no files specified")
 	}
-	if !sfg_utils.ArrayExists(*tdbPathPtr) {
-		err := tiledbgnss.CreateArray("s3://earthscope-tiledb-schema-dev-us-east-2-ebamji/GNSS_OBS_SCHEMA_V3.tdb/", *tdbPathPtr, "us-east-2")
+	ctx := context.Background()
+	client, err := gnsstiledb.NewClient(ctx, nil, "us-east-2")
+	if err != nil {
+		log.Fatalf("error creating gnsstiledb client: %v", err)
+	}
+	defer client.Close()
+
+	if !client.ArrayExists(*tdbPathPtr) {
+		err := client.CreateArray(ctx, "s3://earthscope-tiledb-schema-dev-us-east-2-ebamji/GNSS_OBS_SCHEMA_V3.tdb/", *tdbPathPtr)
 		if err != nil {
 			log.Errorf("error creating array: %v",err)
 		}
@@ -74,7 +82,7 @@ func main() {
 			}
 			log.Infof("Writing %d GNS epochs from file %s to TileDB array %s", len(epochs), filename, *tdbPathPtr)
 			log.Infof("Total Attempts: %d, Successes: %d, Failures: %d", len(epochs)+fails, len(epochs), fails)
-			err := tiledbgnss.WriteObsV3Array(*tdbPathPtr, "us-east-2", epochs)
+			err := client.WriteObservations(ctx, *tdbPathPtr, epochs)
 			if err != nil {
 				log.Errorf("error writing epochs to array: %v",err)
 			}

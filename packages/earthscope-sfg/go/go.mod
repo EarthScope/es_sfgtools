@@ -1,15 +1,15 @@
 go 1.25.0
 
 require (
-	github.com/TileDB-Inc/TileDB-Go v0.39.0
+	github.com/TileDB-Inc/TileDB-Go v0.39.1
 	github.com/joho/godotenv v1.5.1
 	github.com/labstack/gommon v0.4.2
 	github.com/sirupsen/logrus v1.9.3
 	gitlab.com/earthscope/gnsstools v0.52.0
+	gitlab.com/earthscope/gnsstools/geodata v0.52.0
 )
 
 require (
-	github.com/bamiaux/iobit v0.0.0-20170418073505-498159a04883 // indirect
 	github.com/biter777/countries v1.7.5 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.13 // indirect
@@ -25,7 +25,7 @@ require (
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	go4.org/unsafe/assume-no-moving-gc v0.0.0-20231121144256-b99613f794b6 // indirect
 	golang.org/x/crypto v0.49.0 // indirect
-	golang.org/x/net v0.51.0 // indirect
+	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.42.0 // indirect
 	golang.org/x/text v0.35.0 // indirect
 	gonum.org/v1/gonum v0.17.0 // indirect

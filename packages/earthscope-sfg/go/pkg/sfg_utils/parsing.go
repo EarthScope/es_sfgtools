@@ -12,9 +12,9 @@ import (
 	"time"
 
 	log "github.com/labstack/gommon/log"
-	"gitlab.com/earthscope/gnsstools/pkg/common/gnss/observation"
-	novatelascii "gitlab.com/earthscope/gnsstools/pkg/encoding/novatel/novatel_ascii"
-	novatelbinary "gitlab.com/earthscope/gnsstools/pkg/encoding/novatel/novatel_binary"
+	"gitlab.com/earthscope/gnsstools/core/gnss/observation"
+	novatelascii "gitlab.com/earthscope/gnsstools/codecs/novatel/novatel_ascii"
+	novatelbinary "gitlab.com/earthscope/gnsstools/codecs/novatel/novatel_binary"
 )
 
 type InspvaaRecord struct {
