@@ -498,7 +498,7 @@ def get_nav_file(rinex_path: Path, override: bool = False) -> Path:
         response = "No TIME OF FIRST OBS found in RINEX file."
         logger.logerr(response)
         return
-
+    
     year = str(start_date.year)
     doy = str(start_date.timetuple().tm_yday)
     brdc_pattern = re.compile(rf"BRDC.*{year}{doy}.*rnx.*")
