@@ -9839,8 +9839,8 @@ packages:
   requires_python: '>=3.9'
 - pypi: ./packages/earthscope-sfg
   name: earthscope-sfg
-  version: 0.1.1b3.dev274+g2dc810d50.d20260401
-  sha256: 1cac348d1e00a2b7a9cf99e6a82b8189a78505db0db2ea4482709c13a32601c3
+  version: 0.1.1b3.dev282+ga9647c2c8
+  sha256: 222f8cf9a31f3773ba015b0cc396a5afa380466e081be103949ff0fd276c6851
   requires_dist:
   - numpy>=1.23.5,<2
   - scipy>=1.16.3

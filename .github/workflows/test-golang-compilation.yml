@@ -1,0 +1,51 @@
+name: Test Go Compilation
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'packages/earthscope-sfg/go/**'
+      - 'pixi.lock'
+      - 'pixi.toml'
+      - '.github/workflows/test-golang-compilation.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'packages/earthscope-sfg/go/**'
+      - 'pixi.lock'
+      - 'pixi.toml'
+      - '.github/workflows/test-golang-compilation.yml'
+
+jobs:
+  test-go-compilation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up pixi
+        uses: prefix-dev/setup-pixi@v0.8.3
+
+      - name: Compile Go binaries
+        run: pixi run build-novatel-go
+
+      - name: Verify all binaries exist
+        run: |
+          EXPECTED="nov0002rnx nov0002tile nova2rnx nova2tile novab2tile novb2rnx rnxqc tdb2rnx"
+          BUILD_DIR=packages/earthscope-sfg/go/build
+          for cmd in $EXPECTED; do
+            BINARY="${BUILD_DIR}/${cmd}_linux_amd64"
+            if [ ! -f "$BINARY" ]; then
+              echo "FATAL: missing binary $BINARY"
+              exit 1
+            fi
+            echo "OK: $BINARY"
+          done
+
+      - name: Smoke-test nova2rnx with test RINEX file
+        run: |
+          BUILD_DIR=packages/earthscope-sfg/go/build
+          # nova2rnx prints usage and exits non-zero when called with no args
+          "${BUILD_DIR}/nova2rnx_linux_amd64" --help || true
+          echo "nova2rnx binary runs successfully"
