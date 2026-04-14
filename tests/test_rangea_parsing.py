@@ -2,7 +2,7 @@ import tempfile
 import json
 from pathlib import Path
 from es_sfgtools.novatel_tools import deserialize_rangea, GNSSEpoch
-from es_sfgtools.tiledb_tools.tiledb_schemas import TDBGNSSObsArray
+from es_sfgtools.tiledb_schemas import TDBGNSSObsArray
 from es_sfgtools.tiledb_tools.tiledb_operations import tile2rinex
 
 fake_rinex_settings = {

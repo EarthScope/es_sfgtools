@@ -33,7 +33,7 @@ from es_sfgtools.modeling.garpos_tools.functions import (
 )
 from es_sfgtools.modeling.garpos_tools.schemas import GarposFixed, GarposInput
 
-from es_sfgtools.tiledb_tools.tiledb_schemas import (
+from es_sfgtools.tiledb_schemas import (
     TDBIMUPositionArray,
     TDBKinPositionArray,
     TDBShotDataArray,

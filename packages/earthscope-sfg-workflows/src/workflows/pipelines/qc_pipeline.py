@@ -36,7 +36,7 @@ from es_sfgtools.novatel_tools.rangea_parser import (
     extract_rangea_strings_from_qcpin,
 )
 from es_sfgtools.tiledb_tools.tiledb_operations import tile2rinex
-from es_sfgtools.tiledb_tools.tiledb_schemas import (
+from es_sfgtools.tiledb_schemas import (
     TDBGNSSObsArray,
     TDBKinPositionArray,
     TDBShotDataArray,

@@ -13,7 +13,7 @@ from earthscope_sdk.config.settings import SdkSettings
 
 from es_sfgtools.data_models.metadata import Site, Vessel, import_site, import_vessel
 
-from ...logging import ProcessLogger as logger
+from es_sfgtools.logging import ProcessLogger as logger
 
 from .config import ARCHIVE_PREFIX
 from .datadiscovery import get_file_type_remote

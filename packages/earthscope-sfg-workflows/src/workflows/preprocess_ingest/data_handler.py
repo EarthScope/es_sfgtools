@@ -38,7 +38,7 @@ from es_sfgtools.data_mgmt.assetcatalog.schemas import AssetEntry
 from es_sfgtools.data_models.metadata.site import Site
 from es_sfgtools.logging import ProcessLogger as logger
 from es_sfgtools.logging import change_all_logger_dirs
-from es_sfgtools.tiledb_tools.tiledb_schemas import (
+from es_sfgtools.tiledb_schemas import (
     TDBAcousticArray,
     TDBGNSSObsArray,
     TDBIMUPositionArray,

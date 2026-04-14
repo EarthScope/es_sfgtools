@@ -31,7 +31,7 @@ from es_sfgtools.seafloor_site_tools.soundspeed_operations import (
 )
 from es_sfgtools.sonardyne_tools import sv3_operations as sv3_ops
 from es_sfgtools.tiledb_tools.tiledb_operations import tile2rinex
-from es_sfgtools.tiledb_tools.tiledb_schemas import (
+from es_sfgtools.tiledb_schemas import (
     TDBIMUPositionArray,
     TDBKinPositionArray,
     TDBShotDataArray,

@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 from typing import Callable, Tuple
 
-from ...logging import GarposLogger as logger
+from es_sfgtools.logging import GarposLogger as logger
 
 
 def load_lib() -> Tuple[str, str]:

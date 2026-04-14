@@ -18,12 +18,14 @@ import itertools
 from es_sfgtools.logging import ProcessLogger as logger
 
 # Local imports
-from es_sfgtools.tiledb_tools.tiledb_schemas import (
+from es_sfgtools.tiledb_schemas import (
     TDBIMUPositionArray,
-    IMUPositionDataFrame,
     TDBKinPositionArray,
-    KinPositionDataFrame,
     TDBShotDataArray,
+)
+from es_sfgtools.data_models.observables import (
+    IMUPositionDataFrame,
+    KinPositionDataFrame,
     ShotDataFrame,
 )
 

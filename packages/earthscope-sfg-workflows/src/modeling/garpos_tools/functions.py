@@ -21,7 +21,7 @@ from es_sfgtools.modeling.garpos_tools.schemas import (
     ObservationData,
 )
 
-from ...logging import GarposLogger as logger
+from es_sfgtools.logging import GarposLogger as logger
 from .load_utils import load_drive_garpos
 
 try:

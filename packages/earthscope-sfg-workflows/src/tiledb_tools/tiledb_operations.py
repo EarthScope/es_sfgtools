@@ -9,7 +9,7 @@ from typing import List
 # Local imports
 from es_sfgtools.utils.command_line_utils import run_binary
 
-from ..logging import ProcessLogger as logger
+from es_sfgtools.logging import ProcessLogger as logger
 from .utils import get_tile2rinex_binary_path
 
 

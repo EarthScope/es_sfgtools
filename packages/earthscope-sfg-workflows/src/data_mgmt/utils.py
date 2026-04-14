@@ -11,7 +11,7 @@ from typing import (
 import numpy as np
 from functools import wraps
 from es_sfgtools.logging import ProcessLogger as logger
-from es_sfgtools.tiledb_tools.tiledb_schemas import (
+from es_sfgtools.tiledb_schemas import (
     TDBShotDataArray,
     TDBKinPositionArray,
 )
