@@ -1,0 +1,66 @@
+{
+  "name": "V001",
+  "type": "waveglider",
+  "model": "WG-123",
+  "serialNumber": "SN-001",
+  "start": "2025-01-01T00:00:00",
+  "end": "2025-12-31T23:59:59",
+  "imuSensors": [
+    {
+      "type": "IMU-1",
+      "serialNumber": "IMU-SN-001",
+      "start": "2025-01-01T00:00:00",
+      "model": "IMU-Model-1",
+      "end": "2025-12-31T23:59:59"
+    }
+  ],
+  "atdOffsets": [
+    {
+      "serialNumber": "TRANSDUCER-SN-001",
+      "x": 1.0,
+      "y": 2.0,
+      "z": 3.0
+    }
+  ],
+  "gnssAntennas": [
+    {
+      "type": "GNSS-1",
+      "serialNumber": "GNSS-SN-001",
+      "start": "2025-01-01T00:00:00",
+      "order": "Order-1",
+      "model": "GNSS-Model-1",
+      "radomeSerialNumber": "Radome-SN-001",
+      "end": "2025-12-31T23:59:59"
+    }
+  ],
+  "gnssReceivers": [
+    {
+      "type": "GNSS-Receiver-1",
+      "serialNumber": "GNSS-Receiver-SN-001",
+      "start": "2025-01-01T00:00:00",
+      "model": "GNSS-Receiver-Model-1",
+      "firmwareVersion": "FW-1.0",
+      "end": "2025-12-31T23:59:59"
+    }
+  ],
+  "acousticTransducers": [
+    {
+      "type": "Acoustic-Transducer-1",
+      "serialNumber": "Acoustic-Transducer-SN-001",
+      "frequency": "50kHz",
+      "start": "2025-01-01T00:00:00",
+      "end": "2025-12-31T23:59:59"
+    }
+  ],
+  "acousticTransceivers": [
+    {
+      "type": "Acoustic-Transceiver-1",
+      "serialNumber": "Acoustic-Transceiver-SN-001",
+      "frequency": "MF",
+      "start": "2025-01-01T00:00:00",
+      "triggerDelay": 0.5,
+      "delayIncludedInTWTT": true,
+      "end": "2025-12-31T23:59:59"
+    }
+  ]
+}

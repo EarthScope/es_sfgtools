@@ -1,0 +1,242 @@
+{
+  "name": {
+    "type": "string",
+    "description": "The 4 character ID of the vessel",
+    "example": "1063"
+  },
+  "type": {
+    "type": "string",
+    "description": "The type of the vessel",
+    "enum": ["waveglider", "ship"]
+  },
+  "model": {
+    "type": "string",
+    "description": "The model of the vessel",
+    "enum": ["sv2", "sv3"]
+  },
+  "serialNumber": {
+    "type": "string",
+    "description": "Optional[The serial number of the vessel]"
+  },
+  "start": {
+    "type": "datetime",
+    "description": "Optional[The start date and time of the vessel's usage]"
+  },
+  "end": {
+    "type": "datetime",
+    "description": "Optional[The end date and time of the vessel's usage]"
+  },
+  "payload": {
+    "serialNumber": {
+      "type": "string",
+      "description": "The serial number of the payload",
+      "example": "PSN011153"
+    }
+  },
+  "atdOffsets": [
+    {
+      "type": "List[ATDOffset]",
+      "description": "The antenna transducer offset(s) for the vessel",
+      "items": {
+        "serialNumber": {
+          "type": "string",
+          "description": "The serial number of the transducer associated with the offset",
+          "example": "641-0654"
+        },
+        "x": {
+          "type": "float",
+          "description": "The X offset in meters"
+        },
+        "y": {
+          "type": "float",
+          "description": "The Y offset in meters"
+        },
+        "z": {
+          "type": "float",
+          "description": "The Z offset in meters"
+        }
+      }
+    }
+  ],
+  "imuSensors": [
+    {
+      "type": "List[IMUSensor]",
+      "description": "The IMU sensors",
+      "items": {
+        "type": {
+          "type": "string",
+          "description": "The type of the IMU sensor"
+        },
+        "model": {
+          "type": "string",
+          "description": "The model of the IMU sensor"
+        },
+        "serialNumber": {
+          "type": "string",
+          "description": "Optional[The serial number of the IMU sensor]"
+        },
+        "start": {
+          "type": "datetime",
+          "description": "The start date and time of the IMU sensor's usage"
+        },
+        "end": {
+          "type": "datetime",
+          "description": "Optional[The end date and time of the IMU sensor's usage]"
+        }
+      }
+    }
+  ],
+  "gnssAntennas": [
+    {
+      "type": "List[GNSSAntenna]",
+      "description": "The GNSS antennas on the vessel",
+      "items": {
+        "type": {
+          "type": "string",
+          "description": "The type of the GNSS antenna",
+          "example": "novatel"
+        },
+        "model": {
+          "type": "string",
+          "description": "The model of the GNSS antenna",
+          "example": "NOV802L"
+        },
+        "serialNumber": {
+          "type": "string",
+          "description": "Optional[The serial number of the GNSS antenna]"
+        },
+        "order": {
+          "type": "string",
+          "description": "The order of the GNSS antenna",
+          "enum": ["primary", "secondary"]
+        },
+        "radomeSerialNumber": {
+          "type": "string",
+          "description": "Optional[The serial number of the radome]"
+        },
+        "start": {
+          "type": "datetime",
+          "description": "The start date and time of the GNSS antenna's usage"
+        },
+        "end": {
+          "type": "datetime",
+          "description": "Optional[The end date and time of the GNSS antenna's usage]"
+        }
+      }
+    }
+  ],
+  "gnssReceivers": [
+    {
+      "type": "List[GNSSReceiver]",
+      "description": "The gnss receiver(s) on the vessel",
+      "items": {
+        "type": {
+          "type": "string",
+          "description": "The type of the GNSS receiver",
+          "example": "novatel"
+        },
+        "model": {
+          "type": "string",
+          "description": "The model of the GNSS receiver"
+        },
+        "serialNumber": {
+          "type": "string",
+          "description": "The serial number of the GNSS receiver"
+        },
+        "firmwareVersion": {
+          "type": "string",
+          "description": "The firmware version of the GNSS receiver",
+          "items":{
+            "version": {
+              "type": "string",
+              "description": "The version of the firmware"
+            },
+            "start": {
+              "type": "datetime",
+              "description": "The start date and time of the firmware version's usage"
+            },
+            "end": {
+              "type": "datetime",
+              "description": "Optional[The end date and time of the firmware version's usage]"
+            }
+          }
+        },
+        "start": {
+          "type": "datetime",
+          "description": "The start date and time of the GNSS receiver's usage"
+        },
+        "end": {
+          "type": "datetime",
+          "description": "Optional[The end date and time of the GNSS receiver's usage]"
+        }
+      }
+    }
+  ],
+  "acousticTransducers": [
+    {
+      "type": "List[AcousticTransducer]",
+      "description": "The acoustic transducer(s) on the vessel",
+      "items": {
+        "type": {
+          "type": "string",
+          "description": "The type of the acoustic transducer"
+        },
+        "serialNumber": {
+          "type": "string",
+          "description": "Optional[The serial number of the acoustic transducer]"
+        },
+        "frequency": {
+          "type": "string",
+          "description": "The frequency of the acoustic transducer",
+          "enum": ["MF","LMF"]
+        },
+        "start": {
+          "type": "datetime",
+          "description": "The start date and time of the acoustic transducer's usage"
+        },
+        "end": {
+          "type": "datetime",
+          "description": "Optional[The end date and time of the acoustic transducer's usage]"
+        }
+      }
+    }
+  ],
+  "acousticTransceivers": [
+    {
+      "type": "List[AcousticTransceiver]",
+      "description": "The acoustic transceiver(s) on the vessel",
+      "items": {
+        "type": {
+          "type": "string",
+          "description": "The type of the acoustic transceiver"
+        },
+        "serialNumber": {
+          "type": "string",
+          "description": "Optional[The serial number of the acoustic transceiver]"
+        },
+        "frequency": {
+          "type": "string",
+          "description": "The frequency of the acoustic transceiver",
+          "enum": ["MF","LMF"]
+        },
+        "triggerDelay": {
+          "type": "float",
+          "description": "The trigger delay in seconds",
+          "example": 0.13
+        },
+        "delayIncludedInTWTT": {
+          "type": "boolean",
+          "description": "Whether the delay is included in the TWTT"
+        },
+        "start": {
+          "type": "datetime",
+          "description": "The start date and time of the acoustic transceiver's usage"
+        },
+        "end": {
+          "type": "datetime",
+          "description": "Optional[The end date and time of the acoustic transceiver's usage]"
+        }
+      }
+    }
+  ]
+}

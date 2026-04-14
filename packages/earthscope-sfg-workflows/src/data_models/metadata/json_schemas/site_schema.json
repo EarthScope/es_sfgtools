@@ -1,0 +1,304 @@
+{
+  "names": {
+    "type": "List[string]",
+    "description": "The name(s) of the site, including the 4 character ID",
+    "example": ["SEM1"]
+  },
+  "networks": {
+    "type": "List[string]",
+    "description": "A list of networks the site is a member of",
+    "example": ["alaska-shumagins"]
+  },
+  "timeOrigin": {
+    "type": "datetime",
+    "description": "The date and time the site was installed",
+    "format": "YYYY-MM-DDTHH:MM:SS",
+    "example": "2020-01-01T00:00:00"
+  },
+  "localGeoidHeight": {
+    "type": "float",
+    "description": "The local geoid height of the site in meters"
+  },
+  "arrayCenter": {
+    "type": "ArrayCenter",
+    "description": "The array center of the site",
+    "items": {
+      "latitude": {
+        "type": "float",
+        "description": "The latitude of the array center"
+      },
+      "longitude": {
+        "type": "float",
+        "description": "The longitude of the array center"
+      },
+      "elevation": {
+        "type": "float",
+        "description": "The elevation (m) of the array center"
+      }
+  }
+},
+  "referenceFrames": {
+    "type": "List[ReferenceFrame]",
+    "description": "Optional[The reference frame(s) used for the site]",
+    "items": {
+      "name": {
+        "type": "string",
+        "description": "The name of the reference frame"
+      },
+      "start": {
+        "type": "datetime",
+        "description": "The start date and time of the reference frame"
+      },
+      "end": {
+        "type": "Optional[datetime]",
+        "description": "The end date and time of the reference frame"
+      }
+    }
+  },
+  "campaigns": {
+    "type": "List[Campaign]",
+    "description": "The campaigns associated with the site",
+    "items": {
+      "name": {
+        "type": "string",
+        "description": "The name of the campaign",
+        "format": "<YYYY>_<campaign_letter>_<waveglider_4charID>",
+        "example": "2023_A_1063 is the first campaign of 2023, using waveglider 1063"
+      },
+      "type": {
+        "type": "string",
+        "description": "The type of the campaign",
+        "enum": ["deploy", "measure"]
+      },
+      "vesselCode": {
+        "type": "string",
+        "description": "The vessel 4 character ID associated with the campaign",
+        "example": "1063"
+      },
+      "start": {
+        "type": "datetime",
+        "description": "The start date and time of the campaign"
+      },
+      "end": {
+        "type": "datetime",
+        "description": "The end date and time of the campaign"
+      },
+      "principalInvestigator": {
+        "type": "string",
+        "description": "Optional[The principal investigator of the campaign]"
+      },
+      "launchVesselName": {
+        "type": "string",
+        "description": "Optional[The principal investigator of the campaign]"
+      },
+      "recoveryVesselName": {
+        "type": "string",
+        "description": "Optional[The recovery vessel name of the campaign]"
+      },
+      "cruiseName": {
+        "type": "string",
+        "description": "Optional[The name of the cruise]"
+      },
+      "technicianName": {
+        "type": "string",
+        "description": "Optional[The name of the technician]"
+      },
+      "technicianContact": {
+        "type": "string",
+        "description": "Optional[The contact information of the technician]"
+      },
+      "surveys": {
+        "type": "List[Survey]",
+        "description": "The surveys associated with the campaign",
+        "items": {
+          "id": {
+            "type": "string",
+            "description": "The unique ID of the survey",
+            "format": "<campaign_name>_<survey_number>",
+            "example": "2023_A_1063_1"
+          },
+          "type": {
+            "type": "string",
+            "description": "The type of the survey",
+            "enum": ["circle drive", "center", "move around"]
+          },
+          "benchmarkIDs": {
+            "type": "List[string]",
+            "description": "The benchmark IDs associated with the survey",
+            "example": ["SEM1-1", "SEM1-2", "SEM1-3"]
+          },
+          "start": {
+            "type": "datetime",
+            "description": "The start date and time of the survey"
+          },
+          "end": {
+            "type": "datetime",
+            "description": "The end date and time of the survey"
+          },
+          "notes": {
+            "type": "string",
+            "description": "Optional[Any additional notes about the survey]",
+            "example": "GARPOS 1R pattern"
+          },
+          "commands": {
+            "type": "string",
+            "description": "Optional[Any additional commands for the survey]"
+          }
+        }
+      }
+    }
+  },
+"benchmarks": {
+    "type": "List[Benchmark]",
+    "description": "The benchmarks associated with the site",
+    "items": {
+      "name": {
+        "type": "string",
+        "description": "The name of the benchmark",
+        "format": "<benchmark_name>-<number>",
+        "example": "SEM1-1"
+      },
+      "benchmarkID": {
+        "type": "string",
+        "description": "Optional[The benchmark serial number]"
+      },
+      "aPrioriLocation": {
+        "type": "Location",
+        "description": "The a priori location of the benchmark",
+        "items": {
+          "latitude": {
+            "type": "float",
+            "description": "The latitude of the location"
+          },
+          "longitude": {
+            "type": "float",
+            "description": "The longitude of the location"
+          },
+          "elevation": {
+            "type": "float",
+            "description": "The elevation (m) of the location"
+          }
+        }
+      },
+      "start": {
+        "type": "datetime",
+        "description": "The start date of the benchmark"
+      },
+      "end": {
+        "type": "datetime",
+        "description": "Optional[The end date of the benchmark]"
+      },
+      "dropPointLocation": {
+        "type": "Location",
+        "description": "Optional[The drop point location of the benchmark]",
+        "items": {
+          "latitude": {
+            "type": "float",
+            "description": "The latitude of the location"
+          },
+          "longitude": {
+            "type": "float",
+            "description": "The longitude of the location"
+          },
+          "elevation": {
+            "type": "float",
+            "description": "The elevation (m) of the location"
+          }
+        }
+      },
+      "transponders": {
+        "type": "List[Transponder]",
+        "description": "The transponder(s) attached to the benchmark",
+        "items": {
+          "address": {
+            "type": "string",
+            "description": "The address of the transponder",
+            "example": "5209"
+          },
+          "tat": {
+            "type": "List[TAT]",
+            "description": "The turn around time(s) (TAT) of the transponder",
+            "items": {
+              "value": {
+                "type": "float",
+                "description": "Turn around time (TAT) in ms",
+                "example": 200.0
+              },
+              "start": {
+                "type": "datetime",
+                "description": "Optional[The start time of the interval]"
+              },
+              "end": {
+                "type": "datetime",
+                "description": "Optional[The end time of the interval]"
+              }
+            }
+          },
+          "start": {
+            "type": "datetime",
+            "description": "The start date of the transponder"
+          },
+          "end": {
+            "type": "datetime",
+            "description": "Optional[The end date of the transponder (if removed)]"
+          },
+          "uid": {
+            "type": "string",
+            "description": "Optional[The UID of the transponder]",
+            "example": "00611A"
+          },
+          "model": {
+            "type": "string",
+            "description": "Optional[The model of the transponder]"
+          },
+          "serialNumber": {
+            "type": "string",
+            "description": "Optional[The serial number of the transponder]"
+          },
+          "batteryCapacity": {
+            "type": "string",
+            "description": "Optional[The battery capacity of the transponder]",
+            "example": "4 Ah"
+          },
+          "notes": {
+            "type": "string",
+            "description": "Optional[Additional notes about the transponder or deployment]"
+          },
+          "batteryVoltage": {
+            "type": "List[BatteryVoltage]",
+            "description": "Optional[The battery voltage of the transponder, including date and voltage]",
+            "items": {
+              "date": {
+                "type": "datetime",
+                "description": "The date of the battery voltage reading"
+              },
+              "voltage": {
+                "type": "float",
+                "description": "The battery voltage reading"
+              }
+            }
+          },
+          "extraSensors": {
+            "type": "List[ExtraSensors]",
+            "description": "Optional[Extra sensors attached to the transponder]",
+            "items": {
+              "type": {
+                "type": "string",
+                "description": "The type of the extra sensor",
+                "enum": ["pressure", "tilt"]
+              },
+              "serialNumber": {
+                "type": "string",
+                "description": "Optional[The serial number of the extra sensor]"
+              },
+              "model": {
+                "type": "string",
+                "description": "Optional[The model of the extra sensor]"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
