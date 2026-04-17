@@ -8,20 +8,20 @@ from typing import List, Optional, Tuple
 
 import pandas as pd
 
-from es_sfgtools.data_models.metadata.benchmark import Benchmark, Transponder
-from es_sfgtools.data_models.metadata.campaign import (
+from ...data_models.metadata.benchmark import Benchmark, Transponder
+from ...data_models.metadata.campaign import (
     Campaign,
     Survey,
     SurveyType,
     classify_survey_type,
 )
-from es_sfgtools.data_models.metadata.site import Site
+from ...data_models.metadata.site import Site
 from es_sfgtools.logging import GarposLogger as logger
-from es_sfgtools.modeling.garpos_tools.functions import (
+from .functions import (
     CoordTransformer,
     rectify_shotdata,
 )
-from es_sfgtools.modeling.garpos_tools.schemas import (
+from .schemas import (
     GarposInput,
     GPATDOffset,
     GPPositionENU,
@@ -29,7 +29,7 @@ from es_sfgtools.modeling.garpos_tools.schemas import (
     GPTransponder,
 )
 
-from es_sfgtools.config.garpos_config import GarposSiteConfig, DEFAULT_SITE_CONFIG
+from ...config.garpos_config import GarposSiteConfig, DEFAULT_SITE_CONFIG
 
 
 class NoShotDataError(Exception):

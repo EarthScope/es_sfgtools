@@ -12,7 +12,7 @@ from scipy.stats import hmean as harmonic_mean
 sns.set_theme()
 
 
-from es_sfgtools.modeling.garpos_tools.schemas import (
+from .schemas import (
     GarposInput,
     GarposObservationOutput,
     GPPositionENU,

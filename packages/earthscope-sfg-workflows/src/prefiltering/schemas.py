@@ -3,7 +3,7 @@ from typing import Any, Dict, Optional
 from enum import Enum
 from typing import Union
 
-from es_sfgtools.data_models.metadata import SurveyType, classify_survey_type
+from ..data_models.metadata import SurveyType, classify_survey_type
 
 
 class FilterLevel(str, Enum):

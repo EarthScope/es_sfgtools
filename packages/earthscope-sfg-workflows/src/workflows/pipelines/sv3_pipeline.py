@@ -10,15 +10,15 @@ from tqdm.auto import tqdm
 
 from pride_ppp import PrideProcessor, ProcessingMode, kin_to_kin_position_df, rinex_get_time_range
 # Local imports
-from es_sfgtools.data_mgmt.assetcatalog.handler import PreProcessCatalogHandler
-from es_sfgtools.data_mgmt.assetcatalog.schemas import AssetEntry, AssetType
-from es_sfgtools.data_mgmt.directorymgmt import (
+from ...data_mgmt.assetcatalog.handler import PreProcessCatalogHandler
+from ...data_mgmt.assetcatalog.schemas import AssetEntry, AssetType
+from ...data_mgmt.directorymgmt import (
     CampaignDir,
-    DirectoryHandler,
     NetworkDir,
     StationDir,
 )
-from es_sfgtools.data_mgmt.utils import (
+from ...config.workspace import Workspace
+from ...data_mgmt.utils import (
     get_merge_signature_shotdata,
 )
 from es_sfgtools.logging import ProcessLogger, change_all_logger_dirs
@@ -30,7 +30,7 @@ from es_sfgtools.seafloor_site_tools.soundspeed_operations import (
     seabird_to_soundvelocity,
 )
 from es_sfgtools.sonardyne_tools import sv3_operations as sv3_ops
-from es_sfgtools.tiledb_tools.tiledb_operations import tile2rinex
+from es_sfgtools.novatel_tools.novatel_to_rinex_operations import tile2rinex
 from es_sfgtools.tiledb_schemas import (
     TDBIMUPositionArray,
     TDBKinPositionArray,
@@ -92,7 +92,7 @@ class SV3Pipeline(WorkflowABC):
 
     Attributes
     ----------
-    directory_handler : DirectoryHandler
+    directory_handler : Workspace
         Manages the project directory structure, including network, station,
         and campaign directories.
     config : SV3PipelineConfig
@@ -155,43 +155,26 @@ class SV3Pipeline(WorkflowABC):
 
     def __init__(
         self,
-        directory_handler: Optional[DirectoryHandler] = None,
+        workspace: Optional[Workspace] = None,
         asset_catalog: Optional[PreProcessCatalogHandler] = None,
         config: SV3PipelineConfig = None,
     ):
-        """Initializes the SV3Pipeline with directory handler and configuration.
-
-        Sets up the pipeline with necessary infrastructure including:
-        - Directory structure management
-        - Asset catalog for tracking processed files
-        - Configuration for all processing steps
-        - Context attributes (network, station, campaign)
+        """Initializes the SV3Pipeline with workspace and configuration.
 
         Parameters
         ----------
-        directory_handler : DirectoryHandler, optional
-            Handler for managing project directory structure. Must be provided
+        workspace : Workspace, optional
+            Unified workspace config and directory handler. Must be provided
             and should already be built.
+        asset_catalog : Optional[PreProcessCatalogHandler], optional
+            Pre-configured asset catalog. If None, created automatically.
         config : Optional[SV3PipelineConfig], optional
             Configuration settings for the pipeline. If None, uses default
             configuration. Defaults to None.
-
-        Raises
-        ------
-        AttributeError
-            If directory_handler is None or doesn't have
-            asset_catalog_db_path.
-
-        Notes
-        -----
-        The pipeline will not be ready for processing until
-        :meth:`set_network_station_campaign` is called to establish the
-        processing context.
         """
         super().__init__(
-            directory=directory_handler.location,
+            workspace=workspace,
             asset_catalog=asset_catalog,
-            directory_handler=directory_handler,
         )
 
         self.config = config if config is not None else SV3PipelineConfig()
@@ -600,7 +583,7 @@ class SV3Pipeline(WorkflowABC):
         ProcessLogger.loginfo(response)
 
         # Get the PRIDE directory and intermediate directory
-        prideDir = self.directory_handler.pride_directory
+        prideDir = self.workspace.pride_directory
         intermediateDir = self.current_campaign_dir.intermediate
 
         # Get the Rinex files to process

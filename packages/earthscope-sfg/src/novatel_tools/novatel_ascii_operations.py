@@ -20,7 +20,7 @@ from .utils import (
     check_metadata_path,
     check_metadata,
 )
-from es_sfgtools.utils.command_line_utils import parse_cli_logs
+from ..utils.command_line_utils import parse_cli_logs
 
 
 def novatel_ascii_2tile(

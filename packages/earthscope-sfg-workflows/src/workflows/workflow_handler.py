@@ -7,42 +7,42 @@ from typing import (
 )
 
 
-from es_sfgtools.config.file_config import DEFAULT_FILE_TYPES_TO_DOWNLOAD, DEFAULT_INTERMEDIATE_FILE_TYPES_TO_DOWNLOAD
-from es_sfgtools.modeling.garpos_tools.schemas import InversionParams
-from es_sfgtools.workflows.pipelines.qc_pipeline import QCPipeline
+from ..config.file_config import DEFAULT_FILE_TYPES_TO_DOWNLOAD, DEFAULT_INTERMEDIATE_FILE_TYPES_TO_DOWNLOAD
+from ..modeling.garpos_tools.schemas import InversionParams
+from .pipelines.qc_pipeline import QCPipeline
 
-from es_sfgtools.data_mgmt.assetcatalog.schemas import AssetEntry, AssetType
-from es_sfgtools.workflows.midprocess.mid_processing import IntermediateDataProcessor
-from es_sfgtools.workflows.modeling.garpos_handler import GarposHandler
+from ..data_mgmt.assetcatalog.schemas import AssetEntry, AssetType
+from .midprocess.mid_processing import IntermediateDataProcessor
+from .modeling.garpos_handler import GarposHandler
 
-from es_sfgtools.data_models.metadata.site import Site
+from ..data_models.metadata.site import Site
 from es_sfgtools.logging import ProcessLogger as logger
 from es_sfgtools.logging import change_all_logger_dirs
 
-from es_sfgtools.workflows.pipelines.sv3_pipeline import SV3Pipeline
-from es_sfgtools.workflows.pipelines import exceptions as pipeline_exceptions
+from .pipelines.sv3_pipeline import SV3Pipeline
+from .pipelines import exceptions as pipeline_exceptions
 
-from es_sfgtools.workflows.pipelines.config import (
+from .pipelines.config import (
     SV3PipelineConfig,
     QCPipelineConfig,
-    PrideCLIConfig,
     NovatelConfig,
     RinexConfig,
     DFOP00Config,
     PositionUpdateConfig,
     QCPinConfig,
 )
+from pride_ppp.specifications.cli import PrideCLIConfig
 
 
 from es_sfgtools.utils.model_update import validate_and_merge_config
 
 
-from es_sfgtools.workflows.utils.protocols import (
+from .utils.protocols import (
     WorkflowABC,
     validate_network_station_campaign,
 )
-from es_sfgtools.workflows.preprocess_ingest.data_handler import DataHandler
-from es_sfgtools.config.env_config import Environment, WorkingEnvironment
+from .preprocess_ingest.data_handler import DataHandler
+from ..config.workspace import Workspace
 
 pipeline_jobs = [
     "all",
@@ -77,30 +77,31 @@ class WorkflowHandler(WorkflowABC):
 
     def __init__(
         self,
+        workspace: Optional[Workspace] = None,
         directory: Path | str = None,
     ) -> None:
-        """Initializes the WorkflowHandler with directory structure and handlers.
-
-        Sets up the workflow infrastructure and creates a DataHandler instance
-        for data operations.
-
+        """
         Parameters
         ----------
-        directory : Path | str
-            The root directory for data storage and operations.
+        workspace : Workspace, optional
+            Workspace configuration that controls file-system behaviour, S3
+            sync settings, and AWS credentials.  If *None* the config is
+            auto-detected from environment variables.
+        directory : Path | str, optional
+            Convenience shortcut: builds a LOCAL workspace rooted at this path.
+            Ignored when *workspace* is supplied.
         """
-        Environment.load_working_environment()
-        if directory is None:
-            assert Environment.working_environment() == WorkingEnvironment.GEOLAB, (
-                "Directory must be provided unless in GEOLAB environment"
-            )
-            directory = Environment.main_directory_GEOLAB()
+        if workspace is None:
+            if directory is not None:
+                workspace = Workspace.local(directory)
+            else:
+                workspace = Workspace.from_environment()
 
         # Create DataHandler instance for data operations
-        self.data_handler = DataHandler(directory=directory)
+        self.data_handler = DataHandler(workspace=workspace)
 
-        # Initialize parent WorkflowABC with directory
-        super().__init__(directory=directory)
+        # Initialize parent WorkflowABC with workspace
+        super().__init__(workspace=workspace)
 
     def set_network_station_campaign(
         self, network_id: str, station_id: str, campaign_id: str
@@ -130,7 +131,6 @@ class WorkflowHandler(WorkflowABC):
                 setattr(self, key, value)
                 logger.logdebug(f"WorkflowHandler state updated: {key} = {value}")
 
-        self._geolab_s3_synced = False
 
     @validate_network_station_campaign
     def ingest_add_local_data(self, directory_path: Path) -> None:
@@ -277,7 +277,7 @@ class WorkflowHandler(WorkflowABC):
             )
 
         pipeline = SV3Pipeline(
-            directory_handler=self.data_handler.directory_handler,
+            workspace=self.data_handler.workspace,
             config=base_config_updated,
         )
         pipeline.set_network_station_campaign(
@@ -580,7 +580,7 @@ class WorkflowHandler(WorkflowABC):
             )
 
         pipeline = QCPipeline(
-            directory_handler=self.data_handler.directory_handler,
+            workspace=self.data_handler.workspace,
             config=base_config_updated,
         )
         pipeline.set_network_station_campaign(
@@ -788,7 +788,7 @@ class WorkflowHandler(WorkflowABC):
             )
         dataPostProcessor = IntermediateDataProcessor(
             station_metadata=self.current_station_metadata,
-            directory_handler=self.data_handler.directory_handler,
+            workspace=self.data_handler.workspace,
         )
         dataPostProcessor.mid_process_workflow = not override_metadata_require
         dataPostProcessor.set_network(network_id=self.current_network_name)
@@ -823,8 +823,8 @@ class WorkflowHandler(WorkflowABC):
         ValueError
             If site metadata is not loaded.
         """
-        if Environment.working_environment() == WorkingEnvironment.GEOLAB:
-            self.data_handler.geolab_get_s3(overwrite=override)
+        if self.workspace.syncs_with_s3:
+            self.data_handler.sync_from_s3(overwrite=override)
             for key, value in self.data_handler.__dict__.items():
                 if value is not None and hasattr(self, key):
                     setattr(self, key, value)
@@ -923,7 +923,7 @@ class WorkflowHandler(WorkflowABC):
             raise ValueError("Site metadata not loaded, cannot get GarposHandler")
 
         gp_handler = GarposHandler(
-            directory_handler=self.data_handler.directory_handler,
+            workspace=self.data_handler.workspace,
             station_metadata=self.current_station_metadata,
         )
         gp_handler.set_network_station_campaign(
@@ -1076,7 +1076,7 @@ class WorkflowHandler(WorkflowABC):
         """
 
         qc_pipeline: QCPipeline = QCPipeline(
-            directory_handler=self.directory_handler,
+            workspace=self.workspace,
             asset_catalog=self.asset_catalog,
             config=config,
         )

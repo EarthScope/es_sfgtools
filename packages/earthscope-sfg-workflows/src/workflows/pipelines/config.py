@@ -7,12 +7,12 @@ import yaml
 from pydantic import BaseModel, Field, field_serializer, field_validator
 
 # External package imports
-from pride_ppp import PrideCLIConfig
+from pride_ppp.specifications.cli import PrideCLIConfig
 
 
 class PrideConfig(BaseModel):
     """Pipeline-level configuration for PRIDE processing.
-    
+
     Holds settings that control the pipeline behavior (concurrency, overrides)
     separately from PrideCLIConfig which holds pdp3 CLI flags.
     """

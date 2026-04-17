@@ -6,9 +6,7 @@ import warnings
 from pathlib import Path
 from typing import Dict, List, Tuple
 
-from es_sfgtools.logging.loggers import _BaseLogger
-
-# Local imports
+from ..logging.loggers import _BaseLogger
 from ..logging import ProcessLogger as logger
 from .custom_warnings_exceptions import (
     EXCEPTIONS_DICT_LINUX,
@@ -16,12 +14,11 @@ from .custom_warnings_exceptions import (
     WARNINGS_DICT,
 )
 
-GOLANG_BINARY_BUILD_DIR = Path("src/golangtools/build")
-SELF_PATH = Path(__file__).resolve()
-# find src
-for parent in SELF_PATH.parents:
+GOLANG_BINARY_BUILD_DIR = Path(__file__).resolve()
+# Walk up to the package root (parent of "src"), then into go/build
+for parent in GOLANG_BINARY_BUILD_DIR.parents:
     if parent.name == "src":
-        GOLANG_BINARY_BUILD_DIR = parent.parent / GOLANG_BINARY_BUILD_DIR
+        GOLANG_BINARY_BUILD_DIR = parent.parent / "go" / "build"
         break
 
 

@@ -97,7 +97,7 @@ scikit-sparse = { version = ">=0.4.16, <0.5" }
 # =============================================================================
 [pypi-dependencies]
 earthscope-sfg = { path = "packages/earthscope-sfg", editable = true }
-es-sfgtools-workflows = { path = "packages/workflows", editable = true }
+es-sfgtools-workflows = { path = "packages/earthscope-sfg-workflows", editable = true }
 es-sfgtools-cli = { path = "packages/cli", editable = true }
 
 # =============================================================================
@@ -134,6 +134,6 @@ full = { features = ["dev", "notebook"], solve-group = "default" }
 CGO_ENABLED = "1"
 PIP_INDEX_URL = "https://pypi.org/simple"
 GARPOS_PATH = "$PIXI_PROJECT_ROOT/external/garpos"
-PATH = "~/.PRIDE_PPPAR_BIN:$PATH"
+PATH = "$HOME/.PRIDE_PPPAR_BIN:$PATH"
 DYLD_LIBRARY_PATH = "$PIXI_PROJECT_ROOT/.pixi/envs/$PIXI_ENVIRONMENT_NAME/lib:$DYLD_LIBRARY_PATH"
 LD_LIBRARY_PATH = "$PIXI_PROJECT_ROOT/.pixi/envs/$PIXI_ENVIRONMENT_NAME/lib:$LD_LIBRARY_PATH"

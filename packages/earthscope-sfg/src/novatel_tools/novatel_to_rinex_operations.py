@@ -16,7 +16,7 @@ logger = logging.getLogger("ES_SFGTools.NovatelToRinex")
 logger.setLevel(logging.INFO)
 
 # Local imports
-from es_sfgtools.utils.command_line_utils import parse_cli_logs
+from ..utils.command_line_utils import parse_cli_logs
 from .utils import (
     MetadataModel,
     get_metadatav2,
@@ -393,3 +393,61 @@ def novatel_2rinex(
         )
 
     return all_rinex_paths
+
+
+def tile2rinex(
+    gnss_obs_tdb: Path,
+    settings: Path,
+    writedir: Path,
+    time_interval: int = 1,
+    processing_year: int = 0,
+    modulo_millis: int = 0,
+) -> List[Path]:
+    """Convert a GNSS observation TileDB array to daily RINEX 2.11 files.
+
+    Parameters
+    ----------
+    gnss_obs_tdb : Path
+        Path to the TileDB GNSS observation array.
+    settings : Path
+        Path to the RINEX settings JSON file.
+    writedir : Path
+        Directory where the generated RINEX files will be written.
+    time_interval : int, optional
+        Hours of data loaded from TileDB per query batch (memory/speed tradeoff).
+    processing_year : int, optional
+        If non-zero, restrict output to this year only.
+    modulo_millis : int, optional
+        Decimation interval in milliseconds (0 = no decimation). Loss-of-lock
+        indicators from skipped epochs are propagated to the next written epoch.
+
+    Returns
+    -------
+    List[Path]
+        Paths of the generated RINEX files.
+    """
+    from .utils import get_tdb2rnx_binary_path
+    from ..utils.command_line_utils import run_binary
+    from ..logging import ProcessLogger as _logger
+
+    binary_path = get_tdb2rnx_binary_path()
+    cmd = [
+        str(binary_path),
+        "-tdb", str(gnss_obs_tdb),
+        "-settings", str(settings),
+        "-timeint", str(time_interval),
+        "-year", str(processing_year),
+    ]
+    if modulo_millis > 0:
+        cmd.extend(["-modulo", str(modulo_millis)])
+
+    _logger.loginfo(f"Running {cmd}")
+    with tempfile.TemporaryDirectory(dir="/tmp/") as workdir:
+        run_binary(cmd, log=_logger, cwd=workdir)
+        rinex_files = []
+        for f in Path(workdir).rglob("*"):
+            dest = writedir / f.name
+            shutil.move(src=str(f), dst=str(dest))
+            rinex_files.append(dest)
+            _logger.loginfo(f"Generated RINEX file {dest}")
+    return rinex_files

@@ -19,10 +19,11 @@ from matplotlib.colors import Normalize
 
 sns.set_theme(style="whitegrid")
 
-from es_sfgtools.data_mgmt.directorymgmt import DirectoryHandler, GARPOSSurveyDir
+from ...config.workspace import Workspace
+from ...data_mgmt.directorymgmt import GARPOSSurveyDir
 
-from es_sfgtools.data_models.metadata.site import Site
-from es_sfgtools.modeling.garpos_tools.schemas import (
+from ...data_models.metadata.site import Site
+from ...modeling.garpos_tools.schemas import (
     GarposFixed,
     GarposInput,
     InversionParams,
@@ -33,9 +34,9 @@ try:
 except ImportError:
     # Handle the case where garpos is not available
     pass
-from es_sfgtools.modeling.garpos_tools.schemas import GarposInput, ObservationData
+from ...modeling.garpos_tools.schemas import GarposInput, ObservationData
 from es_sfgtools.logging import GarposLogger as logger
-from es_sfgtools.modeling.garpos_tools.functions import process_garpos_results
+from ...modeling.garpos_tools.functions import process_garpos_results
 
 from es_sfgtools.utils.model_update import validate_and_merge_config
 from ..utils.protocols import WorkflowABC
@@ -62,8 +63,8 @@ class GarposHandler(WorkflowABC):
 
     Attributes
     ----------
-    directory_handler : DirectoryHandler
-        Handles the directory structure.
+    directory_handler : Workspace
+        Manages the directory structure.
     site : Site
         The site metadata.
     network : str
@@ -85,19 +86,19 @@ class GarposHandler(WorkflowABC):
 
     mid_process_workflow = True
 
-    def __init__(self, directory_handler: DirectoryHandler, station_metadata: Site):
+    def __init__(self, workspace: "Workspace", station_metadata: Site):
         """Initializes the GarposHandler.
 
         Parameters
         ----------
-        directory_handler : DirectoryHandler
-            The directory handler.
-        site : Site
+        workspace : Workspace
+            The unified workspace config and directory handler.
+        station_metadata : Site
             The site metadata.
         """
 
         super().__init__(
-            station_metadata=station_metadata, directory_handler=directory_handler
+            station_metadata=station_metadata, workspace=workspace
         )
 
         self.garpos_fixed = GarposFixed()

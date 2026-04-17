@@ -4,17 +4,16 @@ from functools import wraps
 from abc import ABC
 from pathlib import Path
 
-from es_sfgtools.config import Environment, WorkingEnvironment
-from es_sfgtools.data_mgmt.directorymgmt import (
-    DirectoryHandler,
+from ...config.workspace import Workspace
+from ...data_mgmt.directorymgmt import (
     CampaignDir,
     SurveyDir,
     NetworkDir,
     TileDBDir,
     StationDir,
 )
-from es_sfgtools.data_mgmt.assetcatalog.handler import PreProcessCatalogHandler
-from es_sfgtools.data_models.metadata import Site, Campaign, Survey
+from ...data_mgmt.assetcatalog.handler import PreProcessCatalogHandler
+from ...data_models.metadata import Site, Campaign, Survey
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -118,7 +117,7 @@ class WorkflowABC(ABC):
         metadata validation and loading.
     directory : Path
         Root directory for the workflow data structure.
-    directory_handler : DirectoryHandler
+    directory_handler : Workspace (see workspace attribute)
         Handler for managing the hierarchical directory structure.
     asset_catalog : PreProcessCatalogHandler
         Handler for managing data asset catalogs and metadata.
@@ -157,7 +156,7 @@ class WorkflowABC(ABC):
 
     See Also
     --------
-    DirectoryHandler : Core directory management functionality
+    Workspace : Unified config and directory management
     PreProcessCatalogHandler : Asset catalog management
     Site : Station metadata model
     Campaign : Campaign metadata model
@@ -168,76 +167,45 @@ class WorkflowABC(ABC):
 
     def __init__(
         self,
+        workspace: Optional[Workspace] = None,
         directory: Path = None,
         asset_catalog: Optional[PreProcessCatalogHandler] = None,
-        directory_handler: Optional[DirectoryHandler] = None,
         station_metadata: Optional[Site] = None,
     ):
-        """
-        Initialize the workflow with directory structure and handlers.
-
-        Sets up the basic infrastructure for workflow operations including directory
-        management, asset catalogs, and hierarchical context tracking. All context
-        attributes are initialized to None and must be set using the appropriate
-        context methods.
+        """Initialize the workflow with a workspace and asset catalog.
 
         Parameters
         ----------
+        workspace : Workspace, optional
+            Unified config + directory-tree object.  When *None* it is
+            inferred from *directory* (LOCAL workspace) or auto-detected
+            from environment variables.
         directory : Path, optional
-            Root directory path for the workflow. If not provided, must supply
-            directory_handler. Used to initialize DirectoryHandler if needed.
+            Convenience shortcut that builds a LOCAL workspace rooted here.
+            Ignored when *workspace* is supplied.
         asset_catalog : PreProcessCatalogHandler, optional
-            Pre-configured asset catalog handler. If not provided, will be created
-            automatically using the directory handler's asset catalog database path.
-        directory_handler : DirectoryHandler, optional
-            Pre-configured directory handler. If not provided, will be created from
-            the directory parameter and built automatically.
+            Pre-configured asset catalog.  Created automatically from
+            :attr:`workspace.asset_catalog_db_path` when omitted.
         station_metadata : Site, optional
-            Pre-loaded station metadata for workflows that start with known station
-            context. Typically used in mid-process workflows.
-
-        Raises
-        ------
-        ValueError
-            If both directory and directory_handler are None. At least one must be
-            provided to establish the workflow's file system context.
-
-        Notes
-        -----
-        The initialization process follows this sequence:
-
-        1. Validate that either directory or directory_handler is provided
-        2. Create DirectoryHandler if not supplied and build directory structure
-        3. Create PreProcessCatalogHandler if not supplied
-        4. Store all handlers and directory references
-        5. Initialize all hierarchical context attributes to None
-
-        All hierarchical context attributes (network, station, campaign, survey) are
-        set to None during initialization. Use the set_* methods to establish the
-        working context before performing workflow operations.
-
-        The directory handler is automatically built during initialization if created
-        from a directory parameter, ensuring the full directory structure exists
-        before workflow operations begin.
+            Pre-loaded station metadata for mid-process workflows.
         """
+        # Resolve workspace
+        if workspace is None:
+            if directory is not None:
+                workspace = Workspace.local(directory)
+            else:
+                workspace = Workspace.from_environment()
 
-        if directory is None and directory_handler is None:
-            raise ValueError("Either directory or directory_handler must be provided")
-
-        if directory_handler is None:
-            directory_handler = DirectoryHandler(location=directory)
-            directory_handler.build()
+        if not workspace.asset_catalog_db_path:
+            workspace.build()
 
         if asset_catalog is None:
             asset_catalog = PreProcessCatalogHandler(
-                db_path=directory_handler.asset_catalog_db_path
+                db_path=workspace.asset_catalog_db_path
             )
 
-        if directory is None:
-            directory = directory_handler.location
-
-        self.directory = directory
-        self.directory_handler = directory_handler
+        self.workspace: Workspace = workspace
+        self.directory: Path = workspace.location
         self.asset_catalog = asset_catalog
 
         # Consolidated hierarchical context
@@ -384,7 +352,7 @@ class WorkflowABC(ABC):
 
         1. Reset all contexts (network, station, campaign, survey) via _reset_network()
         2. Set current_network_name to the provided network_id
-        3. Retrieve existing NetworkDir or create new one via directory_handler
+        3. Retrieve existing NetworkDir or create new one via workspace
         4. Store the NetworkDir in current_network_dir
 
         The network directory is created automatically if it doesn't exist, making
@@ -406,11 +374,11 @@ class WorkflowABC(ABC):
         self.current_network_name = network_id
 
         if (
-            current_network_dir := self.directory_handler.networks.get(
+            current_network_dir := self.workspace.networks.get(
                 self.current_network_name, None
             )
         ) is None:
-            current_network_dir = self.directory_handler.add_network(
+            current_network_dir = self.workspace.add_network(
                 name=self.current_network_name
             )
         self.current_network_dir = current_network_dir
@@ -480,11 +448,11 @@ class WorkflowABC(ABC):
             )
         ) is None:
             current_station_dir = self.current_network_dir.add_station(
-                name=self.current_station_name
+                name=self.current_station_name, workspace=self.workspace
             )
 
         self.current_station_dir = current_station_dir
-        self.current_station_dir.build()
+        self.current_station_dir.build(self.workspace)
 
         if self.current_station_dir.site_metadata.exists():
             self.current_station_metadata = Site.from_json(
@@ -574,10 +542,10 @@ class WorkflowABC(ABC):
             )
         ) is None:
             current_campaign_dir = self.current_station_dir.add_campaign(
-                name=campaign_id
+                name=campaign_id, workspace=self.workspace
             )
         self.current_campaign_dir = current_campaign_dir
-        self.current_campaign_dir.build()
+        self.current_campaign_dir.build(self.workspace)
 
     def set_network_station_campaign(
         self, network_id: str, station_id: str, campaign_id: str
@@ -722,6 +690,8 @@ class WorkflowABC(ABC):
         if (
             current_survey_dir := self.current_campaign_dir.surveys.get(survey_id, None)
         ) is None:
-            current_survey_dir = self.current_campaign_dir.add_survey(name=survey_id)
+            current_survey_dir = self.current_campaign_dir.add_survey(
+                name=survey_id, workspace=self.workspace
+            )
         self.current_survey_dir = current_survey_dir
-        self.current_survey_dir.build()
+        self.current_survey_dir.build(self.workspace)

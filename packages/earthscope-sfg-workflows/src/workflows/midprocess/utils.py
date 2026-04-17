@@ -1,7 +1,7 @@
 from typing import Union, Optional
-from es_sfgtools.data_models.metadata import SurveyType, classify_survey_type
-from es_sfgtools.prefiltering.schemas import PingRepliesFilterConfig, FilterConfig
-from es_sfgtools.config.shotdata_filters import (
+from ...data_models.metadata import SurveyType, classify_survey_type
+from ...prefiltering.schemas import PingRepliesFilterConfig, FilterConfig
+from ...config.shotdata_filters import (
     DEFAULT_FILTER_CONFIG,
     CENTER_DRIVE_FILTER_CONFIG,
     CIRCLE_DRIVE_FILTER_CONFIG,

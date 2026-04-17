@@ -1,4 +1,4 @@
-from es_sfgtools.prefiltering.schemas import (
+from ..prefiltering.schemas import (
     PingRepliesFilterConfig,
     FilterConfig,
     MaxDistFromCenterConfig,

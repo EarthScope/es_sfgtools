@@ -5,13 +5,13 @@ from pathlib import Path
 from typing import List, Optional
 from collections import defaultdict
 import boto3
-from es_sfgtools.data_mgmt.assetcatalog.schemas import AssetType
+from ..assetcatalog.schemas import AssetType
 import requests
 from earthscope_cli.login import login as es_login
 from earthscope_sdk import EarthScopeClient
 from earthscope_sdk.config.settings import SdkSettings
 
-from es_sfgtools.data_models.metadata import Site, Vessel, import_site, import_vessel
+from ...data_models.metadata import Site, Vessel, import_site, import_vessel
 
 from es_sfgtools.logging import ProcessLogger as logger
 

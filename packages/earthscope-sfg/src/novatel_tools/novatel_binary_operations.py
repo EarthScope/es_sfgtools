@@ -9,8 +9,8 @@ from pathlib import Path
 from typing import Dict, List, Optional
 import os
 import warnings
-from es_sfgtools.logging import ProcessLogger as logger
-from es_sfgtools.utils.command_line_utils import parse_cli_logs
+from ..logging import ProcessLogger as logger
+from ..utils.command_line_utils import parse_cli_logs
 
 # Local imports
 from .utils import (

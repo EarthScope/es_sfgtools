@@ -7,7 +7,7 @@ from typing import Any, Dict, Optional, Union, List
 from pydantic import BaseModel, Field, field_serializer, field_validator, root_validator
 
 
-from es_sfgtools.config.file_config import AssetType
+from ...config.file_config import AssetType
 
 
 class _AssetBase(BaseModel):

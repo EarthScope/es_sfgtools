@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pymap3d as pm
 
-from es_sfgtools.data_models.metadata import Site, SurveyType, classify_survey_type
+from ..data_models.metadata import Site, SurveyType, classify_survey_type
 from es_sfgtools.logging import GarposLogger as logger
 from es_sfgtools.tiledb_schemas import TDBKinPositionArray
 from es_sfgtools.utils.model_update import validate_and_merge_config

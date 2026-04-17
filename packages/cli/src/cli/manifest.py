@@ -2,12 +2,11 @@
 This module defines the Pydantic models for parsing the pipeline manifest file.
 
 These models provide data validation and a structured interface for accessing
-manifest contents, which define the ingestion, download, and processing jobs
-for the pipeline.
+manifest contents, which define the workspace, ingestion, download, and
+processing jobs for the pipeline.
 """
 
 import json
-import os
 from enum import Enum
 from pathlib import Path
 from typing import List, Optional
@@ -17,7 +16,64 @@ from es_sfgtools.prefiltering.schemas import FilterConfig
 from es_sfgtools.modeling.garpos_tools.schemas import InversionParams
 from es_sfgtools.workflows.pipelines import SV3PipelineConfig
 from es_sfgtools.utils.model_update import validate_and_merge_config
+from es_sfgtools.config.workspace import Workspace, WorkspaceType
 from pydantic import BaseModel, Field, field_serializer, field_validator
+
+
+class ManifestWorkspaceConfig(BaseModel):
+    """Workspace configuration section of the pipeline manifest.
+
+    Controls which deployment environment is used and how cloud credentials
+    are supplied.  Maps directly onto the ``Workspace`` factory classmethods.
+    """
+
+    type: str = Field("local", description="Workspace type: 'local', 'geolab', or 'ecs'")
+    s3_sync_bucket: Optional[str] = Field(
+        None, alias="s3SyncBucket", description="S3 bucket for sync (geolab/ecs)"
+    )
+    aws_profile: Optional[str] = Field(None, alias="awsProfile")
+    aws_access_key_id: Optional[str] = Field(None, alias="awsAccessKeyId")
+    aws_secret_access_key: Optional[str] = Field(None, alias="awsSecretAccessKey")
+    aws_session_token: Optional[str] = Field(None, alias="awsSessionToken")
+    pride_dir: Optional[Path] = Field(None, alias="prideDir")
+
+    model_config = {"populate_by_name": True}
+
+    def build(self, root_directory: Path) -> Workspace:
+        """Instantiate a ``Workspace`` for *root_directory* using this config."""
+        wtype = WorkspaceType(self.type.lower())
+        match wtype:
+            case WorkspaceType.LOCAL:
+                return Workspace.local(
+                    root_directory,
+                    pride_binary_dir=self.pride_dir,
+                    aws_profile=self.aws_profile,
+                    s3_sync_bucket=self.s3_sync_bucket,
+                )
+            case WorkspaceType.GEOLAB:
+                if not self.s3_sync_bucket:
+                    raise ValueError("s3SyncBucket is required for geolab workspaces")
+                return Workspace.geolab(
+                    root_directory,
+                    self.s3_sync_bucket,
+                    aws_profile=self.aws_profile,
+                    aws_access_key_id=self.aws_access_key_id,
+                    aws_secret_access_key=self.aws_secret_access_key,
+                    aws_session_token=self.aws_session_token,
+                    pride_binary_dir=self.pride_dir,
+                )
+            case WorkspaceType.ECS:
+                if not self.s3_sync_bucket:
+                    raise ValueError("s3SyncBucket is required for ecs workspaces")
+                return Workspace.ecs(
+                    root_directory,
+                    self.s3_sync_bucket,
+                    aws_profile=self.aws_profile,
+                    aws_access_key_id=self.aws_access_key_id,
+                    aws_secret_access_key=self.aws_secret_access_key,
+                    aws_session_token=self.aws_session_token,
+                    pride_binary_dir=self.pride_dir,
+                )
 
 
 class PipelineJobType(str, Enum):
@@ -173,6 +229,9 @@ class PipelineManifest(BaseModel):
     """
 
     main_directory: Path = Field(..., title="Main Directory")
+    workspace_config: ManifestWorkspaceConfig = Field(
+        default_factory=ManifestWorkspaceConfig, title="Workspace Configuration"
+    )
 
     ingestion_jobs: List[PipelineIngestJob] = Field(
         default_factory=list, title="List of Pipeline Ingestion Jobs"
@@ -188,14 +247,12 @@ class PipelineManifest(BaseModel):
     )
     global_config: SV3PipelineConfig = Field(..., title="Global Config")
 
-    env: Optional[dict] = Field(
-        default_factory=dict,
-        title="Environment Variables",
-        description="Environment variables",
-    )
-
     class Config:
         arbitrary_types_allowed = True
+
+    def build_workspace(self) -> Workspace:
+        """Build and return a ``Workspace`` for this manifest's project directory."""
+        return self.workspace_config.build(self.main_directory)
 
     @classmethod
     def _load(cls, data: dict) -> "PipelineManifest":
@@ -214,7 +271,6 @@ class PipelineManifest(BaseModel):
         """
         if (global_config_data := data.get("globalConfig")) is not None:
             global_config = SV3PipelineConfig(**global_config_data)
-
         else:
             global_config = SV3PipelineConfig()
 
@@ -223,13 +279,10 @@ class PipelineManifest(BaseModel):
         else:
             garpos_config = GARPOSConfig()
 
-        if (env_data := data.get("env")) is not None:
-            for key, value in env_data.items():
-                os.environ[key] = str(value)
-
-        # Set GARPOS_PATH if provided
-        if hasattr(garpos_config, "garpos_path"):
-            os.environ["GARPOS_PATH"] = str(garpos_config.garpos_path)
+        if (workspace_config_data := data.get("workspaceConfig")) is not None:
+            workspace_config = ManifestWorkspaceConfig(**workspace_config_data)
+        else:
+            workspace_config = ManifestWorkspaceConfig()
 
         # Initialize lists for jobs
         process_jobs = []
@@ -297,6 +350,7 @@ class PipelineManifest(BaseModel):
         # Instantiate the PipelineManifest
         return cls(
             main_directory=Path(data["projectDir"]),
+            workspace_config=workspace_config,
             ingestion_jobs=ingestion_jobs,
             process_jobs=process_jobs,
             download_jobs=download_jobs,

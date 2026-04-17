@@ -8,7 +8,7 @@ based on manifest files.
 import os
 import sys
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 import typer
 import multiprocessing
 
@@ -19,9 +19,7 @@ except RuntimeError:
     pass
 
 from es_sfgtools.logging import ProcessLogger
-from es_sfgtools.config.env_config import Environment
-
-Environment.load_working_environment()
+from es_sfgtools.config.workspace import Workspace, WorkspaceType
 
 from es_sfgtools.cli.commands import run_manifest, run_preprocessing
 from es_sfgtools.cli.manifest import PipelineManifest
@@ -56,31 +54,77 @@ def run(file: Path):
             manifest_object = PipelineManifest.from_yaml(file)
         case _:
             raise ValueError(f"Unsupported file type: {file.suffix}")
-    Environment.load_aws_credentials()
     run_manifest(manifest_object)
 
 
 @app.command()
 def preprocess(
-    main_dir: Path = typer.Option(..., help="Main directory for the workflow"),
+    main_dir: Path = typer.Option(..., help="Root directory for the workspace"),
     network: str = typer.Option(..., help="Network ID"),
     campaign: str = typer.Option(..., help="Campaign ID"),
     stations: List[str] = typer.Option(..., help="List of station IDs"),
+    workspace_type: str = typer.Option(
+        "local", help="Workspace type: local, geolab, ecs"
+    ),
+    s3_bucket: Optional[str] = typer.Option(
+        None, help="S3 sync bucket URI (required for geolab/ecs)"
+    ),
+    aws_profile: Optional[str] = typer.Option(None, help="AWS profile name"),
+    aws_access_key_id: Optional[str] = typer.Option(None, envvar="AWS_ACCESS_KEY_ID"),
+    aws_secret_access_key: Optional[str] = typer.Option(
+        None, envvar="AWS_SECRET_ACCESS_KEY"
+    ),
+    aws_session_token: Optional[str] = typer.Option(
+        None, envvar="AWS_SESSION_TOKEN"
+    ),
+    pride_dir: Optional[Path] = typer.Option(
+        None, help="Path to PRIDE-PPPAR binary directory"
+    ),
 ):
-    """
-    Runs the preprocessing pipeline for a given network, campaign, and stations.
+    """Run the preprocessing pipeline for a network, campaign, and set of stations."""
+    wtype = WorkspaceType(workspace_type.lower())
+    match wtype:
+        case WorkspaceType.LOCAL:
+            workspace = Workspace.local(
+                main_dir,
+                pride_binary_dir=pride_dir,
+                aws_profile=aws_profile,
+                s3_sync_bucket=s3_bucket,
+            )
+        case WorkspaceType.GEOLAB:
+            if not s3_bucket:
+                raise typer.BadParameter(
+                    "--s3-bucket is required for geolab workspaces"
+                )
+            workspace = Workspace.geolab(
+                main_dir,
+                s3_bucket,
+                aws_profile=aws_profile,
+                aws_access_key_id=aws_access_key_id,
+                aws_secret_access_key=aws_secret_access_key,
+                aws_session_token=aws_session_token,
+                pride_binary_dir=pride_dir,
+            )
+        case WorkspaceType.ECS:
+            if not s3_bucket:
+                raise typer.BadParameter(
+                    "--s3-bucket is required for ecs workspaces"
+                )
+            workspace = Workspace.ecs(
+                main_dir,
+                s3_bucket,
+                aws_profile=aws_profile,
+                aws_access_key_id=aws_access_key_id,
+                aws_secret_access_key=aws_secret_access_key,
+                aws_session_token=aws_session_token,
+                pride_binary_dir=pride_dir,
+            )
 
-    Args:
-        main_dir: The main directory where data and results will be stored.
-        network: The identifier for the network.
-        campaign: The identifier for the campaign.
-        stations: A list of station identifiers to be processed.
-    """
     run_preprocessing(
+        workspace=workspace,
         network_id=network,
         campaign_id=campaign,
         stations=stations,
-        main_dir=str(main_dir),
     )
 
 

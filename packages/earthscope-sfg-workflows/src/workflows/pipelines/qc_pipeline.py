@@ -15,17 +15,17 @@ import time
 
 # Local Imports
 from es_sfgtools.logging import ProcessLogger, change_all_logger_dirs
-from es_sfgtools.data_mgmt.assetcatalog.handler import PreProcessCatalogHandler
-from es_sfgtools.data_mgmt.assetcatalog.schemas import AssetEntry, AssetType
-from es_sfgtools.data_mgmt.directorymgmt import (
+from ...data_mgmt.assetcatalog.handler import PreProcessCatalogHandler
+from ...data_mgmt.assetcatalog.schemas import AssetEntry, AssetType
+from ...data_mgmt.directorymgmt import (
     CampaignDir,
-    DirectoryHandler,
     NetworkDir,
     StationDir,
 )
+from ...config.workspace import Workspace
 from es_sfgtools.data_models.observables import ShotDataFrame
 from pandera.typing import DataFrame
-from es_sfgtools.data_mgmt.utils import get_merge_signature_shotdata
+from ...data_mgmt.utils import get_merge_signature_shotdata
 from es_sfgtools.novatel_tools import novatel_ascii_operations as nova_ops
 from es_sfgtools.novatel_tools.utils import get_metadata, get_metadatav2
 
@@ -35,7 +35,7 @@ from es_sfgtools.novatel_tools.rangea_parser import (
     extract_rangea_from_qcpin,
     extract_rangea_strings_from_qcpin,
 )
-from es_sfgtools.tiledb_tools.tiledb_operations import tile2rinex
+from es_sfgtools.novatel_tools.novatel_to_rinex_operations import tile2rinex
 from es_sfgtools.tiledb_schemas import (
     TDBGNSSObsArray,
     TDBKinPositionArray,
@@ -146,7 +146,7 @@ class QCPipeline(WorkflowABC):
 
     Attributes
     ----------
-    directory_handler : DirectoryHandler
+    directory_handler : Workspace
         Manages the project directory structure.
     config : QCPipelineConfig
         Configuration settings for all pipeline steps.
@@ -166,16 +166,16 @@ class QCPipeline(WorkflowABC):
 
     def __init__(
         self,
-        directory_handler: Optional[DirectoryHandler] = None,
+        workspace: Optional[Workspace] = None,
         asset_catalog: Optional[PreProcessCatalogHandler] = None,
         config: QCPipelineConfig = QCPipelineConfig(),
     ):
-        """Initialize the QCPipeline with directory handler and configuration.
+        """Initialize the QCPipeline with workspace and configuration.
 
         Parameters
         ----------
-        directory_handler : DirectoryHandler, optional
-            Handler for managing project directory structure. Must be provided
+        workspace : Workspace, optional
+            Unified workspace config and directory handler. Must be provided
             and should already be built.
         asset_catalog : PreProcessCatalogHandler, optional
             Pre-configured asset catalog handler. If not provided, will be
@@ -185,9 +185,8 @@ class QCPipeline(WorkflowABC):
             configuration.
         """
         super().__init__(
-            directory=directory_handler.location,
+            workspace=workspace,
             asset_catalog=asset_catalog,
-            directory_handler=directory_handler,
         )
 
         self.config = config if config is not None else QCPipelineConfig()
@@ -489,7 +488,7 @@ class QCPipeline(WorkflowABC):
         response = f"Running PRIDE-PPPAR on QC Rinex Data for {self.current_network_name} {self.current_station_name} {self.current_campaign_name}. This may take a few minutes..."
         ProcessLogger.loginfo(response)
 
-        prideDir = self.directory_handler.pride_directory
+        prideDir = self.workspace.pride_directory
         intermediateDir = self.current_campaign_dir.intermediate
 
         rinex_entries: List[AssetEntry] = (

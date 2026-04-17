@@ -5,15 +5,15 @@ from typing import Dict, List
 import pandas as pd
 from pandera.typing import DataFrame
 
-from es_sfgtools.novatel_tools.rangea_parser import GNSSEpoch
+from ..novatel_tools.rangea_parser import GNSSEpoch
 
-from es_sfgtools.data_models.observables import ShotDataFrame
-from es_sfgtools.data_models.sv3_models import (
+from ..data_models.observables import ShotDataFrame
+from ..data_models.sv3_models import (
     NovatelInterrogationEvent,
     NovatelRangeEvent,
 )
-from es_sfgtools.logging import ProcessLogger as logger
-from es_sfgtools.sonardyne_tools.sv3_operations import (
+from ..logging import ProcessLogger as logger
+from .sv3_operations import (
     novatelInterrogation_to_garpos_interrogation,
     novatelReply_to_garpos_reply,
     merge_interrogation_reply,

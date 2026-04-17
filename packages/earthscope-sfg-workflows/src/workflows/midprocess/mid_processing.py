@@ -13,12 +13,12 @@ from datetime import timezone
 import numpy as np
 import pandas as pd
 
-from es_sfgtools.data_mgmt.directorymgmt import DirectoryHandler, GARPOSSurveyDir
+from ...data_mgmt.directorymgmt import GARPOSSurveyDir
 
-from es_sfgtools.data_models.metadata.campaign import Survey
-from es_sfgtools.data_models.metadata.site import Site
+from ...data_models.metadata.campaign import Survey
+from ...data_models.metadata.site import Site
 from es_sfgtools.logging import GarposLogger as logger
-from es_sfgtools.modeling.garpos_tools.data_prep import (
+from ...modeling.garpos_tools.data_prep import (
     GP_Transponders_from_benchmarks,
     get_array_dpos_center,
     prepare_garpos_input_from_survey,
@@ -26,27 +26,27 @@ from es_sfgtools.modeling.garpos_tools.data_prep import (
     apply_survey_config,
 )
 
-from es_sfgtools.prefiltering import filter_shotdata
+from ...prefiltering import filter_shotdata
 
-from es_sfgtools.modeling.garpos_tools.functions import (
+from ...modeling.garpos_tools.functions import (
     CoordTransformer,
 )
-from es_sfgtools.modeling.garpos_tools.schemas import GarposFixed, GarposInput
+from ...modeling.garpos_tools.schemas import GarposFixed, GarposInput
 
 from es_sfgtools.tiledb_schemas import (
     TDBIMUPositionArray,
     TDBKinPositionArray,
     TDBShotDataArray,
 )
-from es_sfgtools.config.loadconfigs import (
+from ...config.loadconfigs import (
     get_survey_filter_config,
     get_garpos_site_config,
     GarposSiteConfig,
     FilterConfig,
-    load_s3_sync_bucket,
 )
+from ...config.workspace import Workspace
 
-from es_sfgtools.workflows.utils.protocols import (
+from ..utils.protocols import (
     WorkflowABC,
     validate_network_station_campaign,
 )
@@ -60,18 +60,23 @@ class IntermediateDataProcessor(WorkflowABC):
 
     mid_process_workflow: bool = True
 
-    def __init__(self, station_metadata: Site, directory_handler: DirectoryHandler):
+    def __init__(
+        self,
+        station_metadata: Site,
+        workspace: Workspace,
+    ):
         """Initializes the IntermediateDataProcessor.
 
         Parameters
         ----------
         station_metadata : Site
             The station metadata.
-        directory_handler : DirectoryHandler
-            The directory handler.
+        workspace : Workspace
+            Unified workspace config and directory handler.
         """
         super().__init__(
-            station_metadata=station_metadata, directory_handler=directory_handler
+            workspace=workspace,
+            station_metadata=station_metadata,
         )
 
         self.coordTransformer = CoordTransformer(
@@ -407,12 +412,11 @@ class IntermediateDataProcessor(WorkflowABC):
         s3://<bucket_name>/cascadia-gorda/NCC1/2025_A_1126
 
         """
-        try:
-            s3_bucket = load_s3_sync_bucket()
-        except ValueError as e:
-            logger.logwarn(f"S3 synchronization skipped: {e}")
+        if not self.workspace.syncs_with_s3:
+            logger.logwarn("S3 synchronization skipped: workspace not configured for S3 sync")
             return
 
+        s3_bucket = self.workspace.s3_sync_bucket_uri
         s3_directory_handler = self.directory_handler.point_to_s3(s3_bucket)
         s3_station_dir = s3_directory_handler.networks[
             self.current_network_name

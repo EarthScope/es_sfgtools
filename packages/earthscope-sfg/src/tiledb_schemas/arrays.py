@@ -14,15 +14,15 @@ import pandas as pd
 import tiledb
 from cloudpathlib import S3Path
 
-from es_sfgtools.novatel_tools.rangea_parser import GNSSEpoch
-from es_sfgtools.novatel_tools import novatel_ascii_operations as nova_ops
-from es_sfgtools.data_models.observables import (
+from ..novatel_tools.rangea_parser import GNSSEpoch
+from ..novatel_tools import novatel_ascii_operations as nova_ops
+from ..data_models.observables import (
     AcousticDataFrame,
     IMUPositionDataFrame,
     KinPositionDataFrame,
     ShotDataFrame,
 )
-from es_sfgtools.tiledb_schemas.schemas import (
+from .schemas import (
     AcousticArraySchema,
     GNSSObsSchema,
     IMUPositionArraySchema,
@@ -186,9 +186,12 @@ class TBDArray:
         ctx = tiledb.Ctx()
         config = tiledb.Config()
         config["sm.consolidation.steps"] = 3
-        uri = tiledb.consolidate(uri=str(self.uri), ctx=ctx, config=config)
-        logger.debug(f"Consolidated {self.name} to {uri}")
-        tiledb.vacuum(str(self.uri))
+        try:
+            uri = tiledb.consolidate(uri=str(self.uri), ctx=ctx, config=config)
+            logger.debug(f"Consolidated {self.name} to {uri}")
+            tiledb.vacuum(str(self.uri))
+        except Exception as e:
+            logger.warning(f"Could not consolidate {self.name}: {e}")
 
     def view(self, network: str = "", station: str = ""):
         """

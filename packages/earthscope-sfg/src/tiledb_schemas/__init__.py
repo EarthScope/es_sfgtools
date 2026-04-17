@@ -21,7 +21,7 @@ except ModuleNotFoundError:
     TILEDB_AVAILABLE = False
 
 if TILEDB_AVAILABLE:
-    from es_sfgtools.tiledb_schemas.schemas import (
+    from .schemas import (
         AcousticArraySchema,
         GNSSObsSchema,
         IMUPositionArraySchema,
@@ -31,7 +31,7 @@ if TILEDB_AVAILABLE:
         ctx,
         filters,
     )
-    from es_sfgtools.tiledb_schemas.arrays import (
+    from .arrays import (
         TBDArray,
         TDBAcousticArray,
         TDBGNSSObsArray,

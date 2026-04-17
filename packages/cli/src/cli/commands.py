@@ -5,6 +5,7 @@ It orchestrates the data handling and processing workflows based on the
 parsed manifest file.
 """
 
+from es_sfgtools.config.workspace import Workspace
 from es_sfgtools.data_mgmt.ingestion.archive_pull import list_campaign_files
 from es_sfgtools.modeling.garpos_tools.load_utils import load_lib
 from es_sfgtools.utils.model_update import validate_and_merge_config
@@ -28,7 +29,8 @@ def run_manifest(manifest_object: PipelineManifest):
     """
     display_pipelinemanifest(manifest_object)
     load_lib()
-    wfh = WorkflowHandler(manifest_object.main_directory)
+    workspace = manifest_object.build_workspace()
+    wfh = WorkflowHandler(workspace=workspace)
 
     for ingest_job in manifest_object.ingestion_jobs:
         wfh.set_network_station_campaign(
@@ -91,17 +93,17 @@ def run_manifest(manifest_object: PipelineManifest):
             )
 
 
-def run_preprocessing(network_id: str, campaign_id: str, stations: list, main_dir: str):
+def run_preprocessing(workspace: Workspace, network_id: str, campaign_id: str, stations: list):
     """
     Initializes and runs the preprocessing workflow for a set of stations.
 
     Args:
+        workspace: The configured Workspace instance.
         network_id: The network identifier.
         campaign_id: The campaign identifier.
         stations: A list of station identifiers.
-        main_dir: The main project directory.
     """
-    wfh = WorkflowHandler(main_dir)
+    wfh = WorkflowHandler(workspace=workspace)
     for station_id in stations:
         wfh.set_network_station_campaign(
             network_id=network_id,

@@ -53,6 +53,7 @@ root = "../.."
 [tool.setuptools]
 package-dir = { "es_sfgtools" = "src" }
 packages = [
+  "es_sfgtools.logging",
   "es_sfgtools.novatel_tools",
   "es_sfgtools.sonardyne_tools",
   "es_sfgtools.seafloor_site_tools",

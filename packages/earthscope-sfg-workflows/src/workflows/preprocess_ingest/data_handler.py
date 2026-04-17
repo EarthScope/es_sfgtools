@@ -15,27 +15,26 @@ import boto3
 from tqdm.auto import tqdm
 import json
 
-from es_sfgtools.data_mgmt.assetcatalog.handler import PreProcessCatalogHandler
-from es_sfgtools.config.file_config import (
+from ...data_mgmt.assetcatalog.handler import PreProcessCatalogHandler
+from ...config.file_config import (
     REMOTE_TYPE,
     DEFAULT_FILE_TYPES_TO_DOWNLOAD,
     AssetType,
 )
 
-from es_sfgtools.data_mgmt.ingestion.datadiscovery import (
+from ...data_mgmt.ingestion.datadiscovery import (
     get_file_type_local,
     get_file_type_remote,
     scrape_directory_local,
 )
-from es_sfgtools.data_mgmt.directorymgmt.handler import (
+from ...data_mgmt.directorymgmt.handler import (
     CampaignDir,
-    DirectoryHandler,
     NetworkDir,
     StationDir,
 )
-from es_sfgtools.data_mgmt.assetcatalog.schemas import AssetEntry
+from ...data_mgmt.assetcatalog.schemas import AssetEntry
 
-from es_sfgtools.data_models.metadata.site import Site
+from ...data_models.metadata.site import Site
 from es_sfgtools.logging import ProcessLogger as logger
 from es_sfgtools.logging import change_all_logger_dirs
 from es_sfgtools.tiledb_schemas import (
@@ -45,17 +44,17 @@ from es_sfgtools.tiledb_schemas import (
     TDBKinPositionArray,
     TDBShotDataArray,
 )
-from es_sfgtools.data_mgmt.ingestion.archive_pull import (
+from ...data_mgmt.ingestion.archive_pull import (
     download_file_from_archive,
     list_campaign_files,
     load_site_metadata,
 )
-from es_sfgtools.workflows.utils.protocols import (
+from ..utils.protocols import (
     WorkflowABC,
     validate_network_station_campaign,
 )
 
-from es_sfgtools.config import Environment, WorkingEnvironment
+from ...config.workspace import Workspace
 
 
 class DataHandler(WorkflowABC):
@@ -67,17 +66,15 @@ class DataHandler(WorkflowABC):
 
     def __init__(
         self,
-        directory: Path | str,
+        workspace: Optional[Workspace] = None,
+        directory: Path | str = None,
     ) -> None:
-        """
-        Initializes the DataHandler, setting up directories and the processing catalog.
-
-        Parameters
-        ----------
-        directory : Path or str
-            The root directory for data storage and operations.
-        """
-        super().__init__(directory=directory)
+        if workspace is None:
+            if directory is not None:
+                workspace = Workspace.local(directory)
+            else:
+                workspace = Workspace.from_environment()
+        super().__init__(workspace=workspace)
 
         self.acoustic_tdb: Optional[TDBAcousticArray] = None
         self.kin_position_tdb: Optional[TDBKinPositionArray] = None
@@ -86,7 +83,7 @@ class DataHandler(WorkflowABC):
         self.shotdata_tdb_pre: Optional[TDBShotDataArray] = None
         self.gnss_obs_tdb: Optional[TDBGNSSObsArray] = None
         self.gnss_obs_secondary_tdb: Optional[TDBGNSSObsArray] = None
-        self.s3_directory_handler: Optional[DirectoryHandler] = None
+        self.s3_directory_handler: Optional[Workspace] = None
 
     def _build_station_dir_structure(
         self, network_id: str, station_id: str, campaign_id: str
@@ -216,7 +213,7 @@ class DataHandler(WorkflowABC):
         change_all_logger_dirs(log_dir)
         os.environ["LOG_FILE_PATH"] = str(log_dir)
 
-        if Environment.working_environment() == WorkingEnvironment.LOCAL:
+        if self.workspace.builds_tiledb_locally:
             self._build_tileDB_arrays()
 
         logger.loginfo(
@@ -796,62 +793,28 @@ class DataHandler(WorkflowABC):
 
         return site
 
-    def geolab_get_s3(self, overwrite: bool = False):
-        """
-        Synchronize seafloor geodesy data from S3 storage to local GeoLab environment.
+    def sync_from_s3(self, overwrite: bool = False):
+        """Synchronize seafloor geodesy data from S3 to the local workspace.
 
-        This method downloads and synchronizes data files from AWS S3 to the local
-        GeoLab environment for the currently selected network and station. It handles
-        both metadata files and campaign data, creating the necessary local directory
-        structure and maintaining catalog consistency.
-
-        The synchronization process:
-        1. Validates GeoLab environment and S3 bucket configuration
-        2. Loads or creates an S3 directory catalog
-        3. Downloads station metadata files from S3 to local storage
-        4. Downloads campaign data files from S3 to local storage
-        5. Updates local and remote directory catalogs
+        Supports GEOLAB and ECS workspaces.  Downloads station/campaign data
+        from the configured S3 bucket and rebuilds the local directory catalog.
 
         Args:
-            overwrite (bool, optional): If True, re-downloads files even if they
-                already exist locally. If False, only downloads missing files.
-                Defaults to False.
-
-        Raises:
-            AssertionError: If not running in GEOLAB environment
-            ValueError: If S3 bucket configuration is missing or invalid
-
-        Note:
-            - Only processes data for the currently set network and station context
-            - Requires valid AWS credentials and S3 bucket access
-            - Creates local directory structure to match S3 organization
-            - Maintains both local and remote directory catalogs for consistency
+            overwrite: If True, re-downloads files that already exist locally.
         """
 
-        # =================================================================
-        # ENVIRONMENT AND CONFIGURATION VALIDATION
-        # =================================================================
+        if not self.workspace.syncs_with_s3:
+            raise RuntimeError(
+                "sync_from_s3 requires a workspace with syncs_with_s3=True "
+                "and a configured s3_sync_bucket. "
+                f"Current workspace: {self.workspace}"
+            )
 
-        # Ensure we're running in the correct environment for S3 operations
-        assert Environment.working_environment() == WorkingEnvironment.GEOLAB, (
-            "S3 sync is only available in the GEOLAB environment."
-        )
-
-        # Get the configured S3 bucket for data synchronization
-        try:
-            s3_bucket = Environment.s3_sync_bucket()
-        except ValueError as e:
-            # S3 bucket not configured - skip synchronization
-            logger.logwarn(f"S3 synchronization skipped: {e}")
-            return
-
-        # =================================================================
-        # S3 DIRECTORY CATALOG MANAGEMENT
-        # =================================================================
+        s3_bucket = self.workspace.s3_sync_bucket_uri
 
         # Check if we have a cached remote catalog file
         if self.s3_directory_handler is None or overwrite:
-            self.s3_directory_handler = DirectoryHandler.load_from_path(s3_bucket)
+            self.s3_directory_handler = Workspace.load_from_path(s3_bucket)
         if self.s3_directory_handler is None:
             raise ValueError(
                 f"Failed to load or create S3 directory catalog from bucket: {s3_bucket}"
@@ -877,7 +840,9 @@ class DataHandler(WorkflowABC):
                     continue
 
                 # Create or get the corresponding local station directory
-                local_station_dir = local_network_dir.add_station(station_name)
+                local_station_dir = local_network_dir.add_station(
+                    station_name, workspace=self.workspace
+                )
 
                 # Synchronize TileDB directory reference (array storage location)
                 local_station_dir.tiledb_directory = remote_station_dir.tiledb_directory
@@ -892,7 +857,9 @@ class DataHandler(WorkflowABC):
                     remote_campaign_dir,
                 ) in remote_station_dir.campaigns.items():
                     # Create or get the corresponding local campaign directory
-                    local_campaign_dir = local_station_dir.add_campaign(campaign_id)
+                    local_campaign_dir = local_station_dir.add_campaign(
+                        campaign_id, workspace=self.workspace
+                    )
 
                     # Download all files within this campaign from S3
                     for file in remote_campaign_dir.location.rglob("*"):
