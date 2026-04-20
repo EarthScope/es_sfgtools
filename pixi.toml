@@ -8,8 +8,8 @@ conda-pypi-map = {}
 # Tasks
 # =============================================================================
 [tasks]
-lint = "black --check src/"
-format = "ruff format src/"
+lint = "ruff check packages/"
+format = "ruff format packages/"
 docs = { cmd = "make html", cwd = "docs" }
 build-novatel-go = { cmd = "make -B", cwd = "packages/earthscope-sfg/go" }
 
@@ -97,14 +97,14 @@ scikit-sparse = { version = ">=0.4.16, <0.5" }
 # =============================================================================
 [pypi-dependencies]
 earthscope-sfg = { path = "packages/earthscope-sfg", editable = true }
-es-sfgtools-workflows = { path = "packages/earthscope-sfg-workflows", editable = true }
-es-sfgtools-cli = { path = "packages/cli", editable = true }
+earthscope-sfg-workflows = { path = "packages/earthscope-sfg-workflows", editable = true }
+earthscope-sfg-cli = { path = "packages/cli", editable = true }
 
 # =============================================================================
 # Feature: dev (adds dev tools)
 # =============================================================================
 [feature.dev.dependencies]
-black = "*"
+ruff = "*"
 
 [feature.dev.pypi-dependencies]
 # Optional dev deps from pyproject.toml are installed via editable install

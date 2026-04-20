@@ -7,8 +7,10 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "es-sfgtools-workflows"
+name = "earthscope-sfg-workflows"
 description = "EarthScope seafloor geodesy workflow orchestration — pipelines, data management, modeling, and configuration"
+readme = "README.md"
+license = { text = "MIT" }
 requires-python = ">= 3.11"
 authors = [
     { name = "Mike Gottlieb", email = "mike.gottlieb@earthscope.org" },
@@ -34,7 +36,7 @@ dependencies = [
     "gnatss>=0.3.1",
     "cloudpathlib[s3]>=0.20",
     "pyarrow>=21.0",
-    "gnss-ppp-etl @ git+https://github.com/EarthScope/GNSS-PPP-ETL.git@feature/cli",
+    "gnssommelier @ git+https://github.com/EarthScope/GNSSommelier.git",
 ]
 
 [project.urls]
@@ -42,7 +44,7 @@ Homepage = "https://github.com/EarthScope/es_sfgtools"
 ReadTheDocs = "https://es-sfgtools.readthedocs.io/en/latest/"
 
 [tool.setuptools_scm]
-root = "../.."  
+root = "../.."
 
 [tool.setuptools]
 package-dir = { "es_sfgtools" = "src" }
