@@ -5,8 +5,8 @@ from typing import (
 
 from pride_ppp.specifications.cli import PrideCLIConfig
 
-from es_sfgtools.logging import ProcessLogger as logger
-from es_sfgtools.utils.model_update import validate_and_merge_config
+from earthscope_sfg.logging import ProcessLogger as logger
+from earthscope_sfg.utils.model_update import validate_and_merge_config
 
 from ..config.file_config import (
     DEFAULT_FILE_TYPES_TO_DOWNLOAD,
@@ -204,7 +204,7 @@ class WorkflowHandler(WorkflowABC):
 
         See Also
         --------
-        es_sfgtools.pipelines.sv3_pipeline.SV3Pipeline : The pipeline class used for processing.
+        earthscope_sfg_workflows.workflows.pipelines.config.SV3Pipeline : The pipeline class used for processing.
         """
 
         base_config = SV3PipelineConfig()
@@ -276,7 +276,7 @@ class WorkflowHandler(WorkflowABC):
     ) -> None:
         """Runs the SV3 processing pipeline with optional configuration overrides.
 
-        This method creates and configures an :class:`~es_sfgtools.pipelines.sv3_pipeline.SV3Pipeline`
+        This method creates and configures an :class:`~earthscope_sfg_workflows.workflows.pipelines.config.SV3Pipeline`
         instance using the :attr:`data_handler` to access the directory structure and catalog.
 
         Parameters
@@ -298,8 +298,8 @@ class WorkflowHandler(WorkflowABC):
         See Also
         --------
         preprocess_get_pipeline_sv3 : Method that creates the pipeline instance.
-        es_sfgtools.pipelines.sv3_pipeline.SV3Pipeline : The pipeline class used.
-        es_sfgtools.data_mgmt.data_handler.DataHandler : Data management dependency.
+        earthscope_sfg_workflows.workflows.pipelines.config.SV3Pipeline : The pipeline class used.
+        earthscope_sfg_workflows.data_mgmt.data_handler.DataHandler : Data management dependency.
 
         Examples
         --------
@@ -471,7 +471,7 @@ class WorkflowHandler(WorkflowABC):
 
         See Also
         --------
-        es_sfgtools.workflows.pipelines.qc_pipeline.QCPipeline : The pipeline class used for QC processing.
+        earthscope_sfg_workflows.workflows.pipelines.qc_pipeline.QCPipeline : The pipeline class used for QC processing.
         """
         base_config = QCPipelineConfig()
         base_config_updated = base_config.model_copy()
@@ -538,7 +538,7 @@ class WorkflowHandler(WorkflowABC):
     ) -> None:
         """Runs the QC processing pipeline with optional configuration overrides.
 
-        This method creates and configures a :class:`~es_sfgtools.workflows.pipelines.qc_pipeline.QCPipeline`
+        This method creates and configures a :class:`~earthscope_sfg_workflows.workflows.pipelines.qc_pipeline.QCPipeline`
         instance for processing QC PIN data from Sonardyne equipment.
 
         Parameters
@@ -560,7 +560,7 @@ class WorkflowHandler(WorkflowABC):
         See Also
         --------
         preprocess_get_pipeline_qc : Method that creates the pipeline instance.
-        es_sfgtools.workflows.pipelines.qc_pipeline.QCPipeline : The pipeline class used.
+        earthscope_sfg_workflows.workflows.pipelines.qc_pipeline.QCPipeline : The pipeline class used.
 
         Examples
         --------

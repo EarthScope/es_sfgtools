@@ -15,7 +15,7 @@ from pydantic import (
     model_validator,
 )
 
-from es_sfgtools.logging import GarposLogger as logger
+from earthscope_sfg.logging import GarposLogger as logger
 
 from .load_utils import load_lib
 

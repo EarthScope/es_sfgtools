@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 
-from es_sfgtools.workflows.workflow_handler import WorkflowHandler
+from earthscope_sfg_workflows.workflows.workflow_handler import WorkflowHandler
 
 # Input survey parameters
 network='cascadia-gorda'

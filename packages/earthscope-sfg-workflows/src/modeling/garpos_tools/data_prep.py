@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from es_sfgtools.logging import GarposLogger as logger
+from earthscope_sfg.logging import GarposLogger as logger
 
 from ...config.garpos_config import GarposSiteConfig
 from ...data_models.metadata.benchmark import Benchmark, Transponder

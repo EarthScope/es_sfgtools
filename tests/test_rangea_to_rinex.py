@@ -8,14 +8,14 @@ import pytest
 import tiledb
 import numpy as np
 
-from es_sfgtools.novatel_tools.rangea_parser import (
+from earthscope_sfg.novatel_tools.rangea_parser import (
     extract_rangea_from_qcpin,
     GNSSEpoch,
     extract_rangea_strings_from_qcpin,
 )
-from es_sfgtools.novatel_tools import novatel_ascii_operations as nova_ops
-from es_sfgtools.tiledb_schemas import TDBGNSSObsArray
-from es_sfgtools.tiledb_tools.tiledb_operations import tile2rinex
+from earthscope_sfg.novatel_tools import novatel_ascii_operations as nova_ops
+from earthscope_sfg.tiledb_schemas import TDBGNSSObsArray
+from earthscope_sfg.novatel_tools.novatel_to_rinex_operations import tile2rinex
 
 
 fake_rinex_settings = {

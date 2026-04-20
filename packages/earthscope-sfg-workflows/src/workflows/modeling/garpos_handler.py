@@ -31,8 +31,8 @@ try:
 except ImportError:
     # Handle the case where garpos is not available
     pass
-from es_sfgtools.logging import GarposLogger as logger  # noqa: E402
-from es_sfgtools.utils.model_update import validate_and_merge_config  # noqa: E402
+from earthscope_sfg.logging import GarposLogger as logger  # noqa: E402
+from earthscope_sfg.utils.model_update import validate_and_merge_config  # noqa: E402
 
 from ...modeling.garpos_tools.functions import process_garpos_results  # noqa: E402
 from ...modeling.garpos_tools.schemas import ObservationData  # noqa: E402

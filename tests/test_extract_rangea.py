@@ -1,4 +1,4 @@
-from es_sfgtools.novatel_tools import extract_rangea_from_qcpin
+from earthscope_sfg.novatel_tools import extract_rangea_from_qcpin
 
 # Test data with 4 RANGEA entries (but 007BE1 and 007BEB have same GPS time, so only 3 unique)
 data = {

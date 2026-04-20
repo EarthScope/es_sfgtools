@@ -18,7 +18,7 @@ Usage
 -----
 Build explicitly with a factory classmethod::
 
-    from es_sfgtools.config.workspace import Workspace
+    from earthscope_sfg_workflows.config.workspace import Workspace
 
     ws = Workspace.local("/data/sfg")
     ws.build()                          # scan / create the on-disk tree
@@ -273,7 +273,7 @@ class Workspace:
 
         Returns the new (or existing) ``NetworkDir``.
         """
-        from es_sfgtools.data_mgmt.directorymgmt.schemas import NetworkDir  # deferred
+        from earthscope_sfg_workflows.data_mgmt.directorymgmt.schemas import NetworkDir  # deferred
 
         if name in self.networks:
             return self.networks[name]
@@ -572,7 +572,7 @@ class Workspace:
         **kwargs,
     ) -> Workspace:
         """Scan *path* and return a populated ``Workspace`` (no disk writes)."""
-        from es_sfgtools.data_mgmt.directorymgmt.schemas import NetworkDir  # deferred
+        from earthscope_sfg_workflows.data_mgmt.directorymgmt.schemas import NetworkDir  # deferred
 
         if isinstance(path, str):
             if path.startswith("s3://"):

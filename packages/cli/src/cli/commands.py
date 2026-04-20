@@ -17,10 +17,10 @@ def run_manifest(manifest_object):
     Raises:
         AssertionError: If a directory listed in an ingestion job does not exist.
     """
-    from es_sfgtools.data_mgmt.ingestion.archive_pull import list_campaign_files
-    from es_sfgtools.modeling.garpos_tools.load_utils import load_lib
-    from es_sfgtools.utils.model_update import validate_and_merge_config
-    from es_sfgtools.workflows.workflow_handler import WorkflowHandler
+    from earthscope_sfg_workflows.data_mgmt.ingestion.archive_pull import list_campaign_files
+    from earthscope_sfg_workflows.modeling.garpos_tools.load_utils import load_lib
+    from earthscope_sfg.utils.model_update import validate_and_merge_config
+    from earthscope_sfg_workflows.workflows.workflow_handler import WorkflowHandler
 
     from .manifest import GARPOSConfig
     from .utils import display_pipelinemanifest
@@ -101,7 +101,7 @@ def run_preprocessing(workspace, network_id: str, campaign_id: str, stations: li
         campaign_id: The campaign identifier.
         stations: A list of station identifiers.
     """
-    from es_sfgtools.workflows.workflow_handler import WorkflowHandler
+    from earthscope_sfg_workflows.workflows.workflow_handler import WorkflowHandler
 
     wfh = WorkflowHandler(workspace=workspace)
     for station_id in stations:

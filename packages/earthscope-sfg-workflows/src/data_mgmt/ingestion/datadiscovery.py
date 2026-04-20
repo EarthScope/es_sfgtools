@@ -1,7 +1,7 @@
 import datetime
 from pathlib import Path
 
-from es_sfgtools.logging import ProcessLogger as logger
+from earthscope_sfg.logging import ProcessLogger as logger
 
 from ...config.file_config import AssetType
 from ..assetcatalog.schemas import AssetEntry

@@ -16,10 +16,10 @@ except RuntimeError:
     # This will fail if the context has already been set, which is fine.
     pass
 
-from es_sfgtools.cli.commands import run_manifest, run_preprocessing
-from es_sfgtools.cli.manifest import PipelineManifest
-from es_sfgtools.config.workspace import Workspace, WorkspaceType
-from es_sfgtools.logging import ProcessLogger
+from earthscope_sfg_cli.cli.commands import run_manifest, run_preprocessing
+from earthscope_sfg_cli.cli.manifest import PipelineManifest
+from earthscope_sfg_workflows.config.workspace import Workspace, WorkspaceType
+from earthscope_sfg.logging import ProcessLogger
 
 # This adds the PRIDE binary path to the system's PATH.
 # A better long-term solution is for the user to configure this in their shell.

@@ -11,7 +11,7 @@ from scipy.stats import hmean as harmonic_mean
 sns.set_theme()
 
 
-from es_sfgtools.logging import GarposLogger as logger  # noqa: E402
+from earthscope_sfg.logging import GarposLogger as logger  # noqa: E402
 
 from .load_utils import load_drive_garpos  # noqa: E402
 from .schemas import (  # noqa: E402

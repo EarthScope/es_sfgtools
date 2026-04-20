@@ -29,7 +29,7 @@ dependencies = [
 ]
 
 [project.scripts]
-sfgtools = "es_sfgtools.cli.__main__:app"
+sfgtools = "earthscope_sfg_cli.cli.__main__:app"
 
 [project.urls]
 Homepage = "https://github.com/EarthScope/es_sfgtools"
@@ -39,5 +39,5 @@ ReadTheDocs = "https://es-sfgtools.readthedocs.io/en/latest/"
 root = "../.."
 
 [tool.setuptools]
-package-dir = { "es_sfgtools" = "src" }
-packages = ["es_sfgtools.cli"]
+package-dir = { "earthscope_sfg_cli" = "src" }
+packages = ["earthscope_sfg_cli.cli"]

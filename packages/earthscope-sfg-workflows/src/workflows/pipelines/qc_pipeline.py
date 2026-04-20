@@ -13,14 +13,14 @@ from pride_ppp import PrideProcessor, ProcessingMode, kin_to_kin_position_df, ri
 from tqdm.auto import tqdm
 
 # Local Imports
-from es_sfgtools.logging import ProcessLogger, change_all_logger_dirs
-from es_sfgtools.novatel_tools.novatel_to_rinex_operations import tile2rinex
-from es_sfgtools.novatel_tools.rangea_parser import (
+from earthscope_sfg.logging import ProcessLogger, change_all_logger_dirs
+from earthscope_sfg.novatel_tools.novatel_to_rinex_operations import tile2rinex
+from earthscope_sfg.novatel_tools.rangea_parser import (
     extract_rangea_strings_from_qcpin,
 )
-from es_sfgtools.novatel_tools.utils import get_metadata, get_metadatav2
-from es_sfgtools.sonardyne_tools.sv3_qc_operations import qcjson_to_shotdata
-from es_sfgtools.tiledb_schemas import (
+from earthscope_sfg.novatel_tools.utils import get_metadata, get_metadatav2
+from earthscope_sfg.sonardyne_tools.sv3_qc_operations import qcjson_to_shotdata
+from earthscope_sfg.tiledb_schemas import (
     TDBGNSSObsArray,
     TDBKinPositionArray,
     TDBShotDataArray,

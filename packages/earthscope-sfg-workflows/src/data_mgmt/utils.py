@@ -9,8 +9,8 @@ from typing import (
 
 import numpy as np
 
-from es_sfgtools.logging import ProcessLogger as logger
-from es_sfgtools.tiledb_schemas import (
+from earthscope_sfg.logging import ProcessLogger as logger
+from earthscope_sfg.tiledb_schemas import (
     TDBKinPositionArray,
     TDBShotDataArray,
 )

@@ -8,9 +8,9 @@ Requires the ``tiledb`` optional extra::
 Use :data:`TILEDB_AVAILABLE` to check at runtime without triggering an
 import error::
 
-    from es_sfgtools.tiledb_schemas import TILEDB_AVAILABLE
+    from earthscope_sfg.tiledb_schemas import TILEDB_AVAILABLE
     if TILEDB_AVAILABLE:
-        from es_sfgtools.tiledb_schemas import TDBShotDataArray
+        from earthscope_sfg.tiledb_schemas import TDBShotDataArray
 """
 
 try:

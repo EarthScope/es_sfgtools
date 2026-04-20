@@ -1,17 +1,19 @@
 Code documentation
 =============================================
 
-This page is the top-level API index. It groups generated API pages by functional
-areas and package layout. The sections below match the current package
-structure under `src/es_sfgtools`.
+This page is the top-level API index. Modules are organized by functional
+area and correspond to the monorepo package layout:
+
+- **earthscope-sfg** — data models, parsing tools, TileDB schemas, utilities
+- **earthscope-sfg-workflows** — workflows, pipelines, data management, modeling, configuration
+- **earthscope-sfg-cli** — command-line interface
 
 ----
 
 Workflows & Pipelines
 ---------------------
 
-High-level workflow and pipeline implementations (SV2/SV3 and related pipeline
-helpers).
+High-level workflow and pipeline implementations.
 
 Workflow Handler
 ~~~~~~~~~~~~~~~~
@@ -70,7 +72,8 @@ Utils
 
 Modeling
 --------
-Includes modules used for numerical modeling and GARPOS-specific utilities.
+
+Numerical modeling and GARPOS-specific utilities.
 
 Garpos Tools
 ~~~~~~~~~~~~~
@@ -155,19 +158,6 @@ Other Data Models
 
 ----
 
-PRIDE & GNSS tooling
----------------------
-
-Utilities and wrappers for PRIDE processing and GNSS product handling.
-
-.. toctree::
-   :glob:
-   :maxdepth: 1
-
-   api/es_sfgtools.pride_tools.*
-
-----
-
 NovAtel & Sonardyne
 --------------------
 
@@ -192,16 +182,16 @@ Sonardyne Tools
 
 ----
 
-TileDB Tools
+TileDB Schemas
 --------------
 
-TileDB schema and operations helpers.
+TileDB array schemas and array helpers.
 
 .. toctree::
    :glob:
    :maxdepth: 1
 
-   api/es_sfgtools.tiledb_tools.*
+   api/es_sfgtools.tiledb_schemas.*
 
 ----
 
@@ -210,7 +200,6 @@ Seafloor Site Tools & Prefiltering
 
 Seafloor Site Tools
 ~~~~~~~~~~~~~~~~~~~
-Seafloor site and sound-speed related utilities.
 
 .. toctree::
    :glob:
@@ -220,8 +209,6 @@ Seafloor site and sound-speed related utilities.
 
 Prefiltering
 ~~~~~~~~~~~~
-
-Prefiltering utilities and schemas.
 
 .. toctree::
    :glob:
@@ -233,8 +220,6 @@ Prefiltering utilities and schemas.
 
 Utilities, config, logging
 --------------------------
-
-General utilities, configuration loaders, and logging helpers.
 
 Utilities
 ~~~~~~~~~

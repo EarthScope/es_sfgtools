@@ -13,7 +13,7 @@ import pymap3d as pm
 from pandera.typing import Series
 from pydantic import BaseModel
 
-from .metadata import Site, Vessel
+from earthscope_sfg_workflows.data_models.metadata import Site, Vessel
 
 
 class SFGDSTFSeafloorAcousticData(pa.DataFrameModel):

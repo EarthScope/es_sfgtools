@@ -28,8 +28,10 @@ dependencies:
   - nodejs=25.2.1
 
   - pip:
-    - -e .[notebook,dev]
-    # - es-sfgtools
+    - -e packages/earthscope-sfg[tiledb]
+    - -e packages/earthscope-sfg-workflows
+    - -e packages/cli
+    - -r docs/requirements.txt
     - garpos @ git+https://github.com/EarthScope/garpos.git
 variables:
   CGO_ENABLED: 1

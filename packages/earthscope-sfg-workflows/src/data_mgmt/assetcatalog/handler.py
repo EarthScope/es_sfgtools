@@ -4,7 +4,7 @@ from pathlib import Path
 import pandas as pd
 import sqlalchemy as sa
 
-from es_sfgtools.logging import ProcessLogger as logger
+from earthscope_sfg.logging import ProcessLogger as logger
 
 from ...config.file_config import AssetType
 from .schemas import AssetEntry

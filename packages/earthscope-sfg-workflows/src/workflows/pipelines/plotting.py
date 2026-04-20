@@ -4,7 +4,7 @@ from collections import defaultdict
 import matplotlib.pyplot as plt
 import numpy as np
 
-from es_sfgtools.tiledb_schemas import TDBKinPositionArray
+from earthscope_sfg.tiledb_schemas import TDBKinPositionArray
 
 from ...data_mgmt.assetcatalog import AssetEntry
 

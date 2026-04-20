@@ -15,14 +15,14 @@ from sklearn.kernel_ridge import KernelRidge
 from sklearn.neighbors import KDTree, RadiusNeighborsRegressor
 from sklearn.preprocessing import StandardScaler
 
-from es_sfgtools.data_models.observables import (
+from earthscope_sfg.data_models.observables import (
     IMUPositionDataFrame,
     KinPositionDataFrame,
 )
-from es_sfgtools.logging import ProcessLogger as logger
+from earthscope_sfg.logging import ProcessLogger as logger
 
 # Local imports
-from es_sfgtools.tiledb_schemas import (
+from earthscope_sfg.tiledb_schemas import (
     TDBIMUPositionArray,
     TDBKinPositionArray,
     TDBShotDataArray,

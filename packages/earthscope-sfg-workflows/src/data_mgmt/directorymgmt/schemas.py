@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from es_sfgtools.config.workspace import Workspace
+    from earthscope_sfg_workflows.config.workspace import Workspace
 from cloudpathlib import S3Path
 from pydantic import BaseModel, Field, PrivateAttr, model_serializer
 

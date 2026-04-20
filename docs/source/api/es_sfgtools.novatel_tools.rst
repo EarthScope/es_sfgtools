@@ -14,4 +14,6 @@ Submodules
 
    es_sfgtools.novatel_tools.novatel_ascii_operations
    es_sfgtools.novatel_tools.novatel_binary_operations
+   es_sfgtools.novatel_tools.novatel_to_rinex_operations
+   es_sfgtools.novatel_tools.rangea_parser
    es_sfgtools.novatel_tools.utils

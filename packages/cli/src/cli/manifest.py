@@ -13,10 +13,10 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel, Field, field_serializer, field_validator
 
-from es_sfgtools.config.workspace import Workspace, WorkspaceType
-from es_sfgtools.modeling.garpos_tools.schemas import InversionParams
-from es_sfgtools.prefiltering.schemas import FilterConfig
-from es_sfgtools.workflows.pipelines.config import SV3PipelineConfig
+from earthscope_sfg_workflows.config.workspace import Workspace, WorkspaceType
+from earthscope_sfg_workflows.modeling.garpos_tools.schemas import InversionParams
+from earthscope_sfg_workflows.prefiltering.schemas import FilterConfig
+from earthscope_sfg_workflows.workflows.pipelines.config import SV3PipelineConfig
 
 
 class ManifestWorkspaceConfig(BaseModel):

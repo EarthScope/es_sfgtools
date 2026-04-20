@@ -47,22 +47,22 @@ ReadTheDocs = "https://es-sfgtools.readthedocs.io/en/latest/"
 root = "../.."
 
 [tool.setuptools]
-package-dir = { "es_sfgtools" = "src" }
+package-dir = { "earthscope_sfg_workflows" = "src" }
 packages = [
-  "es_sfgtools.config",
-  "es_sfgtools.data_mgmt",
-  "es_sfgtools.data_mgmt.assetcatalog",
-  "es_sfgtools.data_mgmt.directorymgmt",
-  "es_sfgtools.data_mgmt.ingestion",
-  "es_sfgtools.data_models",
-  "es_sfgtools.data_models.metadata",
-  "es_sfgtools.modeling",
-  "es_sfgtools.modeling.garpos_tools",
-  "es_sfgtools.prefiltering",
-  "es_sfgtools.workflows",
-  "es_sfgtools.workflows.midprocess",
-  "es_sfgtools.workflows.modeling",
-  "es_sfgtools.workflows.pipelines",
-  "es_sfgtools.workflows.preprocess_ingest",
-  "es_sfgtools.workflows.utils",
+  "earthscope_sfg_workflows.config",
+  "earthscope_sfg_workflows.data_mgmt",
+  "earthscope_sfg_workflows.data_mgmt.assetcatalog",
+  "earthscope_sfg_workflows.data_mgmt.directorymgmt",
+  "earthscope_sfg_workflows.data_mgmt.ingestion",
+  "earthscope_sfg_workflows.data_models",
+  "earthscope_sfg_workflows.data_models.metadata",
+  "earthscope_sfg_workflows.modeling",
+  "earthscope_sfg_workflows.modeling.garpos_tools",
+  "earthscope_sfg_workflows.prefiltering",
+  "earthscope_sfg_workflows.workflows",
+  "earthscope_sfg_workflows.workflows.midprocess",
+  "earthscope_sfg_workflows.workflows.modeling",
+  "earthscope_sfg_workflows.workflows.pipelines",
+  "earthscope_sfg_workflows.workflows.preprocess_ingest",
+  "earthscope_sfg_workflows.workflows.utils",
 ]

@@ -19,7 +19,7 @@
 # from ...data_models.observables import AcousticDataFrame, PositionDataFrame,ShotDataFrame
 
 
-# from es_sfgtools.utils.loggers import ProcessLogger as logger
+# from earthscope_sfg.utils.loggers import ProcessLogger as logger
 
 # def get_transponder_offsets(line: str) -> Dict[str, float]:
 #     """

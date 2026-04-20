@@ -10,9 +10,9 @@ from pathlib import Path
 import boto3
 from tqdm.auto import tqdm
 
-from es_sfgtools.logging import ProcessLogger as logger
-from es_sfgtools.logging import change_all_logger_dirs
-from es_sfgtools.tiledb_schemas import (
+from earthscope_sfg.logging import ProcessLogger as logger
+from earthscope_sfg.logging import change_all_logger_dirs
+from earthscope_sfg.tiledb_schemas import (
     TDBAcousticArray,
     TDBGNSSObsArray,
     TDBIMUPositionArray,

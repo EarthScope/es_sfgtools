@@ -13,4 +13,5 @@ Submodules
    :maxdepth: 4
 
    es_sfgtools.sonardyne_tools.sv3_operations
+   es_sfgtools.sonardyne_tools.sv3_qc_operations
    es_sfgtools.sonardyne_tools.utils

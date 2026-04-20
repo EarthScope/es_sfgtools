@@ -8,17 +8,17 @@ from pathlib import Path
 from pride_ppp import PrideProcessor, ProcessingMode, kin_to_kin_position_df, rinex_get_time_range
 from tqdm.auto import tqdm
 
-from es_sfgtools.logging import ProcessLogger, change_all_logger_dirs
-from es_sfgtools.novatel_tools import novatel_binary_operations as novb_ops
-from es_sfgtools.novatel_tools.novatel_to_rinex_operations import tile2rinex
-from es_sfgtools.novatel_tools.utils import get_metadata, get_metadatav2
-from es_sfgtools.seafloor_site_tools.soundspeed_operations import (
+from earthscope_sfg.logging import ProcessLogger, change_all_logger_dirs
+from earthscope_sfg.novatel_tools import novatel_binary_operations as novb_ops
+from earthscope_sfg.novatel_tools.novatel_to_rinex_operations import tile2rinex
+from earthscope_sfg.novatel_tools.utils import get_metadata, get_metadatav2
+from earthscope_sfg.seafloor_site_tools.soundspeed_operations import (
     CTD_to_svp_v1,
     CTD_to_svp_v2,
     seabird_to_soundvelocity,
 )
-from es_sfgtools.sonardyne_tools import sv3_operations as sv3_ops
-from es_sfgtools.tiledb_schemas import (
+from earthscope_sfg.sonardyne_tools import sv3_operations as sv3_ops
+from earthscope_sfg.tiledb_schemas import (
     TDBIMUPositionArray,
     TDBKinPositionArray,
     TDBShotDataArray,

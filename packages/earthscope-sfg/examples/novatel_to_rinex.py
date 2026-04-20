@@ -7,7 +7,7 @@ files contained in a single directory.
 
 from pathlib import Path
 
-from es_sfgtools.earthscope_sfg import (
+from earthscope_sfg.novatel_tools import (
     MetadataModel,
     novatel_2rinex,
 )

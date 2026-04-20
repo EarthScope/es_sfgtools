@@ -4,7 +4,7 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 
-from es_sfgtools.logging import GarposLogger as logger
+from earthscope_sfg.logging import GarposLogger as logger
 
 
 def load_lib() -> tuple[str, str]:

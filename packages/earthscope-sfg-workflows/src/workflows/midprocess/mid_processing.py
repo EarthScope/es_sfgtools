@@ -10,13 +10,13 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from es_sfgtools.logging import GarposLogger as logger
-from es_sfgtools.tiledb_schemas import (
+from earthscope_sfg.logging import GarposLogger as logger
+from earthscope_sfg.tiledb_schemas import (
     TDBIMUPositionArray,
     TDBKinPositionArray,
     TDBShotDataArray,
 )
-from es_sfgtools.utils.model_update import validate_and_merge_config
+from earthscope_sfg.utils.model_update import validate_and_merge_config
 
 from ...config.loadconfigs import (
     GarposSiteConfig,

@@ -4,8 +4,8 @@ import numpy as np
 import pandas as pd
 import pymap3d as pm
 
-from es_sfgtools.logging import GarposLogger as logger
-from es_sfgtools.utils.model_update import validate_and_merge_config
+from earthscope_sfg.logging import GarposLogger as logger
+from earthscope_sfg.utils.model_update import validate_and_merge_config
 
 from ..data_models.metadata import Site, SurveyType
 from .schemas import FilterConfig, FilterLevel
@@ -397,7 +397,7 @@ def filter_pride_residuals(
     """
 
     # Convert tileDB array to dataframe
-    from es_sfgtools.tiledb_schemas import TDBKinPositionArray
+    from earthscope_sfg.tiledb_schemas import TDBKinPositionArray
     pride_data = TDBKinPositionArray(kinPostionTDBUri)
     ppp_df = pride_data.read_df(start=start_time, end=end_time)
     if ppp_df.empty:

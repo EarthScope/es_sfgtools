@@ -9737,8 +9737,8 @@ packages:
   requires_python: '>=3.9'
 - pypi: ./packages/earthscope-sfg
   name: earthscope-sfg
-  version: 0.1.1b3.dev288+g411193227
-  sha256: 4613fa4ed982992cdfc1bbb9013fdb38ccb248568105537caee3be2f16cd6eba
+  version: 0.1.1b3.dev290+g458dc5c01.d20260420
+  sha256: 50932c934b153089c98348ea830fd6e2b81c7c6a0317c13e24c71c27b2d9591f
   requires_dist:
   - numpy>=1.23.5,<2
   - scipy>=1.16.3
@@ -9757,16 +9757,16 @@ packages:
   requires_python: '>=3.11'
 - pypi: ./packages/cli
   name: earthscope-sfg-cli
-  version: 0.1.1b3.dev288+g411193227
-  sha256: bc5c68b630bb915a167364436de5f660f67d67e288db6fa29feb0d239f136976
+  version: 0.1.1b3.dev290+g458dc5c01.d20260420
+  sha256: c72ab595b0dab967d778805992809e1f8b358a7bef5f8c5984ba3b0545d29911
   requires_dist:
   - earthscope-sfg-workflows
   - typer>=0.9
   requires_python: '>=3.11'
 - pypi: ./packages/earthscope-sfg-workflows
   name: earthscope-sfg-workflows
-  version: 0.1.1b3.dev288+g411193227.d20260420
-  sha256: 159d167542e23585fbbd995c367e8c4fb2a02c49704b782037952a1f602a6c3d
+  version: 0.1.1b3.dev290+g458dc5c01.d20260420
+  sha256: 41bcc5c594f15c4d63f2aa591c1d470f518df3f741c94712ea206124ea7b39c4
   requires_dist:
   - earthscope-sfg[tiledb]
   - boto3>=1.40

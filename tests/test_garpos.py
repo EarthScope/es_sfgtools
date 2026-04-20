@@ -2,7 +2,7 @@ from pathlib import Path
 import os
 import pandas as pd
 import pytest
-from es_sfgtools.modeling.garpos_tools.load_utils import load_lib, load_drive_garpos
+from earthscope_sfg_workflows.modeling.garpos_tools.load_utils import load_lib, load_drive_garpos
 
 LIB_DIRECTORY, LIB_RAYTRACE = load_lib()
 drive_garpos = load_drive_garpos()

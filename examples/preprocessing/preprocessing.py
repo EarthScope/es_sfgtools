@@ -12,7 +12,7 @@ PRIDE_DIR = Path.home() / ".PRIDE_PPPAR_BIN"
 os.environ["PATH"] += os.pathsep + str(PRIDE_DIR)
 
 
-from es_sfgtools.workflows.workflow_handler import WorkflowHandler
+from earthscope_sfg_workflows.workflows.workflow_handler import WorkflowHandler
 
 
 def main():
