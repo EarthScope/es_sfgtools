@@ -76,9 +76,7 @@ def raise_exception(string: str) -> Exception | None:
 def parse_cli_logs(result, logger: _BaseLogger | logging.Logger):
     if result.stdout:
         stdout_decoded = (
-            result.stdout.decode("utf-8")
-            if isinstance(result.stdout, bytes)
-            else result.stdout
+            result.stdout.decode("utf-8") if isinstance(result.stdout, bytes) else result.stdout
         )
         stdout_decoded = remove_ansi_escape(stdout_decoded)
         if hasattr(logger, "logdebug"):
@@ -94,9 +92,7 @@ def parse_cli_logs(result, logger: _BaseLogger | logging.Logger):
                 raise exception
     if result.stderr:
         stderr_decoded = (
-            result.stderr.decode("utf-8")
-            if isinstance(result.stderr, bytes)
-            else result.stderr
+            result.stderr.decode("utf-8") if isinstance(result.stderr, bytes) else result.stderr
         )
         stderr_decoded = remove_ansi_escape(stderr_decoded)
         if "error" in stderr_decoded.lower():
@@ -154,9 +150,7 @@ def get_binary_path(
     system, arch = get_system_architecture()
     binary_path = path_map.get(f"{system}_{arch}")
     if not binary_path:
-        raise FileNotFoundError(
-            f"{binary_name} binary not found for {system} {arch}"
-        )
+        raise FileNotFoundError(f"{binary_name} binary not found for {system} {arch}")
     return binary_path
 
 

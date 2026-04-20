@@ -143,9 +143,7 @@ class Workspace:
             self.location = location
 
         self.s3_sync_bucket = s3_sync_bucket
-        self.pride_binary_dir: Path | None = (
-            Path(pride_binary_dir) if pride_binary_dir else None
-        )
+        self.pride_binary_dir: Path | None = Path(pride_binary_dir) if pride_binary_dir else None
         self.aws_profile = aws_profile
         self.aws_access_key_id = aws_access_key_id
         self.aws_secret_access_key = aws_secret_access_key
@@ -232,9 +230,7 @@ class Workspace:
             self._catalog_filepath = self.location / _CATALOG_FILENAME
 
         if not self.pride_directory:
-            self.pride_directory = self.pride_binary_dir or (
-                self.location / _PRIDE_SUBDIR
-            )
+            self.pride_directory = self.pride_binary_dir or (self.location / _PRIDE_SUBDIR)
             if self.creates_local_dirs and isinstance(self.pride_directory, Path):
                 self.pride_directory.mkdir(parents=True, exist_ok=True)
 
@@ -256,10 +252,7 @@ class Workspace:
             "asset_catalog_db_path": (
                 str(self.asset_catalog_db_path) if self.asset_catalog_db_path else None
             ),
-            "networks": {
-                name: net.model_dump(mode="json")
-                for name, net in self.networks.items()
-            },
+            "networks": {name: net.model_dump(mode="json") for name, net in self.networks.items()},
         }
         with open(catalog_path, "w") as fh:
             json.dump(data, fh, indent=4)
@@ -308,19 +301,16 @@ class Workspace:
         station_dir = campaign_dir = survey_dir = None
 
         if station_name:
-            station_dir = (
-                network_dir.stations.get(station_name)
-                or network_dir.add_station(name=station_name, workspace=self)
+            station_dir = network_dir.stations.get(station_name) or network_dir.add_station(
+                name=station_name, workspace=self
             )
             if campaign_name:
-                campaign_dir = (
-                    station_dir.campaigns.get(campaign_name)
-                    or station_dir.add_campaign(name=campaign_name, workspace=self)
+                campaign_dir = station_dir.campaigns.get(campaign_name) or station_dir.add_campaign(
+                    name=campaign_name, workspace=self
                 )
                 if survey_name:
-                    survey_dir = (
-                        campaign_dir.surveys.get(survey_name)
-                        or campaign_dir.add_survey(name=survey_name, workspace=self)
+                    survey_dir = campaign_dir.surveys.get(survey_name) or campaign_dir.add_survey(
+                        name=survey_name, workspace=self
                     )
 
         return network_dir, station_dir, campaign_dir, survey_dir
@@ -372,9 +362,7 @@ class Workspace:
     def __repr__(self) -> str:
         bucket = self.s3_sync_bucket_uri or "<none>"
         return (
-            f"Workspace(type={self.workspace_type.value!r}, "
-            f"location={self.location}, "
-            f"s3={bucket})"
+            f"Workspace(type={self.workspace_type.value!r}, location={self.location}, s3={bucket})"
         )
 
     # ------------------------------------------------------------------
@@ -462,10 +450,14 @@ class Workspace:
             missing, or an unrecognised ``WORKSPACE_TYPE`` value is found.
         """
         raw_type = (
-            os.environ.get(_ENV_WORKSPACE_TYPE)
-            or os.environ.get("WORKING_ENVIRONMENT")
-            or "local"
-        ).lower().strip()
+            (
+                os.environ.get(_ENV_WORKSPACE_TYPE)
+                or os.environ.get("WORKING_ENVIRONMENT")
+                or "local"
+            )
+            .lower()
+            .strip()
+        )
 
         match raw_type:
             case "local":
@@ -480,9 +472,8 @@ class Workspace:
                     f"Set {_ENV_WORKSPACE_TYPE} to one of: local, geolab, ecs."
                 )
 
-        root_dir_str = (
-            os.environ.get(_ENV_ROOT_DIRECTORY)
-            or os.environ.get("MAIN_DIRECTORY_GEOLAB")
+        root_dir_str = os.environ.get(_ENV_ROOT_DIRECTORY) or os.environ.get(
+            "MAIN_DIRECTORY_GEOLAB"
         )
         if root_dir_str is None:
             if wtype != WorkspaceType.LOCAL:

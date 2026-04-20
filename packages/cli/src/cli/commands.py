@@ -5,6 +5,7 @@ It orchestrates the data handling and processing workflows based on the
 parsed manifest file.
 """
 
+
 def run_manifest(manifest_object):
     """
     Executes a series of data ingestion, download, and processing jobs
@@ -17,9 +18,9 @@ def run_manifest(manifest_object):
     Raises:
         AssertionError: If a directory listed in an ingestion job does not exist.
     """
+    from earthscope_sfg.utils.model_update import validate_and_merge_config
     from earthscope_sfg_workflows.data_mgmt.ingestion.archive_pull import list_campaign_files
     from earthscope_sfg_workflows.modeling.garpos_tools.load_utils import load_lib
-    from earthscope_sfg.utils.model_update import validate_and_merge_config
     from earthscope_sfg_workflows.workflows.workflow_handler import WorkflowHandler
 
     from .manifest import GARPOSConfig
@@ -70,9 +71,7 @@ def run_manifest(manifest_object):
             network_id=job.network, station_id=job.station, campaign_id=job.campaign
         )
         wfh.midprocess_prep_garpos(
-            custom_filters=(
-                config.filter_config.model_dump() if config.filter_config else None
-            ),
+            custom_filters=(config.filter_config.model_dump() if config.filter_config else None),
             override=config.override,
             override_survey_parsing=False,
             survey_id=None,

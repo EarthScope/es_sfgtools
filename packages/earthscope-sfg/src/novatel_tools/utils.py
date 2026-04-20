@@ -145,27 +145,19 @@ class MetadataModel(BaseModel):
     program: str | None = Field(default="gnsstools", description="Program name")
     run_by: str | None = Field(default="", description="Run by")
     date: str | None = Field(
-        default_factory=lambda: (
-            datetime.datetime.now(tz=datetime.UTC).isoformat()
-        ),
+        default_factory=lambda: datetime.datetime.now(tz=datetime.UTC).isoformat(),
         description="Date",
     )
     receiver_model: str | None = Field(default="NOV", description="Receiver model")
-    receiver_serial: str | None = Field(
-        default="XXXXXXXXXX", description="Receiver serial number"
-    )
+    receiver_serial: str | None = Field(default="XXXXXXXXXX", description="Receiver serial number")
     antenna_position: list[float] | None = Field(
         default=[0.0, 0.0, 0.0], description="Antenna position [X, Y, Z]"
     )
     antenna_offsetHEN: list[float] | None = Field(
         default=[0.0, 0.0, 0.0], description="Antenna offset [H, E, N]"
     )
-    antenna_model: str | None = Field(
-        default="NOV850 NONE", description="Antenna model"
-    )
-    antenna_serial: str | None = Field(
-        default="987654321", description="Antenna serial number"
-    )
+    antenna_model: str | None = Field(default="NOV850 NONE", description="Antenna model")
+    antenna_serial: str | None = Field(default="987654321", description="Antenna serial number")
 
 
 def get_metadatav2(

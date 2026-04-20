@@ -2,14 +2,10 @@
 class PrideSampleFrequencyWarning(Warning):
     """Warning for when the PRIDE-PPP sample frequency should be reduced."""
 
-    message = (
-        "PRIDE-PPP sample frequency is too high. Consider reducing the sample rate."
-    )
+    message = "PRIDE-PPP sample frequency is too high. Consider reducing the sample rate."
 
 
-WARNINGS_DICT = {
-    "input interval is shorter than observation interval": PrideSampleFrequencyWarning
-}
+WARNINGS_DICT = {"input interval is shorter than observation interval": PrideSampleFrequencyWarning}
 
 
 class DYLDLibraryException(Exception):
@@ -32,9 +28,5 @@ class LDLibraryException(Exception):
         super().__init__(message)
 
 
-EXCEPTIONS_DICT_LINUX = {
-    "Library not loaded: @rpath/libtiledb.dylib ": LDLibraryException
-}
-EXCEPTIONS_DICT_MACOS = {
-    "Library not loaded: @rpath/libtiledb.dylib ": DYLDLibraryException
-}
+EXCEPTIONS_DICT_LINUX = {"Library not loaded: @rpath/libtiledb.dylib ": LDLibraryException}
+EXCEPTIONS_DICT_MACOS = {"Library not loaded: @rpath/libtiledb.dylib ": DYLDLibraryException}

@@ -10,10 +10,9 @@ import datetime
 
 import pandera.pandas as pa
 import pymap3d as pm
+from earthscope_sfg_workflows.data_models.metadata import Site, Vessel
 from pandera.typing import Series
 from pydantic import BaseModel
-
-from earthscope_sfg_workflows.data_models.metadata import Site, Vessel
 
 
 class SFGDSTFSeafloorAcousticData(pa.DataFrameModel):
@@ -42,15 +41,9 @@ class SFGDSTFSeafloorAcousticData(pa.DataFrameModel):
     T_receive: Series[float] = pa.Field(
         description="Reception time of acoustic signal [sec. from origin]", ge=0
     )
-    X_receive: Series[float] = pa.Field(
-        description="Transducer position at T_receive in ECEF [m]"
-    )
-    Y_receive: Series[float] = pa.Field(
-        description="Transducer position at T_receive in ECEF [m]"
-    )
-    Z_receive: Series[float] = pa.Field(
-        description="Transducer position at T_receive in ECEF [m]"
-    )
+    X_receive: Series[float] = pa.Field(description="Transducer position at T_receive in ECEF [m]")
+    Y_receive: Series[float] = pa.Field(description="Transducer position at T_receive in ECEF [m]")
+    Z_receive: Series[float] = pa.Field(description="Transducer position at T_receive in ECEF [m]")
 
     # Optional pa.Fields
     TDC_ID: Series[str] | None = pa.Field(
@@ -107,9 +100,7 @@ class SFGDSTFSeafloorAcousticData(pa.DataFrameModel):
     ant_sigZ0: Series[float] | None = pa.Field(
         default=None, description="GNSS antenna std at transmit"
     )
-    ant_cov_XY0: Series[float] | None = pa.Field(
-        default=None, description="Covariance matrix"
-    )
+    ant_cov_XY0: Series[float] | None = pa.Field(default=None, description="Covariance matrix")
     ant_X1: Series[float] | None = pa.Field(
         default=None, description="GNSS position at T_receive in ECEF [m]"
     )
@@ -169,9 +160,7 @@ class SFGDTSFSite(BaseModel):
     TimeOrigin: datetime.datetime  # Origin of time used in the file [UTC]
     RefFrame: str = "ITRF"  # Reference frame used in the file
     MTlist: list[str] = []  # List of ID of mirror transponders
-    MT_appPos: dict[
-        str, list[float]
-    ] = {}  # Approximate positions of transponders in ECEF[m]
+    MT_appPos: dict[str, list[float]] = {}  # Approximate positions of transponders in ECEF[m]
     ATDoffset: list[float] = [
         0.0,
         0.0,
@@ -179,9 +168,7 @@ class SFGDTSFSite(BaseModel):
     ]  # Antenna to transponder offset [m] with [forward,rightward,downward]
 
     @classmethod
-    def from_site_vessel(
-        cls, site: Site, vessel: Vessel, campaign_id: str
-    ) -> "SFGDTSFSite":
+    def from_site_vessel(cls, site: Site, vessel: Vessel, campaign_id: str) -> "SFGDTSFSite":
         """
         Create a SFGDTSFSite object from internal Site and Vessel objects.
 

@@ -25,9 +25,7 @@ class DOYResult:
         self.transponders = {}
         with open(results_path) as f:
             self.results = json.load(f)
-            self.arrayinfo = GPPositionENU.model_validate(
-                self.results["delta_center_position"]
-            )
+            self.arrayinfo = GPPositionENU.model_validate(self.results["delta_center_position"])
             for transponder in self.results["transponders"]:
                 _transponder_ = GPTransponder.model_validate(transponder)
                 self.transponders[_transponder_.id] = _transponder_
@@ -72,8 +70,7 @@ class DOYPlotter:
 
     def set_df_merged_date(self, start: datetime.datetime, end: datetime.datetime):
         self.df_merged = self.df_merged_main[
-            (self.df_merged_main["time"] >= start)
-            & (self.df_merged_main["time"] <= end)
+            (self.df_merged_main["time"] >= start) & (self.df_merged_main["time"] <= end)
         ]
 
     def _plot_residuals_range(self):
@@ -171,9 +168,7 @@ class DOYPlotter:
                     s=100,
                 )
             break
-        colormap_times = (
-            self.df_merged["time"].apply(lambda x: x.timestamp()).to_numpy()
-        )
+        colormap_times = self.df_merged["time"].apply(lambda x: x.timestamp()).to_numpy()
         colormap_times_scaled = (colormap_times - colormap_times.min()) / 3600
 
         norm = Normalize(
@@ -234,7 +229,9 @@ class DOYPlotter:
                 current_result = result
                 break
         dpos = current_result.arrayinfo.get_position()
-        figure_text += f"Array :  East {dpos[0]:.3f} m, North {dpos[1]:.3f} m, Up {dpos[2]:.3f} m \n"
+        figure_text += (
+            f"Array :  East {dpos[0]:.3f} m, North {dpos[1]:.3f} m, Up {dpos[2]:.3f} m \n"
+        )
         for id, transponder in current_result.transponders.items():
             dpos = transponder.delta_center_position.get_position()
             figure_text += f"Transponder {id} : East {dpos[0]:.3f} m, North {dpos[1]:.3f} m, Up {dpos[2]:.3f} m \n"

@@ -79,9 +79,9 @@ class GnssReceiver(AttributeUpdater, BaseModel):
     # Validators
     _parse_datetime = field_validator("start", "end", mode="before")(parse_datetime)
     _check_dates = field_validator("end")(check_dates)
-    _check_strings = field_validator(
-        "model", "firmwareVersion", "type", "serialNumber"
-    )(check_fields_for_empty_strings)
+    _check_strings = field_validator("model", "firmwareVersion", "type", "serialNumber")(
+        check_fields_for_empty_strings
+    )
 
 
 class AcousticTransducer(AttributeUpdater, BaseModel):
@@ -106,15 +106,11 @@ class AcousticTransceiver(AttributeUpdater, BaseModel):
     # Required
     type: str
     serialNumber: str
-    frequency: str = Field(
-        ..., description="The frequency of the transceiver, e.g MF/LMF"
-    )
+    frequency: str = Field(..., description="The frequency of the transceiver, e.g MF/LMF")
     start: datetime = Field(..., gt=datetime(1901, 1, 1))
 
     # Optional
-    triggerDelay: float | None = Field(
-        default=None, description="The trigger delay in seconds"
-    )
+    triggerDelay: float | None = Field(default=None, description="The trigger delay in seconds")
     delayIncludedInTWTT: bool | None = Field(
         default=None, description="Whether the delay is included in the TWTT"
     )
@@ -348,9 +344,7 @@ class Vessel(AttributeUpdater, BaseModel):
                 equipment_metadata["serialNumber"] = serial_number
                 equipment.update_attributes(equipment_metadata)
                 print(equipment.model_dump_json(indent=2))
-                print(
-                    f"{equipment_type} with serial number {serial_number} updated successfully."
-                )
+                print(f"{equipment_type} with serial number {serial_number} updated successfully.")
                 return
 
         print(f"ERROR: {equipment_type} with serial number {serial_number} not found.")
@@ -378,9 +372,7 @@ class Vessel(AttributeUpdater, BaseModel):
         for i, equipment in enumerate(equipment_list):
             if equipment.serialNumber == serial_number:
                 equipment_list.pop(i)
-                print(
-                    f"{equipment_type} with serial number {serial_number} deleted successfully."
-                )
+                print(f"{equipment_type} with serial number {serial_number} deleted successfully.")
                 return
 
         print(f"ERROR: {equipment_type} with serial number {serial_number} not found.")

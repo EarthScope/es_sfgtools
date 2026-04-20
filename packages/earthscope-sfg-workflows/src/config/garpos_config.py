@@ -19,9 +19,7 @@ class GarposSiteConfig(BaseModel):
         description="Variance to add to the transponder positions (in meters).",
     )
     inversion_params: InversionParams = Field(
-        default_factory=lambda: InversionParams(
-            delta_center_position=DEFAULT_DPOS_VARIANCE
-        ),
+        default_factory=lambda: InversionParams(delta_center_position=DEFAULT_DPOS_VARIANCE),
         description="Inversion parameters for GARPOS.",
     )
 

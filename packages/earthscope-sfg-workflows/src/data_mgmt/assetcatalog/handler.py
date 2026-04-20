@@ -3,7 +3,6 @@ from pathlib import Path
 
 import pandas as pd
 import sqlalchemy as sa
-
 from earthscope_sfg.logging import ProcessLogger as logger
 
 from ...config.file_config import AssetType
@@ -108,9 +107,7 @@ class PreProcessCatalogHandler:
                 logger.logerr(f"Invalid asset type {type}")
                 return False
 
-        logger.logdebug(
-            f" Deleting assets for {network} {station} {campaign} {str(type)}"
-        )
+        logger.logdebug(f" Deleting assets for {network} {station} {campaign} {str(type)}")
 
         with self.engine.begin() as conn:
             try:
@@ -157,9 +154,7 @@ class PreProcessCatalogHandler:
                 logger.logerr(f"Invalid asset type {type}")
                 return []
 
-        logger.logdebug(
-            f" Getting assets for {network} {station} {campaign} {str(type)}"
-        )
+        logger.logdebug(f" Getting assets for {network} {station} {campaign} {str(type)}")
 
         with self.engine.connect() as conn:
             query = sa.select(Assets).where(
@@ -243,9 +238,7 @@ class PreProcessCatalogHandler:
             A list of AssetEntry objects.
         """
 
-        logger.logdebug(
-            f" Getting local assets for {network} {station} {campaign} {str(type)}"
-        )
+        logger.logdebug(f" Getting local assets for {network} {station} {campaign} {str(type)}")
 
         with self.engine.connect() as conn:
             query = sa.select(Assets).where(
@@ -321,9 +314,7 @@ class PreProcessCatalogHandler:
         # If local_only is True, filter out entries that do not have a local path
         if local_only:
             parent_id_map = {
-                id: entry
-                for id, entry in parent_id_map.items()
-                if entry.local_path is not None
+                id: entry for id, entry in parent_id_map.items() if entry.local_path is not None
             }
 
         return list(parent_id_map.values())
@@ -367,15 +358,9 @@ class PreProcessCatalogHandler:
             The new local path.
         """
         try:
-            logger.loginfo(
-                f"Updating local path in catalog for id {id} to {local_path}"
-            )
+            logger.loginfo(f"Updating local path in catalog for id {id} to {local_path}")
             with self.engine.begin() as conn:
-                conn.execute(
-                    sa.update(Assets)
-                    .where(Assets.id == id)
-                    .values(local_path=local_path)
-                )
+                conn.execute(sa.update(Assets).where(Assets.id == id).values(local_path=local_path))
         except Exception as e:
             logger.logerr(f"Error updating local path for id {id}: {e}")
 
@@ -458,9 +443,7 @@ class PreProcessCatalogHandler:
                     )
                     return True
                 except Exception as e:
-                    logger.logerr(
-                        f"Error adding or updating entry {entry} to catalog: {e}"
-                    )
+                    logger.logerr(f"Error adding or updating entry {entry} to catalog: {e}")
                     pass
         return False
 
@@ -530,9 +513,7 @@ class PreProcessCatalogHandler:
                     conn.execute(sa.insert(Assets).values(entry.model_dump()))
                 return True
             except sa.exc.IntegrityError as e:
-                logger.logdebug(
-                    f" Integrity error adding entry {entry} to catalog: {e}"
-                )
+                logger.logdebug(f" Integrity error adding entry {entry} to catalog: {e}")
                 return False
         return False
 
@@ -559,9 +540,7 @@ class PreProcessCatalogHandler:
                 logger.logerr(f"Error deleting entry {entry} | {e}")
         return False
 
-    def add_merge_job(
-        self, parent_type: str, child_type: str, parent_ids: list[int], **kwargs
-    ):
+    def add_merge_job(self, parent_type: str, child_type: str, parent_ids: list[int], **kwargs):
         """Adds a merge job to the database.
 
         Parameters

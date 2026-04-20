@@ -6,6 +6,7 @@ from pathlib import Path
 import julian
 import numpy as np
 import pandera.pandas as pa
+from earthscope_sfg.logging import GarposLogger as logger
 from pandera.typing import Series
 from pydantic import (
     AliasChoices,
@@ -14,8 +15,6 @@ from pydantic import (
     field_serializer,
     model_validator,
 )
-
-from earthscope_sfg.logging import GarposLogger as logger
 
 from .load_utils import load_lib
 
@@ -104,9 +103,7 @@ class ObservationData(pa.DataFrameModel):
         description="Time of transmission of the acoustic signal in MJD [s]"
     )
 
-    RT: Series[float] = pa.Field(
-        description="Time of reception of the acoustic signal in MJD [s]"
-    )
+    RT: Series[float] = pa.Field(description="Time of reception of the acoustic signal in MJD [s]")
 
     ant_e0: Series[float] = pa.Field(
         description="Antenna position in east direction (ENU coords) at the time of the first measurement [m]"
@@ -159,24 +156,16 @@ class ObservationData(pa.DataFrameModel):
     flag: Series[bool] = pa.Field(
         default=False, description="Flag for mis-response in the data", coerce=True
     )
-    latitude: Series[float] | None = pa.Field(
-        description="latitude of the antennae", alias="lat"
-    )
-    longitude: Series[float] | None = pa.Field(
-        description="longitude of the antennae", alias="lon"
-    )
+    latitude: Series[float] | None = pa.Field(description="latitude of the antennae", alias="lat")
+    longitude: Series[float] | None = pa.Field(description="longitude of the antennae", alias="lon")
 
     gamma: Series[float] = pa.Field(
         default=0.0, description="Sound speed variation [m/s]", coerce=True
     )
     # These fields are populated after the model run
-    ResiTT: Series[float] | None = pa.Field(
-        default=0.0, description="Residual travel time [ms]"
-    )
+    ResiTT: Series[float] | None = pa.Field(default=0.0, description="Residual travel time [ms]")
 
-    TakeOff: Series[float] | None = pa.Field(
-        default=0.0, description="Take off angle [deg]"
-    )
+    TakeOff: Series[float] | None = pa.Field(default=0.0, description="Take off angle [deg]")
 
     class Config:
         coerce = True
@@ -191,9 +180,7 @@ class GarposObservationOutput(pa.DataFrameModel):
     ST: Series[float] = pa.Field(
         description="Time of transmission of the acoustic signal in MJD [s]"
     )
-    RT: Series[float] = pa.Field(
-        description="Time of reception of the acoustic signal in MJD [s]"
-    )
+    RT: Series[float] = pa.Field(description="Time of reception of the acoustic signal in MJD [s]")
 
     flag: Series[bool] = pa.Field(
         default=False, description="Flag for mis-response in the data", coerce=True
@@ -209,23 +196,15 @@ class GarposObservationOutput(pa.DataFrameModel):
         default=0.0, description="Sound speed variation [m/s]", coerce=True
     )
     # These fields are populated after the model run
-    ResiTT: Series[float] = pa.Field(
-        default=0.0, description="Residual travel time [ms]"
-    )
+    ResiTT: Series[float] = pa.Field(default=0.0, description="Residual travel time [ms]")
 
     TakeOff: Series[float] = pa.Field(default=0.0, description="Take off angle [deg]")
     head1: Series[float] = pa.Field(
         description="Antenna heading at the time of the second measurement [deg]"
     )
-    ResiRange: Series[float] = pa.Field(
-        default=0.0, description="Spatial residuals [m]"
-    )
-    dVO: Series[float] = pa.Field(
-        default=0, description="Sound speed variation (for dV0)"
-    )
-    gradV1e: Series[float] = pa.Field(
-        default=0, description="Sound speed variation (for dV0)"
-    )
+    ResiRange: Series[float] = pa.Field(default=0.0, description="Spatial residuals [m]")
+    dVO: Series[float] = pa.Field(default=0, description="Sound speed variation (for dV0)")
+    gradV1e: Series[float] = pa.Field(default=0, description="Sound speed variation (for dV0)")
     gradV1n: Series[float] = pa.Field(
         default=0, description="Sound speed variation (for north component of grad(V1))"
     )
@@ -330,15 +309,11 @@ class InversionParams(BaseModel):
         match values.inversiontype:
             case InversionType.gammas:
                 if any([x <= 0 for x in values.positionalOffset]):
-                    logger.logerr(
-                        "positionalOffset is required for InversionType.positions"
-                    )
+                    logger.logerr("positionalOffset is required for InversionType.positions")
             case [InversionType.positions, InversionType.both]:
                 if any([x > 0 for x in values.positionalOffset]):
                     values.positionalOffset = [0.0, 0.0, 0.0]
-                    logger.logerr(
-                        "positionalOffset is not required for InversionType.gammas"
-                    )
+                    logger.logerr("positionalOffset is not required for InversionType.gammas")
 
         return values
 
@@ -574,9 +549,7 @@ class GarposInput(BaseModel):
                 )
                 if "dpos" in key:
                     transponder_id = key.split("_")[0].upper()
-                    transponder = GPTransponder(
-                        id=transponder_id, position_enu=position
-                    )
+                    transponder = GPTransponder(id=transponder_id, position_enu=position)
                     transponder_list.append(transponder)
                 if "dcentpos" in key:
                     delta_center_position = position
@@ -614,9 +587,7 @@ class GarposInput(BaseModel):
             atd_offset=atd_offset,
             start_date=start_date,
             end_date=start_date,  # Assuming end_date is not provided in the file
-            shot_data=(
-                Path(data_section["datacsv"]) if data_section["datacsv"] else None
-            ),
+            shot_data=(Path(data_section["datacsv"]) if data_section["datacsv"] else None),
             delta_center_position=delta_center_position,
             ref_frame=observation_section.get("Ref.Frame", "ITRF"),
             n_shot=data_section["N_shot"],

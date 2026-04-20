@@ -81,9 +81,7 @@ def validate_network_station_campaign(
     func: Callable[Concatenate[HasNetworkStationCampaign, P], R],
 ) -> Callable[Concatenate[HasNetworkStationCampaign, P], R]:
     @wraps(func)
-    def wrapper(
-        self: HasNetworkStationCampaign, *args: P.args, **kwargs: P.kwargs
-    ) -> R:
+    def wrapper(self: HasNetworkStationCampaign, *args: P.args, **kwargs: P.kwargs) -> R:
         if self.current_network_name is None:
             raise ValueError("Network name not set, use change_working_station")
         if self.current_station_name is None:
@@ -200,9 +198,7 @@ class WorkflowABC(ABC):
             workspace.build()
 
         if asset_catalog is None:
-            asset_catalog = PreProcessCatalogHandler(
-                db_path=workspace.asset_catalog_db_path
-            )
+            asset_catalog = PreProcessCatalogHandler(db_path=workspace.asset_catalog_db_path)
 
         self.workspace: Workspace = workspace
         self.directory: Path = workspace.location
@@ -374,13 +370,9 @@ class WorkflowABC(ABC):
         self.current_network_name = network_id
 
         if (
-            current_network_dir := self.workspace.networks.get(
-                self.current_network_name, None
-            )
+            current_network_dir := self.workspace.networks.get(self.current_network_name, None)
         ) is None:
-            current_network_dir = self.workspace.add_network(
-                name=self.current_network_name
-            )
+            current_network_dir = self.workspace.add_network(name=self.current_network_name)
         self.current_network_dir = current_network_dir
 
     def set_station(self, station_id: str):
@@ -455,9 +447,7 @@ class WorkflowABC(ABC):
         self.current_station_dir.build(self.workspace)
 
         if self.current_station_dir.site_metadata.exists():
-            self.current_station_metadata = Site.from_json(
-                self.current_station_dir.site_metadata
-            )
+            self.current_station_metadata = Site.from_json(self.current_station_dir.site_metadata)
 
         if self.mid_process_workflow:
             # Load site metadata for mid-process workflows
@@ -547,9 +537,7 @@ class WorkflowABC(ABC):
         self.current_campaign_dir = current_campaign_dir
         self.current_campaign_dir.build(self.workspace)
 
-    def set_network_station_campaign(
-        self, network_id: str, station_id: str, campaign_id: str
-    ):
+    def set_network_station_campaign(self, network_id: str, station_id: str, campaign_id: str):
         """
         Set the current network, station, and campaign contexts in sequence.
 
@@ -670,9 +658,7 @@ class WorkflowABC(ABC):
         validate_network_station_campaign : Decorator ensuring proper context
         Survey : Survey metadata model used for validation and loading
         """
-        assert self.mid_process_workflow, (
-            "set_survey is only available in mid-process workflows"
-        )
+        assert self.mid_process_workflow, "set_survey is only available in mid-process workflows"
         assert isinstance(survey_id, str), "survey_id must be a string"
 
         self._reset_survey()
@@ -687,9 +673,7 @@ class WorkflowABC(ABC):
                 f"Survey {survey_id} not found in campaign {self.current_campaign_metadata.name}."
             )
 
-        if (
-            current_survey_dir := self.current_campaign_dir.surveys.get(survey_id, None)
-        ) is None:
+        if (current_survey_dir := self.current_campaign_dir.surveys.get(survey_id, None)) is None:
             current_survey_dir = self.current_campaign_dir.add_survey(
                 name=survey_id, workspace=self.workspace
             )

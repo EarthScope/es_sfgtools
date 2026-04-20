@@ -74,12 +74,8 @@ class Observation(BaseModel):
         title="Carrier Phase Std",
         description="Carrier phase standard deviation in cycles",
     )
-    doppler: float = Field(
-        ..., title="Doppler", description="Doppler frequency shift in Hz"
-    )
-    cn0: float = Field(
-        ..., title="C/N0", description="Carrier-to-noise density ratio in dB-Hz"
-    )
+    doppler: float = Field(..., title="Doppler", description="Doppler frequency shift in Hz")
+    cn0: float = Field(..., title="C/N0", description="Carrier-to-noise density ratio in dB-Hz")
     locktime: float = Field(
         ..., title="Lock Time", description="Continuous tracking time in seconds"
     )
@@ -96,9 +92,7 @@ class Observation(BaseModel):
     phase_lock: bool = Field(
         default=True, title="Phase Lock", description="True if phase is locked"
     )
-    code_lock: bool = Field(
-        default=True, title="Code Lock", description="True if code is locked"
-    )
+    code_lock: bool = Field(default=True, title="Code Lock", description="True if code is locked")
     parity_known: bool = Field(
         default=True,
         title="Parity Known",
@@ -119,12 +113,8 @@ class Observation(BaseModel):
         title="Carrier Phase Std",
         description="Carrier phase standard deviation in cycles",
     )
-    doppler: float = Field(
-        ..., title="Doppler", description="Doppler frequency shift in Hz"
-    )
-    cn0: float = Field(
-        ..., title="C/N0", description="Carrier-to-noise density ratio in dB-Hz"
-    )
+    doppler: float = Field(..., title="Doppler", description="Doppler frequency shift in Hz")
+    cn0: float = Field(..., title="C/N0", description="Carrier-to-noise density ratio in dB-Hz")
     locktime: float = Field(
         ..., title="Lock Time", description="Continuous tracking time in seconds"
     )
@@ -141,9 +131,7 @@ class Observation(BaseModel):
     phase_lock: bool = Field(
         default=True, title="Phase Lock", description="True if phase is locked"
     )
-    code_lock: bool = Field(
-        default=True, title="Code Lock", description="True if code is locked"
-    )
+    code_lock: bool = Field(default=True, title="Code Lock", description="True if code is locked")
     parity_known: bool = Field(
         default=True,
         title="Parity Known",

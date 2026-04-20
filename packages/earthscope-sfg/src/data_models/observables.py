@@ -46,9 +46,7 @@ class AcousticDataFrame(pa.DataFrameModel):
         description="Return time in GPS time [seconds]",
     )
 
-    tt: Series[float] = pa.Field(
-        ge=0.0, le=600, coerce=True, description="Two-way travel time [s]"
-    )
+    tt: Series[float] = pa.Field(ge=0.0, le=600, coerce=True, description="Two-way travel time [s]")
 
     dbv: Series[int] = pa.Field(
         # ge=-100,
@@ -57,9 +55,7 @@ class AcousticDataFrame(pa.DataFrameModel):
         coerce=True,
     )
 
-    xc: Series[int] = pa.Field(
-        ge=0, le=100, coerce=True, description="Correlation score"
-    )
+    xc: Series[int] = pa.Field(ge=0, le=100, coerce=True, description="Correlation score")
     snr: Series[float] = pa.Field(
         ge=-100,
         le=100.0,
@@ -275,15 +271,9 @@ class IMUPositionDataFrame(pa.DataFrameModel):
 
 
 class ShotDataFrame(AcousticDataFrame):
-    head0: Series[float] = pa.Field(
-        description="Heading of the vessel at the time of the ping"
-    )
-    pitch0: Series[float] = pa.Field(
-        description="Pitch of the vessel at the time of the ping"
-    )
-    roll0: Series[float] = pa.Field(
-        description="Roll of the vessel at the time of the ping"
-    )
+    head0: Series[float] = pa.Field(description="Heading of the vessel at the time of the ping")
+    pitch0: Series[float] = pa.Field(description="Pitch of the vessel at the time of the ping")
+    roll0: Series[float] = pa.Field(description="Roll of the vessel at the time of the ping")
     east0: Series[float] = pa.Field(
         description="ECEF East position of the vessel at the time of the ping [m]"
     )
@@ -293,15 +283,9 @@ class ShotDataFrame(AcousticDataFrame):
     up0: Series[float] = pa.Field(
         description="Height above ellipsoid of the vessel at the time of the ping"
     )
-    head1: Series[float] = pa.Field(
-        description="Heading of the vessel at the time of the ping"
-    )
-    pitch1: Series[float] = pa.Field(
-        description="Pitch of the vessel at the time of the ping"
-    )
-    roll1: Series[float] = pa.Field(
-        description="Roll of the vessel at the time of the ping"
-    )
+    head1: Series[float] = pa.Field(description="Heading of the vessel at the time of the ping")
+    pitch1: Series[float] = pa.Field(description="Pitch of the vessel at the time of the ping")
+    roll1: Series[float] = pa.Field(description="Roll of the vessel at the time of the ping")
     east1: Series[float] = pa.Field(
         description="ECEF East position of the vessel at the time of the ping [m]"
     )

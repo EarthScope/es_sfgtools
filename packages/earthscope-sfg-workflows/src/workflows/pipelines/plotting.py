@@ -3,7 +3,6 @@ from collections import defaultdict
 
 import matplotlib.pyplot as plt
 import numpy as np
-
 from earthscope_sfg.tiledb_schemas import TDBKinPositionArray
 
 from ...data_mgmt.assetcatalog import AssetEntry
@@ -186,9 +185,7 @@ def plot_kin_position_data(
         [current_ax.axvline(d, color="r", linestyle="-") for d in day_tick_points]
         current = date_min.copy().astype("datetime64[D]").astype("datetime64[h]")
         while current < date_max:
-            current_ax.axvline(
-                to_timestamp(current) - ref, color="k", alpha=0.1, linestyle="-"
-            )
+            current_ax.axvline(to_timestamp(current) - ref, color="k", alpha=0.1, linestyle="-")
             current += np.timedelta64(1, "h")
 
         if rinex_timestamps:

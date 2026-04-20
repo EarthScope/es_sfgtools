@@ -15,11 +15,10 @@ class PrideConfig(BaseModel):
     Holds settings that control the pipeline behavior (concurrency, overrides)
     separately from PrideCLIConfig which holds pdp3 CLI flags.
     """
+
     cli: PrideCLIConfig = PrideCLIConfig()
     override: bool = Field(False, title="Flag to Override Existing Data")
-    n_processes: int = Field(
-        default=1, title="Number of PRIDE Processes to Use", ge=1
-    )
+    n_processes: int = Field(default=1, title="Number of PRIDE Processes to Use", ge=1)
     override_products_download: bool = Field(
         False, title="Flag to Override Existing Products Download"
     )
@@ -27,16 +26,12 @@ class PrideConfig(BaseModel):
 
 class NovatelConfig(BaseModel):
     override: bool = Field(False, title="Flag to Override Existing Data")
-    n_processes: int = Field(
-        default_factory=cpu_count, title="Number of Processes to Use"
-    )
+    n_processes: int = Field(default_factory=cpu_count, title="Number of Processes to Use")
 
 
 class RinexConfig(BaseModel):
     override: bool = Field(False, title="Flag to Override Existing Data")
-    n_processes: int = Field(
-        default_factory=cpu_count, title="Number of Processes to Use"
-    )
+    n_processes: int = Field(default_factory=cpu_count, title="Number of Processes to Use")
     settings_path: Path | None = Field("", title="Settings Path")
     time_interval: int | None = Field(1, title="Tile to Rinex Time Interval [h]")
     processing_year: int | None = Field(
@@ -115,9 +110,7 @@ class PrepSiteData(BaseModel):
     inter_dir: Path = Field(..., title="Intermediate Directory")
     pride_dir: Path = Field(..., title="Pride Directory")
     gnss_obs_data_dest: str | Path = Field(..., title="GNSS Obs Data Destination")
-    kin_position_data_dest: str | Path = Field(
-        ..., title="Kin Position Data Destination"
-    )
+    kin_position_data_dest: str | Path = Field(..., title="Kin Position Data Destination")
     shot_data_dest: str | Path = Field(..., title="Shot Data Destination")
 
     class Config:
@@ -146,9 +139,7 @@ class QCPinConfig(BaseModel):
     """Configuration for QC PIN file processing."""
 
     override: bool = Field(False, title="Flag to Override Existing Data")
-    n_processes: int = Field(
-        default_factory=cpu_count, title="Number of Processes to Use"
-    )
+    n_processes: int = Field(default_factory=cpu_count, title="Number of Processes to Use")
 
 
 class QCPipelineConfig(BaseModel):

@@ -43,9 +43,7 @@ def campaign_checks(campaign_year, campaign_interval, vessel_code):
     if not len(vessel_code) == 4:
         raise ValueError("Vessel code must be a 4 digit/letter code")
 
-    campaign_name = (
-        campaign_year + "_" + campaign_interval.upper() + "_" + vessel_code.upper()
-    )
+    campaign_name = campaign_year + "_" + campaign_interval.upper() + "_" + vessel_code.upper()
 
     print("Campaign name: " + campaign_name)
     return campaign_name, vessel_code.upper()
@@ -106,9 +104,7 @@ class Survey(AttributeUpdater, BaseModel):
     type: str | SurveyType = Field(
         ..., description="The type of the survey (e.g. circle | fixed point | mixed)"
     )
-    benchmarkIDs: list[str] = Field(
-        ..., description="Benchmark IDs associated with the survey"
-    )
+    benchmarkIDs: list[str] = Field(..., description="Benchmark IDs associated with the survey")
     start: datetime = Field(
         ..., description="The start date & time of the survey", gt=datetime(1901, 1, 1)
     )
@@ -117,16 +113,12 @@ class Survey(AttributeUpdater, BaseModel):
     )
 
     # Optional
-    notes: str | None = Field(
-        default=None, description="Any additional notes about the survey"
-    )
+    notes: str | None = Field(default=None, description="Any additional notes about the survey")
     commands: str | None = Field(default=None, description="Log of commands")
 
     _parse_datetime = field_validator("start", "end", mode="before")(parse_datetime)
     _check_dates = field_validator("end", mode="after")(check_dates)
-    _check_for_empty_strings = field_validator("notes", "commands")(
-        check_fields_for_empty_strings
-    )
+    _check_for_empty_strings = field_validator("notes", "commands")(check_fields_for_empty_strings)
     _type_input: str | None = PrivateAttr(default=None)
 
     """
@@ -155,12 +147,8 @@ class Campaign(AttributeUpdater, BaseModel):
     """
 
     # Required
-    name: str = Field(
-        ..., description="The name of the campaign in the format YYYY_A_VVVV"
-    )
-    type: str = Field(
-        ..., description="The type of the campaign (deploy | measure | etc)"
-    )
+    name: str = Field(..., description="The name of the campaign in the format YYYY_A_VVVV")
+    type: str = Field(..., description="The type of the campaign (deploy | measure | etc)")
     vesselCode: str = Field(
         ...,
         description="The 4 digit vessel code, associated with a vessel metadata file",

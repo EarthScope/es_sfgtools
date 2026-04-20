@@ -77,9 +77,7 @@ def _novatel_2rinex_wrapper(
     # Normalise the input file list to Paths for logging and command building
     if not files:
         raise ValueError(
-            Fore.RED
-            + "No input files provided to _novatel_2rinex_wrapper"
-            + Style.RESET_ALL
+            Fore.RED + "No input files provided to _novatel_2rinex_wrapper" + Style.RESET_ALL
         )
 
     file_paths: list[Path] = [Path(f) for f in files]
@@ -94,28 +92,20 @@ def _novatel_2rinex_wrapper(
             metadata_path = Path(metadata)
             if not metadata_path.exists():
                 raise FileNotFoundError(
-                    Fore.RED
-                    + f"Metadata file not found: {metadata_path}"
-                    + Style.RESET_ALL
+                    Fore.RED + f"Metadata file not found: {metadata_path}" + Style.RESET_ALL
                 )
             if not metadata_path.is_file():
                 raise ValueError(
-                    Fore.RED
-                    + f"Metadata path is not a file: {metadata_path}"
-                    + Style.RESET_ALL
+                    Fore.RED + f"Metadata path is not a file: {metadata_path}" + Style.RESET_ALL
                 )
             if (suffix := metadata_path.suffix.lower()) != ".json":
                 raise ValueError(
-                    Fore.RED
-                    + f"Metadata file must be a JSON file, got {suffix}"
-                    + Style.RESET_ALL
+                    Fore.RED + f"Metadata file must be a JSON file, got {suffix}" + Style.RESET_ALL
                 )
             with open(metadata_path) as f:
                 metadata_dict = json.load(f)
         else:
-            raise ValueError(
-                f"Metadata must be a dict or path to JSON file, got {type(metadata)}"
-            )
+            raise ValueError(f"Metadata must be a dict or path to JSON file, got {type(metadata)}")
 
         site = metadata_dict.get("marker_name", "SIT1")
 
@@ -155,9 +145,7 @@ def _novatel_2rinex_wrapper(
 
         parse_cli_logs(result, logger)
 
-        rinex_file_paths = [
-            x for x in workdir.rglob(f"*{site}*") if x.suffix != ".json"
-        ]
+        rinex_file_paths = [x for x in workdir.rglob(f"*{site}*") if x.suffix != ".json"]
         print(f"\n{'=' * 40}")
         logger.info(
             f"\nConverted {Fore.GREEN}{len(file_paths)}{Style.RESET_ALL} input files to {Fore.GREEN}{len(rinex_file_paths)}{Style.RESET_ALL} Daily RINEX files"
@@ -176,9 +164,7 @@ def _novatel_2rinex_wrapper(
             outpaths.append(new_rinex_path)
 
     if not outpaths:
-        logger.warning(
-            f"No RINEX files were generated from files: {file_paths}", stacklevel=1
-        )
+        logger.warning(f"No RINEX files were generated from files: {file_paths}", stacklevel=1)
     return outpaths
 
 
@@ -272,8 +258,7 @@ def novatel_2rinex(
             metadata = check_metadata(metadata)
         else:
             raise ValueError(
-                Fore.RED
-                + "Metadata must be a dict, MetadataModel, or path to a JSON file, "
+                Fore.RED + "Metadata must be a dict, MetadataModel, or path to a JSON file, "
                 f"got {type(metadata)}" + Style.RESET_ALL,
             )
     else:
@@ -312,9 +297,7 @@ def novatel_2rinex(
             case ".raw":
                 raw_files.append(file)
             case _:
-                raise ValueError(
-                    f"Unsupported file extension: {suffix} for file {file}"
-                )
+                raise ValueError(f"Unsupported file extension: {suffix} for file {file}")
 
     all_rinex_paths: list[Path] = []
 
@@ -433,10 +416,14 @@ def tile2rinex(
     binary_path = get_tdb2rnx_binary_path()
     cmd = [
         str(binary_path),
-        "-tdb", str(gnss_obs_tdb),
-        "-settings", str(settings),
-        "-timeint", str(time_interval),
-        "-year", str(processing_year),
+        "-tdb",
+        str(gnss_obs_tdb),
+        "-settings",
+        str(settings),
+        "-timeint",
+        str(time_interval),
+        "-year",
+        str(processing_year),
     ]
     if modulo_millis > 0:
         cmd.extend(["-modulo", str(modulo_millis)])

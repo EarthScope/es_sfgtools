@@ -39,15 +39,9 @@ attribute_dict: dict[str, tiledb.Attr] = {
     "northVelocity": tiledb.Attr(name="northVelocity", dtype=np.float64),
     "eastVelocity": tiledb.Attr(name="eastVelocity", dtype=np.float64),
     "upVelocity": tiledb.Attr(name="upVelocity", dtype=np.float64),
-    "northVelocity_std": tiledb.Attr(
-        name="northVelocity_std", dtype=np.float64, nullable=True
-    ),
-    "eastVelocity_std": tiledb.Attr(
-        name="eastVelocity_std", dtype=np.float64, nullable=True
-    ),
-    "upVelocity_std": tiledb.Attr(
-        name="upVelocity_std", dtype=np.float64, nullable=True
-    ),
+    "northVelocity_std": tiledb.Attr(name="northVelocity_std", dtype=np.float64, nullable=True),
+    "eastVelocity_std": tiledb.Attr(name="eastVelocity_std", dtype=np.float64, nullable=True),
+    "upVelocity_std": tiledb.Attr(name="upVelocity_std", dtype=np.float64, nullable=True),
     "roll": tiledb.Attr(name="roll", dtype=np.float64),
     "pitch": tiledb.Attr(name="pitch", dtype=np.float64),
     "azimuth": tiledb.Attr(name="azimuth", dtype=np.float64),
@@ -137,9 +131,7 @@ ShotDataAttributes = [
 
 ShotDataArraySchema = tiledb.ArraySchema(
     sparse=True,
-    domain=tiledb.Domain(
-        tiledb.Dim(name="pingTime", dtype="datetime64[ns]"), TransponderDomain
-    ),
+    domain=tiledb.Domain(tiledb.Dim(name="pingTime", dtype="datetime64[ns]"), TransponderDomain),
     attrs=ShotDataAttributes,
     cell_order="col-major",
     tile_order="row-major",
@@ -185,9 +177,7 @@ ctx = tiledb.Ctx(config=config)
 
 filters1 = tiledb.FilterList([tiledb.ZstdFilter(level=7)])
 filters2 = tiledb.FilterList([tiledb.ByteShuffleFilter(), tiledb.ZstdFilter(level=7)])
-filters3 = tiledb.FilterList(
-    [tiledb.BitWidthReductionFilter(), tiledb.ZstdFilter(level=7)]
-)
+filters3 = tiledb.FilterList([tiledb.BitWidthReductionFilter(), tiledb.ZstdFilter(level=7)])
 filters4 = tiledb.FilterList(
     [
         tiledb.FloatScaleFilter(0.0001, offset=None, bytewidth=8),
@@ -210,15 +200,9 @@ for _, tile_value in roll_periods.items():
         dtype=np.int64,
         filters=filters1,
     )
-    d1 = tiledb.Dim(
-        name="sys", domain=(0, 254), tile=1, dtype=np.uint8, filters=filters1
-    )
-    d2 = tiledb.Dim(
-        name="sat", domain=(0, 254), tile=1, dtype=np.uint8, filters=filters1
-    )
-    d3 = tiledb.Dim(
-        name="obs", domain=(0, 65534), tile=1, dtype=np.uint16, filters=filters1
-    )
+    d1 = tiledb.Dim(name="sys", domain=(0, 254), tile=1, dtype=np.uint8, filters=filters1)
+    d2 = tiledb.Dim(name="sat", domain=(0, 254), tile=1, dtype=np.uint8, filters=filters1)
+    d3 = tiledb.Dim(name="obs", domain=(0, 65534), tile=1, dtype=np.uint16, filters=filters1)
 
     a0 = tiledb.Attr(name="range", dtype=np.float64, filters=filters4)
     a1 = tiledb.Attr(name="phase", dtype=np.float64, filters=filters4)

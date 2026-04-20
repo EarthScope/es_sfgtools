@@ -37,9 +37,7 @@ class _AssetBase(BaseModel):
     @root_validator(pre=True)
     def _check_at_least_one(cls, values):
         if not values.get("local_path") and not values.get("remote_path"):
-            raise ValueError(
-                "At least one of the following must be set: local_path, remote_path"
-            )
+            raise ValueError("At least one of the following must be set: local_path, remote_path")
 
         if isinstance(values.get("local_path"), str):
             values["local_path"] = Path(values["local_path"])

@@ -5,7 +5,6 @@ This module contains the GarposDataPreparer class, which is responsible for prep
 from pathlib import Path
 
 import pandas as pd
-
 from earthscope_sfg.logging import GarposLogger as logger
 
 from ...config.garpos_config import GarposSiteConfig
@@ -149,9 +148,7 @@ def create_GPTransponder(
     return gp_transponder
 
 
-def get_array_dpos_center(
-    coord_transformer: CoordTransformer, transponders: list[GPTransponder]
-):
+def get_array_dpos_center(coord_transformer: CoordTransformer, transponders: list[GPTransponder]):
     """Get the average transponder position in ENU coordinates.
 
     Parameters
@@ -208,9 +205,7 @@ def avg_transponder_position(
     out_pos_llh = GPPositionLLH(
         latitude=avg_pos_llh[0], longitude=avg_pos_llh[1], height=avg_pos_llh[2]
     )
-    out_pos_enu = GPPositionENU(
-        east=avg_pos_enu[0], north=avg_pos_enu[1], up=avg_pos_enu[2]
-    )
+    out_pos_enu = GPPositionENU(east=avg_pos_enu[0], north=avg_pos_enu[1], up=avg_pos_enu[2])
 
     return out_pos_enu, out_pos_llh
 
@@ -247,9 +242,7 @@ def prepare_shotdata_for_garpos(
         If the shot data fails validation.
     """
 
-    shot_data_rectified = rectify_shotdata(
-        coord_transformer=coord_transformer, shot_data=shot_data
-    )
+    shot_data_rectified = rectify_shotdata(coord_transformer=coord_transformer, shot_data=shot_data)
     shot_data_rectified.MT = shot_data_rectified.MT.replace(r"\D", "", regex=True)
 
     shot_data_rectified = shot_data_rectified[
@@ -259,9 +252,7 @@ def prepare_shotdata_for_garpos(
     shot_data_rectified.MT = shot_data_rectified.MT.apply(
         lambda x: "M" + str(x) if str(x)[0].isdigit() else str(x)
     )
-    shot_data_rectified = shot_data_rectified.sort_values(by=["ST", "MT"]).reset_index(
-        drop=True
-    )
+    shot_data_rectified = shot_data_rectified.sort_values(by=["ST", "MT"]).reset_index(drop=True)
     shot_data_rectified.to_csv(str(shodata_out_path))
     logger.loginfo(f"Shot data prepared and saved to {str(shodata_out_path)}")
 
@@ -334,9 +325,7 @@ def prepare_garpos_input_from_survey(
     return garpos_input
 
 
-def apply_survey_config(
-    config: GarposSiteConfig, garpos_input: GarposInput
-) -> GarposInput:
+def apply_survey_config(config: GarposSiteConfig, garpos_input: GarposInput) -> GarposInput:
     """Apply the site configuration to the GarposInput object.
 
     Parameters
@@ -362,14 +351,8 @@ def apply_survey_config(
     )
 
     for transponder in garpos_input.transponders:
-        transponder.position_enu.east_sigma = (
-            config.transponder_position_variance.east_sigma
-        )
-        transponder.position_enu.north_sigma = (
-            config.transponder_position_variance.north_sigma
-        )
-        transponder.position_enu.up_sigma = (
-            config.transponder_position_variance.up_sigma
-        )
+        transponder.position_enu.east_sigma = config.transponder_position_variance.east_sigma
+        transponder.position_enu.north_sigma = config.transponder_position_variance.north_sigma
+        transponder.position_enu.up_sigma = config.transponder_position_variance.up_sigma
 
     return garpos_input

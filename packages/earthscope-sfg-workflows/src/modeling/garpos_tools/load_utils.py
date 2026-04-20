@@ -95,8 +95,6 @@ def load_drive_garpos() -> Callable:
     module = importlib.util.module_from_spec(spec)
     sys.modules[module_name] = module
     spec.loader.exec_module(module)
-    garpos_main_module = importlib.import_module(
-        f"{garpos_main.parent.stem}.{garpos_main.stem}"
-    )
+    garpos_main_module = importlib.import_module(f"{garpos_main.parent.stem}.{garpos_main.stem}")
     drive_garpos = garpos_main_module.drive_garpos
     return drive_garpos

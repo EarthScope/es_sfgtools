@@ -3,7 +3,6 @@ from datetime import UTC, datetime
 import numpy as np
 import pandas as pd
 import pymap3d as pm
-
 from earthscope_sfg.logging import GarposLogger as logger
 from earthscope_sfg.utils.model_update import validate_and_merge_config
 
@@ -73,9 +72,7 @@ def filter_shotdata(
             case FilterLevel.DIFFICULT:
                 new_shot_data_df = difficult_acoustic_diagnostics(new_shot_data_df)
             case _:
-                logger.loginfo(
-                    "No acoustic filtering applied, using original shot data"
-                )
+                logger.loginfo("No acoustic filtering applied, using original shot data")
 
     """
     Apply ping replies filtering. This is based on the minimum number of replies.
@@ -83,9 +80,7 @@ def filter_shotdata(
     ping_replies_config = filter_config.ping_replies
     if ping_replies_config.enabled:
         min_replies = ping_replies_config.min_replies
-        new_shot_data_df = filter_ping_replies(
-            new_shot_data_df, min_replies=min_replies
-        )
+        new_shot_data_df = filter_ping_replies(new_shot_data_df, min_replies=min_replies)
 
     """
     Apply max distance from center filtering. This is typically used for center surveys.
@@ -227,9 +222,7 @@ def filter_dbv(df, dbv_min=-36, dbv_max=-3):
     initial_count = len(df)
     df = df[(df["dbv"] >= dbv_min) & (df["dbv"] <= dbv_max)].copy()
 
-    logger.loginfo(
-        f"Removed {initial_count - len(df)} records with DBV < {dbv_min} or > {dbv_max}"
-    )
+    logger.loginfo(f"Removed {initial_count - len(df)} records with DBV < {dbv_min} or > {dbv_max}")
     return df
 
 
@@ -296,9 +289,7 @@ def filter_acoustic_diagnostics(df, snr_min=12, dbv_min=-36, dbv_max=-3, xc_min=
     df = filter_dbv(df=df, dbv_min=dbv_min, dbv_max=dbv_max)
     df = filter_xc(df=df, xc_min=xc_min)
 
-    logger.loginfo(
-        f"Total acoustic diagnostic filtering removed {initial_count - len(df)} records"
-    )
+    logger.loginfo(f"Total acoustic diagnostic filtering removed {initial_count - len(df)} records")
     return df
 
 
@@ -311,9 +302,7 @@ def good_acoustic_diagnostics(df):
     :return: Filtered DataFrame with "good" acoustic diagnostics.
     :rtype: pd.DataFrame
     """
-    return filter_acoustic_diagnostics(
-        df, snr_min=20, dbv_min=-26, dbv_max=-3, xc_min=60
-    )
+    return filter_acoustic_diagnostics(df, snr_min=20, dbv_min=-26, dbv_max=-3, xc_min=60)
 
 
 def ok_acoustic_diagnostics(df):
@@ -325,9 +314,7 @@ def ok_acoustic_diagnostics(df):
     :return: Filtered DataFrame with "ok" level acoustic diagnostics.
     :rtype: pd.DataFrame
     """
-    return filter_acoustic_diagnostics(
-        df, snr_min=12, dbv_min=-36, dbv_max=-3, xc_min=45
-    )
+    return filter_acoustic_diagnostics(df, snr_min=12, dbv_min=-36, dbv_max=-3, xc_min=45)
 
 
 def difficult_acoustic_diagnostics(df):
@@ -398,6 +385,7 @@ def filter_pride_residuals(
 
     # Convert tileDB array to dataframe
     from earthscope_sfg.tiledb_schemas import TDBKinPositionArray
+
     pride_data = TDBKinPositionArray(kinPostionTDBUri)
     ppp_df = pride_data.read_df(start=start_time, end=end_time)
     if ppp_df.empty:
@@ -443,9 +431,7 @@ def filter_pride_residuals(
 
     for time_range in exclusion_ranges:
         # Mark shots within this exclusion range as False (pingTime is Unix timestamp)
-        in_range = (df["pingTime"] >= time_range["start"]) & (
-            df["pingTime"] <= time_range["end"]
-        )
+        in_range = (df["pingTime"] >= time_range["start"]) & (df["pingTime"] <= time_range["end"])
         mask = mask & ~in_range  # Remove shots in this range
 
     filtered_df = df[mask].copy()
@@ -454,8 +440,6 @@ def filter_pride_residuals(
     logger.loginfo(
         f"Removed {removed_count} shot records due to high WRMS (>{max_wrms}mm) in Pride PPP data"
     )
-    logger.loginfo(
-        f"Used {len(exclusion_ranges)} time exclusion ranges with ±1s buffer"
-    )
+    logger.loginfo(f"Used {len(exclusion_ranges)} time exclusion ranges with ±1s buffer")
 
     return filtered_df  # Return filtered_df instead of original df

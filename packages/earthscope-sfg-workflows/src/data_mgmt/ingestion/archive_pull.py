@@ -9,7 +9,6 @@ import requests
 from earthscope_cli.login import login as es_login
 from earthscope_sdk import EarthScopeClient
 from earthscope_sdk.config.settings import SdkSettings
-
 from earthscope_sfg.logging import ProcessLogger as logger
 
 from ...data_models.metadata import Site, Vessel, import_site, import_vessel
@@ -49,9 +48,7 @@ def retrieve_token(profile=None):
     return token
 
 
-def download_file_from_archive(
-    url, dest_dir="./", profile=None, show_details: bool = True
-) -> None:
+def download_file_from_archive(url, dest_dir="./", profile=None, show_details: bool = True) -> None:
     """Download a file from the public archive using the EarthScope SDK.
 
     Parameters
@@ -231,6 +228,7 @@ def generate_archive_campaign_metadata_url(network, station, campaign):
 
     return f"{ARCHIVE_PREFIX}/{network}/{year}/{station}/{campaign}/metadata"
 
+
 def generate_archive_rinex_url(network, station, campaign, hz):
     """Generate a URL for campaign RINEX files in the public archive.
 
@@ -255,6 +253,7 @@ def generate_archive_rinex_url(network, station, campaign, hz):
     year = campaign.split("_")[0]
 
     return f"{ARCHIVE_PREFIX}/{network}/{year}/{station}/{campaign}/rinex_{hz}"
+
 
 def generate_archive_site_json_url(network, station, profile: str = None) -> str:
     """Generate a URL for the site JSON file in the public archive.
@@ -332,9 +331,7 @@ def load_vessel_metadata(
         # If a local path is provided, load the vessel metadata from the local file
         json_file_path = Path(local_path)
         if not json_file_path.exists():
-            raise FileNotFoundError(
-                f"Local vessel metadata file {json_file_path} does not exist."
-            )
+            raise FileNotFoundError(f"Local vessel metadata file {json_file_path} does not exist.")
         vessel = import_vessel(json_file_path)
         return vessel
     else:
@@ -386,9 +383,7 @@ def load_site_metadata(
         # TODO: allow for local vessel metadata to be loaded as well
         json_file_path = Path(local_path)
         if not json_file_path.exists():
-            raise FileNotFoundError(
-                f"Local site metadata file {json_file_path} does not exist."
-            )
+            raise FileNotFoundError(f"Local site metadata file {json_file_path} does not exist.")
         site = import_site(json_file_path)
 
     else:
@@ -406,9 +401,7 @@ def load_site_metadata(
         try:
             campaign.vessel = load_vessel_metadata(campaign.vesselCode, profile=profile)
         except FileNotFoundError as e:
-            logger.logerr(
-                f"Vessel metadata file not found for campaign {campaign.name}: {e}"
-            )
+            logger.logerr(f"Vessel metadata file not found for campaign {campaign.name}: {e}")
             campaign.vessel = None
         except ValueError as e:
             logger.logerr(f"Invalid vessel metadata for campaign {campaign.name}: {e}")
@@ -421,9 +414,7 @@ def load_site_metadata(
     return site
 
 
-def list_file_counts_by_type(
-    file_list: list, url: str | None = None, show_logs=True
-) -> dict:
+def list_file_counts_by_type(file_list: list, url: str | None = None, show_logs=True) -> dict:
     """Counts files by type, and builds a dictionary.
 
     Parameters
@@ -595,9 +586,7 @@ def list_s3_directory_files(bucket_name: str, prefix: str) -> list[str]:
     paginator = s3_client.get_paginator("list_objects_v2")
     for page in paginator.paginate(Bucket=bucket_name, Prefix=prefix):
         if "Contents" in page:
-            file_paths.extend(
-                f"s3://{bucket_name}/{obj['Key']}" for obj in page["Contents"]
-            )
+            file_paths.extend(f"s3://{bucket_name}/{obj['Key']}" for obj in page["Contents"])
 
     return file_paths
 

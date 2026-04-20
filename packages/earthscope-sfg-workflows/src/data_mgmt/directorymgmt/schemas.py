@@ -78,24 +78,16 @@ class GARPOSSurveyDir(_Base):
 
     _name = PrivateAttr("GARPOS")
 
-    location: Path | None = Field(
-        default=None, description="The survey directory path"
-    )
-    log_directory: Path | None = Field(
-        default=None, description="The log directory path"
-    )
+    location: Path | None = Field(default=None, description="The survey directory path")
+    log_directory: Path | None = Field(default=None, description="The log directory path")
     default_obsfile: Path | None = Field(
         default=None, description="The default observation file path"
     )
     default_settings: Path | None = Field(
         default=None, description="The default GARPOS settings file path"
     )
-    svp_file: Path | None = Field(
-        default=None, description="The sound velocity profile file path"
-    )
-    results_dir: Path | None = Field(
-        default=None, description="The results directory path"
-    )
+    svp_file: Path | None = Field(default=None, description="The sound velocity profile file path")
+    results_dir: Path | None = Field(default=None, description="The results directory path")
     shotdata_rectified: Path | None = Field(
         default=None, description="The survey shotdata file path"
     )
@@ -254,12 +246,8 @@ class TileDBDir(_Base):
     """
 
     # Optional directory paths, if not provided, will be auto-generated
-    location: Path | S3Path | None = Field(
-        default=None, description="The TileDB directory path"
-    )
-    shot_data: Path | S3Path | None = Field(
-        default=None, description="The shotdata TileDB path"
-    )
+    location: Path | S3Path | None = Field(default=None, description="The TileDB directory path")
+    shot_data: Path | S3Path | None = Field(default=None, description="The shotdata TileDB path")
     shot_data_pre: Path | S3Path | None = Field(
         default=None, description="The preprocessed shotdata TileDB path"
     )
@@ -412,12 +400,8 @@ class SurveyDir(_Base):
     Represents a survey directory structure.
     """
 
-    location: Path | S3Path | None = Field(
-        default=None, description="The survey directory path"
-    )
-    shotdata: Path | S3Path | None = Field(
-        default=None, description="The shotdata file path"
-    )
+    location: Path | S3Path | None = Field(default=None, description="The survey directory path")
+    shotdata: Path | S3Path | None = Field(default=None, description="The shotdata file path")
     shotdata_filtered: Path | S3Path | None = Field(
         default=None, description="The filtered shotdata file path"
     )
@@ -430,9 +414,7 @@ class SurveyDir(_Base):
     metadata: Path | S3Path | None = Field(
         default=None, description="The survey metadata file path"
     )
-    garpos: GARPOSSurveyDir | None = Field(
-        default=None, description="GARPOS data directory path"
-    )
+    garpos: GARPOSSurveyDir | None = Field(default=None, description="GARPOS data directory path")
 
     name: str = Field(..., description="The survey name")
     campaign: Path | S3Path = Field(..., description="The campaign directory path")
@@ -527,27 +509,17 @@ class CampaignDir(_Base):
     """
 
     # Optional directory paths, if not provided, will be auto-generated
-    location: Path | S3Path | None = Field(
-        default=None, description="The campaign directory path"
-    )
-    raw: Path | S3Path | None = Field(
-        default=None, description="Raw data directory path"
-    )
+    location: Path | S3Path | None = Field(default=None, description="The campaign directory path")
+    raw: Path | S3Path | None = Field(default=None, description="Raw data directory path")
     processed: Path | S3Path | None = Field(
         default=None, description="Processed data directory path"
     )
     intermediate: Path | S3Path | None = Field(
         default=None, description="Intermediate data directory path"
     )
-    surveys: dict[str, SurveyDir] | None = Field(
-        default={}, description="Surveys in the campaign"
-    )
-    log_directory: Path | S3Path | None = Field(
-        default=None, description="Logs directory path"
-    )
-    qc: Path | S3Path | None = Field(
-        default=None, description="Quality control directory path"
-    )
+    surveys: dict[str, SurveyDir] | None = Field(default={}, description="Surveys in the campaign")
+    log_directory: Path | S3Path | None = Field(default=None, description="Logs directory path")
+    qc: Path | S3Path | None = Field(default=None, description="Quality control directory path")
     metadata_directory: Path | S3Path | None = Field(
         default=None, description="Metadata directory path"
     )
@@ -734,9 +706,7 @@ class StationDir(_Base):
     campaigns: dict[str, CampaignDir] | None = Field(
         default={}, description="Campaigns in the station"
     )
-    location: Path | S3Path | None = Field(
-        default=None, description="The station directory path"
-    )
+    location: Path | S3Path | None = Field(default=None, description="The station directory path")
     tiledb_directory: TileDBDir | None = Field(
         default=None, description="The TileDB directory path"
     )
@@ -893,14 +863,10 @@ class NetworkDir(_Base):
     stations: dict[str, StationDir] | None = Field(
         default={}, description="Stations in the network"
     )
-    location: Path | S3Path | None = Field(
-        default=None, description="The network directory path"
-    )
+    location: Path | S3Path | None = Field(default=None, description="The network directory path")
 
     name: str = Field(..., description="The network name")
-    main_directory: Path | S3Path = Field(
-        ..., description="The main directory path"
-    )
+    main_directory: Path | S3Path = Field(..., description="The main directory path")
 
     def build(self, workspace: Workspace) -> None:
         """Creates the directory structure for the network."""

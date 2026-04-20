@@ -9,9 +9,6 @@ from collections import deque
 from functools import partial
 from pathlib import Path
 
-from pride_ppp import PrideProcessor, ProcessingMode, kin_to_kin_position_df, rinex_get_time_range
-from tqdm.auto import tqdm
-
 # Local Imports
 from earthscope_sfg.logging import ProcessLogger, change_all_logger_dirs
 from earthscope_sfg.novatel_tools.novatel_to_rinex_operations import tile2rinex
@@ -25,6 +22,8 @@ from earthscope_sfg.tiledb_schemas import (
     TDBKinPositionArray,
     TDBShotDataArray,
 )
+from pride_ppp import PrideProcessor, ProcessingMode, kin_to_kin_position_df, rinex_get_time_range
+from tqdm.auto import tqdm
 
 from ...config.workspace import Workspace
 from ...data_mgmt.assetcatalog.handler import PreProcessCatalogHandler
@@ -226,9 +225,7 @@ class QCPipeline(WorkflowABC):
         super().set_network_station_campaign(network_id, station_id, campaign_id)
 
         # Make sure there are files to process
-        dtype_counts = self.asset_catalog.get_dtype_counts(
-            network_id, station_id, campaign_id
-        )
+        dtype_counts = self.asset_catalog.get_dtype_counts(network_id, station_id, campaign_id)
         if dtype_counts == {}:
             message = f"No local files found for {network_id}/{station_id}/{campaign_id}. Ensure data is ingested before processing."
             ProcessLogger.logerr(message)
@@ -266,12 +263,8 @@ class QCPipeline(WorkflowABC):
 
     def _build_rinex_meta(self) -> None:
         """Build RINEX metadata files for the current campaign if they don't exist."""
-        rinex_metav2 = (
-            self.current_campaign_dir.metadata_directory / "rinex_metav2.json"
-        )
-        rinex_metav1 = (
-            self.current_campaign_dir.metadata_directory / "rinex_metav1.json"
-        )
+        rinex_metav2 = self.current_campaign_dir.metadata_directory / "rinex_metav2.json"
+        rinex_metav1 = self.current_campaign_dir.metadata_directory / "rinex_metav1.json"
         if not rinex_metav2.exists():
             with open(rinex_metav2, "w") as f:
                 json.dump(get_metadatav2(site=self.current_station_name), f)
@@ -295,14 +288,12 @@ class QCPipeline(WorkflowABC):
         NoQCPinFound
             If no QC PIN files are found for the current context.
         """
-        qcpin_entries: list[AssetEntry] = (
-            self.asset_catalog.get_single_entries_to_process(
-                network=self.current_network_name,
-                station=self.current_station_name,
-                campaign=self.current_campaign_name,
-                parent_type=AssetType.QCPIN,
-                override=self.config.qcpin_config.override,
-            )
+        qcpin_entries: list[AssetEntry] = self.asset_catalog.get_single_entries_to_process(
+            network=self.current_network_name,
+            station=self.current_station_name,
+            campaign=self.current_campaign_name,
+            parent_type=AssetType.QCPIN,
+            override=self.config.qcpin_config.override,
         )
         if not qcpin_entries:
             response = f"No QCPIN Files Found for {self.current_network_name} {self.current_station_name} {self.current_campaign_name}"
@@ -335,9 +326,7 @@ class QCPipeline(WorkflowABC):
         second_step.start()
         with concurrent.futures.ThreadPoolExecutor(max_workers=50) as executor:
             # futures = executor.map(process_func_partial, qcpin_entries)
-            futures = [
-                executor.submit(process_func_partial, entry) for entry in qcpin_entries
-            ]
+            futures = [executor.submit(process_func_partial, entry) for entry in qcpin_entries]
             for future in tqdm(
                 concurrent.futures.as_completed(futures),
                 total=len(qcpin_entries),
@@ -384,9 +373,8 @@ class QCPipeline(WorkflowABC):
             "parent_ids": [parent_ids],
         }
 
-        if (
-            self.config.rinex_config.override
-            or not self.asset_catalog.is_merge_complete(**merge_signature)
+        if self.config.rinex_config.override or not self.asset_catalog.is_merge_complete(
+            **merge_signature
         ):
             try:
                 rinex_paths: list[Path] = tile2rinex(
@@ -408,9 +396,7 @@ class QCPipeline(WorkflowABC):
                 rinex_entries: list[AssetEntry] = []
                 uploadCount = 0
                 for rinex_path in rinex_paths:
-                    rinex_time_start, rinex_time_end = rinex_get_time_range(
-                        rinex_path
-                    )
+                    rinex_time_start, rinex_time_end = rinex_get_time_range(rinex_path)
                     rinex_entry = AssetEntry(
                         local_path=rinex_path,
                         network=self.current_network_name,
@@ -439,9 +425,7 @@ class QCPipeline(WorkflowABC):
 
             except Exception as e:
                 if (
-                    message := ProcessLogger.logerr(
-                        f"Error generating QC RINEX files: {e}"
-                    )
+                    message := ProcessLogger.logerr(f"Error generating QC RINEX files: {e}")
                 ) is not None:
                     print(message)
                 sys.exit(1)
@@ -478,15 +462,13 @@ class QCPipeline(WorkflowABC):
         prideDir = self.workspace.pride_directory
         intermediateDir = self.current_campaign_dir.intermediate
 
-        rinex_entries: list[AssetEntry] = (
-            self.asset_catalog.get_single_entries_to_process(
-                network=self.current_network_name,
-                station=self.current_station_name,
-                campaign=self.current_campaign_name,
-                parent_type=AssetType.RINEX2,
-                child_type=AssetType.KIN,
-                override=self.config.pride_config.override,
-            )
+        rinex_entries: list[AssetEntry] = self.asset_catalog.get_single_entries_to_process(
+            network=self.current_network_name,
+            station=self.current_station_name,
+            campaign=self.current_campaign_name,
+            parent_type=AssetType.RINEX2,
+            child_type=AssetType.KIN,
+            override=self.config.pride_config.override,
         )
         if not rinex_entries:
             response = f"No Rinex Files Found to Process for {self.current_network_name} {self.current_station_name} {self.current_campaign_name}"
@@ -570,14 +552,12 @@ class QCPipeline(WorkflowABC):
             f"Looking for QC Kin Files to Process for {self.current_network_name} {self.current_station_name} {self.current_campaign_name}"
         )
 
-        kin_entries: list[AssetEntry] = (
-            self.asset_catalog.get_single_entries_to_process(
-                network=self.current_network_name,
-                station=self.current_station_name,
-                campaign=self.current_campaign_name,
-                parent_type=AssetType.KIN,
-                override=self.config.rinex_config.override,
-            )
+        kin_entries: list[AssetEntry] = self.asset_catalog.get_single_entries_to_process(
+            network=self.current_network_name,
+            station=self.current_station_name,
+            campaign=self.current_campaign_name,
+            parent_type=AssetType.KIN,
+            override=self.config.rinex_config.override,
         )
 
         if not kin_entries:
@@ -585,9 +565,7 @@ class QCPipeline(WorkflowABC):
             ProcessLogger.loginfo(message)
             raise NoKinFound(message)
 
-        ProcessLogger.loginfo(
-            f"Found {len(kin_entries)} QC Kin Files to Process: processing"
-        )
+        ProcessLogger.loginfo(f"Found {len(kin_entries)} QC Kin Files to Process: processing")
 
         processed_count = 0
         for kin_entry in tqdm(kin_entries, desc="Processing QC Kin Files"):
@@ -617,9 +595,7 @@ class QCPipeline(WorkflowABC):
         4. Writes refined shotdata to final QC TileDB array
         5. Records merge job in asset catalog
         """
-        ProcessLogger.loginfo(
-            "Updating QC shotdata with interpolated QCKinPosition data"
-        )
+        ProcessLogger.loginfo("Updating QC shotdata with interpolated QCKinPosition data")
 
         try:
             merge_signature, dates = get_merge_signature_shotdata(

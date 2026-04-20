@@ -87,9 +87,7 @@ def novatelReply_to_garpos_reply(novatel_reply: NovatelRangeEvent) -> SV3ReplyDa
         float(novatel_reply.observations.GNSS.hae),
     )
     travelTime = (
-        float(novatel_reply.range.range)
-        - float(novatel_reply.range.tat)
-        - TRIGGER_DELAY_SV3
+        float(novatel_reply.range.range) - float(novatel_reply.range.tat) - TRIGGER_DELAY_SV3
     )
     sv3Reply = SV3ReplyData(
         transponderID=novatel_reply.range.cn,
@@ -209,9 +207,7 @@ def dfop00_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
         if data.get("event") == "interrogation":
             try:
                 interrogation = NovatelInterrogationEvent(**data)
-                interrogation_parsed = novatelInterrogation_to_garpos_interrogation(
-                    interrogation
-                )
+                interrogation_parsed = novatelInterrogation_to_garpos_interrogation(interrogation)
                 good_parse_count_interrogation += 1
                 # logger.loginfo(f"Interrogation: pingTime: {interrogation_parsed.pingTime}")
             except Exception:
@@ -220,9 +216,7 @@ def dfop00_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
         if data.get("event") == "range":
             try:
                 reply_data = NovatelRangeEvent(**data)
-                reply_data_parsed: SV3ReplyData = novatelReply_to_garpos_reply(
-                    reply_data
-                )
+                reply_data_parsed: SV3ReplyData = novatelReply_to_garpos_reply(reply_data)
                 good_parse_count_reply += 1
                 # logger.loginfo(f"Reply: \n  returnTime: {reply_data_parsed.returnTime}\n  tt: {reply_data_parsed.tt}")
 
@@ -232,9 +226,7 @@ def dfop00_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
 
             if reply_data_parsed is not None and interrogation_parsed is not None:
                 try:
-                    merged_data = merge_interrogation_reply(
-                        interrogation_parsed, reply_data_parsed
-                    )
+                    merged_data = merge_interrogation_reply(interrogation_parsed, reply_data_parsed)
 
                     reply_data_parsed = None  # Reset reply after merging
                     good_merge_count += 1

@@ -5,16 +5,6 @@ import gnatss.constants as constants
 import numpy as np
 import pandas as pd
 import pymap3d
-from gnatss.ops.kalman import run_filter_simulation
-from numpy import datetime64
-from pandera.typing import DataFrame
-from scipy.stats import zscore
-from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import RBF
-from sklearn.kernel_ridge import KernelRidge
-from sklearn.neighbors import KDTree, RadiusNeighborsRegressor
-from sklearn.preprocessing import StandardScaler
-
 from earthscope_sfg.data_models.observables import (
     IMUPositionDataFrame,
     KinPositionDataFrame,
@@ -27,6 +17,15 @@ from earthscope_sfg.tiledb_schemas import (
     TDBKinPositionArray,
     TDBShotDataArray,
 )
+from gnatss.ops.kalman import run_filter_simulation
+from numpy import datetime64
+from pandera.typing import DataFrame
+from scipy.stats import zscore
+from sklearn.gaussian_process import GaussianProcessRegressor
+from sklearn.gaussian_process.kernels import RBF
+from sklearn.kernel_ridge import KernelRidge
+from sklearn.neighbors import KDTree, RadiusNeighborsRegressor
+from sklearn.preprocessing import StandardScaler
 
 MEDIAN_EAST_POSITION = 0
 MEDIAN_NORTH_POSITION = 0
@@ -90,25 +89,15 @@ def prepare_positions_data(
     positions_data_copy["north"] = positions_data_copy.northVelocity
     positions_data_copy["up"] = positions_data_copy.upVelocity
 
-    positions_data_copy["ant_sigx"] = (
-        positions_data_copy["latitude_std"].bfill().ffill()
-    )
-    positions_data_copy["ant_sigy"] = (
-        positions_data_copy["longitude_std"].bfill().ffill()
-    )
+    positions_data_copy["ant_sigx"] = positions_data_copy["latitude_std"].bfill().ffill()
+    positions_data_copy["ant_sigy"] = positions_data_copy["longitude_std"].bfill().ffill()
     positions_data_copy["ant_sigz"] = positions_data_copy["height_std"].bfill().ffill()
     positions_data_copy["rho_xy"] = 0
     positions_data_copy["rho_xz"] = 0
     positions_data_copy["rho_yz"] = 0
-    positions_data_copy["east_sig"] = (
-        positions_data_copy["eastVelocity_std"].bfill().ffill()
-    )
-    positions_data_copy["north_sig"] = (
-        positions_data_copy["northVelocity_std"].bfill().ffill()
-    )
-    positions_data_copy["up_sig"] = (
-        positions_data_copy["upVelocity_std"].bfill().ffill()
-    )
+    positions_data_copy["east_sig"] = positions_data_copy["eastVelocity_std"].bfill().ffill()
+    positions_data_copy["north_sig"] = positions_data_copy["northVelocity_std"].bfill().ffill()
+    positions_data_copy["up_sig"] = positions_data_copy["upVelocity_std"].bfill().ffill()
 
     positions_data_copy["v_sden"] = 0
     positions_data_copy["v_sdeu"] = 0
@@ -293,18 +282,14 @@ def run_kalman_filter_and_smooth(
     if df_all.empty:
         return pd.DataFrame()
 
-    x, P, _, _ = run_filter_simulation(
-        df_all.to_numpy(), start_dt, gnss_pos_psd, vel_psd, cov_err
-    )
+    x, P, _, _ = run_filter_simulation(df_all.to_numpy(), start_dt, gnss_pos_psd, vel_psd, cov_err)
     logger.loginfo(
         f"Filter Parameters - Start DT: {start_dt}, GNSS_POS_PSD: {gnss_pos_psd}, VEL_PSD: {vel_psd}, COV_ERR: {cov_err}"
     )
 
     # Process positions covariance
     ant_cov = P[:, :3, :3]
-    ant_cov_df = pd.DataFrame(
-        ant_cov.reshape(ant_cov.shape[0], -1), columns=constants.ANT_GPS_COV
-    )
+    ant_cov_df = pd.DataFrame(ant_cov.reshape(ant_cov.shape[0], -1), columns=constants.ANT_GPS_COV)
     ant_cov_df[[*constants.ANT_GPS_GEOCENTRIC_STD]] = ant_cov_df[
         [*constants.ANT_GPS_COV_DIAG]
     ].apply(np.sqrt)
@@ -411,9 +396,9 @@ def update_shotdata_with_smoothed_positions(
     )
     shotdata.loc[:, ["isUpdated"]][~np.isnan(predicted_ping_pos[:, 0])] = True
 
-    shotdata.loc[:, ["east1", "north1", "up1"]][
-        ~np.isnan(predicted_return_pos[:, 0])
-    ] = predicted_return_pos[~np.isnan(predicted_return_pos[:, 0]), :]
+    shotdata.loc[:, ["east1", "north1", "up1"]][~np.isnan(predicted_return_pos[:, 0])] = (
+        predicted_return_pos[~np.isnan(predicted_return_pos[:, 0]), :]
+    )
     shotdata.loc[:, ["isUpdated"]][~np.isnan(predicted_return_pos[:, 0])] = True
 
     nan_pings = np.isnan(predicted_ping_pos).any(axis=1).sum()
@@ -448,11 +433,7 @@ def filter_spatial_outliers(df: pd.DataFrame, radius: float = 5000) -> pd.DataFr
     original_len = len(df)
     position_filters = (
         (df.ant_x.between(MEDIAN_EAST_POSITION - radius, MEDIAN_EAST_POSITION + radius))
-        & (
-            df.ant_y.between(
-                MEDIAN_NORTH_POSITION - radius, MEDIAN_NORTH_POSITION + radius
-            )
-        )
+        & (df.ant_y.between(MEDIAN_NORTH_POSITION - radius, MEDIAN_NORTH_POSITION + radius))
         & (df.ant_z.between(MEDIAN_UP_POSITION - radius, MEDIAN_UP_POSITION + radius))
     )
     df_filtered = df[position_filters]
@@ -523,9 +504,7 @@ def main(
         gps_data = prepare_kinematic_data(kin_positions)
 
     if filter_radius > 0:
-        positions_data_copy = filter_spatial_outliers(
-            positions_data_copy, radius=filter_radius
-        )
+        positions_data_copy = filter_spatial_outliers(positions_data_copy, radius=filter_radius)
         gps_data = filter_spatial_outliers(gps_data, radius=filter_radius)
 
     df_all = combine_data(positions_data_copy, gps_data)
@@ -550,9 +529,7 @@ def main(
     logger.loginfo("----Results vs Original Positions----")
     analyze_offsets(merged_positions)
 
-    shotdata_updated = update_shotdata_with_smoothed_positions(
-        shotdata, smoothed_results
-    )
+    shotdata_updated = update_shotdata_with_smoothed_positions(shotdata, smoothed_results)
 
     return shotdata_updated
 
@@ -594,9 +571,7 @@ def merge_shotdata_kinposition(
         kin_position_df = kin_position.read_df(start=date)
 
         try:
-            position_df = (
-                position_data.read_df(start=date) if position_data is not None else None
-            )
+            position_df = position_data.read_df(start=date) if position_data is not None else None
         except Exception as e:
             logger.loginfo(
                 f"Error reading position data for date {str(date)}: {e}. Proceeding without position data."
@@ -732,9 +707,7 @@ def interpolate_enu(
             for j in range(3):
                 gp = GaussianProcessRegressor(kernel=kernel)
                 gpr = gp.fit(X_train[ind], Y_train[ind, j])
-                y_mean, y_std = gpr.predict(
-                    tenu_r[idx, 0].reshape(-1, 1), return_std=True
-                )
+                y_mean, y_std = gpr.predict(tenu_r[idx, 0].reshape(-1, 1), return_std=True)
                 enu_r_sig[idx, j] = y_std
                 tenu_r[idx, j + 1] = y_mean
 
@@ -767,9 +740,7 @@ def interpolate_enu_kernelridge(
     logger.loginfo("Interpolating ENU values using Kernel Ridge Regression")
     # First, we need to find the indices of tenu_l that are within the lengthscale of tenu_r
     # We will use a KDTree to find the indices efficiently
-    KIN_POSITION_DATA_TREE = KDTree(
-        kin_position_data[:, 0].astype(float).reshape(-1, 1)
-    )
+    KIN_POSITION_DATA_TREE = KDTree(kin_position_data[:, 0].astype(float).reshape(-1, 1))
 
     shotdata_near_kin_position_count = KIN_POSITION_DATA_TREE.query_radius(
         shot_data[:, 0].astype(float).reshape(-1, 1),
@@ -797,9 +768,7 @@ def interpolate_enu_kernelridge(
         logger.loginfo("No points to update, returning original tenu_r")
         return shot_data
 
-    scaler = StandardScaler(
-        with_std=False
-    )  # we do not want to scale the standard deviation
+    scaler = StandardScaler(with_std=False)  # we do not want to scale the standard deviation
     scaler.fit(kin_position_data[kin_position_training_data_inds, :])
 
     XY_train = scaler.transform(
@@ -830,14 +799,12 @@ def interpolate_enu_kernelridge(
     # and the first column being the timestamps
 
     updated_shotdata_scaled_merged = np.vstack(
-        
-            (
-                X_predict.T,
-                updated_shotdata_scaled[:, 0][:, np.newaxis].T,
-                updated_shotdata_scaled[:, 1][:, np.newaxis].T,
-                updated_shotdata_scaled[:, 2][:, np.newaxis].T,
-            )
-        
+        (
+            X_predict.T,
+            updated_shotdata_scaled[:, 0][:, np.newaxis].T,
+            updated_shotdata_scaled[:, 1][:, np.newaxis].T,
+            updated_shotdata_scaled[:, 2][:, np.newaxis].T,
+        )
     ).T
     updated_shotdata = scaler.inverse_transform(updated_shotdata_scaled_merged)
     # compute the offset between the predicted values and the original values
@@ -862,9 +829,7 @@ def interpolate_enu_kernelridge(
     #     tenu_r = np.vstack((tenu_r[to_update_filter], tenu_r[~to_update_filter]))
     # else:
     #     tenu_r = tenu_r[to_update_filter]
-    logger.loginfo(
-        f"Interpolated {updated_shotdata.shape[0]} points using Kernel Ridge Regression"
-    )
+    logger.loginfo(f"Interpolated {updated_shotdata.shape[0]} points using Kernel Ridge Regression")
     logger.loginfo(f"Returning {shot_data.shape[0]} points")
 
     # # sort the tenu_r array by the first column (time)
@@ -921,17 +886,11 @@ def interpolate_enu_radius_regression(
     # Get offsets between predicted and original values
     offset_ping = np.abs(pred_ping - XY_predict_ping[:, 1:])
     offset_return = np.abs(pred_return - XY_predict_return[:, 1:])
-    logger.loginfo(
-        f"Max offset for ping: {offset_ping.max()}, return: {offset_return.max()}"
-    )
+    logger.loginfo(f"Max offset for ping: {offset_ping.max()}, return: {offset_return.max()}")
 
     # update isUpdated flag
-    isUpdated_1 = np.logical_or(
-        isUpdated, np.any((offset_ping > 1e-3), axis=1)[:, np.newaxis]
-    )
-    isUpdated_2 = np.logical_or(
-        isUpdated_1, np.any((offset_return > 1e-3), axis=1)[:, np.newaxis]
-    )
+    isUpdated_1 = np.logical_or(isUpdated, np.any((offset_ping > 1e-3), axis=1)[:, np.newaxis])
+    isUpdated_2 = np.logical_or(isUpdated_1, np.any((offset_return > 1e-3), axis=1)[:, np.newaxis])
     percentage_updated = (np.sum(isUpdated_2) / shotdata_df.shape[0]) * 100
     shotdata_df["isUpdated"] = isUpdated_2
     shotdata_df[["east0", "north0", "up0"]] = pred_ping

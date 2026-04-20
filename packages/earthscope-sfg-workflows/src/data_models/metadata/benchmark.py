@@ -51,9 +51,7 @@ class TAT(AttributeUpdater, BaseModel):
 class Transponder(AttributeUpdater, BaseModel):
     # Required
     address: str = Field(..., description="The address of the transponder")
-    tat: list[TAT] = Field(
-        ..., description="The turn around time (TAT) of the transponder"
-    )
+    tat: list[TAT] = Field(..., description="The turn around time (TAT) of the transponder")
     start: datetime | None = Field(
         default=None,
         description="The start date of the transponder",
@@ -67,9 +65,7 @@ class Transponder(AttributeUpdater, BaseModel):
         gt=datetime(1901, 1, 1),
     )  # TODO Check if this is works (maybe don't need to check if end is after start)
     uid: str | None = Field(default=None, description="The UID of the transponder")
-    model: str | None = Field(
-        default=None, description="The model of the transponder"
-    )
+    model: str | None = Field(default=None, description="The model of the transponder")
     serialNumber: str | None = Field(
         default=None, description="The serial number of the transponder"
     )

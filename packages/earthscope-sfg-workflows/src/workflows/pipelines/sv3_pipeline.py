@@ -5,9 +5,6 @@ import sys
 from multiprocessing import Pool
 from pathlib import Path
 
-from pride_ppp import PrideProcessor, ProcessingMode, kin_to_kin_position_df, rinex_get_time_range
-from tqdm.auto import tqdm
-
 from earthscope_sfg.logging import ProcessLogger, change_all_logger_dirs
 from earthscope_sfg.novatel_tools import novatel_binary_operations as novb_ops
 from earthscope_sfg.novatel_tools.novatel_to_rinex_operations import tile2rinex
@@ -23,6 +20,8 @@ from earthscope_sfg.tiledb_schemas import (
     TDBKinPositionArray,
     TDBShotDataArray,
 )
+from pride_ppp import PrideProcessor, ProcessingMode, kin_to_kin_position_df, rinex_get_time_range
+from tqdm.auto import tqdm
 
 from ...config.workspace import Workspace
 
@@ -177,18 +176,10 @@ class SV3Pipeline(WorkflowABC):
 
         # Initialize TileDB array objects to None
         # These will be created when set_network_station_campaign() is called
-        self.shotDataPreTDB: TDBShotDataArray = (
-            None  # Preliminary shotdata (before refinement)
-        )
-        self.kinPositionTDB: TDBKinPositionArray = (
-            None  # High-precision kinematic positions
-        )
-        self.imuPositionTDB: TDBIMUPositionArray = (
-            None  # IMU positions from Novatel 000
-        )
-        self.shotDataFinalTDB: TDBShotDataArray = (
-            None  # Final shotdata (after refinement)
-        )
+        self.shotDataPreTDB: TDBShotDataArray = None  # Preliminary shotdata (before refinement)
+        self.kinPositionTDB: TDBKinPositionArray = None  # High-precision kinematic positions
+        self.imuPositionTDB: TDBIMUPositionArray = None  # IMU positions from Novatel 000
+        self.shotDataFinalTDB: TDBShotDataArray = None  # Final shotdata (after refinement)
 
     def set_network_station_campaign(
         self,
@@ -231,9 +222,7 @@ class SV3Pipeline(WorkflowABC):
         super().set_network_station_campaign(network_id, station_id, campaign_id)
 
         # Make sure there are files to process
-        dtype_counts = self.asset_catalog.get_dtype_counts(
-            network_id, station_id, campaign_id
-        )
+        dtype_counts = self.asset_catalog.get_dtype_counts(network_id, station_id, campaign_id)
         if dtype_counts == {}:
             message = f"No local files found for {network_id}/{station_id}/{campaign_id}. Ensure data is ingested before processing."
             ProcessLogger.logerr(message)
@@ -281,12 +270,8 @@ class SV3Pipeline(WorkflowABC):
         """
 
         # Get the RINEX metadata
-        rinex_metav2 = (
-            self.current_campaign_dir.metadata_directory / "rinex_metav2.json"
-        )
-        rinex_metav1 = (
-            self.current_campaign_dir.metadata_directory / "rinex_metav1.json"
-        )
+        rinex_metav2 = self.current_campaign_dir.metadata_directory / "rinex_metav2.json"
+        rinex_metav1 = self.current_campaign_dir.metadata_directory / "rinex_metav1.json"
         if not rinex_metav2.exists():
             with open(rinex_metav2, "w") as f:
                 json.dump(get_metadatav2(site=self.current_station_name), f)
@@ -342,9 +327,8 @@ class SV3Pipeline(WorkflowABC):
                 "child_type": AssetType.GNSSOBSTDB.value,
                 "parent_ids": [x.id for x in novatel_770_entries],
             }
-            if (
-                self.config.novatel_config.override
-                or not self.asset_catalog.is_merge_complete(**merge_signature)
+            if self.config.novatel_config.override or not self.asset_catalog.is_merge_complete(
+                **merge_signature
             ):
                 try:
                     novb_ops.novatel_770_2tile(
@@ -358,9 +342,7 @@ class SV3Pipeline(WorkflowABC):
                     ProcessLogger.loginfo(response)
                 except Exception as e:
                     if (
-                        message := ProcessLogger.logerr(
-                            f"Error processing Novatel 770 files: {e}"
-                        )
+                        message := ProcessLogger.logerr(f"Error processing Novatel 770 files: {e}")
                     ) is not None:
                         print(message)
                     sys.exit(1)
@@ -397,9 +379,8 @@ class SV3Pipeline(WorkflowABC):
                 "child_type": AssetType.GNSSOBSTDB.value,
                 "parent_ids": [x.id for x in novatel_000_entries],
             }
-            if (
-                self.config.novatel_config.override
-                or not self.asset_catalog.is_merge_complete(**merge_signature)
+            if self.config.novatel_config.override or not self.asset_catalog.is_merge_complete(
+                **merge_signature
             ):
                 try:
                     novb_ops.novatel_000_2tile(
@@ -415,9 +396,7 @@ class SV3Pipeline(WorkflowABC):
                     )
                 except Exception as e:
                     if (
-                        message := ProcessLogger.logerr(
-                            f"Error processing Novatel 000 files: {e}"
-                        )
+                        message := ProcessLogger.logerr(f"Error processing Novatel 000 files: {e}")
                     ) is not None:
                         print(message)
                     sys.exit(1)
@@ -478,9 +457,8 @@ class SV3Pipeline(WorkflowABC):
             "parent_ids": [parent_ids],
         }
 
-        if (
-            self.config.rinex_config.override
-            or not self.asset_catalog.is_merge_complete(**merge_signature)
+        if self.config.rinex_config.override or not self.asset_catalog.is_merge_complete(
+            **merge_signature
         ):
             """
             Process GNSS observation data into RINEX format.
@@ -512,9 +490,7 @@ class SV3Pipeline(WorkflowABC):
                 uploadCount = 0
                 for rinex_path in rinex_paths:
                     # Get the start and end time from the RINEX file for metadata
-                    rinex_time_start, rinex_time_end = rinex_get_time_range(
-                        rinex_path
-                    )
+                    rinex_time_start, rinex_time_end = rinex_get_time_range(rinex_path)
                     rinex_entry = AssetEntry(
                         local_path=rinex_path,
                         network=self.current_network_name,
@@ -543,9 +519,7 @@ class SV3Pipeline(WorkflowABC):
 
             except Exception as e:
                 if (
-                    message := ProcessLogger.logerr(
-                        f"Error generating RINEX files: {e}"
-                    )
+                    message := ProcessLogger.logerr(f"Error generating RINEX files: {e}")
                 ) is not None:
                     print(message)
 
@@ -583,15 +557,13 @@ class SV3Pipeline(WorkflowABC):
         intermediateDir = self.current_campaign_dir.intermediate
 
         # Get the Rinex files to process
-        rinex_entries: list[AssetEntry] = (
-            self.asset_catalog.get_single_entries_to_process(
-                network=self.current_network_name,
-                station=self.current_station_name,
-                campaign=self.current_campaign_name,
-                parent_type=AssetType.RINEX2,
-                child_type=AssetType.KIN,
-                override=self.config.pride_config.override,
-            )
+        rinex_entries: list[AssetEntry] = self.asset_catalog.get_single_entries_to_process(
+            network=self.current_network_name,
+            station=self.current_station_name,
+            campaign=self.current_campaign_name,
+            parent_type=AssetType.RINEX2,
+            child_type=AssetType.KIN,
+            override=self.config.pride_config.override,
         )
         if not rinex_entries:
             response = f"No Rinex Files Found to Process for {self.current_network_name} {self.current_station_name} {self.current_campaign_name}"
@@ -600,9 +572,7 @@ class SV3Pipeline(WorkflowABC):
 
         # Only keep entries with a local path (should be all, in case only using a version of rinex (1hz vs 10hz)
         rinex_entries = [
-            rinex_entry
-            for rinex_entry in rinex_entries
-            if rinex_entry.local_path is not None
+            rinex_entry for rinex_entry in rinex_entries if rinex_entry.local_path is not None
         ]
         if not rinex_entries:
             response = (
@@ -623,7 +593,7 @@ class SV3Pipeline(WorkflowABC):
         processor = PrideProcessor(
             pride_dir=prideDir,
             output_dir=intermediateDir,
-            mode = ProcessingMode.DEFAULT,
+            mode=ProcessingMode.DEFAULT,
         )
 
         # Build the partial function for multi processing Rinex to KIN
@@ -633,14 +603,21 @@ class SV3Pipeline(WorkflowABC):
         res_count = 0
         uploadCount = 0
 
-        for result in tqdm(processor.process_batch(
-            [x.local_path for x in rinex_entries],
-            max_workers=self.config.pride_config.n_processes,
-            override=self.config.pride_config.override), desc=f"Processing Rinex Files with PRIDE-PPPAR for {self.current_network_name} {self.current_station_name} {self.current_campaign_name} using {self.config.pride_config.n_processes} workers",total=len(rinex_entries)):
+        for result in tqdm(
+            processor.process_batch(
+                [x.local_path for x in rinex_entries],
+                max_workers=self.config.pride_config.n_processes,
+                override=self.config.pride_config.override,
+            ),
+            desc=f"Processing Rinex Files with PRIDE-PPPAR for {self.current_network_name} {self.current_station_name} {self.current_campaign_name} using {self.config.pride_config.n_processes} workers",
+            total=len(rinex_entries),
+        ):
             ProcessLogger.loginfo(f"Completed PRIDE-PPPAR processing for {result.rinex_path.name}")
             rinex_entry = rinex_path_entry_map.get(result.rinex_path)
             if result.kin_path is not None:
-                ProcessLogger.loginfo(f"Generated KIN file for {result.rinex_path.name} at {result.kin_path}")
+                ProcessLogger.loginfo(
+                    f"Generated KIN file for {result.rinex_path.name} at {result.kin_path}"
+                )
                 kin_entry = AssetEntry(
                     local_path=result.kin_path,
                     network=self.current_network_name,
@@ -674,8 +651,6 @@ class SV3Pipeline(WorkflowABC):
                 if self.asset_catalog.add_or_update(resfile):
                     uploadCount += 1
 
-
-
         response = f"Generated {kin_count} Kin Files and {res_count} Residual Files From {len(rinex_entries)} Rinex Files, Added {uploadCount} to the Catalog"
         ProcessLogger.loginfo(response)
 
@@ -694,14 +669,12 @@ class SV3Pipeline(WorkflowABC):
             f"Looking for Kin Files to Process for {self.current_network_name} {self.current_station_name} {self.current_campaign_name}"
         )
 
-        kin_entries: list[AssetEntry] = (
-            self.asset_catalog.get_single_entries_to_process(
-                network=self.current_network_name,
-                station=self.current_station_name,
-                campaign=self.current_campaign_name,
-                parent_type=AssetType.KIN,
-                override=self.config.rinex_config.override,
-            )
+        kin_entries: list[AssetEntry] = self.asset_catalog.get_single_entries_to_process(
+            network=self.current_network_name,
+            station=self.current_station_name,
+            campaign=self.current_campaign_name,
+            parent_type=AssetType.KIN,
+            override=self.config.rinex_config.override,
         )
         self.asset_catalog.get_single_entries_to_process(
             network=self.current_network_name,
@@ -715,9 +688,7 @@ class SV3Pipeline(WorkflowABC):
             ProcessLogger.loginfo(message)
             raise NoKinFound(message)
 
-        ProcessLogger.loginfo(
-            f"Found {len(kin_entries)} Kin Files to Process: processing"
-        )
+        ProcessLogger.loginfo(f"Found {len(kin_entries)} Kin Files to Process: processing")
 
         # Process KIN files to generate kinematic position dataframes
         processed_count = 0
@@ -751,14 +722,12 @@ class SV3Pipeline(WorkflowABC):
         """
 
         # 1. Get the DFOP00 files to process
-        dfop00_entries: list[AssetEntry] = (
-            self.asset_catalog.get_single_entries_to_process(
-                network=self.current_network_name,
-                station=self.current_station_name,
-                campaign=self.current_campaign_name,
-                parent_type=AssetType.DFOP00,
-                override=self.config.dfop00_config.override,
-            )
+        dfop00_entries: list[AssetEntry] = self.asset_catalog.get_single_entries_to_process(
+            network=self.current_network_name,
+            station=self.current_station_name,
+            campaign=self.current_campaign_name,
+            parent_type=AssetType.DFOP00,
+            override=self.config.dfop00_config.override,
         )
         if not dfop00_entries:
             response = f"No DFOP00 Files Found to Process for {self.current_network_name} {self.current_station_name} {self.current_campaign_name}"
@@ -771,9 +740,7 @@ class SV3Pipeline(WorkflowABC):
 
         # 2. Process DFOP00 files to generate shotdata dataframes
         with Pool() as pool:
-            results = pool.imap(
-                sv3_ops.dfop00_to_shotdata, [x.local_path for x in dfop00_entries]
-            )
+            results = pool.imap(sv3_ops.dfop00_to_shotdata, [x.local_path for x in dfop00_entries])
             for shotdata_df, dfo_entry in tqdm(
                 zip(results, dfop00_entries, strict=False),
                 total=len(dfop00_entries),
@@ -893,9 +860,7 @@ class SV3Pipeline(WorkflowABC):
                         ProcessLogger.loginfo(
                             f"Processed SVP data from CTD file {ctd_entry.local_path} to dataframe with {function.__name__}"
                         )
-                        ProcessLogger.loginfo(
-                            f"Saved SVP dataframe to {str(svp_df_destination)}"
-                        )
+                        ProcessLogger.loginfo(f"Saved SVP dataframe to {str(svp_df_destination)}")
                         return
                 except Exception as e:
                     ProcessLogger.logerr(

@@ -26,12 +26,8 @@ class StationData(BaseModel):
     gnssobsdata_secondary: str = Field(
         default=None, description="The station's secondary gnss observables TileDB URI"
     )
-    imupositiondata: str = Field(
-        default=None, description="The station's position data TileDB URI"
-    )
-    acousticdata: str = Field(
-        default=None, description="The station's acoustic data TileDB URI"
-    )
+    imupositiondata: str = Field(default=None, description="The station's position data TileDB URI")
+    acousticdata: str = Field(default=None, description="The station's acoustic data TileDB URI")
 
 
 class NetworkData(BaseModel):
@@ -48,9 +44,7 @@ class MetaDataCatalog(BaseModel):
     type: CatalogType = Field(description="Catalog Type (meta-data or data)")
 
     @classmethod
-    def load_data(
-        cls, path: str | Path | dict, name=None, info=None
-    ) -> "MetaDataCatalog":
+    def load_data(cls, path: str | Path | dict, name=None, info=None) -> "MetaDataCatalog":
         """Load a data catalog from a path or dictionary.
 
         Parameters
@@ -90,8 +84,7 @@ class MetaDataCatalog(BaseModel):
                     },
                 )
                 for network_name, station_dict in raw_data.items()
-                if network_name not in ["name", "info"]
-                and isinstance(station_dict, dict)
+                if network_name not in ["name", "info"] and isinstance(station_dict, dict)
             },
         )
 
@@ -142,19 +135,13 @@ class MetaDataCatalog(BaseModel):
                         # Load the vessel json
                         campaign.vessel = vessels[campaign.vesselCode]
                     except KeyError:
-                        print(
-                            f"Unable to load vessel metadata for {station.name} {campaign.name}"
-                        )
+                        print(f"Unable to load vessel metadata for {station.name} {campaign.name}")
                         campaign.vessel = None
 
                 stations[station.stem] = built_site
 
-            network_data[network.stem] = NetworkData(
-                name=network.stem, stations=stations
-            )
-        return cls(
-            type=CatalogType.MetaData, name=name, info=info, networks=network_data
-        )
+            network_data[network.stem] = NetworkData(name=network.stem, stations=stations)
+        return cls(type=CatalogType.MetaData, name=name, info=info, networks=network_data)
 
     def show(self):
         """
@@ -237,9 +224,7 @@ class MetaDataCatalog(BaseModel):
 
                 for station_name, station in network.stations.items():
                     if isinstance(station, StationData):
-                        to_show[network_name][station_name] = {
-                            "shotdata": station.shotdata
-                        }
+                        to_show[network_name][station_name] = {"shotdata": station.shotdata}
 
         print(json.dumps(to_show, indent=2))
 

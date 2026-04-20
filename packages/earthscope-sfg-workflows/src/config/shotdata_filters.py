@@ -19,6 +19,4 @@ CENTER_DRIVE_FILTER_CONFIG = FilterConfig(
     max_distance_from_center=MaxDistFromCenterConfig(max_distance_m=150.0),
 )
 
-CIRCLE_DRIVE_FILTER_CONFIG = FilterConfig(
-    ping_replies=PingRepliesFilterConfig(min_replies=1)
-)
+CIRCLE_DRIVE_FILTER_CONFIG = FilterConfig(ping_replies=PingRepliesFilterConfig(min_replies=1))

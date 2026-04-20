@@ -11,12 +11,11 @@ from enum import StrEnum
 from pathlib import Path
 
 import yaml
-from pydantic import BaseModel, Field, field_serializer, field_validator
-
 from earthscope_sfg_workflows.config.workspace import Workspace, WorkspaceType
 from earthscope_sfg_workflows.modeling.garpos_tools.schemas import InversionParams
 from earthscope_sfg_workflows.prefiltering.schemas import FilterConfig
 from earthscope_sfg_workflows.workflows.pipelines.config import SV3PipelineConfig
+from pydantic import BaseModel, Field, field_serializer, field_validator
 
 
 class ManifestWorkspaceConfig(BaseModel):
@@ -103,12 +102,8 @@ class PipelinePreprocessJob(BaseModel):
     network: str = Field(..., title="Network Name")
     station: str = Field(..., title="Station Name")
     campaign: str = Field(..., title="Campaign Name")
-    job_type: PreprocessJobType = Field(
-        PreprocessJobType.ALL, title="Preprocessing Job Type"
-    )
-    global_config: SV3PipelineConfig | None = Field(
-        ..., title="Pipeline Configuration"
-    )
+    job_type: PreprocessJobType = Field(PreprocessJobType.ALL, title="Preprocessing Job Type")
+    global_config: SV3PipelineConfig | None = Field(..., title="Pipeline Configuration")
     secondary_config: dict | None = Field(
         default_factory=dict, title="Secondary Configuration Overrides"
     )
@@ -330,9 +325,7 @@ class PipelineManifest(BaseModel):
                         )
                     case PipelineJobType.DOWNLOAD:
                         download_jobs.append(
-                            ArchiveDownloadJob(
-                                network=network, station=station, campaign=campaign
-                            )
+                            ArchiveDownloadJob(network=network, station=station, campaign=campaign)
                         )
                     case PipelineJobType.GARPOS:
                         garpos_jobs.append(

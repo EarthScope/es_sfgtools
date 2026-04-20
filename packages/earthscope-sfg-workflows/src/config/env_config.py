@@ -83,9 +83,7 @@ class Environment:
 
         s3_sync_bucket_str = os.environ.get(S3_SYNC_BUCKET_KEY)
         if s3_sync_bucket_str is None:
-            warnings.warn(
-                f"Environment variable {S3_SYNC_BUCKET_KEY} is not set.", stacklevel=2
-            )
+            warnings.warn(f"Environment variable {S3_SYNC_BUCKET_KEY} is not set.", stacklevel=2)
         else:
             cls._s3_sync_bucket = s3_sync_bucket_str
 

@@ -137,9 +137,7 @@ def _novatel_2rinex_wrapper(
             with open(metadata_path) as f:
                 metadata_dict = json.load(f)
         else:
-            raise ValueError(
-                f"Metadata must be a dict or path to JSON file, got {type(metadata)}"
-            )
+            raise ValueError(f"Metadata must be a dict or path to JSON file, got {type(metadata)}")
 
         site = metadata_dict.get("marker_name", "SIT1")
 
@@ -179,9 +177,7 @@ def _novatel_2rinex_wrapper(
 
         parse_cli_logs(result, logger)
 
-        rinex_file_paths = [
-            x for x in workdir.rglob(f"*{site}*") if x.suffix != ".json"
-        ]
+        rinex_file_paths = [x for x in workdir.rglob(f"*{site}*") if x.suffix != ".json"]
         logger.loginfo(
             f"Converted {len(file_paths)} input files to {len(rinex_file_paths)} Daily RINEX files"
         )
@@ -199,9 +195,7 @@ def _novatel_2rinex_wrapper(
             outpaths.append(new_rinex_path)
 
     if not outpaths:
-        warnings.warn(
-            f"No RINEX files were generated from files: {file_paths}", stacklevel=2
-        )
+        warnings.warn(f"No RINEX files were generated from files: {file_paths}", stacklevel=2)
     return outpaths
 
 
@@ -277,9 +271,7 @@ def novatel_2rinex(
             case ".raw":
                 raw_files.append(file)
             case _:
-                raise ValueError(
-                    f"Unsupported file extension: {suffix} for file {file}"
-                )
+                raise ValueError(f"Unsupported file extension: {suffix} for file {file}")
 
     all_rinex_paths: list[Path] = []
 

@@ -65,9 +65,7 @@ def qcjson_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
 
     try:
         interrogation_event = NovatelInterrogationEvent(**interrogation_raw)
-        interrogation_parsed = novatelInterrogation_to_garpos_interrogation(
-            interrogation_event
-        )
+        interrogation_parsed = novatelInterrogation_to_garpos_interrogation(interrogation_event)
     except Exception as e:  # noqa: BLE001
         logger.logerr(f"Failed to parse interrogation block in {path}: {e}")
         return None
@@ -131,9 +129,7 @@ def batch_qc_by_day(
 
         if df.empty:
             continue
-        df["date"] = pd.to_datetime(
-            df[date_column].apply(lambda x: x * 1e9), utc=True
-        ).dt.date
+        df["date"] = pd.to_datetime(df[date_column].apply(lambda x: x * 1e9), utc=True).dt.date
 
         for date, group in df.groupby("date"):
             batched_data[str(date)].append(group.drop(columns=["date"]))

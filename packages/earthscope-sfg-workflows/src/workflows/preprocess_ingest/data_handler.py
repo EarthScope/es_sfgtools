@@ -8,8 +8,6 @@ import warnings
 from pathlib import Path
 
 import boto3
-from tqdm.auto import tqdm
-
 from earthscope_sfg.logging import ProcessLogger as logger
 from earthscope_sfg.logging import change_all_logger_dirs
 from earthscope_sfg.tiledb_schemas import (
@@ -19,6 +17,7 @@ from earthscope_sfg.tiledb_schemas import (
     TDBKinPositionArray,
     TDBShotDataArray,
 )
+from tqdm.auto import tqdm
 
 from ...config.file_config import (
     DEFAULT_FILE_TYPES_TO_DOWNLOAD,
@@ -72,9 +71,7 @@ class DataHandler(WorkflowABC):
         self.gnss_obs_secondary_tdb: TDBGNSSObsArray | None = None
         self.s3_directory_handler: Workspace | None = None
 
-    def _build_station_dir_structure(
-        self, network_id: str, station_id: str, campaign_id: str
-    ):
+    def _build_station_dir_structure(self, network_id: str, station_id: str, campaign_id: str):
         """
         Constructs the necessary directory structure for a given station and campaign.
 
@@ -96,9 +93,7 @@ class DataHandler(WorkflowABC):
         change_all_logger_dirs(log_dir)
         os.environ["LOG_FILE_PATH"] = str(log_dir)
         # Log to the new log
-        logger.loginfo(
-            f"Built directory structure for {network_id} {station_id} {campaign_id}"
-        )
+        logger.loginfo(f"Built directory structure for {network_id} {station_id} {campaign_id}")
 
     def _ensure_tiledb_array(self, array_attr_name: str, array_class, uri_path):
         """
@@ -131,28 +126,20 @@ class DataHandler(WorkflowABC):
             tiledb_dir.to_s3()
 
         # Use standardized pattern for all TileDB arrays
-        self._ensure_tiledb_array(
-            "acoustic_tdb", TDBAcousticArray, tiledb_dir.acoustic_data
-        )
+        self._ensure_tiledb_array("acoustic_tdb", TDBAcousticArray, tiledb_dir.acoustic_data)
         self._ensure_tiledb_array(
             "kin_position_tdb", TDBKinPositionArray, tiledb_dir.kin_position_data
         )
         self._ensure_tiledb_array(
             "imu_position_tdb", TDBIMUPositionArray, tiledb_dir.imu_position_data
         )
-        self._ensure_tiledb_array(
-            "shotdata_tdb", TDBShotDataArray, tiledb_dir.shot_data
-        )
+        self._ensure_tiledb_array("shotdata_tdb", TDBShotDataArray, tiledb_dir.shot_data)
 
         # Use a pre-array for dfo processing, self.shotdata_tdb is where we store the updated version
-        self._ensure_tiledb_array(
-            "shotdata_tdb_pre", TDBShotDataArray, tiledb_dir.shot_data_pre
-        )
+        self._ensure_tiledb_array("shotdata_tdb_pre", TDBShotDataArray, tiledb_dir.shot_data_pre)
 
         # Primary GNSS observables (10hz NOV770 collected on USB3 for SV3, 5hz bcnovatel for SV2)
-        self._ensure_tiledb_array(
-            "gnss_obs_tdb", TDBGNSSObsArray, tiledb_dir.gnss_obs_data
-        )
+        self._ensure_tiledb_array("gnss_obs_tdb", TDBGNSSObsArray, tiledb_dir.gnss_obs_data)
 
         # Secondary GNSS observables (5hz NOV000 collected on USB2 for SV3)
         self._ensure_tiledb_array(
@@ -161,9 +148,7 @@ class DataHandler(WorkflowABC):
             tiledb_dir.gnss_obs_data_secondary,
         )
 
-        logger.loginfo(
-            f"Consolidating existing TileDB arrays for {self.current_station_name}"
-        )
+        logger.loginfo(f"Consolidating existing TileDB arrays for {self.current_station_name}")
         self.acoustic_tdb.consolidate()
         self.kin_position_tdb.consolidate()
         self.imu_position_tdb.consolidate()
@@ -203,9 +188,7 @@ class DataHandler(WorkflowABC):
         if self.workspace.builds_tiledb_locally:
             self._build_tileDB_arrays()
 
-        logger.loginfo(
-            f"Changed working station to {network_id} {station_id} {campaign_id}"
-        )
+        logger.loginfo(f"Changed working station to {network_id} {station_id} {campaign_id}")
 
     def set_network_station_campaign_with_metadata(
         self,
@@ -236,9 +219,7 @@ class DataHandler(WorkflowABC):
 
         # Then load metadata if provided or if none exists
         if site_metadata is not None or self.current_station_metadata is None:
-            self.current_station_metadata = self.get_site_metadata(
-                site_metadata=site_metadata
-            )
+            self.current_station_metadata = self.get_site_metadata(site_metadata=site_metadata)
 
     @validate_network_station_campaign
     def get_dtype_counts(self):
@@ -269,9 +250,7 @@ class DataHandler(WorkflowABC):
 
         files: list[Path] = scrape_directory_local(directory_path)
         if not isinstance(files, list) or len(files) == 0:
-            logger.logerr(
-                f"No files found in {directory_path}, ensure the directory is correct."
-            )
+            logger.logerr(f"No files found in {directory_path}, ensure the directory is correct.")
             return
 
         logger.loginfo(f"Found {len(files)} files in {directory_path}")
@@ -386,9 +365,7 @@ class DataHandler(WorkflowABC):
                 file_data_list.append(file_data)
             else:
                 # Count the file as already existing in the catalog
-                logger.logdebug(
-                    f"File {file} already exists in the catalog and has a local path"
-                )
+                logger.logdebug(f"File {file} already exists in the catalog and has a local path")
 
         # Add each file (AssetEntry) to the catalog
         file_count = len(file_data_list)
@@ -400,9 +377,7 @@ class DataHandler(WorkflowABC):
         already_existed_in_catalog = file_count - uploadCount
 
         logger.loginfo(f"{len(not_recognized)} files not recognized and skipped")
-        logger.loginfo(
-            f"{already_existed_in_catalog} files already exist in the catalog"
-        )
+        logger.loginfo(f"{already_existed_in_catalog} files already exist in the catalog")
         logger.loginfo(f"Added {uploadCount} out of {file_count} files to the catalog")
 
     def download_data(
@@ -471,30 +446,29 @@ class DataHandler(WorkflowABC):
             else:
                 assets_to_download = []
                 for file_asset in assets:
-                    if (
-                        file_asset.local_path is None
-                        or not Path(file_asset.local_path).exists()
-                    ):
+                    if file_asset.local_path is None or not Path(file_asset.local_path).exists():
                         assets_to_download.append(file_asset)
                     else:
                         # Check to see if the file exists locally anyway
                         if not Path(file_asset.local_path).exists():
                             assets_to_download.append(file_asset)
 
-            # Distinguish between 1Hz and higher rate RINEX files if the file type is RINEX 
+            # Distinguish between 1Hz and higher rate RINEX files if the file type is RINEX
             if type.value == AssetType.RINEX2.value and rinex_1Hz:
-                logger.loginfo("Filtering for 1Hz RINEX files based on file name, set rinex_1Hz to False to download higher rate RINEX files instead")
+                logger.loginfo(
+                    "Filtering for 1Hz RINEX files based on file name, set rinex_1Hz to False to download higher rate RINEX files instead"
+                )
                 # If the file type is RINEX and rinex_1Hz is True, filter for 1Hz RINEX files
                 assets_to_download = [
-                    asset for asset in assets_to_download
-                    if "1hz" in asset.remote_path.lower()
+                    asset for asset in assets_to_download if "1hz" in asset.remote_path.lower()
                 ]
             elif type.value == AssetType.RINEX2.value and not rinex_1Hz:
-                logger.loginfo("Filtering for higher rate RINEX files based on file name, set rinex_1Hz to True to download 1Hz RINEX files instead")
+                logger.loginfo(
+                    "Filtering for higher rate RINEX files based on file name, set rinex_1Hz to True to download 1Hz RINEX files instead"
+                )
                 # If the file type is RINEX and rinex_1Hz is False, filter for non-1Hz RINEX files
                 assets_to_download = [
-                    asset for asset in assets_to_download
-                    if "1hz" not in asset.remote_path.lower()
+                    asset for asset in assets_to_download if "1hz" not in asset.remote_path.lower()
                 ]
             else:
                 # If the file type is not RINEX, do not filter
@@ -507,14 +481,10 @@ class DataHandler(WorkflowABC):
 
             # split the entries into s3 and http
             s3_assets = [
-                file
-                for file in assets_to_download
-                if file.remote_type == REMOTE_TYPE.S3.value
+                file for file in assets_to_download if file.remote_type == REMOTE_TYPE.S3.value
             ]
             http_assets = [
-                file
-                for file in assets_to_download
-                if file.remote_type == REMOTE_TYPE.HTTP.value
+                file for file in assets_to_download if file.remote_type == REMOTE_TYPE.HTTP.value
             ]
 
             # Download Files from either S3 or HTTP
@@ -549,16 +519,18 @@ class DataHandler(WorkflowABC):
                 local_dir = self.current_campaign_dir.raw
 
             s3_entries_processed.append(
-                {"bucket": (bucket := _path.root), 
-                 "prefix": _path.relative_to(bucket), 
-                 "local_dir": local_dir}
+                {
+                    "bucket": (bucket := _path.root),
+                    "prefix": _path.relative_to(bucket),
+                    "local_dir": local_dir,
+                }
             )
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-            local_path_results = executor.map(
-                self._S3_download_file, s3_entries_processed
-            )
-            for local_downloaded_path, file_asset in zip(local_path_results, s3_assets, strict=False):
+            local_path_results = executor.map(self._S3_download_file, s3_entries_processed)
+            for local_downloaded_path, file_asset in zip(
+                local_path_results, s3_assets, strict=False
+            ):
                 if local_downloaded_path is not None:
                     # Update the local path in the AssetEntry
                     file_asset.local_path = str(local_downloaded_path)
@@ -592,9 +564,7 @@ class DataHandler(WorkflowABC):
 
         try:
             logger.logdebug(f"Downloading {prefix} to {local_path}")
-            client.download_file(
-                Bucket=bucket, Key=str(prefix), Filename=str(local_path)
-            )
+            client.download_file(Bucket=bucket, Key=str(prefix), Filename=str(local_path))
             logger.logdebug(f"Downloaded {str(prefix)} to {str(local_path)}")
 
         except Exception as e:
@@ -619,24 +589,22 @@ class DataHandler(WorkflowABC):
             The type of file being downloaded.
         """
 
-        for file_asset in tqdm(
-            http_assets, desc=f"Downloading {file_type.value} files"
-        ):
+        for file_asset in tqdm(http_assets, desc=f"Downloading {file_type.value} files"):
             if file_asset.type.value == AssetType.RINEX2.value:
                 # If the file type is RINEX, download to the intermediate directory for processing, otherwise download to the raw directory
                 local_dir = self.current_campaign_dir.intermediate
             else:
-                local_dir = self.current_campaign_dir.raw 
+                local_dir = self.current_campaign_dir.raw
             if (
-                local_path := self._HTTP_download_file(remote_url=file_asset.remote_path, 
-                                                       local_dir=local_dir)
+                local_path := self._HTTP_download_file(
+                    remote_url=file_asset.remote_path, local_dir=local_dir
+                )
             ) is not None:
                 # Update the local path in the AssetEntry
                 file_asset.local_path = str(local_path)
                 # Update catalog with local path
                 self.asset_catalog.update_local_path(
-                    id=file_asset.id, 
-                    local_path=file_asset.local_path
+                    id=file_asset.id, local_path=file_asset.local_path
                 )
 
     def _HTTP_download_file(self, remote_url: Path, local_dir: Path) -> Path:
@@ -655,8 +623,7 @@ class DataHandler(WorkflowABC):
         """
         try:
             local_path = local_dir / Path(remote_url).name
-            download_file_from_archive(url=remote_url,
-                                       dest_dir=local_path.parent)
+            download_file_from_archive(url=remote_url, dest_dir=local_path.parent)
 
             if not local_path.exists():
                 raise Exception
@@ -685,14 +652,10 @@ class DataHandler(WorkflowABC):
             station=self.current_station_name,
             campaign=self.current_campaign_name,
         )
-        self.add_data_remote(
-            remote_filepaths=remote_filepaths, remote_type=REMOTE_TYPE.HTTP
-        )
+        self.add_data_remote(remote_filepaths=remote_filepaths, remote_type=REMOTE_TYPE.HTTP)
 
     @validate_network_station_campaign
-    def get_site_metadata(
-        self, site_metadata: Site | Path | None = None
-    ) -> Site | None:
+    def get_site_metadata(self, site_metadata: Site | Path | None = None) -> Site | None:
         """
         Loads or validates site metadata for the current station.
 
@@ -713,9 +676,7 @@ class DataHandler(WorkflowABC):
 
         sources = [site_metadata, site_meta_write_dest]
         if site_metadata is None:
-            sources = sources[
-                ::-1
-            ]  # reverse the list to prioritize the station directory file
+            sources = sources[::-1]  # reverse the list to prioritize the station directory file
 
         for source in sources:
             if isinstance(source, str):
@@ -727,9 +688,7 @@ class DataHandler(WorkflowABC):
                 with open(site_meta_write_dest, "w") as f:
                     json.dump(site.model_dump(mode="json"), f, indent=4)
                 site_meta_read_dest = site_meta_write_dest
-                logger.loginfo(
-                    f"Using provided site metadata and wrote to {site_meta_write_dest}"
-                )
+                logger.loginfo(f"Using provided site metadata and wrote to {site_meta_write_dest}")
                 break
 
             elif isinstance(source, Path) and source.exists():
@@ -855,16 +814,12 @@ class DataHandler(WorkflowABC):
                             # Download file if it doesn't exist locally or if overwriting
                             if not local_file_path.exists() or overwrite:
                                 # Ensure local directory structure exists
-                                local_file_path.parent.mkdir(
-                                    parents=True, exist_ok=True
-                                )
+                                local_file_path.parent.mkdir(parents=True, exist_ok=True)
                                 # Download the file from S3 to local storage
                                 file.download_to(local_file_path)
                         except Exception as e:
                             # Log download failures but continue with other files
-                            logger.logerr(
-                                f"Failed to download campaign file {file} to local: {e}"
-                            )
+                            logger.logerr(f"Failed to download campaign file {file} to local: {e}")
 
         # =================================================================
         # CATALOG PERSISTENCE

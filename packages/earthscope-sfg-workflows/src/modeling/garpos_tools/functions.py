@@ -287,9 +287,7 @@ def avg_transponder_position(
     out_pos_llh = GPPositionLLH(
         latitude=avg_pos_llh[0], longitude=avg_pos_llh[1], height=avg_pos_llh[2]
     )
-    out_pos_enu = GPPositionENU(
-        east=avg_pos_enu[0], north=avg_pos_enu[1], up=avg_pos_enu[2]
-    )
+    out_pos_enu = GPPositionENU(east=avg_pos_enu[0], north=avg_pos_enu[1], up=avg_pos_enu[2])
 
     return out_pos_enu, out_pos_llh
 
@@ -415,9 +413,7 @@ def process_garpos_results(results: GarposInput) -> tuple[GarposInput, pd.DataFr
         delta_y = np.mean(np.cos(takeoff) * np.sin(azimuth))
         delta_z = np.mean(np.sin(azimuth))
 
-        transponder.delta_center_position = GPPositionENU(
-            east=delta_x, north=delta_y, up=delta_z
-        )
+        transponder.delta_center_position = GPPositionENU(east=delta_x, north=delta_y, up=delta_z)
     # save updated df
     results_df.to_csv(results.shot_data)
 
@@ -425,9 +421,7 @@ def process_garpos_results(results: GarposInput) -> tuple[GarposInput, pd.DataFr
     return results, results_df
 
 
-def rectify_shotdata(
-    coord_transformer: CoordTransformer, shot_data: pd.DataFrame
-) -> pd.DataFrame:
+def rectify_shotdata(coord_transformer: CoordTransformer, shot_data: pd.DataFrame) -> pd.DataFrame:
     """
     Rectifies the shot data to the site local coordinate system by transforming coordinates and renaming columns.
     This method performs the following operations on the input shot data:

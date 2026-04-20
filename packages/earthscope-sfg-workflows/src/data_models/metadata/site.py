@@ -55,21 +55,15 @@ class ReferenceFrame(AttributeUpdater, BaseModel):
 
 class Site(BaseModel):
     # Required
-    names: list[str] = Field(
-        ..., description="The names of the site, including the 4 character ID"
-    )
+    names: list[str] = Field(..., description="The names of the site, including the 4 character ID")
     networks: list[str] = Field(..., description="A list networks the site is part of")
     timeOrigin: datetime = Field(
         ..., description="The time origin of the site", ge=datetime(1901, 1, 1)
     )
-    localGeoidHeight: float | None = Field(
-        0, description="The local geoid height of the site"
-    )
+    localGeoidHeight: float | None = Field(0, description="The local geoid height of the site")
 
     # Optional
-    arrayCenter: Location | None = Field(
-        default=None, description="The array center of the site"
-    )
+    arrayCenter: Location | None = Field(default=None, description="The array center of the site")
 
     campaigns: list[Campaign] = Field(
         default_factory=list, description="The campaigns associated with the site"
@@ -302,9 +296,7 @@ class Site(BaseModel):
                 print("ERROR: Required survey ID not provided")
 
         else:
-            print(
-                f"ERROR: {sub_component_type} not recognised, please provide a valid type.."
-            )
+            print(f"ERROR: {sub_component_type} not recognised, please provide a valid type..")
             return
 
         if add_new:
@@ -383,9 +375,7 @@ class Site(BaseModel):
 
                     if not sub_component_metadata["id"]:
                         # Generate a new survey ID if not provided
-                        sub_component_metadata["id"] = (
-                            f"{component_name}_{num_of_surveys + 1}"
-                        )
+                        sub_component_metadata["id"] = f"{component_name}_{num_of_surveys + 1}"
 
                     try:
                         new_survey = Survey(**sub_component_metadata)
@@ -422,9 +412,7 @@ class Site(BaseModel):
                                 transponder.extraSensors.append(
                                     sub_component_metadata["extraSensors"]
                                 )
-                                print(
-                                    f"Added sensor to transponder {transponder.address}."
-                                )
+                                print(f"Added sensor to transponder {transponder.address}.")
 
                             elif "batteryVoltage" in sub_component_metadata:
                                 transponder.batteryVoltage.append(

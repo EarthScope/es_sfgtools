@@ -271,9 +271,7 @@ def remove_all_loggers_from_console():
 
 
 def set_all_logger_levels(
-    level: Literal[
-        logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL
-    ],
+    level: Literal[logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL],
 ):  # type: ignore
     """Set the level for all loggers.
 

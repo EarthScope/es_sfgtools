@@ -163,9 +163,7 @@ def novatel_ascii_2rinex(
             f.write(json_object)
         metadata = outpath
 
-    assert isinstance(metadata, (str, Path)), (
-        "Metadata must be a path to a JSON file at this point"
-    )
+    assert isinstance(metadata, (str, Path)), "Metadata must be a path to a JSON file at this point"
 
     with tempfile.TemporaryDirectory(dir="/tmp/") as workdir:
         cmd = [str(binary_path), "-settings", str(metadata)]

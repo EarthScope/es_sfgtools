@@ -55,7 +55,7 @@ class PREPROCESS_DOWNLOAD_TYPES(Enum):
     DFPO00 = "dfop00"
     CTD = "ctd"
     SEABIRD = "svpavg"
-    
+
     @classmethod
     def to_schema(cls):
         """Returns a list of all enum member names."""
@@ -64,19 +64,21 @@ class PREPROCESS_DOWNLOAD_TYPES(Enum):
 
 DEFAULT_FILE_TYPES_TO_DOWNLOAD = [x for x in PREPROCESS_DOWNLOAD_TYPES]
 
+
 class INTERMEDIATE_DOWNLOAD_TYPES(Enum):
-    """ Enumeration for file types that are defaulted for download during intermediate processing."""
+    """Enumeration for file types that are defaulted for download during intermediate processing."""
 
     RINEX2 = "rinex2"
     CTD = "ctd"
-    SEABIRD = "svpavg"   
-    DFPO00 = "dfop00" 
-        
+    SEABIRD = "svpavg"
+    DFPO00 = "dfop00"
+
     @classmethod
     def to_schema(cls):
         """Returns a list of all enum member names."""
         return [x.name for x in cls]
-    
+
+
 DEFAULT_INTERMEDIATE_FILE_TYPES_TO_DOWNLOAD = [x for x in INTERMEDIATE_DOWNLOAD_TYPES]
 
 

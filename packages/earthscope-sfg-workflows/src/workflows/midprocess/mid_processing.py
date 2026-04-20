@@ -9,7 +9,6 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-
 from earthscope_sfg.logging import GarposLogger as logger
 from earthscope_sfg.tiledb_schemas import (
     TDBIMUPositionArray,
@@ -104,9 +103,7 @@ class IntermediateDataProcessor(WorkflowABC):
             self.current_campaign_dir.campaign_metadata,
             "w",
         ) as f:
-            json.dump(
-                self.current_campaign_metadata.model_dump(mode="json"), f, indent=4
-            )
+            json.dump(self.current_campaign_metadata.model_dump(mode="json"), f, indent=4)
 
         surveys_to_process: list[Survey] = []
         for survey in self.current_campaign_metadata.surveys:
@@ -121,12 +118,10 @@ class IntermediateDataProcessor(WorkflowABC):
             self.set_survey(survey_id=survey.id)
 
             # Prepare shotdata
-            shotdata_file_name_unfiltered = (
-                f"{survey.id}_{survey.type.value}_shotdata.csv".replace(" ", "")
+            shotdata_file_name_unfiltered = f"{survey.id}_{survey.type.value}_shotdata.csv".replace(
+                " ", ""
             )
-            shotdata_file_dest = (
-                self.current_survey_dir.location / shotdata_file_name_unfiltered
-            )
+            shotdata_file_dest = self.current_survey_dir.location / shotdata_file_name_unfiltered
             self.current_survey_dir.shotdata = shotdata_file_dest
             if (
                 not shotdata_file_dest.exists()
@@ -148,9 +143,7 @@ class IntermediateDataProcessor(WorkflowABC):
             if write_intermediate:
                 # Prepare PPP kinematic Position Data
                 kinpositiondata_file_name = (
-                    f"{survey.id}_{survey.type.value}_kinpositiondata.csv".replace(
-                        " ", ""
-                    )
+                    f"{survey.id}_{survey.type.value}_kinpositiondata.csv".replace(" ", "")
                 )
                 kinpositiondata_file_dest = (
                     self.current_survey_dir.location / kinpositiondata_file_name
@@ -173,15 +166,11 @@ class IntermediateDataProcessor(WorkflowABC):
 
                     else:
                         kinposition_data_queried.to_csv(kinpositiondata_file_dest)
-                        self.current_survey_dir.kinpositiondata = (
-                            kinpositiondata_file_dest
-                        )
+                        self.current_survey_dir.kinpositiondata = kinpositiondata_file_dest
 
                 # Prepare IMU Position Data
                 imupositiondata_file_name = (
-                    f"{survey.id}_{survey.type.value}_imupositiondata.csv".replace(
-                        " ", ""
-                    )
+                    f"{survey.id}_{survey.type.value}_imupositiondata.csv".replace(" ", "")
                 )
                 imupositiondata_file_dest = (
                     self.current_survey_dir.location / imupositiondata_file_name
@@ -202,9 +191,7 @@ class IntermediateDataProcessor(WorkflowABC):
                         )
                     else:
                         imuposition_data_queried.to_csv(imupositiondata_file_dest)
-                        self.current_survey_dir.imupositiondata = (
-                            imupositiondata_file_dest
-                        )
+                        self.current_survey_dir.imupositiondata = imupositiondata_file_dest
 
             with open(
                 self.current_survey_dir.metadata,
@@ -238,9 +225,7 @@ class IntermediateDataProcessor(WorkflowABC):
 
         if campaign_id is None:
             if self.current_campaign_metadata is None:
-                raise ValueError(
-                    "Campaign must be set before preparing GARPOS shotdata."
-                )
+                raise ValueError("Campaign must be set before preparing GARPOS shotdata.")
         else:
             # load the campaign
             self.set_campaign(campaign_id=campaign_id)
@@ -341,9 +326,7 @@ class IntermediateDataProcessor(WorkflowABC):
         )
         array_dpos_center = get_array_dpos_center(self.coordTransformer, GPtransponders)
 
-        shotdata_out_path = (
-            garposDir.location / f"{file_name_filtered.stem}_rectified.csv"
-        )
+        shotdata_out_path = garposDir.location / f"{file_name_filtered.stem}_rectified.csv"
         garposDir.shotdata_rectified = shotdata_out_path
 
         if shotdata_out_path.exists():
@@ -409,9 +392,9 @@ class IntermediateDataProcessor(WorkflowABC):
 
         s3_bucket = self.workspace.s3_sync_bucket_uri
         s3_directory_handler = self.directory_handler.point_to_s3(s3_bucket)
-        s3_station_dir = s3_directory_handler.networks[
-            self.current_network_name
-        ].stations[self.current_station_name]
+        s3_station_dir = s3_directory_handler.networks[self.current_network_name].stations[
+            self.current_station_name
+        ]
 
         # map the current station directory to s3
         local_tdb = self.current_station_dir.tiledb_directory
@@ -433,9 +416,7 @@ class IntermediateDataProcessor(WorkflowABC):
                 s3_file_path = s3_tdb_array / relative_path
                 try:
                     if not s3_file_path.exists() or overwrite:
-                        s3_file_path.upload_from(
-                            tdb_file, force_overwrite_to_cloud=overwrite
-                        )
+                        s3_file_path.upload_from(tdb_file, force_overwrite_to_cloud=overwrite)
                 except Exception as e:
                     logger.logerr(f"Failed to upload {tdb_file} to S3: {e}")
 
@@ -462,9 +443,7 @@ class IntermediateDataProcessor(WorkflowABC):
                         relative_path = log_file.relative_to(local_log_dir)
                         s3_log_file = s3_log_dir / relative_path
                         try:
-                            s3_log_file.upload_from(
-                                log_file, force_overwrite_to_cloud=overwrite
-                            )
+                            s3_log_file.upload_from(log_file, force_overwrite_to_cloud=overwrite)
                         except Exception as e:
                             logger.logerr(f"Failed to upload {log_file} to S3: {e}")
 
@@ -504,9 +483,9 @@ class IntermediateDataProcessor(WorkflowABC):
                 .to_pydatetime()
                 .replace(hour=0, minute=0, second=0, microsecond=0)
             )
-            end_time = datetime.datetime.combine(
-                start_time.date(), datetime.time.max
-            ).replace(tzinfo=datetime.UTC)
+            end_time = datetime.datetime.combine(start_time.date(), datetime.time.max).replace(
+                tzinfo=datetime.UTC
+            )
             year, month, day = start_time.year, start_time.month, start_time.day
             pseudo_survey = Survey(
                 id=f"{year}_{month}_{day}_{idx + 1}",
@@ -542,8 +521,8 @@ class IntermediateDataProcessor(WorkflowABC):
             survey_dir.mkdir(parents=True, exist_ok=True)
 
             # Prepare shotdata
-            shotdata_file_name_unfiltered = (
-                f"{survey.id}_{survey.type.value}_shotdata.csv".replace(" ", "")
+            shotdata_file_name_unfiltered = f"{survey.id}_{survey.type.value}_shotdata.csv".replace(
+                " ", ""
             )
             shotdata_file_dest = survey_dir / shotdata_file_name_unfiltered
 
@@ -581,9 +560,7 @@ class IntermediateDataProcessor(WorkflowABC):
             if not garposDir.default_settings.exists() or override:
                 GarposFixed()._to_datafile(garposDir.default_settings)
 
-            shotdata_out_path = (
-                garposDir.location / f"{shotdata_file_dest.stem}_rectified.csv"
-            )
+            shotdata_out_path = garposDir.location / f"{shotdata_file_dest.stem}_rectified.csv"
             garposDir.shotdata_rectified = shotdata_out_path
 
             if not shotdata_out_path.exists() or override:
@@ -593,9 +570,7 @@ class IntermediateDataProcessor(WorkflowABC):
                     site=self.current_station_metadata,
                     is_qc=True,
                 )
-                array_dpos_center = get_array_dpos_center(
-                    self.coordTransformer, GPtransponders
-                )
+                array_dpos_center = get_array_dpos_center(self.coordTransformer, GPtransponders)
                 garposDir.shotdata_rectified = shotdata_out_path
 
                 if shotdata_out_path.exists():
@@ -638,9 +613,7 @@ class IntermediateDataProcessor(WorkflowABC):
                     GPtransponders=GPtransponders,
                 )
                 # Apply survey-type-specific configuration to garpos_input
-                site_config_update: GarposSiteConfig = get_garpos_site_config(
-                    survey.type
-                )
+                site_config_update: GarposSiteConfig = get_garpos_site_config(survey.type)
                 garpos_input_configured: GarposInput = apply_survey_config(
                     site_config_update, garpos_input
                 )

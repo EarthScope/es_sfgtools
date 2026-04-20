@@ -5,7 +5,6 @@ It determines which filter settings and GARPOS parameters to use based on the
 type of survey being processed (e.g., CENTER, CIRCLE).
 """
 
-
 from ..data_models.metadata import SurveyType, classify_survey_type
 from ..prefiltering.schemas import FilterConfig
 from .garpos_config import DEFAULT_SITE_CONFIG, GarposSiteConfig

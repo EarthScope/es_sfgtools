@@ -125,9 +125,7 @@ class AttributeUpdater:
         for key, value in additional_data.items():
             if value:
                 if hasattr(self, key):
-                    if isinstance(value, dict) and isinstance(
-                        getattr(self, key), AttributeUpdater
-                    ):
+                    if isinstance(value, dict) and isinstance(getattr(self, key), AttributeUpdater):
                         getattr(self, key).update_attributes(value)
                     else:
                         self.set_value(key, value)
@@ -194,9 +192,7 @@ def convert_to_datetime(date_str: str | datetime) -> datetime:
                 dt = dt.replace(tzinfo=UTC)
             return dt
         except ValueError:
-            print(
-                "Invalid date format, please provide a valid date in format YYYY-MM-DDTHH:MM:SS"
-            )
+            print("Invalid date format, please provide a valid date in format YYYY-MM-DDTHH:MM:SS")
             raise
     # If it's already a datetime, ensure it's timezone-aware
     if isinstance(date_str, datetime) and date_str.tzinfo is None:
@@ -235,10 +231,6 @@ class Location(AttributeUpdater, BaseModel):
     longitude: float | None = Field(
         default=None, description="The longitude of the location.", ge=-180, le=180
     )
-    elevation: float | None = Field(
-        default=None, description="The elevation of the location."
-    )
+    elevation: float | None = Field(default=None, description="The elevation of the location.")
 
-    _if_zero_than_none = field_validator("latitude", "longitude", "elevation")(
-        if_zero_than_none
-    )
+    _if_zero_than_none = field_validator("latitude", "longitude", "elevation")(if_zero_than_none)

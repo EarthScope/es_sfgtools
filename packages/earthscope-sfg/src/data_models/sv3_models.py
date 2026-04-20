@@ -40,9 +40,7 @@ class NovatelSolutionStatus(Enum):
     # 10-12 Reserved
     INTEGRITY_WARNING = 13  # Large residuals make position unreliable
     # 14-17 Reserved
-    PENDING = (
-        18  # FIX position command entered, receiver is computing/validating position
-    )
+    PENDING = 18  # FIX position command entered, receiver is computing/validating position
     INVALID_FIX = 19  # The fixed position (FIX POSITION command) is not valid
     UNAUTHORIZED = 20  # Position type is unauthorized
     # 21 Reserved
@@ -69,9 +67,7 @@ class NovatelPositionType(Enum):
     INS_PSRDIFF = 54  # INS pseudorange differential solution
     INS_RTKFLOAT = 55  # INS RTK floating point ambiguities solution
     INS_RTKFIXED = 56  # INS RTK fixed ambiguities solution
-    PPP_CONVERGING = (
-        68  # Converging TerraStar-C, TerraStar-C PRO or TerraStar-X solution
-    )
+    PPP_CONVERGING = 68  # Converging TerraStar-C, TerraStar-C PRO or TerraStar-X solution
     PPP = 69  # Converged TerraStar-C, TerraStar-C PRO or TerraStar-X solution
     OPERATIONAL = 70  # Solution accuracy is within UAL operational limit
     WARNING = 71  # Solution accuracy is outside UAL operational limit but within warning limit

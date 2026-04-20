@@ -94,9 +94,7 @@ class GarposHandler(WorkflowABC):
             The site metadata.
         """
 
-        super().__init__(
-            station_metadata=station_metadata, workspace=workspace
-        )
+        super().__init__(station_metadata=station_metadata, workspace=workspace)
 
         self.garpos_fixed = GarposFixed()
 
@@ -303,9 +301,7 @@ class GarposHandler(WorkflowABC):
             try:
                 shutil.rmtree(results_dir)
             except Exception as e:
-                logger.logerr(
-                    f"Failed to remove existing results directory {results_dir}: {e}"
-                )
+                logger.logerr(f"Failed to remove existing results directory {results_dir}: {e}")
 
         elif results_dir.exists() and not override:
             logger.loginfo(
@@ -340,9 +336,7 @@ class GarposHandler(WorkflowABC):
                 iterationInput.array_center_enu.north += delta_position[1]
                 iterationInput.array_center_enu.up += delta_position[2]
                 # zero out delta position for next iteration
-                iterationInput.delta_center_position = (
-                    initialInput.delta_center_position
-                )
+                iterationInput.delta_center_position = initialInput.delta_center_position
                 iterationInput.to_datafile(obsfile_path)
             # Add array delta center position to the array center enu
 
@@ -392,9 +386,7 @@ class GarposHandler(WorkflowABC):
             try:
                 shutil.rmtree(results_dir)
             except Exception as e:
-                logger.logerr(
-                    f"Failed to remove existing results directory {results_dir}: {e}"
-                )
+                logger.logerr(f"Failed to remove existing results directory {results_dir}: {e}")
 
         results_dir.mkdir(parents=True, exist_ok=True)
 
@@ -422,9 +414,7 @@ class GarposHandler(WorkflowABC):
                 iterationInput.array_center_enu.north += delta_position[1]
                 iterationInput.array_center_enu.up += delta_position[2]
                 # zero out delta position for next iteration
-                iterationInput.delta_center_position = (
-                    initialInput.delta_center_position
-                )
+                iterationInput.delta_center_position = initialInput.delta_center_position
 
                 iterationInput.to_datafile(obsfile_path)
 
@@ -477,9 +467,7 @@ class GarposHandler(WorkflowABC):
             return
 
         for survey_id in surveys_to_process:
-            logger.loginfo(
-                f"Running GARPOS model for survey {survey_id}. Run ID: {run_id}"
-            )
+            logger.loginfo(f"Running GARPOS model for survey {survey_id}. Run ID: {run_id}")
             self._run_garpos_survey(
                 survey_id=survey_id,
                 run_id=run_id,
@@ -551,20 +539,12 @@ class GarposHandler(WorkflowABC):
                         )
                     continue
                 try:
-                    shotdata_filepath = self.current_campaign_dir.surveys[
-                        survey_name
-                    ].shotdata
-                    shotdata_df = pd.read_csv(
-                        shotdata_filepath, sep=",", header=0, index_col=0
-                    )
+                    shotdata_filepath = self.current_campaign_dir.surveys[survey_name].shotdata
+                    shotdata_df = pd.read_csv(shotdata_filepath, sep=",", header=0, index_col=0)
                     shotdata_dfs[survey_name] = shotdata_df
                     # use utc
-                    start = datetime.fromtimestamp(
-                        shotdata_df["pingTime"].iloc[0], tz=UTC
-                    )
-                    end = datetime.fromtimestamp(
-                        shotdata_df["pingTime"].iloc[-1], tz=UTC
-                    )
+                    start = datetime.fromtimestamp(shotdata_df["pingTime"].iloc[0], tz=UTC)
+                    end = datetime.fromtimestamp(shotdata_df["pingTime"].iloc[-1], tz=UTC)
                     shotdata_time_windows[survey_name] = (start, end)
 
                     shotdata_filtered_filepath = self.current_campaign_dir.surveys[
@@ -597,8 +577,7 @@ class GarposHandler(WorkflowABC):
                 for j, transponder_id in enumerate(unique_ids):
                     df = shotdata_df[shotdata_df["transponderID"] == transponder_id]
                     filtered_df = shotdata_filtered_dfs[survey_name][
-                        shotdata_filtered_dfs[survey_name]["transponderID"]
-                        == transponder_id
+                        shotdata_filtered_dfs[survey_name]["transponderID"] == transponder_id
                     ]
                     # # Resample the data to 10 minute intervals and count replies
                     df = df.set_index(pd.to_datetime(df["pingTime"], unit="s"))
@@ -606,9 +585,7 @@ class GarposHandler(WorkflowABC):
                         pd.to_datetime(filtered_df["pingTime"], unit="s")
                     )
                     replies_per_bin = df["pingTime"].resample("10min").count()
-                    filtered_replies_per_bin = (
-                        filtered_df["pingTime"].resample("10min").count()
-                    )
+                    filtered_replies_per_bin = filtered_df["pingTime"].resample("10min").count()
                     axs[j].scatter(
                         replies_per_bin.index,
                         replies_per_bin.values / 40 * 100,
@@ -732,9 +709,7 @@ class GarposHandler(WorkflowABC):
             [NTH1.2025_A_1126_0-res.dat,NTH1.2025_A_1126_1-res.dat,NTH1.2025_A_1126_2-res.dat]
 
             """
-        data_files = sorted(
-            data_files, key=lambda x: int(x.stem.split("_")[-1].split("-")[0])
-        )
+        data_files = sorted(data_files, key=lambda x: int(x.stem.split("_")[-1].split("-")[0]))
         data_file = data_files[-1]
         logger.loginfo(f"Using data file {data_file} for plotting.")
 
@@ -743,9 +718,7 @@ class GarposHandler(WorkflowABC):
         array_enu = garpos_results.array_center_enu
         array_dpos = garpos_results.delta_center_position
         if array_enu is None or array_dpos is None:
-            raise ValueError(
-                "Array center or delta position not found in GARPOS results."
-            )
+            raise ValueError("Array center or delta position not found in GARPOS results.")
 
         array_final_position = array_dpos.model_copy()
         array_final_position.east += array_enu.east
@@ -754,9 +727,7 @@ class GarposHandler(WorkflowABC):
 
         results_df_raw = pd.read_csv(garpos_results.shot_data)
         results_df_raw = ObservationData.validate(results_df_raw, lazy=True)
-        results_df_raw["time"] = results_df_raw.ST.apply(
-            lambda x: datetime.fromtimestamp(x, UTC)
-        )
+        results_df_raw["time"] = results_df_raw.ST.apply(lambda x: datetime.fromtimestamp(x, UTC))
         # df_filter_1 = results_df_raw["ResiRange"].abs() < res_filter
         df_filter_2 = ~results_df_raw["flag"]
         # results_df = results_df_raw[df_filter_1 & df_filter_2]
@@ -765,16 +736,12 @@ class GarposHandler(WorkflowABC):
         unique_ids = results_df_raw["MT"].unique()
         # make a plot with 3 subplots showing ResiRange vs time for each unique_id
         fig, axs = plt.subplots(3, 1, figsize=(20, 8), sharex=True)
-        fig.suptitle(
-            f"Residuals for {self.current_station_name} {survey_id} (Run {run_id})"
-        )
+        fig.suptitle(f"Residuals for {self.current_station_name} {survey_id} (Run {run_id})")
         for i, unique_id in enumerate(unique_ids):
-            transponder_df_raw = results_df_raw[
-                results_df_raw["MT"] == unique_id
-            ].sort_values("time")
-            transponder_df = results_df[results_df["MT"] == unique_id].sort_values(
+            transponder_df_raw = results_df_raw[results_df_raw["MT"] == unique_id].sort_values(
                 "time"
             )
+            transponder_df = results_df[results_df["MT"] == unique_id].sort_values("time")
             axs[i].scatter(
                 transponder_df_raw["time"],
                 transponder_df_raw["ResiRange"],
@@ -783,9 +750,7 @@ class GarposHandler(WorkflowABC):
                 color="blue",
             )
             percent_remaining = round(
-                transponder_df["time"].count()
-                / transponder_df_raw["time"].count()
-                * 100,
+                transponder_df["time"].count() / transponder_df_raw["time"].count() * 100,
                 1,
             )
             axs[i].scatter(
@@ -887,9 +852,7 @@ class GarposHandler(WorkflowABC):
             [NTH1.2025_A_1126_0-res.dat,NTH1.2025_A_1126_1-res.dat,NTH1.2025_A_1126_2-res.dat]
 
             """
-        data_files = sorted(
-            data_files, key=lambda x: int(x.stem.split("_")[-1].split("-")[0])
-        )
+        data_files = sorted(data_files, key=lambda x: int(x.stem.split("_")[-1].split("-")[0]))
         data_file = data_files[-1]
         logger.loginfo(f"Using data file {data_file} for plotting.")
 
@@ -898,9 +861,7 @@ class GarposHandler(WorkflowABC):
         array_enu = garpos_results.array_center_enu
         array_dpos = garpos_results.delta_center_position
         if array_enu is None or array_dpos is None:
-            raise ValueError(
-                "Array center or delta position not found in GARPOS results."
-            )
+            raise ValueError("Array center or delta position not found in GARPOS results.")
 
         array_final_position = array_dpos.model_copy()
         array_final_position.east += array_enu.east
@@ -909,9 +870,7 @@ class GarposHandler(WorkflowABC):
 
         results_df_raw = pd.read_csv(garpos_results.shot_data)
         results_df_raw = ObservationData.validate(results_df_raw, lazy=True)
-        results_df_raw["time"] = results_df_raw.ST.apply(
-            lambda x: datetime.fromtimestamp(x, UTC)
-        )
+        results_df_raw["time"] = results_df_raw.ST.apply(lambda x: datetime.fromtimestamp(x, UTC))
         # df_filter_1 = results_df_raw["ResiRange"].abs() < res_filter
         df_filter_2 = ~results_df_raw["flag"]
         # results_df = results_df_raw[df_filter_1 & df_filter_2]
@@ -922,13 +881,9 @@ class GarposHandler(WorkflowABC):
         if subplots:
             # make a plot with 3 subplots showing ResiRange vs time for each unique_id
             fig, axs = plt.subplots(3, 1, figsize=(20, 8), sharex=True)
-            fig.suptitle(
-                f"Residuals for {self.current_station_name} {survey_id} (Run {run_id})"
-            )
+            fig.suptitle(f"Residuals for {self.current_station_name} {survey_id} (Run {run_id})")
             for i, unique_id in enumerate(unique_ids):
-                transponder_df = results_df[results_df["MT"] == unique_id].sort_values(
-                    "time"
-                )
+                transponder_df = results_df[results_df["MT"] == unique_id].sort_values("time")
                 axs[i].scatter(
                     transponder_df["time"],
                     transponder_df["ResiRange"],
@@ -947,9 +902,7 @@ class GarposHandler(WorkflowABC):
         else:
             fig, ax = plt.subplots(figsize=(20, 8))
             for i, unique_id in enumerate(unique_ids):
-                transponder_df = results_df[results_df["MT"] == unique_id].sort_values(
-                    "time"
-                )
+                transponder_df = results_df[results_df["MT"] == unique_id].sort_values("time")
                 ax.scatter(
                     transponder_df["time"],
                     transponder_df["ResiRange"],
@@ -1055,9 +1008,7 @@ class GarposHandler(WorkflowABC):
         # plt.clf()
 
         results_dir: Path = (
-            self.current_garpos_survey_dir.results_dir
-            if results_dir is None
-            else results_dir
+            self.current_garpos_survey_dir.results_dir if results_dir is None else results_dir
         )
         run_dir = results_dir / f"run_{run_id}"
         if not run_dir.exists():
@@ -1079,9 +1030,7 @@ class GarposHandler(WorkflowABC):
             [NTH1.2025_A_1126_0-res.dat,NTH1.2025_A_1126_1-res.dat,NTH1.2025_A_1126_2-res.dat]
 
             """
-        data_files = sorted(
-            data_files, key=lambda x: int(x.stem.split("_")[-1].split("-")[0])
-        )
+        data_files = sorted(data_files, key=lambda x: int(x.stem.split("_")[-1].split("-")[0]))
         data_file = data_files[-1]
         logger.loginfo(f"Using data file {data_file} for plotting.")
 
@@ -1095,9 +1044,7 @@ class GarposHandler(WorkflowABC):
         array_enu = garpos_results.array_center_enu
         array_dpos = garpos_results.delta_center_position
         if array_enu is None or array_dpos is None:
-            raise ValueError(
-                "Array center or delta position not found in GARPOS results."
-            )
+            raise ValueError("Array center or delta position not found in GARPOS results.")
 
         array_final_position = array_dpos.model_copy()
         array_final_position.east += array_enu.east
@@ -1106,9 +1053,7 @@ class GarposHandler(WorkflowABC):
 
         results_df_raw = pd.read_csv(garpos_results.shot_data)
         results_df_raw = ObservationData.validate(results_df_raw, lazy=True)
-        results_df_raw["time"] = results_df_raw.ST.apply(
-            lambda x: datetime.fromtimestamp(x, UTC)
-        )
+        results_df_raw["time"] = results_df_raw.ST.apply(lambda x: datetime.fromtimestamp(x, UTC))
         df_filter_1 = results_df_raw["ResiRange"].abs() < res_filter
         df_filter_2 = results_df_raw["flag"].eq(False)
         results_df = results_df_raw[df_filter_1 & df_filter_2]
@@ -1140,9 +1085,7 @@ class GarposHandler(WorkflowABC):
         spacer_rows = 2  # gap between last time-series x ticks and lower panels
         lower_panel_rows = 6  # box (3) + hist (3), map shares these rows on the right
         min_extra_rows = spacer_rows + lower_panel_rows
-        extra_rows = max(
-            int(np.ceil(extra_height_in / ts_row_height_in)), min_extra_rows
-        )
+        extra_rows = max(int(np.ceil(extra_height_in / ts_row_height_in)), min_extra_rows)
         total_height = (total_rows + extra_rows) * ts_row_height_in
 
         plt.figure(figsize=(20, total_height))
@@ -1203,9 +1146,7 @@ class GarposHandler(WorkflowABC):
         """
 
         # Color mapping per transponder ID
-        id_colors = {
-            uid: colors[idx % len(colors)] for idx, uid in enumerate(unique_ids)
-        }
+        id_colors = {uid: colors[idx % len(colors)] for idx, uid in enumerate(unique_ids)}
 
         # Plot separate unfiltered/filtered plots based on plot_plan
         shared_ax = None
@@ -1217,9 +1158,7 @@ class GarposHandler(WorkflowABC):
                 ax_ts = plt.subplot(gs[row_idx : row_idx + 1, 1:14], sharex=shared_ax)
 
             if kind == "unfiltered":
-                df_ts = results_df_raw[results_df_raw["MT"] == unique_id].sort_values(
-                    "time"
-                )
+                df_ts = results_df_raw[results_df_raw["MT"] == unique_id].sort_values("time")
                 title_ts = f"Transponder {unique_id} - Unfiltered Data"
                 label_ts = f"{unique_id} Unfiltered"
             else:
@@ -1330,9 +1269,7 @@ class GarposHandler(WorkflowABC):
         ax4.axvline(median, color="blue", linestyle="-", label=f"Median: {median:.3f}")
         ax4.set_xlabel("Residual Range (m)", labelpad=-1)
         ax4.set_ylabel("Frequency")
-        ax4.set_title(
-            f"Histogram of Residual Range Values, within {res_filter:.1f} meters"
-        )
+        ax4.set_title(f"Histogram of Residual Range Values, within {res_filter:.1f} meters")
         ax4.legend()
         # add figure text
         plt.gcf().text(0.02, 0.98, figure_text, fontsize=9, ha="left", va="top")

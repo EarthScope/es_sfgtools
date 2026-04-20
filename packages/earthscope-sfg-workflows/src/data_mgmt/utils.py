@@ -8,7 +8,6 @@ from typing import (
 )
 
 import numpy as np
-
 from earthscope_sfg.logging import ProcessLogger as logger
 from earthscope_sfg.tiledb_schemas import (
     TDBKinPositionArray,
@@ -29,9 +28,7 @@ def check_network_station_campaign(
     func: Callable[Concatenate[HasNetworkStationCampaign, P], R],
 ) -> Callable[Concatenate[HasNetworkStationCampaign, P], R]:
     @wraps(func)
-    def wrapper(
-        self: HasNetworkStationCampaign, *args: P.args, **kwargs: P.kwargs
-    ) -> R:
+    def wrapper(self: HasNetworkStationCampaign, *args: P.args, **kwargs: P.kwargs) -> R:
         if self.current_network is None:
             raise ValueError("Network name not set, use change_working_station")
         if self.current_station is None:

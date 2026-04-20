@@ -4,9 +4,7 @@ from typing import Any, Union
 from pydantic import BaseModel
 
 
-def validate_keys_recursively(
-    config_dict: dict, model_class: BaseModel, path: str = ""
-):
+def validate_keys_recursively(config_dict: dict, model_class: BaseModel, path: str = ""):
     """Recursively validate keys and suggest corrections for typos.
 
     Parameters
@@ -35,9 +33,7 @@ def validate_keys_recursively(
             # Find close matches for potential typos
             suggestions = get_close_matches(key, valid_fields, n=3, cutoff=0.6)
             if suggestions:
-                suggestion_text = (
-                    f" Did you mean: {', '.join(suggestions)}?" if suggestions else ""
-                )
+                suggestion_text = f" Did you mean: {', '.join(suggestions)}?" if suggestions else ""
             else:
                 suggestion_text = "No similar keys found."
 
@@ -61,9 +57,7 @@ def validate_keys_recursively(
                     for base in annotation.__bases__
                     if base is not object
                 ):
-                    nested_errors = validate_keys_recursively(
-                        value, annotation, current_path
-                    )
+                    nested_errors = validate_keys_recursively(value, annotation, current_path)
                     errors.extend(nested_errors)
 
     return errors

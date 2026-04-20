@@ -3,10 +3,9 @@ from typing import (
     Literal,
 )
 
-from pride_ppp.specifications.cli import PrideCLIConfig
-
 from earthscope_sfg.logging import ProcessLogger as logger
 from earthscope_sfg.utils.model_update import validate_and_merge_config
+from pride_ppp.specifications.cli import PrideCLIConfig
 
 from ..config.file_config import (
     DEFAULT_FILE_TYPES_TO_DOWNLOAD,
@@ -95,9 +94,7 @@ class WorkflowHandler(WorkflowABC):
         # Initialize parent WorkflowABC with workspace
         super().__init__(workspace=workspace)
 
-    def set_network_station_campaign(
-        self, network_id: str, station_id: str, campaign_id: str
-    ):
+    def set_network_station_campaign(self, network_id: str, station_id: str, campaign_id: str):
         """Sets the current network, station, and campaign.
 
         Delegates to DataHandler which handles both its own setup and parent
@@ -113,16 +110,13 @@ class WorkflowHandler(WorkflowABC):
             The ID of the campaign to set.
         """
         # DataHandler handles both its setup AND parent context switching
-        self.data_handler.set_network_station_campaign(
-            network_id, station_id, campaign_id
-        )
+        self.data_handler.set_network_station_campaign(network_id, station_id, campaign_id)
 
         # Sync WorkflowHandler state from DataHandler
         for key, value in self.data_handler.__dict__.items():
             if value is not None and hasattr(self, key):
                 setattr(self, key, value)
                 logger.logdebug(f"WorkflowHandler state updated: {key} = {value}")
-
 
     @validate_network_station_campaign
     def ingest_add_local_data(self, directory_path: Path) -> None:
@@ -152,7 +146,7 @@ class WorkflowHandler(WorkflowABC):
     def ingest_download_archive_data(
         self,
         file_types: list[AssetType] | list[str] | None = DEFAULT_FILE_TYPES_TO_DOWNLOAD,
-        rinex_1Hz: bool = False
+        rinex_1Hz: bool = False,
     ) -> None:
         """
         Downloads data files from the Earthscope archive based on the current catalog entries.
@@ -164,9 +158,15 @@ class WorkflowHandler(WorkflowABC):
         self.data_handler.download_data(file_types=file_types, rinex_1Hz=rinex_1Hz)
 
     @validate_network_station_campaign
-    def ingest_download_intermediate_archive_data(self, file_types:list[AssetType] | list[str] | None=DEFAULT_INTERMEDIATE_FILE_TYPES_TO_DOWNLOAD, rinex_1Hz: bool = False) -> None:
+    def ingest_download_intermediate_archive_data(
+        self,
+        file_types: list[AssetType]
+        | list[str]
+        | None = DEFAULT_INTERMEDIATE_FILE_TYPES_TO_DOWNLOAD,
+        rinex_1Hz: bool = False,
+    ) -> None:
         """
-        Downloads intermediate data files from the Earthscope archive based on the current catalog entries. 
+        Downloads intermediate data files from the Earthscope archive based on the current catalog entries.
 
         Notes
         -----
@@ -177,10 +177,23 @@ class WorkflowHandler(WorkflowABC):
     @validate_network_station_campaign
     def preprocess_get_pipeline_sv3(
         self,
-        primary_config: SV3PipelineConfig | PrideCLIConfig | NovatelConfig | RinexConfig | DFOP00Config | PositionUpdateConfig | dict | None = None,
-        secondary_config: SV3PipelineConfig | PrideCLIConfig | NovatelConfig | RinexConfig | DFOP00Config | PositionUpdateConfig | dict | None = None,
+        primary_config: SV3PipelineConfig
+        | PrideCLIConfig
+        | NovatelConfig
+        | RinexConfig
+        | DFOP00Config
+        | PositionUpdateConfig
+        | dict
+        | None = None,
+        secondary_config: SV3PipelineConfig
+        | PrideCLIConfig
+        | NovatelConfig
+        | RinexConfig
+        | DFOP00Config
+        | PositionUpdateConfig
+        | dict
+        | None = None,
     ) -> SV3Pipeline:
-        
         """Creates and configures an SV3 processing pipeline.
 
         Parameters
@@ -271,8 +284,22 @@ class WorkflowHandler(WorkflowABC):
             "refine_shotdata",
             "process_svp",
         ] = "all",
-        primary_config: SV3PipelineConfig | PrideCLIConfig | NovatelConfig | RinexConfig | DFOP00Config | PositionUpdateConfig | dict | None = None,
-        secondary_config: SV3PipelineConfig | PrideCLIConfig | NovatelConfig | RinexConfig | DFOP00Config | PositionUpdateConfig | dict | None = None,
+        primary_config: SV3PipelineConfig
+        | PrideCLIConfig
+        | NovatelConfig
+        | RinexConfig
+        | DFOP00Config
+        | PositionUpdateConfig
+        | dict
+        | None = None,
+        secondary_config: SV3PipelineConfig
+        | PrideCLIConfig
+        | NovatelConfig
+        | RinexConfig
+        | DFOP00Config
+        | PositionUpdateConfig
+        | dict
+        | None = None,
     ) -> None:
         """Runs the SV3 processing pipeline with optional configuration overrides.
 
@@ -314,8 +341,7 @@ class WorkflowHandler(WorkflowABC):
         assert job in pipeline_jobs, f"Job must be one of {pipeline_jobs}"
 
         pipeline: SV3Pipeline = self.preprocess_get_pipeline_sv3(
-            primary_config=primary_config,
-            secondary_config=secondary_config
+            primary_config=primary_config, secondary_config=secondary_config
         )
         match job:
             case "all":
@@ -406,14 +432,10 @@ class WorkflowHandler(WorkflowABC):
                     raise e
 
             case "refine_shotdata":
-                assert isinstance(
-                    primary_config, (type(None), dict, PositionUpdateConfig)
-                ), (
+                assert isinstance(primary_config, (type(None), dict, PositionUpdateConfig)), (
                     "Primary config must be provided and be of type None, dict, or PositionUpdateConfig when running refine_shotdata"
                 )
-                assert isinstance(
-                    secondary_config, (type(None), dict, PositionUpdateConfig)
-                ), (
+                assert isinstance(secondary_config, (type(None), dict, PositionUpdateConfig)), (
                     "Secondary config must be of type None, dict, or PositionUpdateConfig when running refine_shotdata"
                 )
                 try:
@@ -423,14 +445,10 @@ class WorkflowHandler(WorkflowABC):
                     raise e
 
             case "process_svp":
-                assert isinstance(
-                    primary_config, (type(None), dict, SV3PipelineConfig)
-                ), (
+                assert isinstance(primary_config, (type(None), dict, SV3PipelineConfig)), (
                     "Primary config must be provided and be of type None, dict, or SV3PipelineConfig when running process_svp"
                 )
-                assert isinstance(
-                    secondary_config, (type(None), dict, SV3PipelineConfig)
-                ), (
+                assert isinstance(secondary_config, (type(None), dict, SV3PipelineConfig)), (
                     "Secondary config must be of type None, dict, or SV3PipelineConfig when running process_svp"
                 )
                 try:
@@ -445,8 +463,20 @@ class WorkflowHandler(WorkflowABC):
     @validate_network_station_campaign
     def preprocess_get_pipeline_qc(
         self,
-        primary_config: QCPipelineConfig | PrideCLIConfig | RinexConfig | PositionUpdateConfig | QCPinConfig | dict | None = None,
-        secondary_config: QCPipelineConfig | PrideCLIConfig | RinexConfig | PositionUpdateConfig | QCPinConfig | dict | None = None,
+        primary_config: QCPipelineConfig
+        | PrideCLIConfig
+        | RinexConfig
+        | PositionUpdateConfig
+        | QCPinConfig
+        | dict
+        | None = None,
+        secondary_config: QCPipelineConfig
+        | PrideCLIConfig
+        | RinexConfig
+        | PositionUpdateConfig
+        | QCPinConfig
+        | dict
+        | None = None,
     ) -> QCPipeline:
         """Creates and configures a QC processing pipeline.
 
@@ -533,8 +563,20 @@ class WorkflowHandler(WorkflowABC):
             "process_kinematic",
             "refine_shotdata",
         ] = "all",
-        primary_config: QCPipelineConfig | PrideCLIConfig | RinexConfig | PositionUpdateConfig | QCPinConfig | dict | None = None,
-        secondary_config: QCPipelineConfig | PrideCLIConfig | RinexConfig | PositionUpdateConfig | QCPinConfig | dict | None = None,
+        primary_config: QCPipelineConfig
+        | PrideCLIConfig
+        | RinexConfig
+        | PositionUpdateConfig
+        | QCPinConfig
+        | dict
+        | None = None,
+        secondary_config: QCPipelineConfig
+        | PrideCLIConfig
+        | RinexConfig
+        | PositionUpdateConfig
+        | QCPinConfig
+        | dict
+        | None = None,
     ) -> None:
         """Runs the QC processing pipeline with optional configuration overrides.
 
@@ -621,9 +663,7 @@ class WorkflowHandler(WorkflowABC):
                 pipeline.run_pipeline()
 
     @validate_network_station_campaign
-    def midprocess_get_sitemeta(
-        self, site_metadata: Site | str | None = None
-    ) -> Site:
+    def midprocess_get_sitemeta(self, site_metadata: Site | str | None = None) -> Site:
         """Loads and returns the site metadata for the current station. Sets the current_station_metadata attribute.
 
         1. If site_metadata is None, attempts to load from data_handler's current_station_metadata.
@@ -1039,9 +1079,7 @@ class WorkflowHandler(WorkflowABC):
 
         # Get the intermediate data processor and parse QC surveys
         try:
-            qc_mid_processor = self.midprocess_get_processor(
-                site_metadata=site_metadata
-            )
+            qc_mid_processor = self.midprocess_get_processor(site_metadata=site_metadata)
         except ValueError as e:
             raise e  # for visibility
 
@@ -1051,9 +1089,7 @@ class WorkflowHandler(WorkflowABC):
 
         # Get the GARPOS handler and run GARPOS
         qc_garpos_handler = self.modeling_get_garpos_handler()
-        qc_garpos_handler.current_campaign_dir.location = (
-            qc_garpos_handler.current_campaign_dir.qc
-        )
+        qc_garpos_handler.current_campaign_dir.location = qc_garpos_handler.current_campaign_dir.qc
         qc_garpos_handler.current_campaign_dir.build()
         qc_garpos_handler.run_garpos(
             surveys=gp_dir_list,
