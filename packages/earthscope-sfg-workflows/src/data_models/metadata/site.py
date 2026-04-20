@@ -1,7 +1,7 @@
 import json
 from datetime import datetime
-from enum import Enum
-from typing import Any, ClassVar, Dict, List, Optional
+from enum import StrEnum
+from typing import Any, ClassVar
 
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
@@ -16,20 +16,20 @@ from .utils import (
 )
 
 
-class TopLevelSiteGroups(str, Enum):
+class TopLevelSiteGroups(StrEnum):
     REFERENCE_FRAMES = "referenceFrames"
     BENCHMARKS = "benchmarks"
     CAMPAIGNS = "campaigns"
 
 
-class SubLevelSiteGroups(str, Enum):
+class SubLevelSiteGroups(StrEnum):
     SURVEYS = "surveys"
     TRANSPONDERS = "transponders"
 
 
 def import_site(filepath: str):
     """Import site data from a JSON file."""
-    with open(filepath, "r") as file:
+    with open(filepath) as file:
         return Site(**json.load(file))
 
 
@@ -38,12 +38,12 @@ class ReferenceFrame(AttributeUpdater, BaseModel):
     name: str = Field(..., description="The name of the reference frame")
 
     # Optional
-    start: Optional[datetime] = Field(
+    start: datetime | None = Field(
         default=None,
         description="The start date of the reference frame used for the site",
         ge=datetime(1901, 1, 1),
     )
-    end: Optional[datetime] = Field(
+    end: datetime | None = Field(
         default=None,
         description="The end date of the reference frame used for the site",
         ge=datetime(1901, 1, 1),
@@ -55,34 +55,34 @@ class ReferenceFrame(AttributeUpdater, BaseModel):
 
 class Site(BaseModel):
     # Required
-    names: List[str] = Field(
+    names: list[str] = Field(
         ..., description="The names of the site, including the 4 character ID"
     )
-    networks: List[str] = Field(..., description="A list networks the site is part of")
+    networks: list[str] = Field(..., description="A list networks the site is part of")
     timeOrigin: datetime = Field(
         ..., description="The time origin of the site", ge=datetime(1901, 1, 1)
     )
-    localGeoidHeight: Optional[float] = Field(
+    localGeoidHeight: float | None = Field(
         0, description="The local geoid height of the site"
     )
 
     # Optional
-    arrayCenter: Optional[Location] = Field(
+    arrayCenter: Location | None = Field(
         default=None, description="The array center of the site"
     )
 
-    campaigns: List[Campaign] = Field(
+    campaigns: list[Campaign] = Field(
         default_factory=list, description="The campaigns associated with the site"
     )
-    benchmarks: List[Benchmark] = Field(
+    benchmarks: list[Benchmark] = Field(
         default_factory=list, description="The benchmarks associated with the site"
     )
-    referenceFrames: List[ReferenceFrame] = Field(
+    referenceFrames: list[ReferenceFrame] = Field(
         default_factory=list, description="The reference frames used for the site"
     )
 
     # Map of top-level groups to their respective lists and classes - used for adding, updating and deleting items
-    top_level_map_components: ClassVar[Dict[str, Any]] = {
+    top_level_map_components: ClassVar[dict[str, Any]] = {
         TopLevelSiteGroups.REFERENCE_FRAMES: (
             lambda self: self.referenceFrames,
             ReferenceFrame,
@@ -99,7 +99,7 @@ class Site(BaseModel):
 
     @classmethod
     def from_json(cls, filepath: str) -> "Site":
-        with open(filepath, "r") as file:
+        with open(filepath) as file:
             return cls(**json.load(file))
 
     def print_json(self):
@@ -145,7 +145,7 @@ class Site(BaseModel):
     def return_tats_for_campaign(
         self,
         campaign_name: str,
-    ) -> Optional[List[Dict[str, Any]]]:
+    ) -> list[dict[str, Any]] | None:
         """
         Return all TATs for a given campaign
 

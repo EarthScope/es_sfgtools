@@ -1,20 +1,19 @@
 import os
 import ssl
 import urllib.request
-from pathlib import Path
-from typing import List, Optional
 from collections import defaultdict
+from pathlib import Path
+
 import boto3
-from ..assetcatalog.schemas import AssetType
 import requests
 from earthscope_cli.login import login as es_login
 from earthscope_sdk import EarthScopeClient
 from earthscope_sdk.config.settings import SdkSettings
 
-from ...data_models.metadata import Site, Vessel, import_site, import_vessel
-
 from es_sfgtools.logging import ProcessLogger as logger
 
+from ...data_models.metadata import Site, Vessel, import_site, import_vessel
+from ..assetcatalog.schemas import AssetType
 from .config import ARCHIVE_PREFIX
 from .datadiscovery import get_file_type_remote
 
@@ -274,9 +273,7 @@ def generate_archive_site_json_url(network, station, profile: str = None) -> str
     str
         The URL of the site JSON file.
     """
-    if profile == "prod" or profile is None:
-        return f"{ARCHIVE_PREFIX}/metadata/{network}/{station}.json"
-    elif profile == "dev":
+    if profile == "prod" or profile is None or profile == "dev":
         return f"{ARCHIVE_PREFIX}/metadata/{network}/{station}.json"
     else:
         raise ValueError("Invalid profile specified.")
@@ -297,9 +294,7 @@ def generate_archive_vessel_json_url(vessel_code, profile: str = None) -> str:
     str
         The URL of the vessel JSON file.
     """
-    if profile == "prod" or profile is None:
-        return f"{ARCHIVE_PREFIX}/metadata/vessels/{vessel_code}.json"
-    elif profile == "dev":
+    if profile == "prod" or profile is None or profile == "dev":
         return f"{ARCHIVE_PREFIX}/metadata/vessels/{vessel_code}.json"
     else:
         raise ValueError("Invalid profile specified.")
@@ -427,7 +422,7 @@ def load_site_metadata(
 
 
 def list_file_counts_by_type(
-    file_list: list, url: Optional[str] = None, show_logs=True
+    file_list: list, url: str | None = None, show_logs=True
 ) -> dict:
     """Counts files by type, and builds a dictionary.
 
@@ -577,7 +572,7 @@ def list_campaign_files_by_type(
     return file_dict
 
 
-def list_s3_directory_files(bucket_name: str, prefix: str) -> List[str]:
+def list_s3_directory_files(bucket_name: str, prefix: str) -> list[str]:
     """Returns a list all files in a given S3 bucket.
 
     This is under a specified prefix and return absolute S3 paths.

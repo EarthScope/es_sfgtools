@@ -1,20 +1,24 @@
-from typing import List, Union
-from pandera.typing import DataFrame
+import itertools
+import time
+
 import gnatss.constants as constants
 import numpy as np
 import pandas as pd
 import pymap3d
 from gnatss.ops.kalman import run_filter_simulation
 from numpy import datetime64
+from pandera.typing import DataFrame
 from scipy.stats import zscore
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF
 from sklearn.kernel_ridge import KernelRidge
 from sklearn.neighbors import KDTree, RadiusNeighborsRegressor
 from sklearn.preprocessing import StandardScaler
-import time
-import itertools
 
+from es_sfgtools.data_models.observables import (
+    IMUPositionDataFrame,
+    KinPositionDataFrame,
+)
 from es_sfgtools.logging import ProcessLogger as logger
 
 # Local imports
@@ -22,11 +26,6 @@ from es_sfgtools.tiledb_schemas import (
     TDBIMUPositionArray,
     TDBKinPositionArray,
     TDBShotDataArray,
-)
-from es_sfgtools.data_models.observables import (
-    IMUPositionDataFrame,
-    KinPositionDataFrame,
-    ShotDataFrame,
 )
 
 MEDIAN_EAST_POSITION = 0
@@ -468,10 +467,10 @@ def main(
     shotdata: pd.DataFrame,
     kin_positions: pd.DataFrame,
     positions_data: pd.DataFrame,
-    gnss_pos_psd: Union[float, np.ndarray] = constants.gnss_pos_psd,
-    vel_psd: Union[float, np.ndarray] = constants.vel_psd,
-    cov_err: Union[float, np.ndarray] = constants.cov_err,
-    start_dt: Union[float, pd.Timestamp] = constants.start_dt,
+    gnss_pos_psd: float | np.ndarray = constants.gnss_pos_psd,
+    vel_psd: float | np.ndarray = constants.vel_psd,
+    cov_err: float | np.ndarray = constants.cov_err,
+    start_dt: float | pd.Timestamp = constants.start_dt,
     filter_radius: float = 5000,
     prepare_position_data: bool = True,
 ) -> pd.DataFrame:
@@ -563,7 +562,7 @@ def merge_shotdata_kinposition(
     shotdata: TDBShotDataArray,
     kin_position: TDBKinPositionArray,
     position_data: TDBIMUPositionArray,
-    dates: List[datetime64],
+    dates: list[datetime64],
     filter_radius: float = 5000,
 ) -> TDBShotDataArray:
     """Merge the shotdata and kin_position data.
@@ -629,7 +628,7 @@ def merge_shotdata_qc(
     shotdata_pre: TDBShotDataArray,
     shotdata: TDBShotDataArray,
     kin_position: TDBKinPositionArray,
-    dates: List[datetime64],
+    dates: list[datetime64],
 ) -> None:
     """Merge the shotdata and kin_position data for QC purposes.
 
@@ -708,7 +707,6 @@ def interpolate_enu(
     kernel = RBF(length_scale=length_scale)
     X_train = np.hstack((tenu_l[:, 0], tenu_r[:, 0])).T.astype(float).reshape(-1, 1)
     Y_train = np.vstack((tenu_l[:, 1:], tenu_r[:, 1:])).astype(float)
-    var_train = np.vstack((enu_l_sig, enu_r_sig)).astype(float)
     # take the inverse of the variance to get the precision
 
     TS_TREE = KDTree(X_train)
@@ -832,14 +830,14 @@ def interpolate_enu_kernelridge(
     # and the first column being the timestamps
 
     updated_shotdata_scaled_merged = np.vstack(
-        (
+        
             (
                 X_predict.T,
                 updated_shotdata_scaled[:, 0][:, np.newaxis].T,
                 updated_shotdata_scaled[:, 1][:, np.newaxis].T,
                 updated_shotdata_scaled[:, 2][:, np.newaxis].T,
             )
-        )
+        
     ).T
     updated_shotdata = scaler.inverse_transform(updated_shotdata_scaled_merged)
     # compute the offset between the predicted values and the original values
@@ -948,7 +946,7 @@ def merge_shotdata_kinposition_radius_regression(
     shotdata_pre: TDBShotDataArray,
     shotdata: TDBShotDataArray,
     kin_position: TDBKinPositionArray,
-    dates: List[datetime64],
+    dates: list[datetime64],
     lengthscale: float = 0.1,
     plot: bool = False,
 ) -> TDBShotDataArray:
@@ -976,7 +974,7 @@ def merge_shotdata_kinposition_radius_regression(
     """
 
     logger.loginfo("Merging shotdata and kin_position data")
-    for start, end in zip(dates, dates[1:]):
+    for start, end in zip(dates, dates[1:], strict=False):
         logger.loginfo(f"Interpolating shotdata for date {str(start)}")
 
         shotdata_df = shotdata_pre.read_df(start=start, end=end)

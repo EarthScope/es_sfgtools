@@ -1,7 +1,7 @@
 from datetime import datetime
-from typing import List, Optional, Union
-from enum import Enum
-from pydantic import BaseModel, Field, field_validator, field_serializer, PrivateAttr
+from enum import StrEnum
+
+from pydantic import BaseModel, Field, PrivateAttr, field_serializer, field_validator
 from regex import match
 
 from .utils import (
@@ -51,7 +51,7 @@ def campaign_checks(campaign_year, campaign_interval, vessel_code):
     return campaign_name, vessel_code.upper()
 
 
-class SurveyType(str, Enum):
+class SurveyType(StrEnum):
     CIRCLE = "circledrive"
     FIXED_POINT = "fixedpoint"
     MIXED = "mixed"
@@ -103,10 +103,10 @@ class Survey(AttributeUpdater, BaseModel):
 
     # Required
     id: str = Field(..., description="The unique ID of the survey")
-    type: Union[str, SurveyType] = Field(
+    type: str | SurveyType = Field(
         ..., description="The type of the survey (e.g. circle | fixed point | mixed)"
     )
-    benchmarkIDs: List[str] = Field(
+    benchmarkIDs: list[str] = Field(
         ..., description="Benchmark IDs associated with the survey"
     )
     start: datetime = Field(
@@ -117,24 +117,24 @@ class Survey(AttributeUpdater, BaseModel):
     )
 
     # Optional
-    notes: Optional[str] = Field(
+    notes: str | None = Field(
         default=None, description="Any additional notes about the survey"
     )
-    commands: Optional[str] = Field(default=None, description="Log of commands")
+    commands: str | None = Field(default=None, description="Log of commands")
 
     _parse_datetime = field_validator("start", "end", mode="before")(parse_datetime)
     _check_dates = field_validator("end", mode="after")(check_dates)
     _check_for_empty_strings = field_validator("notes", "commands")(
         check_fields_for_empty_strings
     )
-    _type_input: Optional[str] = PrivateAttr(default=None)
+    _type_input: str | None = PrivateAttr(default=None)
 
     """
     Gracefully convert survey type from string to SurveyType enum and vice versa for serialization.
     """
 
     @field_validator("type", mode="before")
-    def _validate_survey_type(type: Union[str, SurveyType]) -> SurveyType:
+    def _validate_survey_type(type: str | SurveyType) -> SurveyType:
         if isinstance(type, str):
             type = classify_survey_type(type)
         elif not isinstance(type, SurveyType):
@@ -175,17 +175,17 @@ class Campaign(AttributeUpdater, BaseModel):
     )
 
     # Optional
-    vessel: Optional[Vessel] = Field(
+    vessel: Vessel | None = Field(
         default=None,
         description="Instatiate Vessel object",
     )
-    principalInvestigator: Optional[str] = Field(default=None)
-    launchVesselName: Optional[str] = Field(default=None)
-    recoveryVesselName: Optional[str] = Field(default=None)
-    cruiseName: Optional[str] = Field(default=None)
-    technicianName: Optional[str] = Field(default=None)
-    technicianContact: Optional[str] = Field(default=None)
-    surveys: List[Survey] = Field(default_factory=list)
+    principalInvestigator: str | None = Field(default=None)
+    launchVesselName: str | None = Field(default=None)
+    recoveryVesselName: str | None = Field(default=None)
+    cruiseName: str | None = Field(default=None)
+    technicianName: str | None = Field(default=None)
+    technicianContact: str | None = Field(default=None)
+    surveys: list[Survey] = Field(default_factory=list)
 
     _parse_datetime = field_validator("start", "end", mode="before")(parse_datetime)
     _check_dates = field_validator("end", mode="after")(check_dates)

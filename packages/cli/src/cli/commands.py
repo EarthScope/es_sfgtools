@@ -21,6 +21,7 @@ def run_manifest(manifest_object):
     from es_sfgtools.modeling.garpos_tools.load_utils import load_lib
     from es_sfgtools.utils.model_update import validate_and_merge_config
     from es_sfgtools.workflows.workflow_handler import WorkflowHandler
+
     from .manifest import GARPOSConfig
     from .utils import display_pipelinemanifest
 

@@ -1,48 +1,40 @@
 from pathlib import Path
 from typing import (
-    List,
     Literal,
-    Optional,
-    Union,
 )
 
-
-from ..config.file_config import DEFAULT_FILE_TYPES_TO_DOWNLOAD, DEFAULT_INTERMEDIATE_FILE_TYPES_TO_DOWNLOAD
-from ..modeling.garpos_tools.schemas import InversionParams
-from .pipelines.qc_pipeline import QCPipeline
-
-from ..data_mgmt.assetcatalog.schemas import AssetEntry, AssetType
-from .midprocess.mid_processing import IntermediateDataProcessor
-from .modeling.garpos_handler import GarposHandler
-
-from ..data_models.metadata.site import Site
-from es_sfgtools.logging import ProcessLogger as logger
-from es_sfgtools.logging import change_all_logger_dirs
-
-from .pipelines.sv3_pipeline import SV3Pipeline
-from .pipelines import exceptions as pipeline_exceptions
-
-from .pipelines.config import (
-    SV3PipelineConfig,
-    QCPipelineConfig,
-    NovatelConfig,
-    RinexConfig,
-    DFOP00Config,
-    PositionUpdateConfig,
-    QCPinConfig,
-)
 from pride_ppp.specifications.cli import PrideCLIConfig
 
-
+from es_sfgtools.logging import ProcessLogger as logger
 from es_sfgtools.utils.model_update import validate_and_merge_config
 
-
+from ..config.file_config import (
+    DEFAULT_FILE_TYPES_TO_DOWNLOAD,
+    DEFAULT_INTERMEDIATE_FILE_TYPES_TO_DOWNLOAD,
+)
+from ..config.workspace import Workspace
+from ..data_mgmt.assetcatalog.schemas import AssetType
+from ..data_models.metadata.site import Site
+from ..modeling.garpos_tools.schemas import InversionParams
+from .midprocess.mid_processing import IntermediateDataProcessor
+from .modeling.garpos_handler import GarposHandler
+from .pipelines import exceptions as pipeline_exceptions
+from .pipelines.config import (
+    DFOP00Config,
+    NovatelConfig,
+    PositionUpdateConfig,
+    QCPinConfig,
+    QCPipelineConfig,
+    RinexConfig,
+    SV3PipelineConfig,
+)
+from .pipelines.qc_pipeline import QCPipeline
+from .pipelines.sv3_pipeline import SV3Pipeline
+from .preprocess_ingest.data_handler import DataHandler
 from .utils.protocols import (
     WorkflowABC,
     validate_network_station_campaign,
 )
-from .preprocess_ingest.data_handler import DataHandler
-from ..config.workspace import Workspace
 
 pipeline_jobs = [
     "all",
@@ -77,7 +69,7 @@ class WorkflowHandler(WorkflowABC):
 
     def __init__(
         self,
-        workspace: Optional[Workspace] = None,
+        workspace: Workspace | None = None,
         directory: Path | str = None,
     ) -> None:
         """
@@ -159,9 +151,7 @@ class WorkflowHandler(WorkflowABC):
     @validate_network_station_campaign
     def ingest_download_archive_data(
         self,
-        file_types: Optional[
-            List[AssetType] | List[str]
-        ] = DEFAULT_FILE_TYPES_TO_DOWNLOAD,
+        file_types: list[AssetType] | list[str] | None = DEFAULT_FILE_TYPES_TO_DOWNLOAD,
         rinex_1Hz: bool = False
     ) -> None:
         """
@@ -174,7 +164,7 @@ class WorkflowHandler(WorkflowABC):
         self.data_handler.download_data(file_types=file_types, rinex_1Hz=rinex_1Hz)
 
     @validate_network_station_campaign
-    def ingest_download_intermediate_archive_data(self, file_types:Optional[List[AssetType] | List[str]]=DEFAULT_INTERMEDIATE_FILE_TYPES_TO_DOWNLOAD, rinex_1Hz: bool = False) -> None:
+    def ingest_download_intermediate_archive_data(self, file_types:list[AssetType] | list[str] | None=DEFAULT_INTERMEDIATE_FILE_TYPES_TO_DOWNLOAD, rinex_1Hz: bool = False) -> None:
         """
         Downloads intermediate data files from the Earthscope archive based on the current catalog entries. 
 
@@ -187,28 +177,8 @@ class WorkflowHandler(WorkflowABC):
     @validate_network_station_campaign
     def preprocess_get_pipeline_sv3(
         self,
-        primary_config: Optional[
-            Union[
-                SV3PipelineConfig,
-                PrideCLIConfig,
-                NovatelConfig,
-                RinexConfig,
-                DFOP00Config,
-                PositionUpdateConfig,
-                dict,
-            ]
-        ] = None,
-        secondary_config: Optional[
-            Union[
-                SV3PipelineConfig,
-                PrideCLIConfig,
-                NovatelConfig,
-                RinexConfig,
-                DFOP00Config,
-                PositionUpdateConfig,
-                dict,
-            ]
-        ] = None,
+        primary_config: SV3PipelineConfig | PrideCLIConfig | NovatelConfig | RinexConfig | DFOP00Config | PositionUpdateConfig | dict | None = None,
+        secondary_config: SV3PipelineConfig | PrideCLIConfig | NovatelConfig | RinexConfig | DFOP00Config | PositionUpdateConfig | dict | None = None,
     ) -> SV3Pipeline:
         
         """Creates and configures an SV3 processing pipeline.
@@ -301,28 +271,8 @@ class WorkflowHandler(WorkflowABC):
             "refine_shotdata",
             "process_svp",
         ] = "all",
-        primary_config: Optional[
-            Union[
-                SV3PipelineConfig,
-                PrideCLIConfig,
-                NovatelConfig,
-                RinexConfig,
-                DFOP00Config,
-                PositionUpdateConfig,
-                dict,
-            ]
-        ] = None,
-        secondary_config: Optional[
-            Union[
-                SV3PipelineConfig,
-                PrideCLIConfig,
-                NovatelConfig,
-                RinexConfig,
-                DFOP00Config,
-                PositionUpdateConfig,
-                dict,
-            ]
-        ] = None,
+        primary_config: SV3PipelineConfig | PrideCLIConfig | NovatelConfig | RinexConfig | DFOP00Config | PositionUpdateConfig | dict | None = None,
+        secondary_config: SV3PipelineConfig | PrideCLIConfig | NovatelConfig | RinexConfig | DFOP00Config | PositionUpdateConfig | dict | None = None,
     ) -> None:
         """Runs the SV3 processing pipeline with optional configuration overrides.
 
@@ -495,26 +445,8 @@ class WorkflowHandler(WorkflowABC):
     @validate_network_station_campaign
     def preprocess_get_pipeline_qc(
         self,
-        primary_config: Optional[
-            Union[
-                QCPipelineConfig,
-                PrideCLIConfig,
-                RinexConfig,
-                PositionUpdateConfig,
-                QCPinConfig,
-                dict,
-            ]
-        ] = None,
-        secondary_config: Optional[
-            Union[
-                QCPipelineConfig,
-                PrideCLIConfig,
-                RinexConfig,
-                PositionUpdateConfig,
-                QCPinConfig,
-                dict,
-            ]
-        ] = None,
+        primary_config: QCPipelineConfig | PrideCLIConfig | RinexConfig | PositionUpdateConfig | QCPinConfig | dict | None = None,
+        secondary_config: QCPipelineConfig | PrideCLIConfig | RinexConfig | PositionUpdateConfig | QCPinConfig | dict | None = None,
     ) -> QCPipeline:
         """Creates and configures a QC processing pipeline.
 
@@ -601,26 +533,8 @@ class WorkflowHandler(WorkflowABC):
             "process_kinematic",
             "refine_shotdata",
         ] = "all",
-        primary_config: Optional[
-            Union[
-                QCPipelineConfig,
-                PrideCLIConfig,
-                RinexConfig,
-                PositionUpdateConfig,
-                QCPinConfig,
-                dict,
-            ]
-        ] = None,
-        secondary_config: Optional[
-            Union[
-                QCPipelineConfig,
-                PrideCLIConfig,
-                RinexConfig,
-                PositionUpdateConfig,
-                QCPinConfig,
-                dict,
-            ]
-        ] = None,
+        primary_config: QCPipelineConfig | PrideCLIConfig | RinexConfig | PositionUpdateConfig | QCPinConfig | dict | None = None,
+        secondary_config: QCPipelineConfig | PrideCLIConfig | RinexConfig | PositionUpdateConfig | QCPinConfig | dict | None = None,
     ) -> None:
         """Runs the QC processing pipeline with optional configuration overrides.
 
@@ -708,7 +622,7 @@ class WorkflowHandler(WorkflowABC):
 
     @validate_network_station_campaign
     def midprocess_get_sitemeta(
-        self, site_metadata: Optional[Union[Site, str]] = None
+        self, site_metadata: Site | str | None = None
     ) -> Site:
         """Loads and returns the site metadata for the current station. Sets the current_station_metadata attribute.
 
@@ -735,7 +649,7 @@ class WorkflowHandler(WorkflowABC):
             if self.data_handler.current_station_metadata is not None:
                 site_metadata = self.data_handler.current_station_metadata
             else:
-                site_metadata: Union[Site, None] = self.data_handler.get_site_metadata(
+                site_metadata: Site | None = self.data_handler.get_site_metadata(
                     site_metadata=site_metadata
                 )
 
@@ -756,7 +670,7 @@ class WorkflowHandler(WorkflowABC):
     @validate_network_station_campaign
     def midprocess_get_processor(
         self,
-        site_metadata: Optional[Union[Site, str]] = None,
+        site_metadata: Site | str | None = None,
         override_metadata_require: bool = False,
     ) -> IntermediateDataProcessor:
         """Returns an instance of the IntermediateDataProcessor for the current station.
@@ -800,10 +714,10 @@ class WorkflowHandler(WorkflowABC):
     @validate_network_station_campaign
     def midprocess_parse_surveys(
         self,
-        site_metadata: Optional[Union[Site, str]] = None,
+        site_metadata: Site | str | None = None,
         override: bool = False,
         write_intermediate: bool = False,
-        survey_id: Optional[str] = None,
+        survey_id: str | None = None,
     ) -> IntermediateDataProcessor:
         """Parses survey data for the current station.
 
@@ -843,9 +757,9 @@ class WorkflowHandler(WorkflowABC):
     @validate_network_station_campaign
     def midprocess_prep_garpos(
         self,
-        site_metadata: Optional[Union[Site, str]] = None,
-        survey_id: Optional[str] = None,
-        custom_filters: Optional[dict] = None,
+        site_metadata: Site | str | None = None,
+        survey_id: str | None = None,
+        custom_filters: dict | None = None,
         override: bool = False,
         override_survey_parsing: bool = False,
         write_intermediate: bool = False,
@@ -936,11 +850,11 @@ class WorkflowHandler(WorkflowABC):
     @validate_network_station_campaign
     def modeling_run_garpos(
         self,
-        survey_id: Optional[str] = None,
+        survey_id: str | None = None,
         run_id: str = "Test",
         iterations: int = 1,
         override: bool = False,
-        custom_settings: Optional[dict] = None,
+        custom_settings: dict | None = None,
     ) -> None:
         """Runs GARPOS processing for the current station.
 
@@ -976,7 +890,7 @@ class WorkflowHandler(WorkflowABC):
     @validate_network_station_campaign
     def modeling_plot_shotdata_replies_per_transponder(
         self,
-        survey_id: Optional[str] = None,
+        survey_id: str | None = None,
         save_fig: bool = True,
         show_fig: bool = False,
     ) -> None:
@@ -1000,7 +914,7 @@ class WorkflowHandler(WorkflowABC):
     @validate_network_station_campaign
     def modeling_plot_flagged_residuals(
         self,
-        survey_id: Optional[str] = None,
+        survey_id: str | None = None,
         run_id: str = "Test",
         save_fig: bool = True,
         show_fig: bool = False,
@@ -1029,7 +943,7 @@ class WorkflowHandler(WorkflowABC):
     @validate_network_station_campaign
     def modeling_plot_garpos_residuals(
         self,
-        survey_id: Optional[str] = None,
+        survey_id: str | None = None,
         run_id: str = "Test",
         subplots: bool = True,
         save_fig: bool = True,
@@ -1090,10 +1004,10 @@ class WorkflowHandler(WorkflowABC):
     @validate_network_station_campaign
     def qc_process_and_model(
         self,
-        site_metadata: Optional[Union[Site, str]] = None,
+        site_metadata: Site | str | None = None,
         run_id: str | int = 0,
         iterations: int = 1,
-        garpos_settings: Optional[dict | InversionParams] = None,
+        garpos_settings: dict | InversionParams | None = None,
         garpos_override: bool = False,
         pre_process_config: QCPipelineConfig = None,
     ) -> None:
@@ -1161,9 +1075,9 @@ class WorkflowHandler(WorkflowABC):
     @validate_network_station_campaign
     def modeling_plot_garpos_results(
         self,
-        survey_id: Optional[str] = None,
+        survey_id: str | None = None,
         run_id: str = "Test",
-        residuals_filter: Optional[float] = 10,
+        residuals_filter: float | None = 10,
         save_fig: bool = True,
         show_fig: bool = False,
     ) -> None:

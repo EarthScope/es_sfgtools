@@ -10,7 +10,6 @@ and replies. The use of `Decimal` ensures high precision for all numeric fields.
 """
 
 from decimal import Decimal, getcontext
-from typing import Optional
 
 from pydantic import BaseModel
 
@@ -27,9 +26,9 @@ class SV3InterrogationData(BaseModel):
     east0: Decimal
     north0: Decimal
     up0: Decimal
-    east_std0: Optional[Decimal] = None
-    north_std0: Optional[Decimal] = None
-    up_std0: Optional[Decimal] = None
+    east_std0: Decimal | None = None
+    north_std0: Decimal | None = None
+    up_std0: Decimal | None = None
     pingTime: Decimal
 
 
@@ -49,6 +48,6 @@ class SV3ReplyData(BaseModel):
     tt: Decimal
     tat: Decimal
     returnTime: Decimal
-    east_std1: Optional[Decimal] = None
-    north_std1: Optional[Decimal] = None
-    up_std1: Optional[Decimal] = None
+    east_std1: Decimal | None = None
+    north_std1: Decimal | None = None
+    up_std1: Decimal | None = None

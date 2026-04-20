@@ -5,26 +5,25 @@ import subprocess
 import tempfile
 import uuid
 from pathlib import Path
-from typing import List
 
 import numpy as np
 
 from ..logging import ProcessLogger as logger
+from ..utils.command_line_utils import parse_cli_logs
 
 # Local imports
 from .utils import (
+    MetadataModel,
+    check_metadata,
+    check_metadata_path,
     get_metadatav2,
     get_nova2rnx_binary_path,
     get_nova2tile_binary_path,
-    MetadataModel,
-    check_metadata_path,
-    check_metadata,
 )
-from ..utils.command_line_utils import parse_cli_logs
 
 
 def novatel_ascii_2tile(
-    files: List[str], gnss_obs_tdb: Path, n_procs: int = 10, verbose: bool = True
+    files: list[str], gnss_obs_tdb: Path, n_procs: int = 10, verbose: bool = True
 ) -> None:
     """
     This function is a python wrapper for the nova2tile golang binary.
@@ -61,7 +60,7 @@ def novatel_ascii_2rinex(
     metadata: dict | MetadataModel | Path | str = None,
     modulo_millis: int = 0,
     *kwargs,
-) -> List[Path]:
+) -> list[Path]:
     """Convert a NovAtel ASCII file to a daily RINEX file using nova2rnxo.
     This function wraps the external `nova2rnxo` binary to convert a NovAtel ASCII
     observation file into a daily RINEX file. Metadata describing the site and

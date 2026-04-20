@@ -1,7 +1,7 @@
 import json
 from datetime import datetime
-from enum import Enum
-from typing import Any, ClassVar, Dict, List, Optional
+from enum import StrEnum
+from typing import Any, ClassVar
 
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
@@ -14,7 +14,7 @@ from .utils import (
 )
 
 
-class EquipmentType(str, Enum):
+class EquipmentType(StrEnum):
     IMU_SENSORS = "imuSensors"
     ATD_OFFSETS = "atdOffsets"
     GNSS_ANTENNAS = "gnssAntennas"
@@ -26,7 +26,7 @@ class EquipmentType(str, Enum):
 class AtdOffset(AttributeUpdater, BaseModel):
     """The offset of the transducer from the GNSS antenna"""
 
-    serialNumber: Optional[str] = Field(
+    serialNumber: str | None = Field(
         "", description="The transducer serial number associated with the offset"
     )
     x: float = Field(
@@ -50,10 +50,10 @@ class GnssAntenna(AttributeUpdater, BaseModel):
     start: datetime = Field(..., gt=datetime(1901, 1, 1))
 
     # Optional
-    order: Optional[str] = Field(default=None)
-    model: Optional[str] = Field(default=None)
-    radomeSerialNumber: Optional[str] = Field(default=None)
-    end: Optional[datetime] = Field(default=None, gt=datetime(1901, 1, 1))
+    order: str | None = Field(default=None)
+    model: str | None = Field(default=None)
+    radomeSerialNumber: str | None = Field(default=None)
+    end: datetime | None = Field(default=None, gt=datetime(1901, 1, 1))
 
     # Validators
     _parse_datetime = field_validator("start", "end", mode="before")(parse_datetime)
@@ -70,11 +70,11 @@ class GnssReceiver(AttributeUpdater, BaseModel):
     start: datetime = Field(..., gt=datetime(1901, 1, 1))
 
     # Optional
-    model: Optional[str] = Field(default=None, description="The model of the receiver")
-    firmwareVersion: Optional[str] = Field(
+    model: str | None = Field(default=None, description="The model of the receiver")
+    firmwareVersion: str | None = Field(
         default=None, description="The firmware version of the receiver"
     )
-    end: Optional[datetime] = Field(default=None, gt=datetime(1901, 1, 1))
+    end: datetime | None = Field(default=None, gt=datetime(1901, 1, 1))
 
     # Validators
     _parse_datetime = field_validator("start", "end", mode="before")(parse_datetime)
@@ -92,7 +92,7 @@ class AcousticTransducer(AttributeUpdater, BaseModel):
     start: datetime = Field(..., gt=datetime(1901, 1, 1))
 
     # Optional
-    end: Optional[datetime] = Field(default=None, gt=datetime(1901, 1, 1))
+    end: datetime | None = Field(default=None, gt=datetime(1901, 1, 1))
 
     # Validators
     _parse_datetime = field_validator("start", "end", mode="before")(parse_datetime)
@@ -112,13 +112,13 @@ class AcousticTransceiver(AttributeUpdater, BaseModel):
     start: datetime = Field(..., gt=datetime(1901, 1, 1))
 
     # Optional
-    triggerDelay: Optional[float] = Field(
+    triggerDelay: float | None = Field(
         default=None, description="The trigger delay in seconds"
     )
-    delayIncludedInTWTT: Optional[bool] = Field(
+    delayIncludedInTWTT: bool | None = Field(
         default=None, description="Whether the delay is included in the TWTT"
     )
-    end: Optional[datetime] = Field(
+    end: datetime | None = Field(
         default=None,
         gt=datetime(1901, 1, 1),
         description="The end date of the transceiver usage",
@@ -139,8 +139,8 @@ class ImuSensor(AttributeUpdater, BaseModel):
     start: datetime = Field(..., gt=datetime(1901, 1, 1))
 
     # Optional
-    model: Optional[str] = Field(default=None)
-    end: Optional[datetime] = Field(default=None, gt=datetime(1901, 1, 1))
+    model: str | None = Field(default=None)
+    end: datetime | None = Field(default=None, gt=datetime(1901, 1, 1))
 
     # Validators
     _parse_datetime = field_validator("start", "end", mode="before")(parse_datetime)
@@ -157,15 +157,15 @@ class Vessel(AttributeUpdater, BaseModel):
     model: str = Field(..., description="The model of the vessel")
 
     # Optional
-    serialNumber: Optional[str] = Field(default=None)
-    start: Optional[datetime] = Field(default=None, gt=datetime(1901, 1, 1))
-    end: Optional[datetime] = Field(default=None, gt=datetime(1901, 1, 1))
-    imuSensors: List[ImuSensor] = Field(default_factory=list)
-    atdOffsets: List[AtdOffset] = Field(default_factory=list)
-    gnssAntennas: List[GnssAntenna] = Field(default_factory=list)
-    gnssReceivers: List[GnssReceiver] = Field(default_factory=list)
-    acousticTransducers: List[AcousticTransducer] = Field(default_factory=list)
-    acousticTransceivers: List[AcousticTransceiver] = Field(default_factory=list)
+    serialNumber: str | None = Field(default=None)
+    start: datetime | None = Field(default=None, gt=datetime(1901, 1, 1))
+    end: datetime | None = Field(default=None, gt=datetime(1901, 1, 1))
+    imuSensors: list[ImuSensor] = Field(default_factory=list)
+    atdOffsets: list[AtdOffset] = Field(default_factory=list)
+    gnssAntennas: list[GnssAntenna] = Field(default_factory=list)
+    gnssReceivers: list[GnssReceiver] = Field(default_factory=list)
+    acousticTransducers: list[AcousticTransducer] = Field(default_factory=list)
+    acousticTransceivers: list[AcousticTransceiver] = Field(default_factory=list)
 
     # Validators
     _parse_datetime = field_validator("start", "end", mode="before")(parse_datetime)
@@ -175,7 +175,7 @@ class Vessel(AttributeUpdater, BaseModel):
     )
 
     # Map of equipment types to their respective lists and classes - used for adding, updating and deleting equipment
-    equipment_map: ClassVar[Dict[str, Any]] = {
+    equipment_map: ClassVar[dict[str, Any]] = {
         EquipmentType.IMU_SENSORS: (lambda self: self.imuSensors, ImuSensor),
         EquipmentType.GNSS_ANTENNAS: (lambda self: self.gnssAntennas, GnssAntenna),
         EquipmentType.GNSS_RECEIVERS: (lambda self: self.gnssReceivers, GnssReceiver),
@@ -193,7 +193,7 @@ class Vessel(AttributeUpdater, BaseModel):
     @field_validator("name", "type", "model")
     def check_required_fields(cls, value):
         if not value:
-            raise ValueError("Required field {} is empty".format(value))
+            raise ValueError(f"Required field {value} is empty")
         return value
 
     def export_vessel(self, filepath: str):
@@ -221,7 +221,7 @@ class Vessel(AttributeUpdater, BaseModel):
         Vessel
             The vessel object.
         """
-        with open(filepath, "r") as file:
+        with open(filepath) as file:
             return cls(**json.load(file))
 
     def print_json(self):
@@ -399,7 +399,7 @@ def import_vessel(filepath: str) -> Vessel:
     Vessel
         The vessel object.
     """
-    with open(filepath, "r") as file:
+    with open(filepath) as file:
         return Vessel(**json.load(file))
 
 

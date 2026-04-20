@@ -7,7 +7,6 @@ and site metadata in a standardized format.
 """
 
 import datetime
-from typing import Optional
 
 import pandera.pandas as pa
 import pymap3d as pm
@@ -54,109 +53,109 @@ class SFGDSTFSeafloorAcousticData(pa.DataFrameModel):
     )
 
     # Optional pa.Fields
-    TDC_ID: Optional[Series[str]] = pa.Field(
+    TDC_ID: Series[str] | None = pa.Field(
         default=None, description="ID of the reception transducer"
     )
-    aSNR: Optional[Series[float]] = pa.Field(
+    aSNR: Series[float] | None = pa.Field(
         default=None, description="Signal/Noise Ratio of the acoustic ping"
     )
-    acc: Optional[Series[int]] = pa.Field(
+    acc: Series[int] | None = pa.Field(
         default=None, description="acoustic Cross Correlation of the acoustic ping"
     )
-    dbV: Optional[Series[float]] = pa.Field(
+    dbV: Series[float] | None = pa.Field(
         default=None, description="acoustic Decibel Volt voltage of the acoustic ping"
     )
-    quality_flag: Optional[Series[str]] = pa.Field(
+    quality_flag: Series[str] | None = pa.Field(
         default=None,
         description="String defining the quality of the record",
     )
-    trans_sigX0: Optional[Series[float]] = pa.Field(
+    trans_sigX0: Series[float] | None = pa.Field(
         default=None, description="Transducer position std at transmit"
     )
-    trans_sigY0: Optional[Series[float]] = pa.Field(
+    trans_sigY0: Series[float] | None = pa.Field(
         default=None, description="Transducer position std at transmit"
     )
-    trans_sigZ0: Optional[Series[float]] = pa.Field(
+    trans_sigZ0: Series[float] | None = pa.Field(
         default=None, description="Transducer position std at transmit"
     )
-    trans_sigX1: Optional[Series[float]] = pa.Field(
+    trans_sigX1: Series[float] | None = pa.Field(
         default=None, description="Transducer position std at receive"
     )
-    trans_sigY1: Optional[Series[float]] = pa.Field(
+    trans_sigY1: Series[float] | None = pa.Field(
         default=None, description="Transducer position std at receive"
     )
-    trans_sigZ1: Optional[Series[float]] = pa.Field(
+    trans_sigZ1: Series[float] | None = pa.Field(
         default=None, description="Transducer position std at receive"
     )
 
     # GNSS antenna positions and uncertainties
-    ant_X0: Optional[Series[float]] = pa.Field(
+    ant_X0: Series[float] | None = pa.Field(
         default=None, description="GNSS position at T_transmit in ECEF [m]"
     )
-    ant_Y0: Optional[Series[float]] = pa.Field(
+    ant_Y0: Series[float] | None = pa.Field(
         default=None, description="GNSS position at T_transmit in ECEF [m]"
     )
-    ant_Z0: Optional[Series[float]] = pa.Field(
+    ant_Z0: Series[float] | None = pa.Field(
         default=None, description="GNSS position at T_transmit in ECEF [m]"
     )
-    ant_sigX0: Optional[Series[float]] = pa.Field(
+    ant_sigX0: Series[float] | None = pa.Field(
         default=None, description="GNSS antenna std at transmit"
     )
-    ant_sigY0: Optional[Series[float]] = pa.Field(
+    ant_sigY0: Series[float] | None = pa.Field(
         default=None, description="GNSS antenna std at transmit"
     )
-    ant_sigZ0: Optional[Series[float]] = pa.Field(
+    ant_sigZ0: Series[float] | None = pa.Field(
         default=None, description="GNSS antenna std at transmit"
     )
-    ant_cov_XY0: Optional[Series[float]] = pa.Field(
+    ant_cov_XY0: Series[float] | None = pa.Field(
         default=None, description="Covariance matrix"
     )
-    ant_X1: Optional[Series[float]] = pa.Field(
+    ant_X1: Series[float] | None = pa.Field(
         default=None, description="GNSS position at T_receive in ECEF [m]"
     )
-    ant_Y1: Optional[Series[float]] = pa.Field(
+    ant_Y1: Series[float] | None = pa.Field(
         default=None, description="GNSS position at T_receive in ECEF [m]"
     )
-    ant_Z1: Optional[Series[float]] = pa.Field(
+    ant_Z1: Series[float] | None = pa.Field(
         default=None, description="GNSS position at T_receive in ECEF [m]"
     )
-    ant_sigX1: Optional[Series[float]] = pa.Field(
+    ant_sigX1: Series[float] | None = pa.Field(
         default=None, description="GNSS antenna std at transmit"
     )
-    ant_sigY1: Optional[Series[float]] = pa.Field(
+    ant_sigY1: Series[float] | None = pa.Field(
         default=None, description="GNSS antenna std at transmit"
     )
-    ant_sigZ1: Optional[Series[float]] = pa.Field(
+    ant_sigZ1: Series[float] | None = pa.Field(
         default=None, description="GNSS antenna std at transmit"
     )
 
     # Attitude information
-    heading0: Optional[Series[float]] = pa.Field(
+    heading0: Series[float] | None = pa.Field(
         default=None,
         description="Heading at T_transmit (in degree from north)",
         ge=0,
         le=360,
     )
-    pitch0: Optional[Series[float]] = pa.Field(
+    pitch0: Series[float] | None = pa.Field(
         default=None, description="Pitch at T_transmit (in degree)", ge=-90, le=90
     )
-    roll0: Optional[Series[float]] = pa.Field(
+    roll0: Series[float] | None = pa.Field(
         default=None, description="Roll at T_transmit (in degree)", ge=-180, le=180
     )
-    roll1: Optional[Series[float]] = pa.Field(
+    roll1: Series[float] | None = pa.Field(
         default=None, description="Roll at T_receive (in degree)", ge=-180, le=180
     )
 
     # Direction of arrival vectors
-    doa_R: Optional[Series[float]] = pa.Field(
+    doa_R: Series[float] | None = pa.Field(
         default=None,
         description="direction of arrival vector wrt Roll vector direction",
     )
-    doa_P: Optional[Series[float]] = pa.Field(
+    doa_P: Series[float] | None = pa.Field(
         default=None,
         description="direction of arrival vector wrt Pitch vector direction",
     )
-    doa_H: Optional[Series[float]] = pa.Field(
+    doa_H: Series[float] | None = pa.Field(
         default=None,
         description="direction of arrival vector wrt Heading vector direction",
     )

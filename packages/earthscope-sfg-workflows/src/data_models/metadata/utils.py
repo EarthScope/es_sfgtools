@@ -1,6 +1,6 @@
 # Description: Utility functions for metadata classes.
-from datetime import datetime, timezone
-from typing import Any, Dict, Optional, Union
+from datetime import UTC, datetime
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -108,7 +108,7 @@ def check_fields_for_empty_strings(cls, value):
 
 
 class AttributeUpdater:
-    def update_attributes(self, additional_data: Dict[str, Any]):
+    def update_attributes(self, additional_data: dict[str, Any]):
         """Update the class attributes based on the provided dictionary.
 
         This handles nested objects with the AttributeUpdater (e.g Location)
@@ -168,7 +168,7 @@ def only_one_is_true(*args):
     return sum(args) == 1
 
 
-def convert_to_datetime(date_str: Union[str, datetime]) -> datetime:
+def convert_to_datetime(date_str: str | datetime) -> datetime:
     """Convert ISO string format to datetime if a string is provided.
 
     Parameters
@@ -191,7 +191,7 @@ def convert_to_datetime(date_str: Union[str, datetime]) -> datetime:
             dt = datetime.fromisoformat(date_str)
             # If the datetime is timezone-naive, assume UTC
             if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
+                dt = dt.replace(tzinfo=UTC)
             return dt
         except ValueError:
             print(
@@ -200,7 +200,7 @@ def convert_to_datetime(date_str: Union[str, datetime]) -> datetime:
             raise
     # If it's already a datetime, ensure it's timezone-aware
     if isinstance(date_str, datetime) and date_str.tzinfo is None:
-        return date_str.replace(tzinfo=timezone.utc)
+        return date_str.replace(tzinfo=UTC)
     return date_str
 
 
@@ -229,13 +229,13 @@ def convert_custom_objects_to_dict(d: dict) -> dict:
 
 
 class Location(AttributeUpdater, BaseModel):
-    latitude: Optional[float] = Field(
+    latitude: float | None = Field(
         default=None, description="The latitude of the location.", ge=-90, le=90
     )
-    longitude: Optional[float] = Field(
+    longitude: float | None = Field(
         default=None, description="The longitude of the location.", ge=-180, le=180
     )
-    elevation: Optional[float] = Field(
+    elevation: float | None = Field(
         default=None, description="The elevation of the location."
     )
 

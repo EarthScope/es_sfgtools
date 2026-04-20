@@ -1,5 +1,6 @@
-from ..assetcatalog.schemas import AssetType
 import re
+
+from ..assetcatalog.schemas import AssetType
 
 ARCHIVE_PREFIX = "https://data.earthscope.org/archive/seafloor"
 

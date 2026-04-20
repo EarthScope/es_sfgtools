@@ -15,7 +15,7 @@ def plot_histogram(rinex_path):
 
     fig, axs = plt.subplots(1, 1, tight_layout=True)
     bins = [(x + 0.5) / 10.0 for x in range(0, 50, 1)]
-    plot = axs.hist(data, bins=bins)
+    axs.hist(data, bins=bins)
     fig.suptitle(
         f"Histogram of seconds between samples for {os.path.basename(rinex_path)}"
     )

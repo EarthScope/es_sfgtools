@@ -1,25 +1,25 @@
-from datetime import datetime, timezone
-from typing import Optional, Union
+from datetime import UTC, datetime
+
 import numpy as np
 import pandas as pd
 import pymap3d as pm
 
-from ..data_models.metadata import Site, SurveyType, classify_survey_type
 from es_sfgtools.logging import GarposLogger as logger
 from es_sfgtools.utils.model_update import validate_and_merge_config
 
-from .schemas import FilterLevel, FilterConfig
+from ..data_models.metadata import Site, SurveyType
+from .schemas import FilterConfig, FilterLevel
 
 
 def filter_shotdata(
-    survey_type: Union[str, SurveyType],
+    survey_type: str | SurveyType,
     site: Site,
     shot_data: pd.DataFrame,
     kinPostionTDBUri: str,
     start_time: datetime,
     end_time: datetime,
-    base_config: Optional[FilterConfig] = None,
-    custom_filters: Optional[dict] = None,
+    base_config: FilterConfig | None = None,
+    custom_filters: dict | None = None,
 ) -> pd.DataFrame:
     """
     Filter the shot data based on the specified acoustic level and minimum ping replies.
@@ -106,8 +106,8 @@ def filter_shotdata(
         new_shot_data_df = filter_pride_residuals(
             df=new_shot_data_df,
             kinPostionTDBUri=kinPostionTDBUri,
-            start_time=start_time.replace(tzinfo=timezone.utc),
-            end_time=end_time.replace(tzinfo=timezone.utc),
+            start_time=start_time.replace(tzinfo=UTC),
+            end_time=end_time.replace(tzinfo=UTC),
             max_wrms=filter_config.pride_residuals.max_residual_mm,
         )
 

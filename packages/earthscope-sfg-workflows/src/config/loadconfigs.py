@@ -5,19 +5,18 @@ It determines which filter settings and GARPOS parameters to use based on the
 type of survey being processed (e.g., CENTER, CIRCLE).
 """
 
-from typing import Union
 
+from ..data_models.metadata import SurveyType, classify_survey_type
+from ..prefiltering.schemas import FilterConfig
 from .garpos_config import DEFAULT_SITE_CONFIG, GarposSiteConfig
 from .shotdata_filters import (
     CENTER_DRIVE_FILTER_CONFIG,
     CIRCLE_DRIVE_FILTER_CONFIG,
     DEFAULT_FILTER_CONFIG,
 )
-from ..data_models.metadata import SurveyType, classify_survey_type
-from ..prefiltering.schemas import FilterConfig
 
 
-def get_survey_filter_config(survey_type: Union[SurveyType, str]) -> FilterConfig:
+def get_survey_filter_config(survey_type: SurveyType | str) -> FilterConfig:
     """
     Get the filter configuration based on the survey type.
 
@@ -39,7 +38,7 @@ def get_survey_filter_config(survey_type: Union[SurveyType, str]) -> FilterConfi
             return DEFAULT_FILTER_CONFIG.model_copy()
 
 
-def get_garpos_site_config(survey_type: Union[SurveyType, str]) -> GarposSiteConfig:
+def get_garpos_site_config(survey_type: SurveyType | str) -> GarposSiteConfig:
     """
     Get the GARPOS site configuration based on the survey type.
 

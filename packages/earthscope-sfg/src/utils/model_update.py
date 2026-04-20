@@ -1,6 +1,7 @@
-from typing import Union, Dict, Any
-from pydantic import BaseModel
 from difflib import get_close_matches
+from typing import Any, Union
+
+from pydantic import BaseModel
 
 
 def validate_keys_recursively(
@@ -58,7 +59,7 @@ def validate_keys_recursively(
                 if hasattr(annotation, "__bases__") and any(
                     issubclass(base, BaseModel)
                     for base in annotation.__bases__
-                    if base != object
+                    if base is not object
                 ):
                     nested_errors = validate_keys_recursively(
                         value, annotation, current_path
@@ -68,7 +69,7 @@ def validate_keys_recursively(
     return errors
 
 
-def deep_merge_dicts(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
+def deep_merge_dicts(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
     """Recursively merge override dict into base dict.
 
     For nested dictionaries, values are merged recursively rather than replaced.
@@ -100,7 +101,7 @@ def deep_merge_dicts(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str
 
 
 def validate_and_merge_config(
-    base_class: BaseModel, override_config: Union[BaseModel, Dict[str, Any]]
+    base_class: BaseModel, override_config: BaseModel | dict[str, Any]
 ) -> BaseModel:
     """Validates and merges override configuration with base config, checking for typos.
 
@@ -157,8 +158,6 @@ def validate_and_merge_config(
 
 if __name__ == "__main__":
     import os
-    import sys
-    from pathlib import Path
 
     os.environ["DYLD_LIBRARY_PATH"] = os.environ.get("CONDA_PREFIX", "") + "/lib"
     from es_sfgtools.pipelines.sv3_pipeline import SV3PipelineConfig

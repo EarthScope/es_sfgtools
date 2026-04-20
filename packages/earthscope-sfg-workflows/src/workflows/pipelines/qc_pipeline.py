@@ -3,56 +3,43 @@ import concurrent.futures
 import datetime
 import json
 import sys
-from functools import partial
-from multiprocessing import Pool
-from pathlib import Path
 import threading
-from typing import List, Optional, Tuple
-import pandas as pd
-from tqdm.auto import tqdm
-from collections import deque
 import time
+from collections import deque
+from functools import partial
+from pathlib import Path
+
+from pride_ppp import PrideProcessor, ProcessingMode, kin_to_kin_position_df, rinex_get_time_range
+from tqdm.auto import tqdm
 
 # Local Imports
 from es_sfgtools.logging import ProcessLogger, change_all_logger_dirs
-from ...data_mgmt.assetcatalog.handler import PreProcessCatalogHandler
-from ...data_mgmt.assetcatalog.schemas import AssetEntry, AssetType
-from ...data_mgmt.directorymgmt import (
-    CampaignDir,
-    NetworkDir,
-    StationDir,
-)
-from ...config.workspace import Workspace
-from es_sfgtools.data_models.observables import ShotDataFrame
-from pandera.typing import DataFrame
-from ...data_mgmt.utils import get_merge_signature_shotdata
-from es_sfgtools.novatel_tools import novatel_ascii_operations as nova_ops
-from es_sfgtools.novatel_tools.utils import get_metadata, get_metadatav2
-
-from es_sfgtools.sonardyne_tools.sv3_qc_operations import qcjson_to_shotdata
+from es_sfgtools.novatel_tools.novatel_to_rinex_operations import tile2rinex
 from es_sfgtools.novatel_tools.rangea_parser import (
-    GNSSEpoch,
-    extract_rangea_from_qcpin,
     extract_rangea_strings_from_qcpin,
 )
-from es_sfgtools.novatel_tools.novatel_to_rinex_operations import tile2rinex
+from es_sfgtools.novatel_tools.utils import get_metadata, get_metadatav2
+from es_sfgtools.sonardyne_tools.sv3_qc_operations import qcjson_to_shotdata
 from es_sfgtools.tiledb_schemas import (
     TDBGNSSObsArray,
     TDBKinPositionArray,
     TDBShotDataArray,
 )
+
+from ...config.workspace import Workspace
+from ...data_mgmt.assetcatalog.handler import PreProcessCatalogHandler
+from ...data_mgmt.assetcatalog.schemas import AssetEntry, AssetType
+from ...data_mgmt.utils import get_merge_signature_shotdata
+from ..utils.protocols import WorkflowABC, validate_network_station_campaign
 from .config import QCPipelineConfig
 from .exceptions import (
+    NoKinFound,
     NoLocalData,
     NoQCPinFound,
-    NoNovatelPinFound,
     NoRinexBuilt,
     NoRinexFound,
-    NoKinFound,
 )
-from pride_ppp import PrideProcessor, ProcessingMode, kin_to_kin_position_df, rinex_get_time_range
-from .shotdata_gnss_refinement import merge_shotdata_kinposition, merge_shotdata_qc
-from ..utils.protocols import WorkflowABC, validate_network_station_campaign
+from .shotdata_gnss_refinement import merge_shotdata_qc
 
 
 def process_single_qcpin(
@@ -63,7 +50,7 @@ def process_single_qcpin(
 ) -> bool:
     try:
         df = qcjson_to_shotdata(entry.local_path)
-        rangea_strings: List[str] = extract_rangea_strings_from_qcpin(entry.local_path)
+        rangea_strings: list[str] = extract_rangea_strings_from_qcpin(entry.local_path)
         entry.is_processed = True
         shotdata_tdb.write_df(df)
         rangea_string_queue.extend(rangea_strings)
@@ -166,9 +153,9 @@ class QCPipeline(WorkflowABC):
 
     def __init__(
         self,
-        workspace: Optional[Workspace] = None,
-        asset_catalog: Optional[PreProcessCatalogHandler] = None,
-        config: QCPipelineConfig = QCPipelineConfig(),
+        workspace: Workspace | None = None,
+        asset_catalog: PreProcessCatalogHandler | None = None,
+        config: QCPipelineConfig = None,
     ):
         """Initialize the QCPipeline with workspace and configuration.
 
@@ -308,7 +295,7 @@ class QCPipeline(WorkflowABC):
         NoQCPinFound
             If no QC PIN files are found for the current context.
         """
-        qcpin_entries: List[AssetEntry] = (
+        qcpin_entries: list[AssetEntry] = (
             self.asset_catalog.get_single_entries_to_process(
                 network=self.current_network_name,
                 station=self.current_station_name,
@@ -402,7 +389,7 @@ class QCPipeline(WorkflowABC):
             or not self.asset_catalog.is_merge_complete(**merge_signature)
         ):
             try:
-                rinex_paths: List[Path] = tile2rinex(
+                rinex_paths: list[Path] = tile2rinex(
                     gnss_obs_tdb=self.qcGnssObsTDB.uri,
                     settings=self.config.rinex_config.settings_path,
                     writedir=rinexDestination,
@@ -418,7 +405,7 @@ class QCPipeline(WorkflowABC):
                         "No QC RINEX files were built. Ensure GNSS data is available."
                     )
 
-                rinex_entries: List[AssetEntry] = []
+                rinex_entries: list[AssetEntry] = []
                 uploadCount = 0
                 for rinex_path in rinex_paths:
                     rinex_time_start, rinex_time_end = rinex_get_time_range(
@@ -432,7 +419,7 @@ class QCPipeline(WorkflowABC):
                         timestamp_data_start=rinex_time_start,
                         timestamp_data_end=rinex_time_end,
                         type=AssetType.RINEX2,
-                        timestamp_created=datetime.datetime.now(tz=datetime.timezone.utc),
+                        timestamp_created=datetime.datetime.now(tz=datetime.UTC),
                     )
                     rinex_entries.append(rinex_entry)
                     if self.asset_catalog.add_entry(rinex_entry):
@@ -491,7 +478,7 @@ class QCPipeline(WorkflowABC):
         prideDir = self.workspace.pride_directory
         intermediateDir = self.current_campaign_dir.intermediate
 
-        rinex_entries: List[AssetEntry] = (
+        rinex_entries: list[AssetEntry] = (
             self.asset_catalog.get_single_entries_to_process(
                 network=self.current_network_name,
                 station=self.current_station_name,
@@ -541,7 +528,7 @@ class QCPipeline(WorkflowABC):
                     timestamp_data_start=rinex_entry.timestamp_data_start,
                     timestamp_data_end=rinex_entry.timestamp_data_end,
                     type=AssetType.KIN,
-                    timestamp_created=datetime.datetime.now(tz=datetime.timezone.utc),
+                    timestamp_created=datetime.datetime.now(tz=datetime.UTC),
                 )
                 if self.asset_catalog.add_or_update(kin_entry):
                     uploadCount += 1
@@ -556,7 +543,7 @@ class QCPipeline(WorkflowABC):
                         timestamp_data_start=rinex_entry.timestamp_data_start,
                         timestamp_data_end=rinex_entry.timestamp_data_end,
                         type=AssetType.KINRESIDUALS,
-                        timestamp_created=datetime.datetime.now(tz=datetime.timezone.utc),
+                        timestamp_created=datetime.datetime.now(tz=datetime.UTC),
                     )
                     if self.asset_catalog.add_or_update(res_entry):
                         uploadCount += 1
@@ -583,7 +570,7 @@ class QCPipeline(WorkflowABC):
             f"Looking for QC Kin Files to Process for {self.current_network_name} {self.current_station_name} {self.current_campaign_name}"
         )
 
-        kin_entries: List[AssetEntry] = (
+        kin_entries: list[AssetEntry] = (
             self.asset_catalog.get_single_entries_to_process(
                 network=self.current_network_name,
                 station=self.current_station_name,

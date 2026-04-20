@@ -6,10 +6,10 @@ import os
 from pathlib import Path
 
 if __name__ == "__main__":
-    from es_sfgtools.cli.manifest import PipelineManifest
     from es_sfgtools.cli.commands import run_manifest
-    from es_sfgtools.logging import ProcessLogger
+    from es_sfgtools.cli.manifest import PipelineManifest
     from es_sfgtools.config.env_config import Environment
+    from es_sfgtools.logging import ProcessLogger
 
     Environment.load_working_environment()
     ProcessLogger.route_to_console()

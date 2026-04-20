@@ -2,7 +2,6 @@ from configparser import ConfigParser
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import List, Optional
 
 import julian
 import numpy as np
@@ -17,6 +16,7 @@ from pydantic import (
 )
 
 from es_sfgtools.logging import GarposLogger as logger
+
 from .load_utils import load_lib
 
 try:
@@ -32,24 +32,24 @@ except Exception:
 class GPPositionLLH(BaseModel):
     latitude: float
     longitude: float
-    height: Optional[float] = 0
+    height: float | None = 0
 
 
 class GPPositionENU(BaseModel):
-    east: Optional[float] = 0
-    north: Optional[float] = 0
-    up: Optional[float] = 0
-    east_sigma: Optional[float] = 0
-    north_sigma: Optional[float] = 0
-    up_sigma: Optional[float] = 0
-    cov_nu: Optional[float] = 0
-    cov_ue: Optional[float] = 0
-    cov_en: Optional[float] = 0
+    east: float | None = 0
+    north: float | None = 0
+    up: float | None = 0
+    east_sigma: float | None = 0
+    north_sigma: float | None = 0
+    up_sigma: float | None = 0
+    cov_nu: float | None = 0
+    cov_ue: float | None = 0
+    cov_en: float | None = 0
 
-    def get_position(self) -> List[float]:
+    def get_position(self) -> list[float]:
         return [self.east, self.north, self.up]
 
-    def get_std_dev(self) -> List[float]:
+    def get_std_dev(self) -> list[float]:
         return [self.east_sigma, self.north_sigma, self.up_sigma]
 
     def get_covariance(self) -> np.ndarray:
@@ -61,12 +61,12 @@ class GPPositionENU(BaseModel):
 
 
 class GPTransponder(BaseModel):
-    position_llh: Optional[GPPositionLLH] = None
-    position_enu: Optional[GPPositionENU] = None
-    tat_offset: Optional[float] = None
-    name: Optional[str] = None
-    id: Optional[str] = Field(None, alias=AliasChoices("id", "address"))
-    delta_center_position: Optional[GPPositionENU] = None
+    position_llh: GPPositionLLH | None = None
+    position_enu: GPPositionENU | None = None
+    tat_offset: float | None = None
+    name: str | None = None
+    id: str | None = Field(None, alias=AliasChoices("id", "address"))
+    delta_center_position: GPPositionENU | None = None
 
     class Config:
         populate_by_name = True
@@ -77,7 +77,7 @@ class GPATDOffset(BaseModel):
     rightward: float
     downward: float
 
-    def get_offset(self) -> List[float]:
+    def get_offset(self) -> list[float]:
         return [self.forward, self.rightward, self.downward]
 
 
@@ -159,10 +159,10 @@ class ObservationData(pa.DataFrameModel):
     flag: Series[bool] = pa.Field(
         default=False, description="Flag for mis-response in the data", coerce=True
     )
-    latitude: Optional[Series[float]] = pa.Field(
+    latitude: Series[float] | None = pa.Field(
         description="latitude of the antennae", alias="lat"
     )
-    longitude: Optional[Series[float]] = pa.Field(
+    longitude: Series[float] | None = pa.Field(
         description="longitude of the antennae", alias="lon"
     )
 
@@ -170,11 +170,11 @@ class ObservationData(pa.DataFrameModel):
         default=0.0, description="Sound speed variation [m/s]", coerce=True
     )
     # These fields are populated after the model run
-    ResiTT: Optional[Series[float]] = pa.Field(
+    ResiTT: Series[float] | None = pa.Field(
         default=0.0, description="Residual travel time [ms]"
     )
 
-    TakeOff: Optional[Series[float]] = pa.Field(
+    TakeOff: Series[float] | None = pa.Field(
         default=0.0, description="Take off angle [deg]"
     )
 
@@ -257,17 +257,17 @@ class InversionType(Enum):
 
 class InversionParams(BaseModel):
     spline_degree: int = Field(default=3)
-    log_lambda: List[float] = Field(
+    log_lambda: list[float] = Field(
         default=[0], description="Smoothness parameter for backgroun perturbation"
     )
     log_gradlambda: float = Field(
         default=-1, description="Smoothness paramter for spatial gradient"
     )
-    mu_t: List[float] = Field(
+    mu_t: list[float] = Field(
         default=[0.0],
         description="Correlation length of data for transmit time [minute]",
     )
-    mu_mt: List[float] = Field(
+    mu_mt: list[float] = Field(
         default=[0.5],
         description="Data correlation coefficient b/w the different transponders",
     )
@@ -290,7 +290,7 @@ class InversionParams(BaseModel):
     inversiontype: InversionType = Field(
         default=InversionType(value=0), description="Inversion type"
     )
-    positionalOffset: Optional[List[float]] = Field(
+    positionalOffset: list[float] | None = Field(
         default=[0.0, 0.0, 0.0], description="Positional offset for the inversion"
     )
     traveltimescale: float = Field(
@@ -451,12 +451,12 @@ class GarposInput(BaseModel):
     survey_id: str
     site_center_llh: GPPositionLLH
     array_center_enu: GPPositionENU
-    transponders: List[GPTransponder]
-    sound_speed_data: Optional[Path | str]
+    transponders: list[GPTransponder]
+    sound_speed_data: Path | str | None
     atd_offset: GPATDOffset
     start_date: datetime
     end_date: datetime
-    shot_data: Optional[Path | str]
+    shot_data: Path | str | None
     delta_center_position: GPPositionENU = GPPositionENU()
     ref_frame: str = "ITRF"
     n_shot: int
@@ -487,11 +487,11 @@ class GarposInput(BaseModel):
             return mjd
 
         for transponder in self.transponders:
-            if not "M" in transponder.id:
+            if "M" not in transponder.id:
                 transponder.id = "M" + transponder.id
         # Write the data file
-        center_enu: List[float] = self.array_center_enu.get_position()
-        delta_center_position: List[float] = (
+        center_enu: list[float] = self.array_center_enu.get_position()
+        delta_center_position: list[float] = (
             self.delta_center_position.get_position()
             + self.delta_center_position.get_std_dev()
             + [0.0, 0.0, 0.0]
@@ -548,7 +548,7 @@ class GarposInput(BaseModel):
         data_section = config["Data-file"]
         # populate transponders
         transponder_list = []
-        for key in model_section.keys():
+        for key in model_section:
             if "dpos" in key or "dcentpos" in key or "atdoffset" in key:
                 (
                     east_value,
@@ -643,8 +643,8 @@ class InversionResults(BaseModel):
     grad_lambda_squared: float
     mu_t: float  # [s]
     mu_mt: float
-    delta_center_position: List[float]
-    loop_data: List[InversionLoop]
+    delta_center_position: list[float]
+    loop_data: list[InversionLoop]
 
     @classmethod
     def from_dat_file(cls, file_path: str) -> "InversionResults":
@@ -659,7 +659,7 @@ class InversionResults(BaseModel):
         """
 
         logger.loginfo(f"Reading inversion results from {file_path}")
-        with open(file_path, "r") as f:
+        with open(file_path) as f:
             lines = f.readlines()
             # Extract data from the file
             loop_data = []

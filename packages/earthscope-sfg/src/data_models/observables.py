@@ -5,7 +5,6 @@ Email: franklyn.dunbar@earthscope.org
 """
 
 # External imports
-from typing import Optional
 
 import pandas as pd
 import pandera.pandas as pa
@@ -146,15 +145,15 @@ class KinPositionDataFrame(pa.DataFrameModel):
         description="Weighted Root Mean Square of the position solution",
         nullable=True,
     )
-    east_std: Optional[Series[float]] = pa.Field(
+    east_std: Series[float] | None = pa.Field(
         nullable=True,
         description="Standard deviation of the ECEF X coordinate [m]",
     )
-    north_std: Optional[Series[float]] = pa.Field(
+    north_std: Series[float] | None = pa.Field(
         nullable=True,
         description="Standard deviation of the ECEF Y coordinate [m]",
     )
-    up_std: Optional[Series[float]] = pa.Field(
+    up_std: Series[float] | None = pa.Field(
         nullable=True,
         description="Standard deviation of the ECEF Z coordinate [m]",
     )
@@ -312,27 +311,27 @@ class ShotDataFrame(AcousticDataFrame):
     up1: Series[float] = pa.Field(
         description="Height above ellipsoid of the vessel at the time of the ping"
     )
-    east_std0: Optional[Series[float]] = pa.Field(
+    east_std0: Series[float] | None = pa.Field(
         description="Standard deviation of the ECEF East position of the vessel at the time of the ping [m]",
         nullable=True,
     )
-    north_std0: Optional[Series[float]] = pa.Field(
+    north_std0: Series[float] | None = pa.Field(
         description="Standard deviation of the ECEF North position of the vessel at the time of the ping [m]",
         nullable=True,
     )
-    up_std0: Optional[Series[float]] = pa.Field(
+    up_std0: Series[float] | None = pa.Field(
         description="Standard deviation of the height above ellipsoid of the vessel at the time of the ping",
         nullable=True,
     )
-    east_std1: Optional[Series[float]] = pa.Field(
+    east_std1: Series[float] | None = pa.Field(
         description="Standard deviation of the ECEF East position of the vessel at the time of the reply [m]",
         nullable=True,
     )
-    north_std1: Optional[Series[float]] = pa.Field(
+    north_std1: Series[float] | None = pa.Field(
         description="Standard deviation of the ECEF North position of the vessel at the time of the reply [m]",
         nullable=True,
     )
-    up_std1: Optional[Series[float]] = pa.Field(
+    up_std1: Series[float] | None = pa.Field(
         description="Standard deviation of the height above ellipsoid of the vessel at the time of the reply",
         nullable=True,
     )

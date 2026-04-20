@@ -4,25 +4,13 @@ import json
 import sys
 from multiprocessing import Pool
 from pathlib import Path
-from typing import List, Optional
-
-from tqdm.auto import tqdm
 
 from pride_ppp import PrideProcessor, ProcessingMode, kin_to_kin_position_df, rinex_get_time_range
-# Local imports
-from ...data_mgmt.assetcatalog.handler import PreProcessCatalogHandler
-from ...data_mgmt.assetcatalog.schemas import AssetEntry, AssetType
-from ...data_mgmt.directorymgmt import (
-    CampaignDir,
-    NetworkDir,
-    StationDir,
-)
-from ...config.workspace import Workspace
-from ...data_mgmt.utils import (
-    get_merge_signature_shotdata,
-)
+from tqdm.auto import tqdm
+
 from es_sfgtools.logging import ProcessLogger, change_all_logger_dirs
 from es_sfgtools.novatel_tools import novatel_binary_operations as novb_ops
+from es_sfgtools.novatel_tools.novatel_to_rinex_operations import tile2rinex
 from es_sfgtools.novatel_tools.utils import get_metadata, get_metadatav2
 from es_sfgtools.seafloor_site_tools.soundspeed_operations import (
     CTD_to_svp_v1,
@@ -30,24 +18,32 @@ from es_sfgtools.seafloor_site_tools.soundspeed_operations import (
     seabird_to_soundvelocity,
 )
 from es_sfgtools.sonardyne_tools import sv3_operations as sv3_ops
-from es_sfgtools.novatel_tools.novatel_to_rinex_operations import tile2rinex
 from es_sfgtools.tiledb_schemas import (
     TDBIMUPositionArray,
     TDBKinPositionArray,
     TDBShotDataArray,
 )
-from .config import SV3PipelineConfig
-from .shotdata_gnss_refinement import merge_shotdata_kinposition
-from .exceptions import (
-    NoRinexFound,
-    NoNovatelFound,
-    NoRinexBuilt,
-    NoKinFound,
-    NoDFOP00Found,
-    NoSVPFound,
-    NoLocalData,
+
+from ...config.workspace import Workspace
+
+# Local imports
+from ...data_mgmt.assetcatalog.handler import PreProcessCatalogHandler
+from ...data_mgmt.assetcatalog.schemas import AssetEntry, AssetType
+from ...data_mgmt.utils import (
+    get_merge_signature_shotdata,
 )
 from ..utils.protocols import WorkflowABC, validate_network_station_campaign
+from .config import SV3PipelineConfig
+from .exceptions import (
+    NoDFOP00Found,
+    NoKinFound,
+    NoLocalData,
+    NoNovatelFound,
+    NoRinexBuilt,
+    NoRinexFound,
+    NoSVPFound,
+)
+from .shotdata_gnss_refinement import merge_shotdata_kinposition
 
 
 class SV3Pipeline(WorkflowABC):
@@ -155,8 +151,8 @@ class SV3Pipeline(WorkflowABC):
 
     def __init__(
         self,
-        workspace: Optional[Workspace] = None,
-        asset_catalog: Optional[PreProcessCatalogHandler] = None,
+        workspace: Workspace | None = None,
+        asset_catalog: PreProcessCatalogHandler | None = None,
         config: SV3PipelineConfig = None,
     ):
         """Initializes the SV3Pipeline with workspace and configuration.
@@ -329,7 +325,7 @@ class SV3Pipeline(WorkflowABC):
         found_novatel_770 = False
         found_novatel_000 = False
 
-        novatel_770_entries: List[AssetEntry] = self.asset_catalog.get_local_assets(
+        novatel_770_entries: list[AssetEntry] = self.asset_catalog.get_local_assets(
             network=self.current_network_name,
             station=self.current_station_name,
             campaign=self.current_campaign_name,
@@ -387,7 +383,7 @@ class SV3Pipeline(WorkflowABC):
         ProcessLogger.loginfo(
             f"Processing Novatel 000 data for {self.current_network_name} {self.current_station_name} {self.current_campaign_name}"
         )
-        novatel_000_entries: List[AssetEntry] = self.asset_catalog.get_local_assets(
+        novatel_000_entries: list[AssetEntry] = self.asset_catalog.get_local_assets(
             network=self.current_network_name,
             station=self.current_station_name,
             campaign=self.current_campaign_name,
@@ -495,7 +491,7 @@ class SV3Pipeline(WorkflowABC):
             5. Logs summary information
             """
             try:
-                rinex_paths: List[Path] = tile2rinex(
+                rinex_paths: list[Path] = tile2rinex(
                     gnss_obs_tdb=self.gnssObsTDBURI,
                     settings=self.config.rinex_config.settings_path,
                     writedir=rinexDestination,  # where to write the RINEX files
@@ -512,7 +508,7 @@ class SV3Pipeline(WorkflowABC):
                         "No RINEX files were built. Try running self.pre_process_novatel() to ensure GNSS data is available."
                     )
 
-                rinex_entries: List[AssetEntry] = []
+                rinex_entries: list[AssetEntry] = []
                 uploadCount = 0
                 for rinex_path in rinex_paths:
                     # Get the start and end time from the RINEX file for metadata
@@ -527,7 +523,7 @@ class SV3Pipeline(WorkflowABC):
                         timestamp_data_start=rinex_time_start,
                         timestamp_data_end=rinex_time_end,
                         type=AssetType.RINEX2,
-                        timestamp_created=datetime.datetime.now(tz=datetime.timezone.utc),
+                        timestamp_created=datetime.datetime.now(tz=datetime.UTC),
                     )
                     rinex_entries.append(rinex_entry)
                     if self.asset_catalog.add_or_update(rinex_entry):
@@ -587,7 +583,7 @@ class SV3Pipeline(WorkflowABC):
         intermediateDir = self.current_campaign_dir.intermediate
 
         # Get the Rinex files to process
-        rinex_entries: List[AssetEntry] = (
+        rinex_entries: list[AssetEntry] = (
             self.asset_catalog.get_single_entries_to_process(
                 network=self.current_network_name,
                 station=self.current_station_name,
@@ -653,7 +649,7 @@ class SV3Pipeline(WorkflowABC):
                     timestamp_data_start=rinex_entry.timestamp_data_start,
                     timestamp_data_end=rinex_entry.timestamp_data_end,
                     type=AssetType.KIN,
-                    timestamp_created=datetime.datetime.now(tz=datetime.timezone.utc),
+                    timestamp_created=datetime.datetime.now(tz=datetime.UTC),
                     parent_id=rinex_entry.id,
                 )
                 rinex_entry.is_processed = True
@@ -670,7 +666,7 @@ class SV3Pipeline(WorkflowABC):
                     timestamp_data_start=rinex_entry.timestamp_data_start,
                     timestamp_data_end=rinex_entry.timestamp_data_end,
                     type=AssetType.KINRESIDUALS,
-                    timestamp_created=datetime.datetime.now(tz=datetime.timezone.utc),
+                    timestamp_created=datetime.datetime.now(tz=datetime.UTC),
                     parent_id=rinex_entry.id,
                 )
 
@@ -698,7 +694,7 @@ class SV3Pipeline(WorkflowABC):
             f"Looking for Kin Files to Process for {self.current_network_name} {self.current_station_name} {self.current_campaign_name}"
         )
 
-        kin_entries: List[AssetEntry] = (
+        kin_entries: list[AssetEntry] = (
             self.asset_catalog.get_single_entries_to_process(
                 network=self.current_network_name,
                 station=self.current_station_name,
@@ -707,14 +703,12 @@ class SV3Pipeline(WorkflowABC):
                 override=self.config.rinex_config.override,
             )
         )
-        res_entries: List[AssetEntry] = (
-            self.asset_catalog.get_single_entries_to_process(
-                network=self.current_network_name,
-                station=self.current_station_name,
-                campaign=self.current_campaign_name,
-                parent_type=AssetType.KINRESIDUALS,
-                override=self.config.rinex_config.override,
-            )
+        self.asset_catalog.get_single_entries_to_process(
+            network=self.current_network_name,
+            station=self.current_station_name,
+            campaign=self.current_campaign_name,
+            parent_type=AssetType.KINRESIDUALS,
+            override=self.config.rinex_config.override,
         )
         if not kin_entries:
             message = f"No Kin Files Found to Process for {self.current_network_name} {self.current_station_name} {self.current_campaign_name}"
@@ -757,7 +751,7 @@ class SV3Pipeline(WorkflowABC):
         """
 
         # 1. Get the DFOP00 files to process
-        dfop00_entries: List[AssetEntry] = (
+        dfop00_entries: list[AssetEntry] = (
             self.asset_catalog.get_single_entries_to_process(
                 network=self.current_network_name,
                 station=self.current_station_name,
@@ -781,7 +775,7 @@ class SV3Pipeline(WorkflowABC):
                 sv3_ops.dfop00_to_shotdata, [x.local_path for x in dfop00_entries]
             )
             for shotdata_df, dfo_entry in tqdm(
-                zip(results, dfop00_entries),
+                zip(results, dfop00_entries, strict=False),
                 total=len(dfop00_entries),
                 desc="Processing DFOP00 Files",
             ):
@@ -867,13 +861,13 @@ class SV3Pipeline(WorkflowABC):
             return
 
         # Get the CTD and Seabird files to process
-        ctd_entries: List[AssetEntry] = self.asset_catalog.get_local_assets(
+        ctd_entries: list[AssetEntry] = self.asset_catalog.get_local_assets(
             network=self.current_network_name,
             station=self.current_station_name,
             campaign=self.current_campaign_name,
             type=AssetType.CTD,
         )
-        seabird_entries: List[AssetEntry] = self.asset_catalog.get_local_assets(
+        seabird_entries: list[AssetEntry] = self.asset_catalog.get_local_assets(
             network=self.current_network_name,
             station=self.current_station_name,
             campaign=self.current_campaign_name,
@@ -949,34 +943,34 @@ class SV3Pipeline(WorkflowABC):
         )
         try:
             self.pre_process_novatel()
-        except NoNovatelFound as e:
+        except NoNovatelFound:
             pass
 
         try:
             self.get_rinex_files()
-        except NoRinexBuilt as e:
+        except NoRinexBuilt:
             pass
 
         try:
             self.process_rinex()
-        except NoRinexFound as e:
+        except NoRinexFound:
             pass
 
         try:
             self.process_kin()
-        except NoKinFound as e:
+        except NoKinFound:
             pass
 
         try:
             self.process_dfop00()
-        except NoDFOP00Found as e:
+        except NoDFOP00Found:
             pass
 
         self.update_shotdata()
 
         try:
             self.process_svp()
-        except NoSVPFound as e:
+        except NoSVPFound:
             pass
 
         ProcessLogger.loginfo(
@@ -1005,24 +999,24 @@ class SV3Pipeline(WorkflowABC):
 
         try:
             self.process_rinex()
-        except NoRinexFound as e:
+        except NoRinexFound:
             pass
 
         try:
             self.process_kin()
-        except NoKinFound as e:
+        except NoKinFound:
             pass
 
         try:
             self.process_dfop00()
-        except NoDFOP00Found as e:
+        except NoDFOP00Found:
             pass
 
         self.update_shotdata()
 
         try:
             self.process_svp()
-        except NoSVPFound as e:
+        except NoSVPFound:
             pass
 
         ProcessLogger.loginfo(

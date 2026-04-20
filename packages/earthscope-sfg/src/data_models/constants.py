@@ -5,7 +5,7 @@ These include time references for GNSS, default trigger delays, and station
 ID mappings.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import getcontext
 
 import julian
@@ -14,7 +14,7 @@ import julian
 getcontext().prec = 10
 
 # --- Time Constants ---
-GNSS_START_TIME = datetime(1980, 1, 6, tzinfo=timezone.utc)  # GNSS start time
+GNSS_START_TIME = datetime(1980, 1, 6, tzinfo=UTC)  # GNSS start time
 GNSS_START_TIME_JULIAN = julian.to_jd(GNSS_START_TIME.replace(tzinfo=None), "mjd")
 GNSS_START_TIME_JULIAN_BOUNDS = julian.to_jd(
     GNSS_START_TIME.replace(tzinfo=None) + timedelta(days=365 * 500), "mjd"

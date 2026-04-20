@@ -1,7 +1,6 @@
 import datetime
 import json
 from pathlib import Path
-from typing import List
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -10,7 +9,7 @@ from matplotlib.colors import Normalize
 
 sns.set_theme()
 
-from .schemas import GPPositionENU, GPTransponder
+from .schemas import GPPositionENU, GPTransponder  # noqa: E402
 
 
 class DOYResult:
@@ -48,7 +47,7 @@ class DOYPlotter:
         "pink",
     ]
 
-    def __init__(self, results: List[DOYResult]):
+    def __init__(self, results: list[DOYResult]):
         self.results = sorted(results, key=lambda x: x.date)
         self.unique_ids = []
         for result in self.results:
@@ -195,7 +194,7 @@ class DOYPlotter:
             vmin=0,
             vmax=(colormap_times.max() - colormap_times.min()) / 3600,
         )
-        cbar = plt.colorbar(sc, label="Time (hr)", norm=norm)
+        plt.colorbar(sc, label="Time (hr)", norm=norm)
         ax.legend()
         plt.savefig(filepath)
         plt.show()

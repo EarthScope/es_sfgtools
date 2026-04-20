@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import List, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -34,12 +33,12 @@ class BatteryVoltage(AttributeUpdater, BaseModel):
 class TAT(AttributeUpdater, BaseModel):
     # Required
     value: float = Field(..., description="Turn around time (TAT) in ms", ge=0, le=1000)
-    start: Optional[datetime] = Field(
+    start: datetime | None = Field(
         None, description="The start date of the TAT", gt=datetime(1901, 1, 1)
     )
 
     # Optional
-    end: Optional[datetime] = Field(
+    end: datetime | None = Field(
         default=None,
         description="The end date of the TAT",
         gt=datetime(1901, 1, 1),
@@ -52,39 +51,39 @@ class TAT(AttributeUpdater, BaseModel):
 class Transponder(AttributeUpdater, BaseModel):
     # Required
     address: str = Field(..., description="The address of the transponder")
-    tat: List[TAT] = Field(
+    tat: list[TAT] = Field(
         ..., description="The turn around time (TAT) of the transponder"
     )
-    start: Optional[datetime] = Field(
+    start: datetime | None = Field(
         default=None,
         description="The start date of the transponder",
         gt=datetime(1901, 1, 1),
     )
 
     # Optional
-    end: Optional[datetime] = Field(
+    end: datetime | None = Field(
         default=None,
         description="The end date of the transponder (if removed)",
         gt=datetime(1901, 1, 1),
     )  # TODO Check if this is works (maybe don't need to check if end is after start)
-    uid: Optional[str] = Field(default=None, description="The UID of the transponder")
-    model: Optional[str] = Field(
+    uid: str | None = Field(default=None, description="The UID of the transponder")
+    model: str | None = Field(
         default=None, description="The model of the transponder"
     )
-    serialNumber: Optional[str] = Field(
+    serialNumber: str | None = Field(
         default=None, description="The serial number of the transponder"
     )
-    batteryCapacity: Optional[str] = Field(
+    batteryCapacity: str | None = Field(
         default=None, description="The battery capacity of the transponder, e.g 4 Ah"
     )
-    notes: Optional[str] = Field(
+    notes: str | None = Field(
         default=None, description="Additional notes about the transponder or deployment"
     )
-    batteryVoltage: Optional[List[BatteryVoltage]] = Field(
+    batteryVoltage: list[BatteryVoltage] | None = Field(
         default_factory=list,
         description="The battery voltage of the transponder, including date and voltage",
     )
-    extraSensors: Optional[List[ExtraSensors]] = Field(
+    extraSensors: list[ExtraSensors] | None = Field(
         default_factory=list, description="Extra sensors attached to the transponder"
     )
 
@@ -94,7 +93,7 @@ class Transponder(AttributeUpdater, BaseModel):
     _parse_datetime = field_validator("start", "end", mode="before")(parse_datetime)
     _check_dates = field_validator("end")(check_dates)
 
-    def get_tat_by_datetime(self, dt: datetime) -> Optional[float]:
+    def get_tat_by_datetime(self, dt: datetime) -> float | None:
         """Get the turn around time (TAT) for a given datetime.
 
         Parameters
@@ -124,31 +123,31 @@ class Transponder(AttributeUpdater, BaseModel):
 class Benchmark(AttributeUpdater, BaseModel):
     # Required
     name: str = Field(..., description="The name of the benchmark")
-    benchmarkID: Optional[str] = Field("", description="The benchmark ID")
-    aPrioriLocation: Optional[Location] = Field(
+    benchmarkID: str | None = Field("", description="The benchmark ID")
+    aPrioriLocation: Location | None = Field(
         None, description="The a priori location of the benchmark"
     )
-    start: Optional[datetime] = Field(
+    start: datetime | None = Field(
         None, description="The start date of the benchmark", gt=datetime(1901, 1, 1)
     )
 
     # Optional
-    end: Optional[datetime] = Field(
+    end: datetime | None = Field(
         default=None,
         description="The end date of the benchmark",
         gt=datetime(1901, 1, 1),
     )
-    dropPointLocation: Optional[Location] = Field(
+    dropPointLocation: Location | None = Field(
         default=None, description="The drop point location of the benchmark"
     )
-    transponders: Optional[List[Transponder]] = Field(
+    transponders: list[Transponder] | None = Field(
         default_factory=list, description="The transponders attached to the benchmark"
     )
 
     _parse_datetime = field_validator("start", "end", mode="before")(parse_datetime)
     _check_dates = field_validator("end")(check_dates)
 
-    def get_transponder_by_datetime(self, dt: datetime) -> Optional[Transponder]:
+    def get_transponder_by_datetime(self, dt: datetime) -> Transponder | None:
         """Get the transponder for a given datetime.
 
         Parameters

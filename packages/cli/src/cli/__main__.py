@@ -5,12 +5,10 @@ It uses Typer to create a CLI for running and preprocessing data pipelines
 based on manifest files.
 """
 
-import os
-import sys
-from pathlib import Path
-from typing import List, Optional
-import typer
 import multiprocessing
+from pathlib import Path
+
+import typer
 
 try:
     multiprocessing.set_start_method("spawn", force=True)
@@ -18,11 +16,10 @@ except RuntimeError:
     # This will fail if the context has already been set, which is fine.
     pass
 
-from es_sfgtools.logging import ProcessLogger
-from es_sfgtools.config.workspace import Workspace, WorkspaceType
-
 from es_sfgtools.cli.commands import run_manifest, run_preprocessing
 from es_sfgtools.cli.manifest import PipelineManifest
+from es_sfgtools.config.workspace import Workspace, WorkspaceType
+from es_sfgtools.logging import ProcessLogger
 
 # This adds the PRIDE binary path to the system's PATH.
 # A better long-term solution is for the user to configure this in their shell.
@@ -62,22 +59,22 @@ def preprocess(
     main_dir: Path = typer.Option(..., help="Root directory for the workspace"),
     network: str = typer.Option(..., help="Network ID"),
     campaign: str = typer.Option(..., help="Campaign ID"),
-    stations: List[str] = typer.Option(..., help="List of station IDs"),
+    stations: list[str] = typer.Option(..., help="List of station IDs"),
     workspace_type: str = typer.Option(
         "local", help="Workspace type: local, geolab, ecs"
     ),
-    s3_bucket: Optional[str] = typer.Option(
+    s3_bucket: str | None = typer.Option(
         None, help="S3 sync bucket URI (required for geolab/ecs)"
     ),
-    aws_profile: Optional[str] = typer.Option(None, help="AWS profile name"),
-    aws_access_key_id: Optional[str] = typer.Option(None, envvar="AWS_ACCESS_KEY_ID"),
-    aws_secret_access_key: Optional[str] = typer.Option(
+    aws_profile: str | None = typer.Option(None, help="AWS profile name"),
+    aws_access_key_id: str | None = typer.Option(None, envvar="AWS_ACCESS_KEY_ID"),
+    aws_secret_access_key: str | None = typer.Option(
         None, envvar="AWS_SECRET_ACCESS_KEY"
     ),
-    aws_session_token: Optional[str] = typer.Option(
+    aws_session_token: str | None = typer.Option(
         None, envvar="AWS_SESSION_TOKEN"
     ),
-    pride_dir: Optional[Path] = typer.Option(
+    pride_dir: Path | None = typer.Option(
         None, help="Path to PRIDE-PPPAR binary directory"
     ),
 ):

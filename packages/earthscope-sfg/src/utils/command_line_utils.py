@@ -4,10 +4,9 @@ import re
 import subprocess
 import warnings
 from pathlib import Path
-from typing import Dict, List, Tuple
 
-from ..logging.loggers import _BaseLogger
 from ..logging import ProcessLogger as logger
+from ..logging.loggers import _BaseLogger
 from .custom_warnings_exceptions import (
     EXCEPTIONS_DICT_LINUX,
     EXCEPTIONS_DICT_MACOS,
@@ -33,7 +32,7 @@ def remove_ansi_escape(text):
     return ansi_escape.sub("", text)
 
 
-def get_system_architecture() -> Tuple[str, str]:
+def get_system_architecture() -> tuple[str, str]:
     """Get the current system and architecture
     Returns:
         Tuple[str, str]: A tuple containing the system and architecture.
@@ -130,7 +129,7 @@ def parse_cli_logs(result, logger: _BaseLogger | logging.Logger):
 
 
 def get_binary_path(
-    path_map: Dict[str, Path],
+    path_map: dict[str, Path],
     binary_name: str,
 ) -> Path:
     """Resolve a platform-specific binary path from a ``{system_arch: path}`` map.
@@ -162,7 +161,7 @@ def get_binary_path(
 
 
 def run_binary(
-    cmd: List[str],
+    cmd: list[str],
     log: "_BaseLogger | logging.Logger | None" = None,
     cwd: "str | Path | None" = None,
     capture: bool = True,

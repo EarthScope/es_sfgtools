@@ -51,11 +51,9 @@ import warnings
 from copy import deepcopy
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Union
 
 import cloudpathlib
 from cloudpathlib import S3Path
-
 
 # ---------------------------------------------------------------------------
 # Workspace type
@@ -126,26 +124,26 @@ class Workspace:
     def __init__(
         self,
         workspace_type: WorkspaceType,
-        location: Union[Path, "S3Path", str],
-        s3_sync_bucket: Optional[str] = None,
-        pride_binary_dir: Optional[Union[Path, str]] = None,
-        aws_profile: Optional[str] = None,
-        aws_access_key_id: Optional[str] = None,
-        aws_secret_access_key: Optional[str] = None,
-        aws_session_token: Optional[str] = None,
+        location: Path | S3Path | str,
+        s3_sync_bucket: str | None = None,
+        pride_binary_dir: Path | str | None = None,
+        aws_profile: str | None = None,
+        aws_access_key_id: str | None = None,
+        aws_secret_access_key: str | None = None,
+        aws_session_token: str | None = None,
     ) -> None:
         # --- Deployment config ---
         self.workspace_type = workspace_type
         if isinstance(location, str):
             if location.startswith("s3://"):
-                self.location: Union[Path, S3Path] = S3Path(location)
+                self.location: Path | S3Path = S3Path(location)
             else:
                 self.location = Path(location).resolve()
         else:
             self.location = location
 
         self.s3_sync_bucket = s3_sync_bucket
-        self.pride_binary_dir: Optional[Path] = (
+        self.pride_binary_dir: Path | None = (
             Path(pride_binary_dir) if pride_binary_dir else None
         )
         self.aws_profile = aws_profile
@@ -155,9 +153,9 @@ class Workspace:
 
         # --- Directory tree (populated by build / add_* helpers) ---
         self.networks: dict = {}
-        self.asset_catalog_db_path: Optional[Union[Path, "S3Path"]] = None
-        self.pride_directory: Optional[Path] = None
-        self._catalog_filepath: Optional[Union[Path, "S3Path"]] = None
+        self.asset_catalog_db_path: Path | S3Path | None = None
+        self.pride_directory: Path | None = None
+        self._catalog_filepath: Path | S3Path | None = None
 
     # ------------------------------------------------------------------
     # Behaviour flags — derived from workspace_type
@@ -182,7 +180,7 @@ class Workspace:
         )
 
     @property
-    def s3_sync_bucket_uri(self) -> Optional[str]:
+    def s3_sync_bucket_uri(self) -> str | None:
         """Full ``s3://`` URI for the sync bucket, or ``None``."""
         if self.s3_sync_bucket is None:
             return None
@@ -190,7 +188,7 @@ class Workspace:
         return bucket if bucket.startswith("s3://") else f"s3://{bucket}"
 
     @property
-    def root_directory(self) -> Union[Path, "S3Path"]:
+    def root_directory(self) -> Path | S3Path:
         """Alias for :attr:`location`."""
         return self.location
 
@@ -198,7 +196,7 @@ class Workspace:
     # AWS client
     # ------------------------------------------------------------------
 
-    def make_s3_client(self) -> Optional[cloudpathlib.S3Client]:
+    def make_s3_client(self) -> cloudpathlib.S3Client | None:
         """Return a ``cloudpathlib.S3Client`` built from stored credentials."""
         try:
             if self.aws_profile:
@@ -287,9 +285,9 @@ class Workspace:
     def build_station_directory(
         self,
         network_name: str,
-        station_name: Optional[str] = None,
-        campaign_name: Optional[str] = None,
-        survey_name: Optional[str] = None,
+        station_name: str | None = None,
+        campaign_name: str | None = None,
+        survey_name: str | None = None,
     ):
         """Build up the network -> station -> campaign -> survey tree.
 
@@ -331,7 +329,7 @@ class Workspace:
     # S3 projection
     # ------------------------------------------------------------------
 
-    def point_to_s3(self, bucket_path: Union[str, S3Path]) -> "Workspace":
+    def point_to_s3(self, bucket_path: str | S3Path) -> Workspace:
         """Return a new ``Workspace`` with all paths remapped to S3.
 
         The workspace configuration (type, credentials, etc.) is preserved;
@@ -386,12 +384,12 @@ class Workspace:
     @classmethod
     def local(
         cls,
-        location: Union[Path, str],
+        location: Path | str,
         *,
-        pride_binary_dir: Optional[Union[Path, str]] = None,
-        aws_profile: Optional[str] = None,
-        s3_sync_bucket: Optional[str] = None,
-    ) -> "Workspace":
+        pride_binary_dir: Path | str | None = None,
+        aws_profile: str | None = None,
+        s3_sync_bucket: str | None = None,
+    ) -> Workspace:
         """Create a ``Workspace`` for local file-system development."""
         return cls(
             workspace_type=WorkspaceType.LOCAL,
@@ -404,15 +402,15 @@ class Workspace:
     @classmethod
     def geolab(
         cls,
-        location: Union[Path, str],
+        location: Path | str,
         s3_sync_bucket: str,
         *,
-        aws_profile: Optional[str] = None,
-        aws_access_key_id: Optional[str] = None,
-        aws_secret_access_key: Optional[str] = None,
-        aws_session_token: Optional[str] = None,
-        pride_binary_dir: Optional[Union[Path, str]] = None,
-    ) -> "Workspace":
+        aws_profile: str | None = None,
+        aws_access_key_id: str | None = None,
+        aws_secret_access_key: str | None = None,
+        aws_session_token: str | None = None,
+        pride_binary_dir: Path | str | None = None,
+    ) -> Workspace:
         """Create a ``Workspace`` for a GeoLab JupyterHub environment."""
         return cls(
             workspace_type=WorkspaceType.GEOLAB,
@@ -428,15 +426,15 @@ class Workspace:
     @classmethod
     def ecs(
         cls,
-        location: Union[Path, str],
+        location: Path | str,
         s3_sync_bucket: str,
         *,
-        aws_profile: Optional[str] = None,
-        aws_access_key_id: Optional[str] = None,
-        aws_secret_access_key: Optional[str] = None,
-        aws_session_token: Optional[str] = None,
-        pride_binary_dir: Optional[Union[Path, str]] = None,
-    ) -> "Workspace":
+        aws_profile: str | None = None,
+        aws_access_key_id: str | None = None,
+        aws_secret_access_key: str | None = None,
+        aws_session_token: str | None = None,
+        pride_binary_dir: Path | str | None = None,
+    ) -> Workspace:
         """Create a ``Workspace`` for an AWS ECS task container."""
         return cls(
             workspace_type=WorkspaceType.ECS,
@@ -450,7 +448,7 @@ class Workspace:
         )
 
     @classmethod
-    def from_environment(cls) -> "Workspace":
+    def from_environment(cls) -> Workspace:
         """Build a ``Workspace`` by reading standard environment variables.
 
         Workspace type is determined by ``WORKSPACE_TYPE`` (local / geolab /
@@ -501,9 +499,9 @@ class Workspace:
             )
 
         aws_profile = os.environ.get(_ENV_AWS_PROFILE)
-        aws_access_key_id: Optional[str] = None
-        aws_secret_access_key: Optional[str] = None
-        aws_session_token: Optional[str] = None
+        aws_access_key_id: str | None = None
+        aws_secret_access_key: str | None = None
+        aws_session_token: str | None = None
 
         if not aws_profile:
             aws_access_key_id = os.environ.get(_ENV_AWS_ACCESS_KEY_ID)
@@ -533,10 +531,10 @@ class Workspace:
     @classmethod
     def load_from_path(
         cls,
-        path: Union[str, Path, "S3Path"],
+        path: str | Path | S3Path,
         workspace_type: WorkspaceType = WorkspaceType.LOCAL,
         **kwargs,
-    ) -> "Workspace":
+    ) -> Workspace:
         """Load a workspace by scanning an existing directory tree.
 
         Parameters
@@ -556,7 +554,7 @@ class Workspace:
         bucket_path: str,
         workspace_type: WorkspaceType = WorkspaceType.GEOLAB,
         **kwargs,
-    ) -> "Workspace":
+    ) -> Workspace:
         """Load a workspace by scanning an existing S3 directory tree."""
         if not bucket_path.startswith("s3://"):
             bucket_path = "s3://" + bucket_path
@@ -569,10 +567,10 @@ class Workspace:
     @classmethod
     def _scan(
         cls,
-        path: Union[str, Path, "S3Path"],
+        path: str | Path | S3Path,
         workspace_type: WorkspaceType = WorkspaceType.LOCAL,
         **kwargs,
-    ) -> "Workspace":
+    ) -> Workspace:
         """Scan *path* and return a populated ``Workspace`` (no disk writes)."""
         from es_sfgtools.data_mgmt.directorymgmt.schemas import NetworkDir  # deferred
 

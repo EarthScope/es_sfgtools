@@ -1,12 +1,12 @@
 import datetime
 from collections import defaultdict
-from typing import List
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from ...data_mgmt.assetcatalog import AssetEntry
 from es_sfgtools.tiledb_schemas import TDBKinPositionArray
+
+from ...data_mgmt.assetcatalog import AssetEntry
 
 UNIX_EPOCH = np.datetime64("1970-01-01T00:00:00Z")
 
@@ -25,10 +25,9 @@ def to_timestamp(time: np.datetime64 | datetime.datetime) -> float:
         The UNIX timestamp.
     """
     if isinstance(time, int):
-        time = datetime.datetime.fromtimestamp(time / 1e9, tz=datetime.timezone.utc)
+        time = datetime.datetime.fromtimestamp(time / 1e9, tz=datetime.UTC)
     if isinstance(time, datetime.datetime) or isinstance(time, datetime.date):
         time = np.datetime64(time)
-    unix_epoch = np.datetime64("1970-01-01T00:00:00Z")
     return (time - UNIX_EPOCH) / np.timedelta64(1, "s")
 
 
@@ -69,7 +68,7 @@ def get_rinex_timelast(rinex_asset: AssetEntry) -> datetime.datetime:
 
 
 def plot_kin_position_data(
-    kin_position_data: TDBKinPositionArray, rinex_entries: List[AssetEntry] = []
+    kin_position_data: TDBKinPositionArray, rinex_entries: list[AssetEntry] = None
 ) -> None:
     """Plots KinPosition data over time.
 
@@ -97,6 +96,8 @@ def plot_kin_position_data(
         A list of RINEX asset entries, by default [].
     """
 
+    if rinex_entries is None:
+        rinex_entries = []
     kin_position_dates = kin_position_data.get_unique_dates().tolist()
     year_month_map = defaultdict(dict)
     rinex_ym_map = defaultdict(dict)
@@ -157,12 +158,9 @@ def plot_kin_position_data(
         markers_daily = sorted(set([x.astype("datetime64[D]") for x in markers_hourly]))
 
         df_timestamps = []
-        df_timestamp_ticks = []
         for i in range(df_dates.shape[0]):
             df_timestamps.append(to_timestamp(df_dates[i]) - ref)
-            df_timestamp_ticks.append(df_dates[i].astype("datetime64[h]"))
         rinex_timestamps = []
-        rinex_timestamp_ticks = []
 
         for entry in rinex_ym_map[year].get(month, []):
             rinex_day_start = to_timestamp(entry.timestamp_data_start) - ref

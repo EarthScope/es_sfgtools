@@ -1,7 +1,6 @@
 import json
 from enum import Enum
 from pathlib import Path
-from typing import Dict, Optional
 
 from pydantic import BaseModel, Field, field_serializer
 
@@ -37,15 +36,15 @@ class StationData(BaseModel):
 
 class NetworkData(BaseModel):
     name: str = Field(..., description="The network name")
-    stations: Dict[str, StationData | Site] = Field(
+    stations: dict[str, StationData | Site] = Field(
         default={}, description="Stations in the network"
     )
 
 
 class MetaDataCatalog(BaseModel):
-    name: Optional[str] = Field(default="", description="The catalog name")
-    networks: Dict[str, NetworkData] = Field(default={}, description="Network catalog")
-    info: Optional[str] = Field(default="", description="Optional catalog meta")
+    name: str | None = Field(default="", description="The catalog name")
+    networks: dict[str, NetworkData] = Field(default={}, description="Network catalog")
+    info: str | None = Field(default="", description="Optional catalog meta")
     type: CatalogType = Field(description="Catalog Type (meta-data or data)")
 
     @classmethod
@@ -70,7 +69,7 @@ class MetaDataCatalog(BaseModel):
         """
 
         if not isinstance(path, dict):
-            with open(path, "r") as file:
+            with open(path) as file:
                 raw_data = json.load(file)
         else:
             raw_data = path

@@ -5,9 +5,9 @@ this file contains data models for parsing sonardyne sv3 data
 """
 
 # External imports
-from enum import Enum
-from typing import List, Optional, Union
 from decimal import Decimal
+from enum import Enum
+
 from pydantic import BaseModel, Field, field_validator
 
 # Local imports
@@ -118,11 +118,11 @@ class NovatelHeadingData(BaseModel):
     receiver_status: str = Field(
         description="Status of the receiver",
     )
-    sdh: Optional[Decimal] = Field(
+    sdh: Decimal | None = Field(
         description="Standard deviation of heading in degrees",
         ge=0,
     )
-    sdp: Optional[Decimal] = Field(
+    sdp: Decimal | None = Field(
         description="Standard deviation of pitch in degrees",
         ge=0,
     )
@@ -212,19 +212,19 @@ class NovatelGNSSData(BaseModel):
         description="Quality indicator",
     )
 
-    sdx: Optional[Decimal] = Field(
+    sdx: Decimal | None = Field(
         description="Standard deviation in east direction in meters",
         ge=0,
     )
-    sdy: Optional[Decimal] = Field(
+    sdy: Decimal | None = Field(
         description="Standard deviation in north direction in meters",
         ge=0,
     )
-    sdz: Optional[Decimal] = Field(
+    sdz: Decimal | None = Field(
         description="Standard deviation in up direction in meters",
         ge=0,
     )
-    separation: Optional[Decimal] = Field(description="Separation")
+    separation: Decimal | None = Field(description="Separation")
     time: TimeData = Field(
         description="Time data associated with the log",
     )
@@ -245,7 +245,7 @@ class NovatelAHRSData(BaseModel):
         ge=Decimal(0),
         le=Decimal(360),
     )
-    h_mag: Optional[Decimal] = Field(
+    h_mag: Decimal | None = Field(
         description="Magnetic heading in degrees",
         ge=Decimal(0),
         le=Decimal(360),
@@ -278,7 +278,7 @@ class NovatelRangeDiagnosticData(BaseModel):
     )
 
     @field_validator("dbv", "snr", "xc", mode="before")
-    def convert_from_list(cls, value: List[Union[int, float]]):
+    def convert_from_list(cls, value: list[int | float]):
         if isinstance(value, list) and len(value) == 1:
             return Decimal(value[0])
         return Decimal(value)
@@ -303,19 +303,19 @@ class NovatelRangeReplyData(BaseModel):
 
 
 class NovatelObservations(BaseModel):
-    AHRS: Optional[NovatelAHRSData] = Field(
+    AHRS: NovatelAHRSData | None = Field(
         description="AHRS data",
     )
-    GNSS: Optional[NovatelGNSSData] = Field(
+    GNSS: NovatelGNSSData | None = Field(
         description="GNSS data",
     )
-    NOV_HEADING: Optional[NovatelHeadingData] = Field(
+    NOV_HEADING: NovatelHeadingData | None = Field(
         description="Novatel heading data",
     )
-    NOV_INS: Optional[NovatelINSData] = Field(
+    NOV_INS: NovatelINSData | None = Field(
         description="Novatel INS data",
     )
-    NOV_RANGE: Optional[NovatelRangeData] = Field(
+    NOV_RANGE: NovatelRangeData | None = Field(
         description="Novatel range data",
     )
 
@@ -339,7 +339,7 @@ class NovatelRangeEvent(BaseModel):
     time: TimeData = Field(
         description="Time data associated with the range event",
     )
-    uid: Optional[str] = Field(
+    uid: str | None = Field(
         description="Unique identifier for the range event",
         max_length=50,
     )

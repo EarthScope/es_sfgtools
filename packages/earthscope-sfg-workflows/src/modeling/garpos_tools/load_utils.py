@@ -1,13 +1,13 @@
 import importlib.util
 import os
 import sys
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, Tuple
 
 from es_sfgtools.logging import GarposLogger as logger
 
 
-def load_lib() -> Tuple[str, str]:
+def load_lib() -> tuple[str, str]:
     """
     Loads the required library paths for GARPOS and validates their existence.
     This function retrieves the GARPOS_PATH environment variable, verifies its existence,
@@ -98,5 +98,5 @@ def load_drive_garpos() -> Callable:
     garpos_main_module = importlib.import_module(
         f"{garpos_main.parent.stem}.{garpos_main.stem}"
     )
-    drive_garpos = getattr(garpos_main_module, "drive_garpos")
+    drive_garpos = garpos_main_module.drive_garpos
     return drive_garpos

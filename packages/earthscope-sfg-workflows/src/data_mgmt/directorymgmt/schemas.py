@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import datetime
-import json
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any
+
 if TYPE_CHECKING:
     from es_sfgtools.config.workspace import Workspace
 from cloudpathlib import S3Path
@@ -12,31 +12,29 @@ from pydantic import BaseModel, Field, PrivateAttr, model_serializer
 from .config import (
     ACOUSTIC_TDB,
     CAMPAIGN_METADATA_FILE,
-    GNSS_OBS_SECONDARY_TDB,
-    GNSS_OBS_TDB,
     GARPOS_DEFAULT_OBS_FILE,
     GARPOS_DEFAULT_SETTINGS_FILE,
     GARPOS_RESULTS_DIR,
-    GARPOS_SHOTDATA_DIRECTORY,
+    GNSS_OBS_SECONDARY_TDB,
+    GNSS_OBS_TDB,
     IMU_POSITION_TDB,
+    INTERMEDIATE_DATA_DIR,
     KIN_TDB,
     LOGS_DIR,
-    PRIDE_DIR,
     PROCESSED_DATA_DIR,
     QC_DIR,
+    QC_GNSS_OBS_TDB,
+    QC_KIN_POSITION_TDB,
+    QC_SHOTDATA_PRE_TDB,
+    QC_SHOTDATA_TDB,
     RAW_DATA_DIR,
     RINEX_1HZ_DIR,
     RINEX_10HZ_DIR,
     SHOTDATA_PRE_TDB,
     SHOTDATA_TDB,
+    SURVEY_METADATA_FILE,
     SVP_FILE_NAME,
     TILEDB_DIR,
-    SURVEY_METADATA_FILE,
-    INTERMEDIATE_DATA_DIR,
-    QC_SHOTDATA_TDB,
-    QC_SHOTDATA_PRE_TDB,
-    QC_KIN_POSITION_TDB,
-    QC_GNSS_OBS_TDB,
 )
 
 
@@ -80,28 +78,28 @@ class GARPOSSurveyDir(_Base):
 
     _name = PrivateAttr("GARPOS")
 
-    location: Optional[Path] = Field(
+    location: Path | None = Field(
         default=None, description="The survey directory path"
     )
-    log_directory: Optional[Path] = Field(
+    log_directory: Path | None = Field(
         default=None, description="The log directory path"
     )
-    default_obsfile: Optional[Path] = Field(
+    default_obsfile: Path | None = Field(
         default=None, description="The default observation file path"
     )
-    default_settings: Optional[Path] = Field(
+    default_settings: Path | None = Field(
         default=None, description="The default GARPOS settings file path"
     )
-    svp_file: Optional[Path] = Field(
+    svp_file: Path | None = Field(
         default=None, description="The sound velocity profile file path"
     )
-    results_dir: Optional[Path] = Field(
+    results_dir: Path | None = Field(
         default=None, description="The results directory path"
     )
-    shotdata_rectified: Optional[Path] = Field(
+    shotdata_rectified: Path | None = Field(
         default=None, description="The survey shotdata file path"
     )
-    shotdata_filtered: Optional[Path] = Field(
+    shotdata_filtered: Path | None = Field(
         default=None, description="The filtered shotdata file path"
     )
 
@@ -143,7 +141,7 @@ class GARPOSSurveyDir(_Base):
             if isinstance(path, Path):
                 path.mkdir(parents=True, exist_ok=True)
 
-    def find_rectified_shotdata(self) -> Optional[Path]:
+    def find_rectified_shotdata(self) -> Path | None:
         """Find the rectified shotdata file in the GARPOS directory.
 
         Returns
@@ -157,7 +155,7 @@ class GARPOSSurveyDir(_Base):
 
         return None
 
-    def find_filtered_shotdata(self) -> Optional[Path]:
+    def find_filtered_shotdata(self) -> Path | None:
         """Find the filtered shotdata file in the parent survey directory.
 
         Returns
@@ -195,13 +193,10 @@ class GARPOSSurveyDir(_Base):
         test_default_obsfile = test_dir.location / GARPOS_DEFAULT_OBS_FILE
         test_default_settings = test_dir.location / GARPOS_DEFAULT_SETTINGS_FILE
 
-        if test_default_obsfile.exists() and test_default_settings.exists():
-            return True
-
-        return False
+        return test_default_obsfile.exists() and test_default_settings.exists()
 
     @classmethod
-    def load_from_path(cls, path: Path | S3Path) -> "GARPOSSurveyDir":
+    def load_from_path(cls, path: Path | S3Path) -> GARPOSSurveyDir:
         """Load a GARPOSSurveyDir instance from an existing directory path.
 
         Parameters
@@ -259,46 +254,46 @@ class TileDBDir(_Base):
     """
 
     # Optional directory paths, if not provided, will be auto-generated
-    location: Optional[Union[Path, S3Path]] = Field(
+    location: Path | S3Path | None = Field(
         default=None, description="The TileDB directory path"
     )
-    shot_data: Optional[Union[Path, S3Path]] = Field(
+    shot_data: Path | S3Path | None = Field(
         default=None, description="The shotdata TileDB path"
     )
-    shot_data_pre: Optional[Union[Path, S3Path]] = Field(
+    shot_data_pre: Path | S3Path | None = Field(
         default=None, description="The preprocessed shotdata TileDB path"
     )
-    kin_position_data: Optional[Union[Path, S3Path]] = Field(
+    kin_position_data: Path | S3Path | None = Field(
         default=None, description="The kinematic position TileDB path"
     )
-    gnss_obs_data: Optional[Union[Path, S3Path]] = Field(
+    gnss_obs_data: Path | S3Path | None = Field(
         default=None, description="The GNSS observation TileDB path"
     )
-    gnss_obs_data_secondary: Optional[Union[Path, S3Path]] = Field(
+    gnss_obs_data_secondary: Path | S3Path | None = Field(
         default=None, description="The secondary GNSS observation TileDB path"
     )
-    imu_position_data: Optional[Union[Path, S3Path]] = Field(
+    imu_position_data: Path | S3Path | None = Field(
         default=None, description="The IMU position TileDB path"
     )
-    acoustic_data: Optional[Union[Path, S3Path]] = Field(
+    acoustic_data: Path | S3Path | None = Field(
         default=None, description="The acoustic TileDB path"
     )
 
     # QC-specific TileDB paths (separate from normal pipeline)
-    qc_shot_data: Optional[Union[Path, S3Path]] = Field(
+    qc_shot_data: Path | S3Path | None = Field(
         default=None, description="The QC shotdata TileDB path"
     )
-    qc_shot_data_pre: Optional[Union[Path, S3Path]] = Field(
+    qc_shot_data_pre: Path | S3Path | None = Field(
         default=None, description="The QC preprocessed shotdata TileDB path"
     )
-    qc_kin_position_data: Optional[Union[Path, S3Path]] = Field(
+    qc_kin_position_data: Path | S3Path | None = Field(
         default=None, description="The QC kinematic position TileDB path"
     )
-    qc_gnss_obs_data: Optional[Union[Path, S3Path]] = Field(
+    qc_gnss_obs_data: Path | S3Path | None = Field(
         default=None, description="The QC GNSS observation TileDB path"
     )
 
-    station: Union[Path, S3Path] = Field(..., description="The station directory path")
+    station: Path | S3Path = Field(..., description="The station directory path")
 
     def build(self, workspace: Workspace) -> None:
         """Creates the directory structure for the TileDB arrays."""
@@ -346,7 +341,7 @@ class TileDBDir(_Base):
                 setattr(self, field_name, s3_path)
 
     @classmethod
-    def load_from_path(cls, path: Path | S3Path) -> "TileDBDir":
+    def load_from_path(cls, path: Path | S3Path) -> TileDBDir:
         """Load a TileDBDir instance from an existing directory path.
 
         Parameters
@@ -417,25 +412,25 @@ class SurveyDir(_Base):
     Represents a survey directory structure.
     """
 
-    location: Optional[Path | S3Path] = Field(
+    location: Path | S3Path | None = Field(
         default=None, description="The survey directory path"
     )
-    shotdata: Optional[Path | S3Path] = Field(
+    shotdata: Path | S3Path | None = Field(
         default=None, description="The shotdata file path"
     )
-    shotdata_filtered: Optional[Path | S3Path] = Field(
+    shotdata_filtered: Path | S3Path | None = Field(
         default=None, description="The filtered shotdata file path"
     )
-    kinpositiondata: Optional[Path | S3Path] = Field(
+    kinpositiondata: Path | S3Path | None = Field(
         default=None, description="The kinematic position file path"
     )
-    imupositiondata: Optional[Path | S3Path] = Field(
+    imupositiondata: Path | S3Path | None = Field(
         default=None, description="The IMU position file path"
     )
-    metadata: Optional[Path | S3Path] = Field(
+    metadata: Path | S3Path | None = Field(
         default=None, description="The survey metadata file path"
     )
-    garpos: Optional[GARPOSSurveyDir] = Field(
+    garpos: GARPOSSurveyDir | None = Field(
         default=None, description="GARPOS data directory path"
     )
 
@@ -477,13 +472,10 @@ class SurveyDir(_Base):
         test_garpos_dir = test_dir.location / "GARPOS"
         shotdata_files = list(test_dir.location.glob("*.csv"))
 
-        if test_garpos_dir.exists() or len(shotdata_files) > 0:
-            return True
-
-        return False
+        return test_garpos_dir.exists() or len(shotdata_files) > 0
 
     @classmethod
-    def load_from_path(cls, path: Path | S3Path) -> "SurveyDir":
+    def load_from_path(cls, path: Path | S3Path) -> SurveyDir:
         """Load a SurveyDir instance from an existing directory path.
 
         Parameters
@@ -535,41 +527,41 @@ class CampaignDir(_Base):
     """
 
     # Optional directory paths, if not provided, will be auto-generated
-    location: Optional[Union[Path, S3Path]] = Field(
+    location: Path | S3Path | None = Field(
         default=None, description="The campaign directory path"
     )
-    raw: Optional[Union[Path, S3Path]] = Field(
+    raw: Path | S3Path | None = Field(
         default=None, description="Raw data directory path"
     )
-    processed: Optional[Union[Path, S3Path]] = Field(
+    processed: Path | S3Path | None = Field(
         default=None, description="Processed data directory path"
     )
-    intermediate: Optional[Union[Path, S3Path]] = Field(
+    intermediate: Path | S3Path | None = Field(
         default=None, description="Intermediate data directory path"
     )
-    surveys: Optional[dict[str, SurveyDir]] = Field(
+    surveys: dict[str, SurveyDir] | None = Field(
         default={}, description="Surveys in the campaign"
     )
-    log_directory: Optional[Union[Path, S3Path]] = Field(
+    log_directory: Path | S3Path | None = Field(
         default=None, description="Logs directory path"
     )
-    qc: Optional[Union[Path, S3Path]] = Field(
+    qc: Path | S3Path | None = Field(
         default=None, description="Quality control directory path"
     )
-    metadata_directory: Optional[Union[Path, S3Path]] = Field(
+    metadata_directory: Path | S3Path | None = Field(
         default=None, description="Metadata directory path"
     )
-    campaign_metadata: Optional[Union[Path, S3Path]] = Field(
+    campaign_metadata: Path | S3Path | None = Field(
         default=None, description="The campaign metadata file path"
     )
-    rinex_metadata: Optional[Union[Path, S3Path]] = Field(
+    rinex_metadata: Path | S3Path | None = Field(
         default=None, description="The RINEX metadata file path"
     )
-    svp_file: Optional[Union[Path, S3Path]] = Field(
+    svp_file: Path | S3Path | None = Field(
         default=None, description="The sound velocity profile file path"
     )
     # Fields needed to auto-generate paths
-    station: Union[Path, S3Path] = Field(..., description="The station directory path")
+    station: Path | S3Path = Field(..., description="The station directory path")
     name: str
 
     def build(self, workspace: Workspace) -> None:
@@ -615,7 +607,7 @@ class CampaignDir(_Base):
         if not self.svp_file:
             self.svp_file = self.processed / SVP_FILE_NAME
 
-    def add_survey(self, name: str, workspace: Workspace) -> "SurveyDir":
+    def add_survey(self, name: str, workspace: Workspace) -> SurveyDir:
         """Adds a new survey to the campaign.
 
         Parameters
@@ -678,7 +670,7 @@ class CampaignDir(_Base):
         )
 
     @classmethod
-    def load_from_path(cls, path: Path | S3Path) -> "CampaignDir":
+    def load_from_path(cls, path: Path | S3Path) -> CampaignDir:
         """Load a CampaignDir instance from an existing directory path.
 
         Parameters
@@ -739,24 +731,24 @@ class StationDir(_Base):
     """
 
     # Optional location and stations
-    campaigns: Optional[dict[str, CampaignDir]] = Field(
+    campaigns: dict[str, CampaignDir] | None = Field(
         default={}, description="Campaigns in the station"
     )
-    location: Optional[Union[Path, S3Path]] = Field(
+    location: Path | S3Path | None = Field(
         default=None, description="The station directory path"
     )
-    tiledb_directory: Optional[TileDBDir] = Field(
+    tiledb_directory: TileDBDir | None = Field(
         default=None, description="The TileDB directory path"
     )
-    metadata_directory: Optional[Union[Path, S3Path]] = Field(
+    metadata_directory: Path | S3Path | None = Field(
         default=None, description="The metadata directory path"
     )
-    site_metadata: Optional[Union[Path, S3Path]] = Field(
+    site_metadata: Path | S3Path | None = Field(
         default=None, description="The site metadata file path"
     )
     # Fields needed to auto-generate paths
     name: str = Field(..., description="The station name")
-    network: Union[Path, S3Path] = Field(..., description="The network directory path")
+    network: Path | S3Path = Field(..., description="The network directory path")
 
     def build(self, workspace: Workspace) -> None:
         """Creates the directory structure for the station."""
@@ -781,7 +773,7 @@ class StationDir(_Base):
             campaign.station = self.location
             campaign.build(workspace)
 
-    def __getitem__(self, key: str) -> Optional[CampaignDir]:
+    def __getitem__(self, key: str) -> CampaignDir | None:
         """Gets a campaign by name.
 
         Parameters
@@ -800,7 +792,7 @@ class StationDir(_Base):
             print(f"Campaign {key} not found in station {self.name}")
             return None
 
-    def add_campaign(self, name: str, workspace: Workspace) -> "CampaignDir":
+    def add_campaign(self, name: str, workspace: Workspace) -> CampaignDir:
         """Adds a new campaign to the station.
 
         Parameters
@@ -846,12 +838,10 @@ class StationDir(_Base):
         test_dir.location = path
         # In LOCAL workspaces a TileDB directory must be present
         test_tdb_dir = test_dir.location / TILEDB_DIR
-        if isinstance(test_dir.location, Path) and not test_tdb_dir.exists():
-            return False
-        return True
+        return not (isinstance(test_dir.location, Path) and not test_tdb_dir.exists())
 
     @classmethod
-    def load_from_path(cls, path: Path | S3Path) -> "StationDir":
+    def load_from_path(cls, path: Path | S3Path) -> StationDir:
         """Load a StationDir instance from an existing directory path.
 
         Parameters
@@ -900,15 +890,15 @@ class NetworkDir(_Base):
     """
 
     # Optional location and stations
-    stations: Optional[dict[str, StationDir]] = Field(
+    stations: dict[str, StationDir] | None = Field(
         default={}, description="Stations in the network"
     )
-    location: Optional[Union[Path, S3Path]] = Field(
+    location: Path | S3Path | None = Field(
         default=None, description="The network directory path"
     )
 
     name: str = Field(..., description="The network name")
-    main_directory: Union[Path, S3Path] = Field(
+    main_directory: Path | S3Path = Field(
         ..., description="The main directory path"
     )
 
@@ -923,7 +913,7 @@ class NetworkDir(_Base):
         for station in self.stations.values():
             station.build(workspace)
 
-    def __getitem__(self, key: str) -> Optional[StationDir]:
+    def __getitem__(self, key: str) -> StationDir | None:
         """Gets a station by name.
 
         Parameters
@@ -942,7 +932,7 @@ class NetworkDir(_Base):
             print(f"Station {key} not found in network {self.name}")
             return None
 
-    def add_station(self, name: str, workspace: Workspace) -> "StationDir":
+    def add_station(self, name: str, workspace: Workspace) -> StationDir:
         """Adds a new station to the network.
 
         Parameters
@@ -984,12 +974,10 @@ class NetworkDir(_Base):
         test_dir = cls(name=str(path.name), main_directory=path.parent)
         test_dir.location = path
         station_dirs = test_dir.location.glob("[A-Z][A-Z][A-Z][0-9]")
-        if any(StationDir.is_station_directory(d) for d in station_dirs):
-            return True
-        return False
+        return any(StationDir.is_station_directory(d) for d in station_dirs)
 
     @classmethod
-    def load_from_path(cls, path: Path | S3Path) -> "NetworkDir":
+    def load_from_path(cls, path: Path | S3Path) -> NetworkDir:
         """Load a NetworkDir instance from an existing directory path.
 
         Parameters

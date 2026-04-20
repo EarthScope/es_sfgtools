@@ -1,15 +1,13 @@
 import os
 from pathlib import Path
-from typing import Dict, List
 
 import pandas as pd
 import sqlalchemy as sa
 
-from .schemas import AssetEntry
-from ...config.file_config import AssetType
-
 from es_sfgtools.logging import ProcessLogger as logger
 
+from ...config.file_config import AssetType
+from .schemas import AssetEntry
 from .tables import Assets, Base, MergeJobs
 
 
@@ -34,7 +32,7 @@ class PreProcessCatalogHandler:
 
     def get_dtype_counts(
         self, network: str, station: str, campaign: str, **kwargs
-    ) -> Dict[str, int]:
+    ) -> dict[str, int]:
         """Gets the counts of each data type for a given network, station, and campaign.
 
         Parameters
@@ -132,7 +130,7 @@ class PreProcessCatalogHandler:
 
     def get_assets(
         self, network: str, station: str, campaign: str, type: AssetType | str
-    ) -> List[AssetEntry]:
+    ) -> list[AssetEntry]:
         """Gets assets for a given network, station, campaign, and type.
 
         Parameters
@@ -178,10 +176,10 @@ class PreProcessCatalogHandler:
                 try:
                     out.append(AssetEntry(**row._mapping))
                 except Exception as e:
-                    logger.logerr("Unable to add row, error: {}".format(e))
+                    logger.logerr(f"Unable to add row, error: {e}")
             return out
 
-    def get_ctds(self, station: str, campaign: str) -> List[AssetEntry]:
+    def get_ctds(self, station: str, campaign: str) -> list[AssetEntry]:
         """Get all svp, ctd and seabird assets for a given station and campaign.
 
         Parameters
@@ -220,12 +218,12 @@ class PreProcessCatalogHandler:
                     entry = AssetEntry(**row._mapping)
                     out.append(entry)
                 except Exception as e:
-                    logger.logerr("Unable to add row, error: {}".format(e))
+                    logger.logerr(f"Unable to add row, error: {e}")
             return out
 
     def get_local_assets(
         self, network: str, station: str, campaign: str, type: AssetType
-    ) -> List[AssetEntry]:
+    ) -> list[AssetEntry]:
         """Get local assets for a given network, station, campaign, and type.
 
         Parameters
@@ -265,7 +263,7 @@ class PreProcessCatalogHandler:
                 try:
                     out.append(AssetEntry(**row._mapping))
                 except Exception as e:
-                    logger.logerr("Unable to add row, error: {}".format(e))
+                    logger.logerr(f"Unable to add row, error: {e}")
             return out
 
     def get_single_entries_to_process(
@@ -277,7 +275,7 @@ class PreProcessCatalogHandler:
         child_type: AssetType = None,
         override: bool = False,
         local_only: bool = False,
-    ) -> List[AssetEntry]:
+    ) -> list[AssetEntry]:
         """Get single entries to process.
 
         Parameters
@@ -562,7 +560,7 @@ class PreProcessCatalogHandler:
         return False
 
     def add_merge_job(
-        self, parent_type: str, child_type: str, parent_ids: List[int], **kwargs
+        self, parent_type: str, child_type: str, parent_ids: list[int], **kwargs
     ):
         """Adds a merge job to the database.
 
@@ -590,7 +588,7 @@ class PreProcessCatalogHandler:
             )
 
     def is_merge_complete(
-        self, parent_type: str, child_type: str, parent_ids: List[int], **kwargs
+        self, parent_type: str, child_type: str, parent_ids: list[int], **kwargs
     ) -> bool:
         """Checks if a merge job is complete.
 

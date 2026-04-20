@@ -1,11 +1,8 @@
-from pathlib import Path
 import json
-from typing import Dict, List
+from pathlib import Path
 
 import pandas as pd
 from pandera.typing import DataFrame
-
-from ..novatel_tools.rangea_parser import GNSSEpoch
 
 from ..data_models.observables import ShotDataFrame
 from ..data_models.sv3_models import (
@@ -14,9 +11,9 @@ from ..data_models.sv3_models import (
 )
 from ..logging import ProcessLogger as logger
 from .sv3_operations import (
+    merge_interrogation_reply,
     novatelInterrogation_to_garpos_interrogation,
     novatelReply_to_garpos_reply,
-    merge_interrogation_reply,
 )
 
 
@@ -89,7 +86,7 @@ def qcjson_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
             reply_event = NovatelRangeEvent(**value)
             reply_parsed = novatelReply_to_garpos_reply(reply_event)
             merged = merge_interrogation_reply(interrogation_parsed, reply_parsed)
-        except Exception as e:  # noqa: BLE001
+        except Exception:  # noqa: BLE001
             # logger.logerr(f"Failed to parse/merge range entry '{key}' in {path}: {e}")
             continue
 
@@ -107,8 +104,8 @@ def qcjson_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
 
 
 def batch_qc_by_day(
-    dataframes: List[pd.DataFrame], date_column: str = "pingTime"
-) -> Dict[str, pd.DataFrame]:
+    dataframes: list[pd.DataFrame], date_column: str = "pingTime"
+) -> dict[str, pd.DataFrame]:
     """Batch QC dataframes by day.
 
     Parameters

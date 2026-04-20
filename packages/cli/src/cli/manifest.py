@@ -7,17 +7,16 @@ processing jobs for the pipeline.
 """
 
 import json
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
-from typing import List, Optional
 
 import yaml
-from es_sfgtools.prefiltering.schemas import FilterConfig
-from es_sfgtools.modeling.garpos_tools.schemas import InversionParams
-from es_sfgtools.workflows.pipelines.config import SV3PipelineConfig
-from es_sfgtools.utils.model_update import validate_and_merge_config
-from es_sfgtools.config.workspace import Workspace, WorkspaceType
 from pydantic import BaseModel, Field, field_serializer, field_validator
+
+from es_sfgtools.config.workspace import Workspace, WorkspaceType
+from es_sfgtools.modeling.garpos_tools.schemas import InversionParams
+from es_sfgtools.prefiltering.schemas import FilterConfig
+from es_sfgtools.workflows.pipelines.config import SV3PipelineConfig
 
 
 class ManifestWorkspaceConfig(BaseModel):
@@ -28,14 +27,14 @@ class ManifestWorkspaceConfig(BaseModel):
     """
 
     type: str = Field("local", description="Workspace type: 'local', 'geolab', or 'ecs'")
-    s3_sync_bucket: Optional[str] = Field(
+    s3_sync_bucket: str | None = Field(
         None, alias="s3SyncBucket", description="S3 bucket for sync (geolab/ecs)"
     )
-    aws_profile: Optional[str] = Field(None, alias="awsProfile")
-    aws_access_key_id: Optional[str] = Field(None, alias="awsAccessKeyId")
-    aws_secret_access_key: Optional[str] = Field(None, alias="awsSecretAccessKey")
-    aws_session_token: Optional[str] = Field(None, alias="awsSessionToken")
-    pride_dir: Optional[Path] = Field(None, alias="prideDir")
+    aws_profile: str | None = Field(None, alias="awsProfile")
+    aws_access_key_id: str | None = Field(None, alias="awsAccessKeyId")
+    aws_secret_access_key: str | None = Field(None, alias="awsSecretAccessKey")
+    aws_session_token: str | None = Field(None, alias="awsSessionToken")
+    pride_dir: Path | None = Field(None, alias="prideDir")
 
     model_config = {"populate_by_name": True}
 
@@ -76,7 +75,7 @@ class ManifestWorkspaceConfig(BaseModel):
                 )
 
 
-class PipelineJobType(str, Enum):
+class PipelineJobType(StrEnum):
     """Enumeration for the different types of pipeline jobs."""
 
     PREPROCESSING = "preprocessing"
@@ -85,7 +84,7 @@ class PipelineJobType(str, Enum):
     GARPOS = "garpos"
 
 
-class PreprocessJobType(str, Enum):
+class PreprocessJobType(StrEnum):
     """Enumeration for the different types of preprocessing jobs."""
 
     ALL = "all"
@@ -107,10 +106,10 @@ class PipelinePreprocessJob(BaseModel):
     job_type: PreprocessJobType = Field(
         PreprocessJobType.ALL, title="Preprocessing Job Type"
     )
-    global_config: Optional[SV3PipelineConfig] = Field(
+    global_config: SV3PipelineConfig | None = Field(
         ..., title="Pipeline Configuration"
     )
-    secondary_config: Optional[dict] = Field(
+    secondary_config: dict | None = Field(
         default_factory=dict, title="Secondary Configuration Overrides"
     )
 
@@ -149,31 +148,31 @@ class ArchiveDownloadJob(BaseModel):
 class GARPOSConfig(BaseModel):
     """Defines the configuration for a GARPOS processing run."""
 
-    garpos_path: Optional[Path] = Field(
+    garpos_path: Path | None = Field(
         default=None, title="GARPOS Path", description="Path to GARPOS repository"
     )
-    iterations: Optional[int] = Field(
+    iterations: int | None = Field(
         2,
         title="Number of Iterations",
         description="Number of GARPOS inversion iterations to perform",
     )
-    run_id: Optional[str] = Field(
+    run_id: str | None = Field(
         "0",
         title="Run ID",
         description="Optional run ID for GARPOS processing",
         coerce_numbers_to_str=True,
     )
-    override: Optional[bool] = Field(
+    override: bool | None = Field(
         False,
         title="Override Existing Data",
         description="Whether to override existing data",
     )
-    inversion_params: Optional[InversionParams] = Field(
+    inversion_params: InversionParams | None = Field(
         None,
         title="Inversion Parameters",
         description="Parameters for GARPOS inversion",
     )
-    filter_config: Optional[FilterConfig] = Field(
+    filter_config: FilterConfig | None = Field(
         default_factory=FilterConfig,
         title="Filter Configuration",
         description="Configuration for prefiltering GARPOS shot data",
@@ -205,7 +204,7 @@ class GARPOSProcessJob(BaseModel):
     network: str = Field(..., title="Network Name")
     station: str = Field(..., title="Station Name")
     campaign: str = Field(..., title="Campaign Name")
-    surveys: Optional[List[str]] = Field(
+    surveys: list[str] | None = Field(
         default_factory=list,
         title="Survey Name",
         description="Optional survey name for GARPOS processing",
@@ -215,7 +214,7 @@ class GARPOSProcessJob(BaseModel):
         title="GARPOS Configuration",
         description="Configuration for GARPOS processing",
     )
-    secondary_config: Optional[dict] = Field(
+    secondary_config: dict | None = Field(
         default_factory=dict, title="Secondary Configuration Overrides"
     )
 
@@ -233,16 +232,16 @@ class PipelineManifest(BaseModel):
         default_factory=ManifestWorkspaceConfig, title="Workspace Configuration"
     )
 
-    ingestion_jobs: List[PipelineIngestJob] = Field(
+    ingestion_jobs: list[PipelineIngestJob] = Field(
         default_factory=list, title="List of Pipeline Ingestion Jobs"
     )
-    process_jobs: List[PipelinePreprocessJob] = Field(
+    process_jobs: list[PipelinePreprocessJob] = Field(
         default_factory=list, title="List of Pipeline Jobs"
     )
-    download_jobs: Optional[List[ArchiveDownloadJob]] = Field(
+    download_jobs: list[ArchiveDownloadJob] | None = Field(
         default_factory=list, title="List of Archive Download Jobs"
     )
-    garpos_jobs: Optional[List[GARPOSProcessJob]] = Field(
+    garpos_jobs: list[GARPOSProcessJob] | None = Field(
         default_factory=list, title="List of GARPOS Process Jobs"
     )
     global_config: SV3PipelineConfig = Field(..., title="Global Config")
@@ -298,7 +297,7 @@ class PipelineManifest(BaseModel):
                 station = operation["station"]
                 campaign = operation["campaign"]
             except KeyError as e:
-                raise ValueError(f"Missing key in operations: {e}")
+                raise ValueError(f"Missing key in operations: {e}") from e
 
             for job in operation.get("jobs", []):
                 # Validate job type
@@ -370,7 +369,7 @@ class PipelineManifest(BaseModel):
             An instance of the PipelineManifest class.
         """
         # Load JSON data
-        with open(json_data, "r") as f:
+        with open(json_data) as f:
             data = json.load(f)
         return cls._load(data)
 
@@ -386,7 +385,7 @@ class PipelineManifest(BaseModel):
             An instance of the PipelineManifest class.
         """
         # Load YAML data
-        with open(yaml_data, "r") as f:
+        with open(yaml_data) as f:
             data = yaml.safe_load(f)
         return cls._load(data)
 

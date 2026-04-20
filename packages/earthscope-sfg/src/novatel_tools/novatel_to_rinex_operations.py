@@ -1,14 +1,14 @@
-from pathlib import Path
+import json
+import logging
+import os
+import shutil
 import subprocess
 import tempfile
-import shutil
 import uuid
-import json
-from typing import List, Optional, Dict
 from collections import defaultdict
-import os
+from pathlib import Path
+
 from colorama import Fore, Style
-import logging
 
 # Don't use basicConfig as it configures the root logger with default format
 # This interferes with the es_sfgtools logging setup
@@ -16,14 +16,14 @@ logger = logging.getLogger("ES_SFGTools.NovatelToRinex")
 logger.setLevel(logging.INFO)
 
 # Local imports
-from ..utils.command_line_utils import parse_cli_logs
-from .utils import (
+from ..utils.command_line_utils import parse_cli_logs  # noqa: E402
+from .utils import (  # noqa: E402
     MetadataModel,
+    check_metadata,
+    check_metadata_path,
     get_metadatav2,
     get_nov0002rnx_binary_path,
     get_novb2rnxo_binary_path,
-    check_metadata,
-    check_metadata_path,
 )
 
 os.environ["DYLD_LIBRARY_PATH"] = os.environ.get("CONDA_PREFIX", "") + "/lib"
@@ -31,13 +31,13 @@ os.environ["LD_LIBRARY_PATH"] = os.environ.get("CONDA_PREFIX", "") + "/lib"
 
 
 def _novatel_2rinex_wrapper(
-    files: List[Path] | List[str],
+    files: list[Path] | list[str],
     writedir: Path,
     metadata: dict | Path | str,
     binary_path: Path,
     modulo_millis: int = 0,
     num_routines: int = 1,
-) -> List[Path]:
+) -> list[Path]:
     """Internal helper to call a NovAtel-to-RINEX Go binary on a batch of files.
 
     Parameters
@@ -82,7 +82,7 @@ def _novatel_2rinex_wrapper(
             + Style.RESET_ALL
         )
 
-    file_paths: List[Path] = [Path(f) for f in files]
+    file_paths: list[Path] = [Path(f) for f in files]
 
     with tempfile.TemporaryDirectory(dir="/tmp/") as workdir_str:
         workdir = Path(workdir_str)
@@ -156,13 +156,13 @@ def _novatel_2rinex_wrapper(
         parse_cli_logs(result, logger)
 
         rinex_file_paths = [
-            x for x in workdir.rglob(f"*{site}*") if not x.suffix == ".json"
+            x for x in workdir.rglob(f"*{site}*") if x.suffix != ".json"
         ]
         print(f"\n{'=' * 40}")
         logger.info(
             f"\nConverted {Fore.GREEN}{len(file_paths)}{Style.RESET_ALL} input files to {Fore.GREEN}{len(rinex_file_paths)}{Style.RESET_ALL} Daily RINEX files"
         )
-        outpaths: List[Path] = []
+        outpaths: list[Path] = []
         for rinex_file in rinex_file_paths:
             logger.debug(f" RINEX file: {str(rinex_file)}")
             new_rinex_path = writedir / rinex_file.name
@@ -183,14 +183,14 @@ def _novatel_2rinex_wrapper(
 
 
 def novatel_2rinex(
-    files: List[Path] | List[str] | str | Path,
-    writedir: Optional[Path | str] = None,
-    site: Optional[str] = None,
-    metadata: Optional[dict | MetadataModel | Path | str] = None,
+    files: list[Path] | list[str] | str | Path,
+    writedir: Path | str | None = None,
+    site: str | None = None,
+    metadata: dict | MetadataModel | Path | str | None = None,
     modulo_millis: int = 0,
     num_routines: int = 1,
     **kwargs,
-) -> List[Path]:
+) -> list[Path]:
     """Convert NovAtel NOV000 / NOV770 binary files to daily RINEX.
 
     This high-level helper accepts a single file or a list of files
@@ -290,7 +290,7 @@ def novatel_2rinex(
 
     # Normalise input files to Paths
     if isinstance(files, (str, Path)):
-        file_paths: List[Path] = [Path(files)]
+        file_paths: list[Path] = [Path(files)]
     else:
         file_paths = [Path(f) for f in files]
 
@@ -301,8 +301,8 @@ def novatel_2rinex(
         if not file.exists():
             raise FileNotFoundError(f"File not found: {file}")
 
-    bin_files: List[Path] = []  # for NOV000.bin files
-    raw_files: List[Path] = []  # for NOV770.raw files
+    bin_files: list[Path] = []  # for NOV000.bin files
+    raw_files: list[Path] = []  # for NOV770.raw files
 
     for file in file_paths:
         suffix = file.suffix.lower()
@@ -316,14 +316,14 @@ def novatel_2rinex(
                     f"Unsupported file extension: {suffix} for file {file}"
                 )
 
-    all_rinex_paths: List[Path] = []
+    all_rinex_paths: list[Path] = []
 
     # Process NOV000 (.bin) files
     if bin_files:
         binary_path = get_nov0002rnx_binary_path()
         if writedir is None:
             # group by parent directory
-            write_dirs: Dict[Path, List[Path]] = defaultdict(list)
+            write_dirs: dict[Path, list[Path]] = defaultdict(list)
             for file in bin_files:
                 write_dirs[file.parent].append(file)
             logger.info(
@@ -352,7 +352,7 @@ def novatel_2rinex(
     if raw_files:
         binary_path = get_novb2rnxo_binary_path()
         if writedir is None:
-            write_dirs: Dict[Path, List[Path]] = defaultdict(list)
+            write_dirs: dict[Path, list[Path]] = defaultdict(list)
             for file in raw_files:
                 write_dirs[file.parent].append(file)
             logger.info(
@@ -378,7 +378,7 @@ def novatel_2rinex(
             all_rinex_paths.extend(rinex_paths)
 
     # check for overlap in output rinex paths
-    counted_paths: Dict[Path, int] = defaultdict(int)
+    counted_paths: dict[Path, int] = defaultdict(int)
     for rinex_path in all_rinex_paths:
         counted_paths[rinex_path] += 1
     overlapping_paths = [path for path, count in counted_paths.items() if count > 1]
@@ -402,7 +402,7 @@ def tile2rinex(
     time_interval: int = 1,
     processing_year: int = 0,
     modulo_millis: int = 0,
-) -> List[Path]:
+) -> list[Path]:
     """Convert a GNSS observation TileDB array to daily RINEX 2.11 files.
 
     Parameters
@@ -426,9 +426,9 @@ def tile2rinex(
     List[Path]
         Paths of the generated RINEX files.
     """
-    from .utils import get_tdb2rnx_binary_path
-    from ..utils.command_line_utils import run_binary
     from ..logging import ProcessLogger as _logger
+    from ..utils.command_line_utils import run_binary
+    from .utils import get_tdb2rnx_binary_path
 
     binary_path = get_tdb2rnx_binary_path()
     cmd = [

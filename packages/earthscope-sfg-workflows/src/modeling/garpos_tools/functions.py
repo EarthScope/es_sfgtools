@@ -1,6 +1,5 @@
 import math
 import sys
-from typing import List, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -12,7 +11,10 @@ from scipy.stats import hmean as harmonic_mean
 sns.set_theme()
 
 
-from .schemas import (
+from es_sfgtools.logging import GarposLogger as logger  # noqa: E402
+
+from .load_utils import load_drive_garpos  # noqa: E402
+from .schemas import (  # noqa: E402
     GarposInput,
     GarposObservationOutput,
     GPPositionENU,
@@ -20,9 +22,6 @@ from .schemas import (
     GPTransponder,
     ObservationData,
 )
-
-from es_sfgtools.logging import GarposLogger as logger
-from .load_utils import load_drive_garpos
 
 try:
     drive_garpos = load_drive_garpos()
@@ -138,7 +137,7 @@ class CoordTransformer:
 
         self.X0, self.Y0, self.Z0 = pm.geodetic2ecef(self.lat0, self.lon0, self.hgt0)
 
-    def XYZ2ENU(self, X: float, Y: float, Z: float) -> Tuple[float, float, float]:
+    def XYZ2ENU(self, X: float, Y: float, Z: float) -> tuple[float, float, float]:
         """
         Convert Cartesian coordinates (X, Y, Z) to East-North-Up (ENU) coordinates.
 
@@ -165,7 +164,7 @@ class CoordTransformer:
 
         return e, n, u
 
-    def LLH2ENU(self, lat: float, lon: float, hgt: float) -> Tuple[float, float, float]:
+    def LLH2ENU(self, lat: float, lon: float, hgt: float) -> tuple[float, float, float]:
         """
         Convert latitude, longitude, and height (LLH) to East, North, Up (ENU) coordinates.
         This function converts geodetic coordinates (latitude, longitude, height) to local
@@ -196,7 +195,7 @@ class CoordTransformer:
 
     def LLH2ENU_vec(
         self, lat: np.ndarray, lon: np.ndarray, hgt: np.ndarray
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Convert latitude, longitude, and height (LLH) coordinates to East-North-Up (ENU) coordinates.
 
@@ -229,7 +228,7 @@ class CoordTransformer:
 
     def ECEF2ENU_vec(
         self, X: np.ndarray, Y: np.ndarray, Z: np.ndarray
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Convert ECEF coordinates to ENU coordinates.
 
@@ -260,8 +259,8 @@ class CoordTransformer:
 
 
 def avg_transponder_position(
-    transponders: List[GPTransponder],
-) -> Tuple[GPPositionENU, GPPositionLLH]:
+    transponders: list[GPTransponder],
+) -> tuple[GPPositionENU, GPPositionLLH]:
     """
     Calculate the average position of the transponders.
 
@@ -380,7 +379,7 @@ def plot_enu_llh_side_by_side(garpos_input: GarposInput):
     plt.show()
 
 
-def process_garpos_results(results: GarposInput) -> Tuple[GarposInput, pd.DataFrame]:
+def process_garpos_results(results: GarposInput) -> tuple[GarposInput, pd.DataFrame]:
     """
     Process garpos results to compute delta x, y, z and relevant fields.
     This function processes the garpos results to calculate the delta x, y, z
@@ -410,8 +409,8 @@ def process_garpos_results(results: GarposInput) -> Tuple[GarposInput, pd.DataFr
     # For each transponder, get the delta x,y,and z respectively
     for transponder in results.transponders:
         id = transponder.id
-        takeoff = np.deg2rad(results_df[results_df.MT == id].TakeOff.values)
-        azimuth = np.deg2rad(results_df[results_df.MT == id].head1.values)
+        takeoff = np.deg2rad(results_df[id == results_df.MT].TakeOff.values)
+        azimuth = np.deg2rad(results_df[id == results_df.MT].head1.values)
         delta_x = np.mean(np.cos(takeoff) * np.cos(azimuth))
         delta_y = np.mean(np.cos(takeoff) * np.sin(azimuth))
         delta_z = np.mean(np.sin(azimuth))

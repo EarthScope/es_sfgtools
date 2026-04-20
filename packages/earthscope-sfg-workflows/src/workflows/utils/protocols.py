@@ -1,19 +1,19 @@
-from dataclasses import dataclass, field
-from typing import Callable, Concatenate, Optional, Protocol, TypeVar, ParamSpec
-from functools import wraps
 from abc import ABC
+from collections.abc import Callable
+from dataclasses import dataclass
+from functools import wraps
 from pathlib import Path
+from typing import Concatenate, ParamSpec, Protocol, TypeVar
 
 from ...config.workspace import Workspace
+from ...data_mgmt.assetcatalog.handler import PreProcessCatalogHandler
 from ...data_mgmt.directorymgmt import (
     CampaignDir,
-    SurveyDir,
     NetworkDir,
-    TileDBDir,
     StationDir,
+    SurveyDir,
 )
-from ...data_mgmt.assetcatalog.handler import PreProcessCatalogHandler
-from ...data_models.metadata import Site, Campaign, Survey
+from ...data_models.metadata import Campaign, Site, Survey
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -27,20 +27,20 @@ class WorkflowContext:
     Resetting a higher level automatically clears all dependent lower levels.
     """
 
-    network_name: Optional[str] = None
-    network_dir: Optional[NetworkDir] = None
+    network_name: str | None = None
+    network_dir: NetworkDir | None = None
 
-    station_name: Optional[str] = None
-    station_dir: Optional[StationDir] = None
-    station_metadata: Optional[Site] = None
+    station_name: str | None = None
+    station_dir: StationDir | None = None
+    station_metadata: Site | None = None
 
-    campaign_name: Optional[str] = None
-    campaign_dir: Optional[CampaignDir] = None
-    campaign_metadata: Optional[Campaign] = None
+    campaign_name: str | None = None
+    campaign_dir: CampaignDir | None = None
+    campaign_metadata: Campaign | None = None
 
-    survey_name: Optional[str] = None
-    survey_dir: Optional[SurveyDir] = None
-    survey_metadata: Optional[Survey] = None
+    survey_name: str | None = None
+    survey_dir: SurveyDir | None = None
+    survey_metadata: Survey | None = None
 
     def reset_survey(self) -> None:
         self.survey_name = None
@@ -72,9 +72,9 @@ class WorkflowContext:
 class HasNetworkStationCampaign(Protocol):
     """A protocol for classes that have network, station, and campaign attributes."""
 
-    current_network_name: Optional[str]
-    current_station_name: Optional[str]
-    current_campaign_name: Optional[str]
+    current_network_name: str | None
+    current_station_name: str | None
+    current_campaign_name: str | None
 
 
 def validate_network_station_campaign(
@@ -167,10 +167,10 @@ class WorkflowABC(ABC):
 
     def __init__(
         self,
-        workspace: Optional[Workspace] = None,
+        workspace: Workspace | None = None,
         directory: Path = None,
-        asset_catalog: Optional[PreProcessCatalogHandler] = None,
-        station_metadata: Optional[Site] = None,
+        asset_catalog: PreProcessCatalogHandler | None = None,
+        station_metadata: Site | None = None,
     ):
         """Initialize the workflow with a workspace and asset catalog.
 
@@ -216,91 +216,91 @@ class WorkflowABC(ABC):
     # keeps working without changes in downstream files.
 
     @property
-    def current_network_name(self) -> Optional[str]:
+    def current_network_name(self) -> str | None:
         return self.ctx.network_name
 
     @current_network_name.setter
-    def current_network_name(self, value: Optional[str]):
+    def current_network_name(self, value: str | None):
         self.ctx.network_name = value
 
     @property
-    def current_network_dir(self) -> Optional[NetworkDir]:
+    def current_network_dir(self) -> NetworkDir | None:
         return self.ctx.network_dir
 
     @current_network_dir.setter
-    def current_network_dir(self, value: Optional[NetworkDir]):
+    def current_network_dir(self, value: NetworkDir | None):
         self.ctx.network_dir = value
 
     @property
-    def current_station_name(self) -> Optional[str]:
+    def current_station_name(self) -> str | None:
         return self.ctx.station_name
 
     @current_station_name.setter
-    def current_station_name(self, value: Optional[str]):
+    def current_station_name(self, value: str | None):
         self.ctx.station_name = value
 
     @property
-    def current_station_dir(self) -> Optional[StationDir]:
+    def current_station_dir(self) -> StationDir | None:
         return self.ctx.station_dir
 
     @current_station_dir.setter
-    def current_station_dir(self, value: Optional[StationDir]):
+    def current_station_dir(self, value: StationDir | None):
         self.ctx.station_dir = value
 
     @property
-    def current_station_metadata(self) -> Optional[Site]:
+    def current_station_metadata(self) -> Site | None:
         return self.ctx.station_metadata
 
     @current_station_metadata.setter
-    def current_station_metadata(self, value: Optional[Site]):
+    def current_station_metadata(self, value: Site | None):
         self.ctx.station_metadata = value
 
     @property
-    def current_campaign_name(self) -> Optional[str]:
+    def current_campaign_name(self) -> str | None:
         return self.ctx.campaign_name
 
     @current_campaign_name.setter
-    def current_campaign_name(self, value: Optional[str]):
+    def current_campaign_name(self, value: str | None):
         self.ctx.campaign_name = value
 
     @property
-    def current_campaign_dir(self) -> Optional[CampaignDir]:
+    def current_campaign_dir(self) -> CampaignDir | None:
         return self.ctx.campaign_dir
 
     @current_campaign_dir.setter
-    def current_campaign_dir(self, value: Optional[CampaignDir]):
+    def current_campaign_dir(self, value: CampaignDir | None):
         self.ctx.campaign_dir = value
 
     @property
-    def current_campaign_metadata(self) -> Optional[Campaign]:
+    def current_campaign_metadata(self) -> Campaign | None:
         return self.ctx.campaign_metadata
 
     @current_campaign_metadata.setter
-    def current_campaign_metadata(self, value: Optional[Campaign]):
+    def current_campaign_metadata(self, value: Campaign | None):
         self.ctx.campaign_metadata = value
 
     @property
-    def current_survey_name(self) -> Optional[str]:
+    def current_survey_name(self) -> str | None:
         return self.ctx.survey_name
 
     @current_survey_name.setter
-    def current_survey_name(self, value: Optional[str]):
+    def current_survey_name(self, value: str | None):
         self.ctx.survey_name = value
 
     @property
-    def current_survey_dir(self) -> Optional[SurveyDir]:
+    def current_survey_dir(self) -> SurveyDir | None:
         return self.ctx.survey_dir
 
     @current_survey_dir.setter
-    def current_survey_dir(self, value: Optional[SurveyDir]):
+    def current_survey_dir(self, value: SurveyDir | None):
         self.ctx.survey_dir = value
 
     @property
-    def current_survey_metadata(self) -> Optional[Survey]:
+    def current_survey_metadata(self) -> Survey | None:
         return self.ctx.survey_metadata
 
     @current_survey_metadata.setter
-    def current_survey_metadata(self, value: Optional[Survey]):
+    def current_survey_metadata(self, value: Survey | None):
         self.ctx.survey_metadata = value
 
     # ---- Context reset methods (delegate to WorkflowContext) ----

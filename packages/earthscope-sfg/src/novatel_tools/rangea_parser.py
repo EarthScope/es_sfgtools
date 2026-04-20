@@ -11,10 +11,9 @@ measurements for all tracked satellites across multiple constellations.
 """
 
 import datetime
-from enum import IntEnum
 import json
+from enum import IntEnum
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 from pydantic import BaseModel, Field, computed_field
 
@@ -171,7 +170,7 @@ class Satellite(BaseModel):
     system: GNSSSystem
     prn: int
     fcn: int = 0
-    observations: Dict[int, Observation] = Field(default_factory=dict)
+    observations: dict[int, Observation] = Field(default_factory=dict)
 
     model_config = {"frozen": False}
 
@@ -200,7 +199,7 @@ class GNSSEpoch(BaseModel):
     time: datetime.datetime
     gps_week: int
     gps_seconds: float
-    satellites: Dict[Tuple[int, int], Satellite] = Field(default_factory=dict)
+    satellites: dict[tuple[int, int], Satellite] = Field(default_factory=dict)
     receiver_status: str = ""
     num_observations: int = 0
 
@@ -215,7 +214,7 @@ class GNSSEpoch(BaseModel):
         else:
             self.satellites[key] = sat
 
-    def get_satellite(self, system: GNSSSystem, prn: int) -> Optional[Satellite]:
+    def get_satellite(self, system: GNSSSystem, prn: int) -> Satellite | None:
         """Get a satellite by system and PRN."""
         return self.satellites.get((int(system), prn))
 
@@ -225,14 +224,14 @@ class GNSSEpoch(BaseModel):
         """Return the number of unique satellites in this epoch."""
         return len(self.satellites)
 
-    def get_systems(self) -> List[GNSSSystem]:
+    def get_systems(self) -> list[GNSSSystem]:
         """Return list of GNSS systems present in this epoch."""
-        systems = set(sys for sys, _ in self.satellites.keys())
+        systems = set(sys for sys, _ in self.satellites)
         return [GNSSSystem(s) for s in systems]
 
 
 # GPS epoch: January 6, 1980 00:00:00 UTC
-GPS_EPOCH = datetime.datetime(1980, 1, 6, 0, 0, 0, tzinfo=datetime.timezone.utc)
+GPS_EPOCH = datetime.datetime(1980, 1, 6, 0, 0, 0, tzinfo=datetime.UTC)
 GPS_LEAP_SECONDS = 18  # Current GPS-UTC leap seconds offset (as of 2017)
 
 
@@ -277,7 +276,7 @@ def _decode_channel_tracking_status(status: int) -> dict:
     }
 
 
-def _parse_header(header_str: str) -> Tuple[int, float, str]:
+def _parse_header(header_str: str) -> tuple[int, float, str]:
     """
     Parse the RANGEA message header to extract GPS time.
 
@@ -404,7 +403,7 @@ def deserialize_rangea(rangea_string: str) -> GNSSEpoch:
     idx = 1  # Start after num_obs field
     fields_per_obs = 10
 
-    for obs_idx in range(num_obs):
+    for _ in range(num_obs):
         if idx + fields_per_obs > len(data_fields):
             break
 
@@ -458,7 +457,7 @@ def deserialize_rangea(rangea_string: str) -> GNSSEpoch:
             # Add observation to satellite
             epoch.satellites[sat_key].add_observation(obs)
 
-        except (ValueError, IndexError) as e:
+        except (ValueError, IndexError):
             # Skip malformed observations but continue parsing
             pass
 
@@ -467,7 +466,7 @@ def deserialize_rangea(rangea_string: str) -> GNSSEpoch:
     return epoch
 
 
-def extract_rangea_from_qcpin(source: str | Path) -> List[GNSSEpoch]:
+def extract_rangea_from_qcpin(source: str | Path) -> list[GNSSEpoch]:
     """
     Extract and parse all RANGEA logs from a QC PIN file.
 
@@ -495,10 +494,10 @@ def extract_rangea_from_qcpin(source: str | Path) -> List[GNSSEpoch]:
     """
 
     path = Path(source)
-    epochs: List[GNSSEpoch] = []
+    epochs: list[GNSSEpoch] = []
 
     try:
-        rangea_a_strings: List[str] = extract_rangea_strings_from_qcpin(path)
+        rangea_a_strings: list[str] = extract_rangea_strings_from_qcpin(path)
     except (json.JSONDecodeError, UnicodeDecodeError):
         print(f"Error reading QC PIN file: {path}")
         return []
@@ -507,7 +506,7 @@ def extract_rangea_from_qcpin(source: str | Path) -> List[GNSSEpoch]:
     return epochs
 
 
-def extract_rangea_strings_from_qcpin(source: str | Path) -> List[str]:
+def extract_rangea_strings_from_qcpin(source: str | Path) -> list[str]:
     """
     Extract raw RANGEA strings from a QC PIN file.
 
@@ -532,7 +531,7 @@ def extract_rangea_strings_from_qcpin(source: str | Path) -> List[str]:
     if not isinstance(data, dict):
         return []
 
-    rangea_strings: List[str] = []
+    rangea_strings: list[str] = []
 
     def _extract_nov_range(obj: dict) -> str:
         """Recursively search for NOV_RANGE entries."""
@@ -551,11 +550,11 @@ def extract_rangea_strings_from_qcpin(source: str | Path) -> List[str]:
             _extract_nov_range(obj["observations"])
 
         # Recurse into all dict values
-        for key, value in obj.items():
+        for _, value in obj.items():
             if isinstance(value, dict):
                 _extract_nov_range(value)
 
-    for key, value in data.items():
+    for _, value in data.items():
         if isinstance(value, dict):
             _extract_nov_range(value)
 

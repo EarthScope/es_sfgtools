@@ -1,14 +1,13 @@
-from typing import Union, Optional
-from ...data_models.metadata import SurveyType, classify_survey_type
-from ...prefiltering.schemas import PingRepliesFilterConfig, FilterConfig
 from ...config.shotdata_filters import (
-    DEFAULT_FILTER_CONFIG,
     CENTER_DRIVE_FILTER_CONFIG,
     CIRCLE_DRIVE_FILTER_CONFIG,
+    DEFAULT_FILTER_CONFIG,
 )
+from ...data_models.metadata import SurveyType, classify_survey_type
+from ...prefiltering.schemas import FilterConfig
 
 
-def get_survey_filter_config(survey_type: Union[SurveyType, str]) -> FilterConfig:
+def get_survey_filter_config(survey_type: SurveyType | str) -> FilterConfig:
     """Get the filter configuration based on the survey type.
 
     Args:

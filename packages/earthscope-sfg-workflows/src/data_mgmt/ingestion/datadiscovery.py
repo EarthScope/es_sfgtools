@@ -1,9 +1,8 @@
 import datetime
-import re
-import warnings
 from pathlib import Path
-from typing import List, Union, Optional
+
 from es_sfgtools.logging import ProcessLogger as logger
+
 from ...config.file_config import AssetType
 from ..assetcatalog.schemas import AssetEntry
 from .config import pattern_map
@@ -53,7 +52,6 @@ def _rinex_get_meta(data: AssetEntry) -> AssetEntry:
         for line in files:
             if "TIME OF FIRST OBS" in line:
                 start_time = _get_time(line)
-                file_date = start_time.strftime("%Y%m%d%H%M%S")
                 data.timestamp_data_start = start_time
 
             if "TIME OF LAST OBS" in line:
@@ -65,7 +63,7 @@ def _rinex_get_meta(data: AssetEntry) -> AssetEntry:
 
 def get_file_type_local(
     file_path: Path,
-) -> tuple[Union[AssetType, None], Union[int, None]]:
+) -> tuple[AssetType | None, int | None]:
     """Get the file type of a file.
 
     Parameters
@@ -97,7 +95,7 @@ def get_file_type_local(
     return file_type, size
 
 
-def get_file_type_remote(file_path: str) -> Optional[AssetType]:
+def get_file_type_remote(file_path: str) -> AssetType | None:
     """Get the file type of a file.
 
     Parameters
@@ -123,7 +121,7 @@ def get_file_type_remote(file_path: str) -> Optional[AssetType]:
     return file_type
 
 
-def scrape_directory_local(directory: Path) -> Optional[List[Path]]:
+def scrape_directory_local(directory: Path) -> list[Path] | None:
     """Scrape a directory for files.
 
     Parameters

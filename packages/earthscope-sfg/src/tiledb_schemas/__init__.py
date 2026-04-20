@@ -43,6 +43,14 @@ except (ModuleNotFoundError, ImportError, OSError):
     TILEDB_AVAILABLE = False
 
 if TILEDB_AVAILABLE:
+    from .arrays import (
+        TBDArray,
+        TDBAcousticArray,
+        TDBGNSSObsArray,
+        TDBIMUPositionArray,
+        TDBKinPositionArray,
+        TDBShotDataArray,
+    )
     from .schemas import (
         AcousticArraySchema,
         GNSSObsSchema,
@@ -52,14 +60,6 @@ if TILEDB_AVAILABLE:
         config,
         ctx,
         filters,
-    )
-    from .arrays import (
-        TBDArray,
-        TDBAcousticArray,
-        TDBGNSSObsArray,
-        TDBIMUPositionArray,
-        TDBKinPositionArray,
-        TDBShotDataArray,
     )
 
     __all__ = [

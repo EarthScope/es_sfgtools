@@ -2,21 +2,19 @@
 This module contains the GarposDataPreparer class, which is responsible for preparing GARPOS input data.
 """
 
-from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Tuple
 
 import pandas as pd
 
+from es_sfgtools.logging import GarposLogger as logger
+
+from ...config.garpos_config import GarposSiteConfig
 from ...data_models.metadata.benchmark import Benchmark, Transponder
 from ...data_models.metadata.campaign import (
     Campaign,
     Survey,
-    SurveyType,
-    classify_survey_type,
 )
 from ...data_models.metadata.site import Site
-from es_sfgtools.logging import GarposLogger as logger
 from .functions import (
     CoordTransformer,
     rectify_shotdata,
@@ -28,8 +26,6 @@ from .schemas import (
     GPPositionLLH,
     GPTransponder,
 )
-
-from ...config.garpos_config import GarposSiteConfig, DEFAULT_SITE_CONFIG
 
 
 class NoShotDataError(Exception):
@@ -56,7 +52,7 @@ class NoGPTranspondersError(Exception):
 
 def GP_Transponders_from_benchmarks(
     coord_transformer: CoordTransformer, survey: Survey, site: Site, is_qc: bool = False
-) -> List[GPTransponder]:
+) -> list[GPTransponder]:
     """Get GP transponders from the benchmarks in the survey.
 
     Parameters
@@ -139,7 +135,7 @@ def create_GPTransponder(
         name=benchmark.benchmarkID,
     )
 
-    gp_transponder_enu: Tuple = coord_transformer.LLH2ENU(
+    gp_transponder_enu: tuple = coord_transformer.LLH2ENU(
         lat=gp_transponder.position_llh.latitude,
         lon=gp_transponder.position_llh.longitude,
         hgt=gp_transponder.position_llh.height,
@@ -154,7 +150,7 @@ def create_GPTransponder(
 
 
 def get_array_dpos_center(
-    coord_transformer: CoordTransformer, transponders: List[GPTransponder]
+    coord_transformer: CoordTransformer, transponders: list[GPTransponder]
 ):
     """Get the average transponder position in ENU coordinates.
 
@@ -181,8 +177,8 @@ def get_array_dpos_center(
 
 
 def avg_transponder_position(
-    transponders: List[GPTransponder],
-) -> Tuple[GPPositionENU, GPPositionLLH]:
+    transponders: list[GPTransponder],
+) -> tuple[GPPositionENU, GPPositionLLH]:
     """Calculate the average position of the transponders.
 
     Parameters
@@ -223,7 +219,7 @@ def prepare_shotdata_for_garpos(
     coord_transformer: CoordTransformer,
     shodata_out_path: Path,
     shot_data: pd.DataFrame,
-    GPtransponders: List[GPTransponder],
+    GPtransponders: list[GPTransponder],
 ):
     """Prepare the shot data for GARPOS.
 
@@ -278,9 +274,9 @@ def prepare_garpos_input_from_survey(
     site: Site,
     campaign: Campaign,
     ss_path: str,
-    array_dpos_center: Tuple[float, float, float],
+    array_dpos_center: tuple[float, float, float],
     num_of_shots: int,
-    GPtransponders: List[GPTransponder],
+    GPtransponders: list[GPTransponder],
 ) -> GarposInput:
     """Prepare the GarposInput object from the survey and shot data.
 

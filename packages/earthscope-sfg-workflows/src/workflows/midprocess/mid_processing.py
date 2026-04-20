@@ -2,55 +2,47 @@
 This module defines the IntermediateDataProcessor class, which is responsible for post-processing of data.
 """
 
-import json
-import os
-from pathlib import Path
-import shutil
-from typing import List, Optional
 import datetime
-from datetime import timezone
+import json
+import shutil
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-from ...data_mgmt.directorymgmt import GARPOSSurveyDir
-
-from ...data_models.metadata.campaign import Survey
-from ...data_models.metadata.site import Site
 from es_sfgtools.logging import GarposLogger as logger
-from ...modeling.garpos_tools.data_prep import (
-    GP_Transponders_from_benchmarks,
-    get_array_dpos_center,
-    prepare_garpos_input_from_survey,
-    prepare_shotdata_for_garpos,
-    apply_survey_config,
-)
-
-from ...prefiltering import filter_shotdata
-
-from ...modeling.garpos_tools.functions import (
-    CoordTransformer,
-)
-from ...modeling.garpos_tools.schemas import GarposFixed, GarposInput
-
 from es_sfgtools.tiledb_schemas import (
     TDBIMUPositionArray,
     TDBKinPositionArray,
     TDBShotDataArray,
 )
+from es_sfgtools.utils.model_update import validate_and_merge_config
+
 from ...config.loadconfigs import (
-    get_survey_filter_config,
-    get_garpos_site_config,
     GarposSiteConfig,
-    FilterConfig,
+    get_garpos_site_config,
+    get_survey_filter_config,
 )
 from ...config.workspace import Workspace
-
+from ...data_mgmt.directorymgmt import GARPOSSurveyDir
+from ...data_models.metadata.campaign import Survey
+from ...data_models.metadata.site import Site
+from ...modeling.garpos_tools.data_prep import (
+    GP_Transponders_from_benchmarks,
+    apply_survey_config,
+    get_array_dpos_center,
+    prepare_garpos_input_from_survey,
+    prepare_shotdata_for_garpos,
+)
+from ...modeling.garpos_tools.functions import (
+    CoordTransformer,
+)
+from ...modeling.garpos_tools.schemas import GarposFixed, GarposInput
+from ...prefiltering import filter_shotdata
 from ..utils.protocols import (
     WorkflowABC,
     validate_network_station_campaign,
 )
-from es_sfgtools.utils.model_update import validate_and_merge_config
 
 
 class IntermediateDataProcessor(WorkflowABC):
@@ -88,7 +80,7 @@ class IntermediateDataProcessor(WorkflowABC):
     @validate_network_station_campaign
     def parse_surveys(
         self,
-        survey_id: Optional[str] = None,
+        survey_id: str | None = None,
         override: bool = False,
         write_intermediate: bool = False,
     ):
@@ -116,7 +108,7 @@ class IntermediateDataProcessor(WorkflowABC):
                 self.current_campaign_metadata.model_dump(mode="json"), f, indent=4
             )
 
-        surveys_to_process: List[Survey] = []
+        surveys_to_process: list[Survey] = []
         for survey in self.current_campaign_metadata.surveys:
             if survey_id is None or survey_id == survey.id:
                 surveys_to_process.append(survey)
@@ -225,9 +217,9 @@ class IntermediateDataProcessor(WorkflowABC):
     @validate_network_station_campaign
     def prepare_shotdata_garpos(
         self,
-        campaign_id: Optional[str] = None,
-        survey_id: Optional[str] = None,
-        custom_filters: Optional[dict] = None,
+        campaign_id: str | None = None,
+        survey_id: str | None = None,
+        custom_filters: dict | None = None,
         overwrite: bool = False,
     ) -> None:
         """Prepares shotdata for GARPOS processing.
@@ -272,7 +264,7 @@ class IntermediateDataProcessor(WorkflowABC):
     def prepare_single_garpos_survey(
         self,
         survey: Survey,
-        custom_filters: Optional[dict] = None,
+        custom_filters: dict | None = None,
         overwrite: bool = False,
     ):
         """Prepares a single survey for GARPOS processing.
@@ -297,7 +289,6 @@ class IntermediateDataProcessor(WorkflowABC):
             )
             return
 
-        garposDir_list: List[GARPOSSurveyDir] = []
         garposDir: GARPOSSurveyDir = self.current_survey_dir.garpos
         garposDir.build()
 
@@ -331,8 +322,8 @@ class IntermediateDataProcessor(WorkflowABC):
                 site=self.current_station_metadata,
                 shot_data=shotDataRaw,
                 kinPostionTDBUri=self.current_station_dir.tiledb_directory.kin_position_data,
-                start_time=survey.start.replace(tzinfo=timezone.utc),
-                end_time=survey.end.replace(tzinfo=timezone.utc),
+                start_time=survey.start.replace(tzinfo=datetime.UTC),
+                end_time=survey.end.replace(tzinfo=datetime.UTC),
                 custom_filters=custom_filters,
             )
             if shot_data_filtered.empty:
@@ -451,6 +442,7 @@ class IntermediateDataProcessor(WorkflowABC):
         for s3_campaign_dir, local_campaign_dir in zip(
             s3_station_dir.campaigns.values(),
             self.current_station_dir.campaigns.values(),
+            strict=False,
         ):
             # upload svp file
             local_svp = local_campaign_dir.svp_file
@@ -476,7 +468,7 @@ class IntermediateDataProcessor(WorkflowABC):
                         except Exception as e:
                             logger.logerr(f"Failed to upload {log_file} to S3: {e}")
 
-    def get_pseudo_surveys(self, shotdatatdb: TDBShotDataArray) -> List[Survey]:
+    def get_pseudo_surveys(self, shotdatatdb: TDBShotDataArray) -> list[Survey]:
         """Generates pseudo-surveys based on shotdata timestamps.
 
         Parameters
@@ -489,8 +481,8 @@ class IntermediateDataProcessor(WorkflowABC):
         List[Survey]
             A list of pseudo-surveys.
         """
-        pseudo_surveys: List[Survey] = []
-        dates: List[np.datetime64] = shotdatatdb.get_unique_dates().tolist()
+        pseudo_surveys: list[Survey] = []
+        dates: list[np.datetime64] = shotdatatdb.get_unique_dates().tolist()
         if not dates:
             logger.logwarn("No shotdata dates found to generate pseudo-surveys.")
             return pseudo_surveys
@@ -514,7 +506,7 @@ class IntermediateDataProcessor(WorkflowABC):
             )
             end_time = datetime.datetime.combine(
                 start_time.date(), datetime.time.max
-            ).replace(tzinfo=datetime.timezone.utc)
+            ).replace(tzinfo=datetime.UTC)
             year, month, day = start_time.year, start_time.month, start_time.day
             pseudo_survey = Survey(
                 id=f"{year}_{month}_{day}_{idx + 1}",
@@ -531,7 +523,7 @@ class IntermediateDataProcessor(WorkflowABC):
         self,
         shotdata_uri: str | Path,
         override: bool = False,
-    ) -> Optional[List[GARPOSSurveyDir]]:
+    ) -> list[GARPOSSurveyDir] | None:
         """Parses the surveys from the current campaign and adds them to the directory structure.
 
         Parameters
@@ -541,9 +533,9 @@ class IntermediateDataProcessor(WorkflowABC):
         override : bool, optional
             Whether to override existing files, by default False.
         """
-        garposDir_list: List[GARPOSSurveyDir] = []
+        garposDir_list: list[GARPOSSurveyDir] = []
         shotDataTDB = TDBShotDataArray(Path(shotdata_uri))
-        surveys_to_process: List[Survey] = self.get_pseudo_surveys(shotDataTDB)
+        surveys_to_process: list[Survey] = self.get_pseudo_surveys(shotDataTDB)
 
         for survey in surveys_to_process:
             survey_dir = self.current_campaign_dir.qc / survey.id

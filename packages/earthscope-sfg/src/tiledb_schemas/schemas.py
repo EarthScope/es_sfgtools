@@ -6,16 +6,14 @@ shot data, and GNSS observation arrays.
 """
 
 import os
-from typing import Dict
 
 import numpy as np
 import tiledb
 
-
 filters = tiledb.FilterList([tiledb.ZstdFilter(7)])
 TimeDomain = tiledb.Dim(name="time", dtype="datetime64[ms]")
 TransponderDomain = tiledb.Dim(name="transponderID", dtype="ascii")
-attribute_dict: Dict[str, tiledb.Attr] = {
+attribute_dict: dict[str, tiledb.Attr] = {
     "east": tiledb.Attr(name="east", dtype=np.float64),
     "north": tiledb.Attr(name="north", dtype=np.float64),
     "up": tiledb.Attr(name="up", dtype=np.float64),
@@ -204,7 +202,7 @@ filters5 = tiledb.FilterList(
 )
 
 roll_periods = {"1D": 43200000}
-for roll_period, tile_value in roll_periods.items():
+for _, tile_value in roll_periods.items():
     d0 = tiledb.Dim(
         name="time",
         domain=(315964800000, 4102444800000),

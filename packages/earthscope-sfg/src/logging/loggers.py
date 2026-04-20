@@ -88,7 +88,7 @@ class _BaseLogger:
 
         # Remove all handlers to avoid duplicates
         for handler in list(self.logger.handlers):
-            if type(handler) == logging.FileHandler:
+            if isinstance(handler, logging.FileHandler):
                 self.logger.removeHandler(handler)
         try:
             if os.path.exists(self.path):
@@ -162,7 +162,7 @@ class _BaseLogger:
         messages to the console (standard output). It also applies the
         specified formatter to the console handler.
         """
-        if not any(type(h) == logging.StreamHandler for h in self.logger.handlers):
+        if not any(type(h) is logging.StreamHandler for h in self.logger.handlers):
             self.console_handler = logging.StreamHandler()
             self.console_handler.setFormatter(self.console_format)
             self.console_handler.setLevel(logging.INFO)
@@ -193,7 +193,7 @@ class _BaseLogger:
         """
 
         for handler in list(self.logger.handlers):
-            if type(handler) == logging.StreamHandler:
+            if type(handler) is logging.StreamHandler:
                 self.logger.removeHandler(handler)
                 self.logdebug(f"Removed console handler from {self.name} logger")
 

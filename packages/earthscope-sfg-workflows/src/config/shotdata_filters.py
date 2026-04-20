@@ -1,9 +1,8 @@
 from ..prefiltering.schemas import (
-    PingRepliesFilterConfig,
     FilterConfig,
     MaxDistFromCenterConfig,
+    PingRepliesFilterConfig,
 )
-
 
 default_filter_config = {
     "pride_residuals": {"enabled": False, "max_residual_mm": 8},

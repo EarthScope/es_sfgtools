@@ -1,12 +1,10 @@
-from pydantic import BaseModel, Field, ConfigDict, field_serializer
-from typing import Any, Dict, Optional
-from enum import Enum
-from typing import Union
+from enum import StrEnum
+from typing import Any
 
-from ..data_models.metadata import SurveyType, classify_survey_type
+from pydantic import BaseModel, Field, field_serializer
 
 
-class FilterLevel(str, Enum):
+class FilterLevel(StrEnum):
     GOOD = "GOOD"
     OK = "OK"
     DIFFICULT = "DIFFICULT"
@@ -70,7 +68,7 @@ class FilterConfig(BaseModel):
         description="Configuration for PRIDE residuals filtering",
     )
 
-    def update(self, custom_config: Dict[str, Any]) -> None:
+    def update(self, custom_config: dict[str, Any]) -> None:
         for key, value in custom_config.items():
             if hasattr(self, key):
                 attr = getattr(self, key)

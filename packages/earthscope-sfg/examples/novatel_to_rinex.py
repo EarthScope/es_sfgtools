@@ -6,6 +6,7 @@ files contained in a single directory.
 """
 
 from pathlib import Path
+
 from es_sfgtools.earthscope_sfg import (
     MetadataModel,
     novatel_2rinex,

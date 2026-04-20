@@ -1,9 +1,9 @@
 # External imports
 import datetime
-from pathlib import Path
-from pydantic import BaseModel, Field
-from typing import Optional, List
 import json
+from pathlib import Path
+
+from pydantic import BaseModel, Field
 
 # Local imports
 from ..utils.command_line_utils import (
@@ -135,35 +135,35 @@ type Settings struct {
 
 class MetadataModel(BaseModel):
     marker_name: str = Field(..., description="Site name")
-    rinex_version: Optional[str] = Field(default="2.11", description="RINEX version")
-    rinex_type: Optional[str] = Field(default="O", description="RINEX type")
-    rinex_system: Optional[str] = Field(default="G", description="RINEX system")
-    marker_number: Optional[str] = Field(default="0001", description="Marker number")
-    marker_type: Optional[str] = Field(default="GEODETIC", description="Marker type")
-    observer: Optional[str] = Field(default="EarthScope", description="Observer name")
-    agency: Optional[str] = Field(default="EarthScope", description="Agency name")
-    program: Optional[str] = Field(default="gnsstools", description="Program name")
-    run_by: Optional[str] = Field(default="", description="Run by")
-    date: Optional[str] = Field(
+    rinex_version: str | None = Field(default="2.11", description="RINEX version")
+    rinex_type: str | None = Field(default="O", description="RINEX type")
+    rinex_system: str | None = Field(default="G", description="RINEX system")
+    marker_number: str | None = Field(default="0001", description="Marker number")
+    marker_type: str | None = Field(default="GEODETIC", description="Marker type")
+    observer: str | None = Field(default="EarthScope", description="Observer name")
+    agency: str | None = Field(default="EarthScope", description="Agency name")
+    program: str | None = Field(default="gnsstools", description="Program name")
+    run_by: str | None = Field(default="", description="Run by")
+    date: str | None = Field(
         default_factory=lambda: (
-            datetime.datetime.now(tz=datetime.timezone.utc).isoformat()
+            datetime.datetime.now(tz=datetime.UTC).isoformat()
         ),
         description="Date",
     )
-    receiver_model: Optional[str] = Field(default="NOV", description="Receiver model")
-    receiver_serial: Optional[str] = Field(
+    receiver_model: str | None = Field(default="NOV", description="Receiver model")
+    receiver_serial: str | None = Field(
         default="XXXXXXXXXX", description="Receiver serial number"
     )
-    antenna_position: Optional[List[float]] = Field(
+    antenna_position: list[float] | None = Field(
         default=[0.0, 0.0, 0.0], description="Antenna position [X, Y, Z]"
     )
-    antenna_offsetHEN: Optional[List[float]] = Field(
+    antenna_offsetHEN: list[float] | None = Field(
         default=[0.0, 0.0, 0.0], description="Antenna offset [H, E, N]"
     )
-    antenna_model: Optional[str] = Field(
+    antenna_model: str | None = Field(
         default="NOV850 NONE", description="Antenna model"
     )
-    antenna_serial: Optional[str] = Field(
+    antenna_serial: str | None = Field(
         default="987654321", description="Antenna serial number"
     )
 
@@ -171,10 +171,14 @@ class MetadataModel(BaseModel):
 def get_metadatav2(
     site: str,
     serialNumber: str = "XXXXXXXXXX",
-    antennaPosition: list = [0, 0, 0],
-    antennaeOffsetHEN: list = [0, 0, 0],
+    antennaPosition: list = None,
+    antennaeOffsetHEN: list = None,
 ) -> dict:
     # TODO: these are placeholder values, need to use real metadata
+    if antennaPosition is None:
+        antennaPosition = [0, 0, 0]
+    if antennaeOffsetHEN is None:
+        antennaeOffsetHEN = [0, 0, 0]
 
     return {
         "rinex_version": "2.11",
@@ -255,7 +259,7 @@ def check_metadata_path(metadata_path: Path | str) -> str:
         _ = MetadataModel(**metadata_dict).model_dump()
         return str(metadata_path)
     except Exception as e:  # pragma: no cover - defensive logging
-        raise ValueError(f"Error parsing metadata file {str(metadata_path)}: {e}")
+        raise ValueError(f"Error parsing metadata file {str(metadata_path)}: {e}") from e
 
 
 def check_metadata(meta: dict | MetadataModel) -> dict:
@@ -290,7 +294,7 @@ def check_metadata(meta: dict | MetadataModel) -> dict:
             _ = MetadataModel(**meta).model_dump()
             return meta
         except Exception as e:  # pragma: no cover - defensive logging
-            raise ValueError(f"Error parsing metadata dictionary: {e}")
+            raise ValueError(f"Error parsing metadata dictionary: {e}") from e
     elif isinstance(meta, MetadataModel):
         return meta.model_dump()
     else:

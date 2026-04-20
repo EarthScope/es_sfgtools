@@ -44,7 +44,7 @@ def seabird_to_soundvelocity(
         If no data is found in the file after the "*END*" marker.
     """
 
-    with open(source, "r") as f:
+    with open(source) as f:
         lines = f.readlines()
         data = []
         data_start = re.compile("\*END\*")

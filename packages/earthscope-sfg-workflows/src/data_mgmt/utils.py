@@ -1,19 +1,18 @@
-from typing import (
-    List,
-    Tuple,
-    ParamSpec,
-    Callable,
-    Concatenate,
-    TypeVar,
-    Protocol,
-    Optional,
-)
-import numpy as np
+from collections.abc import Callable
 from functools import wraps
+from typing import (
+    Concatenate,
+    ParamSpec,
+    Protocol,
+    TypeVar,
+)
+
+import numpy as np
+
 from es_sfgtools.logging import ProcessLogger as logger
 from es_sfgtools.tiledb_schemas import (
-    TDBShotDataArray,
     TDBKinPositionArray,
+    TDBShotDataArray,
 )
 
 P = ParamSpec("P")
@@ -21,9 +20,9 @@ R = TypeVar("R")
 
 
 class HasNetworkStationCampaign(Protocol):
-    current_network: Optional[str]
-    current_station: Optional[str]
-    current_campaign: Optional[str]
+    current_network: str | None
+    current_station: str | None
+    current_campaign: str | None
 
 
 def check_network_station_campaign(
@@ -46,7 +45,7 @@ def check_network_station_campaign(
 
 def get_merge_signature_shotdata(
     shotdata: TDBShotDataArray, kin_position: TDBKinPositionArray
-) -> Tuple[List[str], List[np.datetime64]]:
+) -> tuple[list[str], list[np.datetime64]]:
     """
     Get the merge signature for the shotdata and kin_position data
 

@@ -6,7 +6,6 @@ import datetime
 import logging
 import tempfile
 from pathlib import Path
-from typing import List
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -14,21 +13,20 @@ import pandas as pd
 import tiledb
 from cloudpathlib import S3Path
 
-from ..novatel_tools.rangea_parser import GNSSEpoch
-from ..novatel_tools import novatel_ascii_operations as nova_ops
 from ..data_models.observables import (
     AcousticDataFrame,
     IMUPositionDataFrame,
     KinPositionDataFrame,
     ShotDataFrame,
 )
+from ..novatel_tools import novatel_ascii_operations as nova_ops
+from ..novatel_tools.rangea_parser import GNSSEpoch
 from .schemas import (
     AcousticArraySchema,
     GNSSObsSchema,
     IMUPositionArraySchema,
     KinPositionArraySchema,
     ShotDataArraySchema,
-    config,
     ctx,
 )
 
@@ -144,8 +142,8 @@ class TBDArray:
             end = datetime.datetime.combine(end, datetime.datetime.max.time())
 
         logger.debug(f"Reading dataframe from {self.uri}")
-        start = start.replace(tzinfo=datetime.timezone.utc)
-        end = end.replace(tzinfo=datetime.timezone.utc)
+        start = start.replace(tzinfo=datetime.UTC)
+        end = end.replace(tzinfo=datetime.UTC)
 
         with tiledb.open(str(self.uri), mode="r") as array:
             try:
@@ -212,11 +210,11 @@ class TBDArray:
         fig, ax = plt.subplots()
         date_tick_map = {i: date for i, date in enumerate(dates)}
 
-        for i, date in enumerate(dates):
+        for i, _ in enumerate(dates):
             ax.axvline(x=i + 1, color="black", linestyle="-")
 
         ax.xaxis.set_ticks(
-            [i + 1 for i in date_tick_map.keys()],
+            [i + 1 for i in date_tick_map],
             [str(date) for date in date_tick_map.values()],
         )
         ax.yaxis.set_ticks([])
@@ -318,8 +316,8 @@ class TDBShotDataArray(TBDArray):
         logger.debug(f"Reading dataframe from {self.uri} for {start} to {end}")
         if end is None:
             end = datetime.datetime.combine(start.date(), datetime.datetime.max.time())
-        start = start.replace(tzinfo=datetime.timezone.utc)
-        end = end.replace(tzinfo=datetime.timezone.utc)
+        start = start.replace(tzinfo=datetime.UTC)
+        end = end.replace(tzinfo=datetime.UTC)
 
         with tiledb.open(str(self.uri), mode="r") as array:
             try:
@@ -404,7 +402,7 @@ class TDBGNSSObsArray(TBDArray):
                 logger.error(str(e))
                 return None
 
-    def write_epochs(self, epochs: List[GNSSEpoch], region: str = "us-east-2") -> int:
+    def write_epochs(self, epochs: list[GNSSEpoch], region: str = "us-east-2") -> int:
         """
         Write GNSS observation epochs to this TileDB array.
 
@@ -490,7 +488,7 @@ class TDBGNSSObsArray(TBDArray):
         return len(d0_buffer)
 
     def write_rangea_strings(
-        self, rangea_strings: List[str], verbose: bool = False
+        self, rangea_strings: list[str], verbose: bool = False
     ) -> int:
         """
         Write GNSS observation epochs to this TileDB array from RINEX 3.05

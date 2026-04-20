@@ -1,13 +1,12 @@
 # External imports
 from multiprocessing import cpu_count
 from pathlib import Path
-from typing import Optional
 
 import yaml
-from pydantic import BaseModel, Field, field_serializer, field_validator
 
 # External package imports
 from pride_ppp.specifications.cli import PrideCLIConfig
+from pydantic import BaseModel, Field, field_serializer, field_validator
 
 
 class PrideConfig(BaseModel):
@@ -38,9 +37,9 @@ class RinexConfig(BaseModel):
     n_processes: int = Field(
         default_factory=cpu_count, title="Number of Processes to Use"
     )
-    settings_path: Optional[Path] = Field("", title="Settings Path")
-    time_interval: Optional[int] = Field(1, title="Tile to Rinex Time Interval [h]")
-    processing_year: Optional[int] = Field(
+    settings_path: Path | None = Field("", title="Settings Path")
+    time_interval: int | None = Field(1, title="Tile to Rinex Time Interval [h]")
+    processing_year: int | None = Field(
         default=-1, description="Processing year to query tiledb", le=2100
     )
     modulo_millis: int = Field(

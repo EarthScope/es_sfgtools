@@ -2,28 +2,25 @@
 GarposHandler class for processing and preparing shot data for the GARPOS model.
 """
 
-from pathlib import Path
-from typing import Optional
 import shutil
-from datetime import datetime, timezone, UTC
-import numpy as np
+from datetime import UTC, datetime
+from pathlib import Path
 
 # Plotting imports
 import matplotlib.dates as mdates
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import seaborn as sns
-from matplotlib.collections import LineCollection
 from matplotlib.colors import Normalize
 
 sns.set_theme(style="whitegrid")
 
-from ...config.workspace import Workspace
-from ...data_mgmt.directorymgmt import GARPOSSurveyDir
-
-from ...data_models.metadata.site import Site
-from ...modeling.garpos_tools.schemas import (
+from ...config.workspace import Workspace  # noqa: E402
+from ...data_mgmt.directorymgmt import GARPOSSurveyDir  # noqa: E402
+from ...data_models.metadata.site import Site  # noqa: E402
+from ...modeling.garpos_tools.schemas import (  # noqa: E402
     GarposFixed,
     GarposInput,
     InversionParams,
@@ -34,12 +31,12 @@ try:
 except ImportError:
     # Handle the case where garpos is not available
     pass
-from ...modeling.garpos_tools.schemas import GarposInput, ObservationData
-from es_sfgtools.logging import GarposLogger as logger
-from ...modeling.garpos_tools.functions import process_garpos_results
+from es_sfgtools.logging import GarposLogger as logger  # noqa: E402
+from es_sfgtools.utils.model_update import validate_and_merge_config  # noqa: E402
 
-from es_sfgtools.utils.model_update import validate_and_merge_config
-from ..utils.protocols import WorkflowABC
+from ...modeling.garpos_tools.functions import process_garpos_results  # noqa: E402
+from ...modeling.garpos_tools.schemas import ObservationData  # noqa: E402
+from ..utils.protocols import WorkflowABC  # noqa: E402
 
 colors = [
     "blue",
@@ -211,7 +208,7 @@ class GarposHandler(WorkflowABC):
         self,
         obsfile_path: Path,
         results_dir: Path,
-        custom_settings: Optional[dict | InversionParams] = None,
+        custom_settings: dict | InversionParams | None = None,
         run_id: int | str = 0,
         override: bool = False,
     ) -> Path:
@@ -270,7 +267,7 @@ class GarposHandler(WorkflowABC):
     def _run_garpos_survey_dir(
         self,
         garpos_survey_dir: GARPOSSurveyDir,
-        custom_settings: Optional[dict | InversionParams] = None,
+        custom_settings: dict | InversionParams | None = None,
         run_id: int | str = 0,
         iterations: int = 1,
         override: bool = False,
@@ -355,7 +352,7 @@ class GarposHandler(WorkflowABC):
     def _run_garpos_survey(
         self,
         survey_id: str,
-        custom_settings: Optional[dict | InversionParams] = None,
+        custom_settings: dict | InversionParams | None = None,
         run_id: int | str = 0,
         iterations: int = 1,
         override: bool = False,
@@ -438,12 +435,12 @@ class GarposHandler(WorkflowABC):
 
     def run_garpos(
         self,
-        survey_id: Optional[str] = None,
+        survey_id: str | None = None,
         run_id: int | str = 0,
         iterations: int = 1,
         override: bool = False,
-        custom_settings: Optional[dict | InversionParams] = None,
-        surveys: Optional[list[GARPOSSurveyDir]] = None,
+        custom_settings: dict | InversionParams | None = None,
+        surveys: list[GARPOSSurveyDir] | None = None,
     ) -> None:
         """Run the GARPOS model for a specific date or for all dates.
 
@@ -563,10 +560,10 @@ class GarposHandler(WorkflowABC):
                     shotdata_dfs[survey_name] = shotdata_df
                     # use utc
                     start = datetime.fromtimestamp(
-                        shotdata_df["pingTime"].iloc[0], tz=timezone.utc
+                        shotdata_df["pingTime"].iloc[0], tz=UTC
                     )
                     end = datetime.fromtimestamp(
-                        shotdata_df["pingTime"].iloc[-1], tz=timezone.utc
+                        shotdata_df["pingTime"].iloc[-1], tz=UTC
                     )
                     shotdata_time_windows[survey_name] = (start, end)
 
@@ -627,7 +624,7 @@ class GarposHandler(WorkflowABC):
                         color=colors[(i) % len(colors)],
                     )
                     total_pings = shotdata_df["pingTime"].nunique()
-                    total_filtered_pings = shotdata_filtered_df["pingTime"].nunique()
+                    shotdata_filtered_df["pingTime"].nunique()
                     survey_midpoint = (
                         metadata_time_windows[survey_name][0]
                         + (
@@ -654,7 +651,7 @@ class GarposHandler(WorkflowABC):
                         linewidth=1,
                         alpha=0.1,
                     )
-            except Exception as e:
+            except Exception:
                 logger.logwarn(f"Error processing {survey_name}")
         fig.suptitle(
             f"Shotdata Reply Percentages for {self.current_station_name} {self.current_campaign_name}"
@@ -688,7 +685,7 @@ class GarposHandler(WorkflowABC):
             if survey.id == survey_id or survey_id is None:
                 surveys_to_process.append((survey.id, survey.type.value))
 
-        for survey_id, survey_type in surveys_to_process:
+        for survey_id, _ in surveys_to_process:
             try:
                 self.set_survey(survey_id)
                 self._plot_residuals_per_transponder_before_and_after(
@@ -758,10 +755,10 @@ class GarposHandler(WorkflowABC):
         results_df_raw = pd.read_csv(garpos_results.shot_data)
         results_df_raw = ObservationData.validate(results_df_raw, lazy=True)
         results_df_raw["time"] = results_df_raw.ST.apply(
-            lambda x: datetime.fromtimestamp(x, timezone.utc)
+            lambda x: datetime.fromtimestamp(x, UTC)
         )
         # df_filter_1 = results_df_raw["ResiRange"].abs() < res_filter
-        df_filter_2 = results_df_raw["flag"] == False
+        df_filter_2 = ~results_df_raw["flag"]
         # results_df = results_df_raw[df_filter_1 & df_filter_2]
         results_df = results_df_raw[df_filter_2]
         # logger.loginfo(results_df_raw.columns)
@@ -780,7 +777,7 @@ class GarposHandler(WorkflowABC):
             )
             axs[i].scatter(
                 transponder_df_raw["time"],
-                transponder_df_raw[f"ResiRange"],
+                transponder_df_raw["ResiRange"],
                 s=1,
                 label=f"{unique_id}_raw {transponder_df_raw['time'].count()}",
                 color="blue",
@@ -793,7 +790,7 @@ class GarposHandler(WorkflowABC):
             )
             axs[i].scatter(
                 transponder_df["time"],
-                transponder_df[f"ResiRange"],
+                transponder_df["ResiRange"],
                 s=1,
                 label=f"{unique_id}_unflagged {transponder_df['time'].count()} ({percent_remaining} %)",
                 color="orange",
@@ -840,7 +837,7 @@ class GarposHandler(WorkflowABC):
             if survey.id == survey_id or survey_id is None:
                 surveys_to_process.append((survey.id, survey.type.value))
 
-        for survey_id, survey_type in surveys_to_process:
+        for survey_id, _ in surveys_to_process:
             try:
                 self.set_survey(survey_id)
                 self._plot_remaining_residuals_per_transponder(
@@ -913,10 +910,10 @@ class GarposHandler(WorkflowABC):
         results_df_raw = pd.read_csv(garpos_results.shot_data)
         results_df_raw = ObservationData.validate(results_df_raw, lazy=True)
         results_df_raw["time"] = results_df_raw.ST.apply(
-            lambda x: datetime.fromtimestamp(x, timezone.utc)
+            lambda x: datetime.fromtimestamp(x, UTC)
         )
         # df_filter_1 = results_df_raw["ResiRange"].abs() < res_filter
-        df_filter_2 = results_df_raw["flag"] == False
+        df_filter_2 = ~results_df_raw["flag"]
         # results_df = results_df_raw[df_filter_1 & df_filter_2]
         results_df = results_df_raw[df_filter_2]
         # logger.loginfo(results_df_raw.columns)
@@ -934,7 +931,7 @@ class GarposHandler(WorkflowABC):
                 )
                 axs[i].scatter(
                     transponder_df["time"],
-                    transponder_df[f"ResiRange"],
+                    transponder_df["ResiRange"],
                     s=1,
                     label=f"{unique_id}_unflagged {transponder_df['time'].count()}",
                     color=colors[i],
@@ -955,7 +952,7 @@ class GarposHandler(WorkflowABC):
                 )
                 ax.scatter(
                     transponder_df["time"],
-                    transponder_df[f"ResiRange"],
+                    transponder_df["ResiRange"],
                     s=1,
                     label=f"{unique_id}_unflagged {transponder_df['time'].count()}",
                     color=colors[i],
@@ -1032,7 +1029,7 @@ class GarposHandler(WorkflowABC):
         res_filter: float = 10,
         savefig: bool = False,
         showfig: bool = True,
-        results_dir: Optional[Path] = None,
+        results_dir: Path | None = None,
     ) -> None:
         """
         Plots the time series results for a given survey.
@@ -1110,7 +1107,7 @@ class GarposHandler(WorkflowABC):
         results_df_raw = pd.read_csv(garpos_results.shot_data)
         results_df_raw = ObservationData.validate(results_df_raw, lazy=True)
         results_df_raw["time"] = results_df_raw.ST.apply(
-            lambda x: datetime.fromtimestamp(x, timezone.utc)
+            lambda x: datetime.fromtimestamp(x, UTC)
         )
         df_filter_1 = results_df_raw["ResiRange"].abs() < res_filter
         df_filter_2 = results_df_raw["flag"].eq(False)
@@ -1165,7 +1162,7 @@ class GarposHandler(WorkflowABC):
         figure_text = f"Array Final Position: East {array_final_position.east:.4f} m, North {array_final_position.north:.4f} m, Up {array_final_position.up:.4f} m\n"
         figure_text += f" Sig East {dpos_std[0]:.2f} m  Sig North {dpos_std[1]:.2f} m  Sig Up {dpos_std[2]:.2f} m \n"
         figure_text += f"Array Delta Position :  East {dpos[0]:.3f} m, North {dpos[1]:.3f} m, Up {dpos[2]:.3f} m \n"
-        for id, transponder in enumerate(garpos_results.transponders):
+        for _, transponder in enumerate(garpos_results.transponders):
             try:
                 dpos = transponder.position_enu.get_position()
                 figure_text += f"TSP {transponder.id} : East {dpos[0]:.3f} m, North {dpos[1]:.3f} m, Up {dpos[2]:.3f} m \n"
@@ -1212,7 +1209,6 @@ class GarposHandler(WorkflowABC):
 
         # Plot separate unfiltered/filtered plots based on plot_plan
         shared_ax = None
-        last_ts_ax = None
         for row_idx, (unique_id, kind) in enumerate(plot_plan):
             if shared_ax is None:
                 ax_ts = plt.subplot(gs[row_idx : row_idx + 1, 1:14])
@@ -1295,7 +1291,7 @@ class GarposHandler(WorkflowABC):
                 logger.logwarn(
                     f"Transponder {transponder.id} not found in results, skipping plotting. {e}"
                 )
-        cbar = plt.colorbar(sc, label="Time (hr)", norm=norm)
+        plt.colorbar(sc, label="Time (hr)", norm=norm)
         ax3.legend()
 
         """

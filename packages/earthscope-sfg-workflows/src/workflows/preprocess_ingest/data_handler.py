@@ -1,40 +1,15 @@
 """Contains the DataHandler class for handling data operations."""
 
 import concurrent.futures
+import json
 import os
 import threading
 import warnings
 from pathlib import Path
-from typing import (
-    List,
-    Optional,
-    Union,
-)
 
 import boto3
 from tqdm.auto import tqdm
-import json
 
-from ...data_mgmt.assetcatalog.handler import PreProcessCatalogHandler
-from ...config.file_config import (
-    REMOTE_TYPE,
-    DEFAULT_FILE_TYPES_TO_DOWNLOAD,
-    AssetType,
-)
-
-from ...data_mgmt.ingestion.datadiscovery import (
-    get_file_type_local,
-    get_file_type_remote,
-    scrape_directory_local,
-)
-from ...data_mgmt.directorymgmt.handler import (
-    CampaignDir,
-    NetworkDir,
-    StationDir,
-)
-from ...data_mgmt.assetcatalog.schemas import AssetEntry
-
-from ...data_models.metadata.site import Site
 from es_sfgtools.logging import ProcessLogger as logger
 from es_sfgtools.logging import change_all_logger_dirs
 from es_sfgtools.tiledb_schemas import (
@@ -44,17 +19,29 @@ from es_sfgtools.tiledb_schemas import (
     TDBKinPositionArray,
     TDBShotDataArray,
 )
+
+from ...config.file_config import (
+    DEFAULT_FILE_TYPES_TO_DOWNLOAD,
+    REMOTE_TYPE,
+    AssetType,
+)
+from ...config.workspace import Workspace
+from ...data_mgmt.assetcatalog.schemas import AssetEntry
 from ...data_mgmt.ingestion.archive_pull import (
     download_file_from_archive,
     list_campaign_files,
     load_site_metadata,
 )
+from ...data_mgmt.ingestion.datadiscovery import (
+    get_file_type_local,
+    get_file_type_remote,
+    scrape_directory_local,
+)
+from ...data_models.metadata.site import Site
 from ..utils.protocols import (
     WorkflowABC,
     validate_network_station_campaign,
 )
-
-from ...config.workspace import Workspace
 
 
 class DataHandler(WorkflowABC):
@@ -66,7 +53,7 @@ class DataHandler(WorkflowABC):
 
     def __init__(
         self,
-        workspace: Optional[Workspace] = None,
+        workspace: Workspace | None = None,
         directory: Path | str = None,
     ) -> None:
         if workspace is None:
@@ -76,14 +63,14 @@ class DataHandler(WorkflowABC):
                 workspace = Workspace.from_environment()
         super().__init__(workspace=workspace)
 
-        self.acoustic_tdb: Optional[TDBAcousticArray] = None
-        self.kin_position_tdb: Optional[TDBKinPositionArray] = None
-        self.imu_position_tdb: Optional[TDBIMUPositionArray] = None
-        self.shotdata_tdb: Optional[TDBShotDataArray] = None
-        self.shotdata_tdb_pre: Optional[TDBShotDataArray] = None
-        self.gnss_obs_tdb: Optional[TDBGNSSObsArray] = None
-        self.gnss_obs_secondary_tdb: Optional[TDBGNSSObsArray] = None
-        self.s3_directory_handler: Optional[Workspace] = None
+        self.acoustic_tdb: TDBAcousticArray | None = None
+        self.kin_position_tdb: TDBKinPositionArray | None = None
+        self.imu_position_tdb: TDBIMUPositionArray | None = None
+        self.shotdata_tdb: TDBShotDataArray | None = None
+        self.shotdata_tdb_pre: TDBShotDataArray | None = None
+        self.gnss_obs_tdb: TDBGNSSObsArray | None = None
+        self.gnss_obs_secondary_tdb: TDBGNSSObsArray | None = None
+        self.s3_directory_handler: Workspace | None = None
 
     def _build_station_dir_structure(
         self, network_id: str, station_id: str, campaign_id: str
@@ -225,7 +212,7 @@ class DataHandler(WorkflowABC):
         network_id: str,
         station_id: str,
         campaign_id: str,
-        site_metadata: Optional[Union[Site, Path, str]] = None,
+        site_metadata: Site | Path | str | None = None,
     ):
         """
         Changes the operational context and loads specific site metadata.
@@ -280,7 +267,7 @@ class DataHandler(WorkflowABC):
             The path to the directory to scan.
         """
 
-        files: List[Path] = scrape_directory_local(directory_path)
+        files: list[Path] = scrape_directory_local(directory_path)
         if not isinstance(files, list) or len(files) == 0:
             logger.logerr(
                 f"No files found in {directory_path}, ensure the directory is correct."
@@ -292,7 +279,7 @@ class DataHandler(WorkflowABC):
         self.add_data_to_catalog(files)
 
     @validate_network_station_campaign
-    def add_data_to_catalog(self, local_filepaths: List[Path]):
+    def add_data_to_catalog(self, local_filepaths: list[Path]):
         """
         Adds a list of local files to the data catalog.
 
@@ -341,8 +328,8 @@ class DataHandler(WorkflowABC):
     @validate_network_station_campaign
     def add_data_remote(
         self,
-        remote_filepaths: List[str],
-        remote_type: Union[REMOTE_TYPE, str] = REMOTE_TYPE.HTTP,
+        remote_filepaths: list[str],
+        remote_type: REMOTE_TYPE | str = REMOTE_TYPE.HTTP,
     ) -> None:
         """
         Adds remote data files to the catalog.
@@ -364,10 +351,10 @@ class DataHandler(WorkflowABC):
         if isinstance(remote_type, str):
             try:
                 remote_type = REMOTE_TYPE(remote_type)
-            except:
+            except Exception as e:
                 raise ValueError(
                     f"Remote type {remote_type} must be one of {REMOTE_TYPE.__members__.keys()}"
-                )
+                ) from e
 
         # Create an AssetEntry for each file and append to a list
         file_data_list = []
@@ -420,9 +407,7 @@ class DataHandler(WorkflowABC):
 
     def download_data(
         self,
-        file_types: Union[
-            List[AssetType], List[str], str
-        ] = DEFAULT_FILE_TYPES_TO_DOWNLOAD,
+        file_types: list[AssetType] | list[str] | str = DEFAULT_FILE_TYPES_TO_DOWNLOAD,
         override: bool = False,
         rinex_1Hz: bool = False,
     ):
@@ -459,10 +444,10 @@ class DataHandler(WorkflowABC):
             if isinstance(type, str):
                 try:
                     file_types[file_types.index(type)] = AssetType(type)
-                except:
+                except Exception as e:
                     raise ValueError(
                         f"File type {type} must be one of {AssetType.__members__.keys()}"
-                    )
+                    ) from e
 
         # Pull files from the catalog by type
         for type in file_types:
@@ -535,7 +520,7 @@ class DataHandler(WorkflowABC):
             # Download Files from either S3 or HTTP
             if len(s3_assets) > 0:
                 with threading.Lock():
-                    client = boto3.client("s3")
+                    boto3.client("s3")
                 self._download_S3_files(s3_assets=s3_assets)
                 for file in s3_assets:
                     if file.local_path is not None:
@@ -544,7 +529,7 @@ class DataHandler(WorkflowABC):
             if len(http_assets) > 0:
                 self.download_HTTP_files(http_assets=http_assets, file_type=type)
 
-    def _download_S3_files(self, s3_assets: List[AssetEntry]):
+    def _download_S3_files(self, s3_assets: list[AssetEntry]):
         """
         Downloads files from S3 and updates the catalog with local paths.
 
@@ -573,7 +558,7 @@ class DataHandler(WorkflowABC):
             local_path_results = executor.map(
                 self._S3_download_file, s3_entries_processed
             )
-            for local_downloaded_path, file_asset in zip(local_path_results, s3_assets):
+            for local_downloaded_path, file_asset in zip(local_path_results, s3_assets, strict=False):
                 if local_downloaded_path is not None:
                     # Update the local path in the AssetEntry
                     file_asset.local_path = str(local_downloaded_path)
@@ -584,7 +569,7 @@ class DataHandler(WorkflowABC):
 
     def _S3_download_file(
         self, client: boto3.client, bucket: str, prefix: str, local_dir: Path
-    ) -> Optional[Path]:
+    ) -> Path | None:
         """
         Downloads a single file from an S3 bucket.
 
@@ -618,11 +603,10 @@ class DataHandler(WorkflowABC):
             )
             local_path = None
 
-        finally:
-            return local_path
+        return local_path
 
     def download_HTTP_files(
-        self, http_assets: List[AssetEntry], file_type: Optional[AssetType] = None
+        self, http_assets: list[AssetEntry], file_type: AssetType | None = None
     ):
         """
         Downloads files from an HTTP server and updates the catalog.
@@ -671,7 +655,7 @@ class DataHandler(WorkflowABC):
         """
         try:
             local_path = local_dir / Path(remote_url).name
-            download_file_from_archive(url=remote_url, 
+            download_file_from_archive(url=remote_url,
                                        dest_dir=local_path.parent)
 
             if not local_path.exists():
@@ -686,8 +670,7 @@ class DataHandler(WorkflowABC):
             )
             local_path = None
 
-        finally:
-            return local_path
+        return local_path
 
     @validate_network_station_campaign
     def update_catalog_from_archive(self) -> None:
@@ -708,8 +691,8 @@ class DataHandler(WorkflowABC):
 
     @validate_network_station_campaign
     def get_site_metadata(
-        self, site_metadata: Optional[Union[Site, Path]] = None
-    ) -> Optional[Site]:
+        self, site_metadata: Site | Path | None = None
+    ) -> Site | None:
         """
         Loads or validates site metadata for the current station.
 
