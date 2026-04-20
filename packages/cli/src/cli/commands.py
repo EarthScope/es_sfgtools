@@ -5,17 +5,7 @@ It orchestrates the data handling and processing workflows based on the
 parsed manifest file.
 """
 
-from es_sfgtools.config.workspace import Workspace
-from es_sfgtools.data_mgmt.ingestion.archive_pull import list_campaign_files
-from es_sfgtools.modeling.garpos_tools.load_utils import load_lib
-from es_sfgtools.utils.model_update import validate_and_merge_config
-from es_sfgtools.workflows.workflow_handler import WorkflowHandler
-
-from .manifest import GARPOSConfig, PipelineManifest
-from .utils import display_pipelinemanifest
-
-
-def run_manifest(manifest_object: PipelineManifest):
+def run_manifest(manifest_object):
     """
     Executes a series of data ingestion, download, and processing jobs
     based on the provided PipelineManifest object.
@@ -27,6 +17,13 @@ def run_manifest(manifest_object: PipelineManifest):
     Raises:
         AssertionError: If a directory listed in an ingestion job does not exist.
     """
+    from es_sfgtools.data_mgmt.ingestion.archive_pull import list_campaign_files
+    from es_sfgtools.modeling.garpos_tools.load_utils import load_lib
+    from es_sfgtools.utils.model_update import validate_and_merge_config
+    from es_sfgtools.workflows.workflow_handler import WorkflowHandler
+    from .manifest import GARPOSConfig
+    from .utils import display_pipelinemanifest
+
     display_pipelinemanifest(manifest_object)
     load_lib()
     workspace = manifest_object.build_workspace()
@@ -93,7 +90,7 @@ def run_manifest(manifest_object: PipelineManifest):
             )
 
 
-def run_preprocessing(workspace: Workspace, network_id: str, campaign_id: str, stations: list):
+def run_preprocessing(workspace, network_id: str, campaign_id: str, stations: list):
     """
     Initializes and runs the preprocessing workflow for a set of stations.
 
@@ -103,6 +100,8 @@ def run_preprocessing(workspace: Workspace, network_id: str, campaign_id: str, s
         campaign_id: The campaign identifier.
         stations: A list of station identifiers.
     """
+    from es_sfgtools.workflows.workflow_handler import WorkflowHandler
+
     wfh = WorkflowHandler(workspace=workspace)
     for station_id in stations:
         wfh.set_network_station_campaign(

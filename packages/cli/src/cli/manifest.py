@@ -14,7 +14,7 @@ from typing import List, Optional
 import yaml
 from es_sfgtools.prefiltering.schemas import FilterConfig
 from es_sfgtools.modeling.garpos_tools.schemas import InversionParams
-from es_sfgtools.workflows.pipelines import SV3PipelineConfig
+from es_sfgtools.workflows.pipelines.config import SV3PipelineConfig
 from es_sfgtools.utils.model_update import validate_and_merge_config
 from es_sfgtools.config.workspace import Workspace, WorkspaceType
 from pydantic import BaseModel, Field, field_serializer, field_validator

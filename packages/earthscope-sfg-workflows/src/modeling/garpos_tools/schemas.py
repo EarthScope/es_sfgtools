@@ -20,9 +20,13 @@ from es_sfgtools.logging import GarposLogger as logger
 from .load_utils import load_lib
 
 try:
-    LIB_DIRECTORY, LIB_RAYTRACE = load_lib()
+    _lib = load_lib()
+    LIB_DIRECTORY, LIB_RAYTRACE = _lib if _lib is not None else ("", "")
 except Exception:
-    from garpos import LIB_DIRECTORY, LIB_RAYTRACE
+    try:
+        from garpos import LIB_DIRECTORY, LIB_RAYTRACE
+    except ImportError:
+        LIB_DIRECTORY, LIB_RAYTRACE = "", ""
 
 
 class GPPositionLLH(BaseModel):

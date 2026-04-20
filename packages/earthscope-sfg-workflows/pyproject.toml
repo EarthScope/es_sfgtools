@@ -36,7 +36,7 @@ dependencies = [
     "gnatss>=0.3.1",
     "cloudpathlib[s3]>=0.20",
     "pyarrow>=21.0",
-    "gnssommelier @ git+https://github.com/EarthScope/GNSSommelier.git",
+    "pride-ppp @ git+https://github.com/EarthScope/GNSSommelier.git#subdirectory=packages/pride-ppp",
 ]
 
 [project.urls]
