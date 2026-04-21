@@ -2,7 +2,7 @@ from pathlib import Path
 import os
 import pandas as pd
 import pytest
-from earthscope_sfg_workflows.modeling.garpos_tools.load_utils import load_lib, load_drive_garpos
+from es_sfgtools.modeling.garpos_tools.load_utils import load_lib, load_drive_garpos
 
 LIB_DIRECTORY, LIB_RAYTRACE = load_lib()
 drive_garpos = load_drive_garpos()
@@ -51,7 +51,9 @@ class TestGarposInstallation:
         try:
             drive_garpos()
         except Exception as e:
-            assert isinstance(e, TypeError), f"drive_garpos raised an unexpected exception: {e}"
+            assert isinstance(e, TypeError), (
+                f"drive_garpos raised an unexpected exception: {e}"
+            )
 
     def test_garpos_run(self, capsys):
         # navigate to the garpos directory to run the test

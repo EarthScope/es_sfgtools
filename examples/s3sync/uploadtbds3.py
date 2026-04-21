@@ -20,12 +20,12 @@ import os
 for key, value in DEFAULT_CONFIG.items():
     os.environ[key] = value
 
-from earthscope_sfg_workflows.config.env_config import Environment
+from es_sfgtools.config.env_config import Environment
 
 # This will read the environment variables set above
 Environment.load_working_environment()
 
-from earthscope_sfg_workflows.workflows.workflow_handler import WorkflowHandler
+from es_sfgtools.workflows.workflow_handler import WorkflowHandler
 
 
 NETWORK = "cascadia-gorda"

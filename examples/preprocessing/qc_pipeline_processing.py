@@ -13,7 +13,7 @@ The QC pipeline processes data through these stages:
 """
 
 from pathlib import Path
-from earthscope_sfg_workflows.workflows import WorkflowHandler
+from es_sfgtools.workflows import WorkflowHandler
 
 if __name__ == "__main__":
     # Step 1: Define project parameters

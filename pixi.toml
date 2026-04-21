@@ -8,11 +8,10 @@ conda-pypi-map = {}
 # Tasks
 # =============================================================================
 [tasks]
-lint = "ruff check packages/"
-format = "ruff format packages/"
+lint = "black --check src/"
+format = "ruff format src/"
 docs = { cmd = "make html", cwd = "docs" }
-docs-apigen = "python scripts/gen_api_docs.py"
-build-novatel-go = { cmd = "make -B", cwd = "packages/earthscope-sfg/go" }
+build-go = { cmd = "make -B", cwd = "src/golangtools" }
 
 # Clone and install garpos from source
 clone-garpos = { cmd = "bash -c 'cd garpos/ && git pull || git clone https://github.com/s-watanabe-jhod/garpos.git'",cwd="external/"}
@@ -24,7 +23,7 @@ clone-pride = { cmd = "bash -c 'cd PRIDE-PPPAR/ && git pull || git clone --depth
 install-pride = { cmd = "chmod +x install.sh && echo 'N' | HOME=$PIXI_PROJECT_ROOT/external ./install.sh", cwd = "external/PRIDE-PPPAR", depends-on = ["clone-pride"] }
 test-pride = { cmd = "chmod +x test.sh && ./test.sh", cwd = "external/PRIDE-PPPAR/example"}
 
-setup = {depends-on = ["compile-garpos","install-pride","build-novatel-go"]}
+setup = {depends-on = ["compile-garpos","install-pride","build-go"]}
 test-setup = {depends-on = ["test-garpos","test-pride"]}
 
 
@@ -54,7 +53,6 @@ go = ">=1.22"
 make = "*"
 requests = ">=2.33.1,<3"
 pytest = ">=9.0.2,<10"
-ruff = ">=0.15.11,<0.16"
 
 # =============================================================================
 # Platform-specific conda dependencies
@@ -98,15 +96,13 @@ scikit-sparse = { version = ">=0.4.16, <0.5" }
 # This pulls in all dependencies from pyproject.toml [project.dependencies]
 # =============================================================================
 [pypi-dependencies]
-earthscope-sfg = { path = "packages/earthscope-sfg", editable = true }
-earthscope-sfg-workflows = { path = "packages/earthscope-sfg-workflows", editable = true }
-earthscope-sfg-cli = { path = "packages/cli", editable = true }
+es_sfgtools = { path = ".", editable = true }
 
 # =============================================================================
 # Feature: dev (adds dev tools)
 # =============================================================================
 [feature.dev.dependencies]
-ruff = "*"
+black = "*"
 
 [feature.dev.pypi-dependencies]
 # Optional dev deps from pyproject.toml are installed via editable install
@@ -136,6 +132,6 @@ full = { features = ["dev", "notebook"], solve-group = "default" }
 CGO_ENABLED = "1"
 PIP_INDEX_URL = "https://pypi.org/simple"
 GARPOS_PATH = "$PIXI_PROJECT_ROOT/external/garpos"
-PATH = "$HOME/.PRIDE_PPPAR_BIN:$PATH"
+PATH = "~/.PRIDE_PPPAR_BIN:$PATH"
 DYLD_LIBRARY_PATH = "$PIXI_PROJECT_ROOT/.pixi/envs/$PIXI_ENVIRONMENT_NAME/lib:$DYLD_LIBRARY_PATH"
 LD_LIBRARY_PATH = "$PIXI_PROJECT_ROOT/.pixi/envs/$PIXI_ENVIRONMENT_NAME/lib:$LD_LIBRARY_PATH"

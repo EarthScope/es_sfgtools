@@ -5,7 +5,9 @@ from pathlib import Path
 os.environ["GARPOS_PATH"] = str(Path.home() / "Project/SeaFloorGeodesy" / "garpos")
 
 os.environ["DYLD_LIBRARY_PATH"] = (
-    os.environ.get("CONDA_PREFIX", "") + "/lib:" + os.environ.get("DYLD_LIBRARY_PATH", "")
+    os.environ.get("CONDA_PREFIX", "")
+    + "/lib:"
+    + os.environ.get("DYLD_LIBRARY_PATH", "")
 )
 PRIDE_DIR = Path.home() / ".PRIDE_PPPAR_BIN"
 os.environ["PATH"] += os.pathsep + str(PRIDE_DIR)
@@ -60,7 +62,9 @@ def main():
     station = "NCC1"
     run_id = "NCC1_Test1"
     raw_dir_ncc1 = main_dir / network / station / campaign / "raw"
-    wfh.set_network_station_campaign(network_id=network, station_id=station, campaign_id=campaign)
+    wfh.set_network_station_campaign(
+        network_id=network, station_id=station, campaign_id=campaign
+    )
     # wfh.ingest_add_local_data(directory_path=raw_dir_ncc1)
     # wfh.preprocess_run_pipeline_sv3(primary_config=global_config,secondary_config=ncc1_config)
     os.environ["S3_SYNC_BUCKET"] = "seafloor-public-bucket-bucket83908e77-gprctmuztrim"
@@ -69,8 +73,12 @@ def main():
     dir_handler.networks[network].add_station("NTH1")
     s3_dir_handler = dir_handler.point_to_s3(os.environ["S3_SYNC_BUCKET"])
 
-    local_tdb = dir_handler.networks[network].stations["NTH1"].tiledb_directory.shot_data
-    s3_tdb = s3_dir_handler.networks[network].stations["NTH1"].tiledb_directory.shot_data
+    local_tdb = (
+        dir_handler.networks[network].stations["NTH1"].tiledb_directory.shot_data
+    )
+    s3_tdb = (
+        s3_dir_handler.networks[network].stations["NTH1"].tiledb_directory.shot_data
+    )
 
     # from es_sfgtools.tiledb_tools.utils import sync_local_to_s3
     # sync_local_to_s3(local_tdb, s3_tdb)

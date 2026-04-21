@@ -64,7 +64,9 @@ def qcjson_to_shotdata(source: str | Path) -> DataFrame[ShotDataFrame] | None:
 
     try:
         interrogation_event = NovatelInterrogationEvent(**interrogation_raw)
-        interrogation_parsed = novatelInterrogation_to_garpos_interrogation(interrogation_event)
+        interrogation_parsed = novatelInterrogation_to_garpos_interrogation(
+            interrogation_event
+        )
     except Exception as e:  # noqa: BLE001
         logger.logerr(f"Failed to parse interrogation block in {path}: {e}")
         return None
@@ -128,7 +130,9 @@ def batch_qc_by_day(
 
         if df.empty:
             continue
-        df["date"] = pd.to_datetime(df[date_column].apply(lambda x: x * 1e9), utc=True).dt.date
+        df["date"] = pd.to_datetime(
+            df[date_column].apply(lambda x: x * 1e9), utc=True
+        ).dt.date
 
         for date, group in df.groupby("date"):
             batched_data[str(date)].append(group.drop(columns=["date"]))
@@ -148,7 +152,9 @@ if __name__ == "__main__":
     # if shot_df is not None:
     #     print(shot_df.head())
 
-    qc_dir = Path("/Users/franklyndunbar/Project/SeaFloorGeodesy/PSN011153/NCC1_2025/20250907")
+    qc_dir = Path(
+        "/Users/franklyndunbar/Project/SeaFloorGeodesy/PSN011153/NCC1_2025/20250907"
+    )
     # qc_files = list(qc_dir.glob("*.pin"))
     # # all_dfs = []
     # # for qc_file in qc_files:
@@ -181,7 +187,9 @@ if __name__ == "__main__":
     wfh.ingest_add_local_data(
         directory_path=qc_dir,
     )
-    wfh.ingest_add_local_data(wfh.current_campaign_dir.processed)
+    wfh.ingest_add_local_data(
+        wfh.current_campaign_dir.processed
+    )
     wfh.qc_process_and_model(run_id="test_qc", iterations=2)
     # # wfh.ingest_add_local_data(
     # #     wfh.current_campaign_dir.raw

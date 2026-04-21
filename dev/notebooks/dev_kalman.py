@@ -136,12 +136,24 @@ def shotData_to_positiondf(shotdata: pd.DataFrame) -> pd.DataFrame:
         ]
     ]
 
-    east_velocity_0 = (position_df_0["east0"].diff() / position_df_0["pingTime"].diff()).abs()
-    north_velocity_0 = (position_df_0["north0"].diff() / position_df_0["pingTime"].diff()).abs()
-    up_velocity_0 = (position_df_0["up0"].diff() / position_df_0["pingTime"].diff()).abs()
-    east_velocity_1 = (position_df_1["east1"].diff() / position_df_1["returnTime"].diff()).abs()
-    north_velocity_1 = (position_df_1["north1"].diff() / position_df_1["returnTime"].diff()).abs()
-    up_velocity_1 = (position_df_1["up1"].diff() / position_df_1["returnTime"].diff()).abs()
+    east_velocity_0 = (
+        position_df_0["east0"].diff() / position_df_0["pingTime"].diff()
+    ).abs()
+    north_velocity_0 = (
+        position_df_0["north0"].diff() / position_df_0["pingTime"].diff()
+    ).abs()
+    up_velocity_0 = (
+        position_df_0["up0"].diff() / position_df_0["pingTime"].diff()
+    ).abs()
+    east_velocity_1 = (
+        position_df_1["east1"].diff() / position_df_1["returnTime"].diff()
+    ).abs()
+    north_velocity_1 = (
+        position_df_1["north1"].diff() / position_df_1["returnTime"].diff()
+    ).abs()
+    up_velocity_1 = (
+        position_df_1["up1"].diff() / position_df_1["returnTime"].diff()
+    ).abs()
 
     position_df_0 = position_df_0.rename(
         columns={"east0": "ant_x", "north0": "ant_y", "up0": "ant_z"}
@@ -270,7 +282,9 @@ def runFilter(df_all: pd.DataFrame) -> pd.DataFrame:
 
     # Positions covariance
     ant_cov = P[:, :3, :3]
-    ant_cov_df = pd.DataFrame(ant_cov.reshape(ant_cov.shape[0], -1), columns=constants.ANT_GPS_COV)
+    ant_cov_df = pd.DataFrame(
+        ant_cov.reshape(ant_cov.shape[0], -1), columns=constants.ANT_GPS_COV
+    )
     ant_cov_df[[*constants.ANT_GPS_GEOCENTRIC_STD]] = ant_cov_df[
         [*constants.ANT_GPS_COV_DIAG]
     ].apply(np.sqrt)
@@ -284,7 +298,9 @@ def runFilter(df_all: pd.DataFrame) -> pd.DataFrame:
     smoothed_results["merge_idx"] = smoothed_results.index
     ant_cov_df["merge_idx"] = ant_cov_df.index
 
-    smoothed_results[constants.GPS_TIME] = df_all[constants.GPS_TIME].reset_index(drop=True)
+    smoothed_results[constants.GPS_TIME] = df_all[constants.GPS_TIME].reset_index(
+        drop=True
+    )
     ant_cov_df[constants.GPS_TIME] = df_all[constants.GPS_TIME].reset_index(drop=True)
 
     smoothed_results = smoothed_results.merge(
@@ -293,7 +309,9 @@ def runFilter(df_all: pd.DataFrame) -> pd.DataFrame:
     return smoothed_results
 
 
-def kalman_update(positions_data: pd.DataFrame, kin_positions: pd.DataFrame) -> pd.DataFrame:
+def kalman_update(
+    positions_data: pd.DataFrame, kin_positions: pd.DataFrame
+) -> pd.DataFrame:
     """Updates the Kalman filter.
 
     Parameters
@@ -411,7 +429,9 @@ def kalman_update(positions_data: pd.DataFrame, kin_positions: pd.DataFrame) -> 
     merged_positions["up_offset"] = (
         merged_positions["ant_z_smoothed"] - merged_positions["ant_z"]
     ).abs()
-    merged_positions = merged_positions[["time", "east_offset", "north_offset", "up_offset"]]
+    merged_positions = merged_positions[
+        ["time", "east_offset", "north_offset", "up_offset"]
+    ]
 
     return smoothed_results, merged_positions
 
