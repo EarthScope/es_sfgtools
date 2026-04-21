@@ -1,0 +1,68 @@
+[build-system]
+requires = [
+    "setuptools>=62.6",
+    "setuptools_scm[toml]>=6.2",
+    "wheel",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "earthscope-sfg-workflows"
+description = "EarthScope seafloor geodesy workflow orchestration — pipelines, data management, modeling, and configuration"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">= 3.11"
+authors = [
+    { name = "Mike Gottlieb", email = "mike.gottlieb@earthscope.org" },
+    { name = "Franklyn Dunbar", email = "franklyn.dunbar@earthscope.org" },
+    { name = "Rachel Akie", email = "rachel.akie@earthscope.org" },
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+dynamic = ["version"]
+
+dependencies = [
+    "earthscope-sfg[tiledb]",
+    "boto3>=1.40",
+    "botocore>=1.40",
+    "sqlalchemy>=2.0",
+    "python-dotenv>=1.1",
+    "tqdm>=4.60",
+    "seaborn>=0.13",
+    "earthscope-sdk>=1.1",
+    "earthscope-cli>=1.0",
+    "gnatss>=0.3.1",
+    "cloudpathlib[s3]>=0.20",
+    "pyarrow>=21.0",
+    "pride-ppp @ git+https://github.com/EarthScope/GNSSommelier.git#subdirectory=packages/pride-ppp",
+]
+
+[project.urls]
+Homepage = "https://github.com/EarthScope/es_sfgtools"
+ReadTheDocs = "https://es-sfgtools.readthedocs.io/en/latest/"
+
+[tool.setuptools_scm]
+root = "../.."
+
+[tool.setuptools]
+package-dir = { "earthscope_sfg_workflows" = "src" }
+packages = [
+  "earthscope_sfg_workflows.config",
+  "earthscope_sfg_workflows.data_mgmt",
+  "earthscope_sfg_workflows.data_mgmt.assetcatalog",
+  "earthscope_sfg_workflows.data_mgmt.directorymgmt",
+  "earthscope_sfg_workflows.data_mgmt.ingestion",
+  "earthscope_sfg_workflows.data_models",
+  "earthscope_sfg_workflows.data_models.metadata",
+  "earthscope_sfg_workflows.modeling",
+  "earthscope_sfg_workflows.modeling.garpos_tools",
+  "earthscope_sfg_workflows.prefiltering",
+  "earthscope_sfg_workflows.workflows",
+  "earthscope_sfg_workflows.workflows.midprocess",
+  "earthscope_sfg_workflows.workflows.modeling",
+  "earthscope_sfg_workflows.workflows.pipelines",
+  "earthscope_sfg_workflows.workflows.preprocess_ingest",
+  "earthscope_sfg_workflows.workflows.utils",
+]

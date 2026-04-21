@@ -5,9 +5,7 @@ from pathlib import Path
 os.environ["GARPOS_PATH"] = str(Path.home() / "Project/SeaFloorGeodesy" / "garpos")
 
 os.environ["DYLD_LIBRARY_PATH"] = (
-    os.environ.get("CONDA_PREFIX", "")
-    + "/lib:"
-    + os.environ.get("DYLD_LIBRARY_PATH", "")
+    os.environ.get("CONDA_PREFIX", "") + "/lib:" + os.environ.get("DYLD_LIBRARY_PATH", "")
 )
 PRIDE_DIR = Path.home() / ".PRIDE_PPPAR_BIN"
 os.environ["PATH"] += os.pathsep + str(PRIDE_DIR)
@@ -96,9 +94,7 @@ def main():
         wfh.set_network_station_campaign(
             network_id=network, station_id=station, campaign_id=campaign
         )
-        wfh.midprocess_parse_surveys(
-            override=override_survey_parsing, write_intermediate=False
-        )
+        wfh.midprocess_parse_surveys(override=override_survey_parsing, write_intermediate=False)
         mid_processer = wfh.midprocess_get_processor()
         mid_processer.prepare_shotdata_garpos()
         wfh.modeling_run_garpos(
@@ -107,9 +103,7 @@ def main():
             override=False,
             custom_settings={"inversion_params": {"maxloop": 10}},
         )
-        wfh.modeling_plot_garpos_results(
-            run_id=run_id, residuals_filter=10, show_fig=False
-        )
+        wfh.modeling_plot_garpos_results(run_id=run_id, residuals_filter=10, show_fig=False)
 
     # wfh.midprocess_parse_surveys(override=override_survey_parsing,write_intermediate=True)
     # wfh.midprocess_prep_garpos(override=override_garpos_parsing,custom_filters=filter_config,survey_id="2025_A_1126_1")

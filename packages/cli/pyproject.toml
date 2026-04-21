@@ -1,0 +1,43 @@
+[build-system]
+requires = [
+    "setuptools>=62.6",
+    "setuptools_scm[toml]>=6.2",
+    "wheel",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "earthscope-sfg-cli"
+description = "EarthScope seafloor geodesy CLI — manifest-driven pipeline execution"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">= 3.11"
+authors = [
+    { name = "Mike Gottlieb", email = "mike.gottlieb@earthscope.org" },
+    { name = "Franklyn Dunbar", email = "franklyn.dunbar@earthscope.org" },
+    { name = "Rachel Akie", email = "rachel.akie@earthscope.org" },
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+dynamic = ["version"]
+
+dependencies = [
+    "earthscope-sfg-workflows",
+    "typer>=0.9",
+]
+
+[project.scripts]
+sfgtools = "earthscope_sfg_cli.__main__:app"
+
+[project.urls]
+Homepage = "https://github.com/EarthScope/es_sfgtools"
+ReadTheDocs = "https://es-sfgtools.readthedocs.io/en/latest/"
+
+[tool.setuptools_scm]
+root = "../.."
+
+[tool.setuptools]
+package-dir = { "earthscope_sfg_cli" = "src" }
+packages = ["earthscope_sfg_cli"]

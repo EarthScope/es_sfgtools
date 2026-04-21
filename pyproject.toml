@@ -1,92 +1,37 @@
-# Build system configuration and define tools required to build the package
+# =============================================================================
+# Root pyproject.toml — workspace-level tooling configuration only.
+# Package metadata lives in packages/*/pyproject.toml.
+# =============================================================================
+
 [build-system]
-requires = [
-    "setuptools>=62.6",
-    "setuptools_scm[toml]>=6.2",
-    "wheel"
-]
+requires = ["setuptools>=62.6"]
 build-backend = "setuptools.build_meta"
 
-# Project metadata (basic information about the package)
-[project]
-name = "es_sfgtools"
-description = "Utilities for translating and processing Seafloor Geodesy data"
-readme = "README.md"
-license = { file = "LICENSE" }
-requires-python = ">= 3.11"
-
-# Authors
-authors = [
-  { name = "Mike Gottlieb", email = "mike.gottlieb@earthscope.org" },
-  { name = "Franklyn Dunbar", email = "franklyn.dunbar@earthscope.org" },
-  { name = "Rachel Akie", email = "rachel.akie@earthscope.org" }
+# ---------------------------------------------------------------------------
+# Ruff (linter + formatter)
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = [
+    "packages/earthscope-sfg/src",
+    "packages/earthscope-sfg-workflows/src",
+    "packages/cli/src",
 ]
 
-# Classifiers help users find your project
-classifiers = [
-    "Programming Language :: Python :: 3",
-    "Operating System :: OS Independent",
-]
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501", "SIM105", "SIM108", "SIM102", "SIM101", "B028", "B024"]
 
-# Dynamic fields are determined at build time -- 'version' comes from setuptools_scm (git tags)
-dynamic = ["version"]
+[tool.ruff.lint.per-file-ignores]
+"**/__init__.py" = ["F401"]
+"packages/cli/src/__main__.py" = ["B008"]
 
-# --- Runtime dependencies (versions managed by pixi.lock) ---
-dependencies = [
-  "numpy==1.26.4",
-  "scipy>=1.16.3",
-  "pandas==2.3.3",
-  "matplotlib==3.10.6",
-  "julian==0.14",
-  "pandera==0.29.0",
-  "pydantic==2.8.2",
-  "pyproj==3.6.1",
-  "pymap3d==3.2.0",
-  "boto3==1.40.54",
-  "botocore==1.40.54",
-  "tqdm==4.67.1",
-  "sqlalchemy==2.0.43",
-  "python-dotenv==1.1.0",
-  "tiledb>=0.34.2",
-  "seaborn==0.13.2",
-  "earthscope-sdk==1.1.1",
-  "earthscope-cli==1.0.1",
-  "gnatss==0.3.1",
-  "regex==2025.11.3",
-  "cloudpathlib[s3]==0.23.0",
-  "colorama>=0.4.6",
-  "pyarrow==21.0.0",
-  "gnss-ppp-etl @ git+https://github.com/EarthScope/GNSS-PPP-ETL.git@main",
-]
+[tool.ruff.lint.isort]
+known-first-party = ["earthscope_sfg", "earthscope_sfg_workflows", "earthscope_sfg_cli"]
 
-[project.optional-dependencies]
-# Everything you only need for dev / docs / notebooks
-dev = [
-  "sphinx",
-  "sphinx-rtd-theme",
-  "myst-parser",
-  "sphinxcontrib-apidoc",
-  "sphinx_pyproject",
-  "build",
-  "twine",
-]
-notebook = [
-  "ipykernel",
-  "jupyterlab",
-]
-
-# Project URLs
-[project.urls]
-"Homepage" = "https://github.com/EarthScope/es_sfgtools"
-"ReadTheDocs" = "https://es-sfgtools.readthedocs.io/en/latest/"
-
-# Configuration for setuptools_scm (manages the versioning automatically using git tags)
-[tool.setuptools_scm]
-write_to = "src/es_sfgtools/_version.py"
-
-# Tell setuptools you're using 'src/' layout
-[tool.setuptools]
-package-dir = {"" = "src"}
-
-[tool.setuptools.packages.find]
-where = ["src"]
+# ---------------------------------------------------------------------------
+# Pytest
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+testpaths = ["tests"]

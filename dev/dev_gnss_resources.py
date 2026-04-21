@@ -17,11 +17,11 @@ from es_sfgtools.pride_tools.pride_utils import (  # DEPRECATED: pride_tools rem
     update_source,
 )
 
-from es_sfgtools.pride_tools.gnss_product_schemas import WuhanIGS  # DEPRECATED: pride_tools removed; use pride_ppp package instead
+from es_sfgtools.pride_tools.gnss_product_schemas import (
+    WuhanIGS,
+)  # DEPRECATED: pride_tools removed; use pride_ppp package instead
 
-pride_dir = Path(
-    "/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/Cascadia2023/NFL1/Pride"
-)
+pride_dir = Path("/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/Cascadia2023/NFL1/Pride")
 rinex_path = (
     Path(
         "/Users/franklyndunbar/Project/SeaFloorGeodesy/Data/Cascadia2023/NFL1/Cascadia/NFL1/2023/intermediate"
