@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pandas as pd
 import sqlalchemy as sa
+
 from earthscope_sfg.logging import ProcessLogger as logger
 
 from ...config.file_config import AssetType

@@ -5,6 +5,16 @@ import gnatss.constants as constants
 import numpy as np
 import pandas as pd
 import pymap3d
+from gnatss.ops.kalman import run_filter_simulation
+from numpy import datetime64
+from pandera.typing import DataFrame
+from scipy.stats import zscore
+from sklearn.gaussian_process import GaussianProcessRegressor
+from sklearn.gaussian_process.kernels import RBF
+from sklearn.kernel_ridge import KernelRidge
+from sklearn.neighbors import KDTree, RadiusNeighborsRegressor
+from sklearn.preprocessing import StandardScaler
+
 from earthscope_sfg.data_models.observables import (
     IMUPositionDataFrame,
     KinPositionDataFrame,
@@ -17,15 +27,6 @@ from earthscope_sfg.tiledb_schemas import (
     TDBKinPositionArray,
     TDBShotDataArray,
 )
-from gnatss.ops.kalman import run_filter_simulation
-from numpy import datetime64
-from pandera.typing import DataFrame
-from scipy.stats import zscore
-from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import RBF
-from sklearn.kernel_ridge import KernelRidge
-from sklearn.neighbors import KDTree, RadiusNeighborsRegressor
-from sklearn.preprocessing import StandardScaler
 
 MEDIAN_EAST_POSITION = 0
 MEDIAN_NORTH_POSITION = 0

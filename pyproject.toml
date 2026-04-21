@@ -25,10 +25,10 @@ ignore = ["E501", "SIM105", "SIM108", "SIM102", "SIM101", "B028", "B024"]
 
 [tool.ruff.lint.per-file-ignores]
 "**/__init__.py" = ["F401"]
-"**/cli/__main__.py" = ["B008"]
+"packages/cli/src/__main__.py" = ["B008"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["es_sfgtools"]
+known-first-party = ["earthscope_sfg", "earthscope_sfg_workflows", "earthscope_sfg_cli"]
 
 # ---------------------------------------------------------------------------
 # Pytest

@@ -8,6 +8,8 @@ import warnings
 from pathlib import Path
 
 import boto3
+from tqdm.auto import tqdm
+
 from earthscope_sfg.logging import ProcessLogger as logger
 from earthscope_sfg.logging import change_all_logger_dirs
 from earthscope_sfg.tiledb_schemas import (
@@ -17,7 +19,6 @@ from earthscope_sfg.tiledb_schemas import (
     TDBKinPositionArray,
     TDBShotDataArray,
 )
-from tqdm.auto import tqdm
 
 from ...config.file_config import (
     DEFAULT_FILE_TYPES_TO_DOWNLOAD,

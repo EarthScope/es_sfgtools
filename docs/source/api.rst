@@ -1,175 +1,36 @@
 Code documentation
 =============================================
 
-This page is the top-level API index. Modules are organized by functional
-area and correspond to the monorepo package layout:
+API reference for the three packages in this monorepo:
 
-- **earthscope-sfg** — data models, parsing tools, TileDB schemas, utilities
-- **earthscope-sfg-workflows** — workflows, pipelines, data management, modeling, configuration
-- **earthscope-sfg-cli** — command-line interface
-
-----
-
-Workflows & Pipelines
----------------------
-
-High-level workflow and pipeline implementations.
-
-Workflow Handler
-~~~~~~~~~~~~~~~~
-.. toctree::
-   :glob:
-   :maxdepth: 1
-
-   api/es_sfgtools.workflows.workflow_handler
-
-Pre-Processing
-~~~~~~~~~~~~~~
-
-.. toctree::
-   :glob:
-   :maxdepth: 1
-
-   api/es_sfgtools.workflows.preprocess_ingest.*
-
-Intermediate Processing
-~~~~~~~~~~~~~~~~~~~~~~~
-
-.. toctree::
-   :glob:
-   :maxdepth: 1
-
-   api/es_sfgtools.workflows.midprocess.*
-
-Modeling
-~~~~~~~~
-
-.. toctree::
-   :glob:
-   :maxdepth: 1
-
-   api/es_sfgtools.workflows.modeling.*
-
-Pipelines
-~~~~~~~~~
-
-.. toctree::
-   :glob:
-   :maxdepth: 1
-
-   api/es_sfgtools.workflows.pipelines.*
-
-Utils
-~~~~~
-
-.. toctree::
-   :glob:
-   :maxdepth: 1
-
-   api/es_sfgtools.workflows.utils.*
+- **earthscope_sfg** — data models, parsing tools, TileDB schemas, utilities
+- **earthscope_sfg_workflows** — workflows, pipelines, data management, modeling, configuration
+- **earthscope_sfg_cli** — command-line interface
 
 ----
 
-Modeling
---------
+earthscope_sfg
+==============
 
-Numerical modeling and GARPOS-specific utilities.
+Data models, hardware parsers, TileDB schemas, and shared utilities.
 
-Garpos Tools
+Data Models
+~~~~~~~~~~~
+
+.. toctree::
+   :glob:
+   :maxdepth: 1
+
+   api/earthscope_sfg.data_models.*
+
+NovAtel Tools
 ~~~~~~~~~~~~~
 
 .. toctree::
    :glob:
    :maxdepth: 1
 
-   api/es_sfgtools.modeling.garpos_tools.*
-
-----
-
-Data management
----------------
-
-Catalogs, ingestion, and directory management utilities.
-
-Asset Catalog
-~~~~~~~~~~~~~~
-
-.. toctree::
-   :glob:
-   :maxdepth: 1
-
-   api/es_sfgtools.data_mgmt.assetcatalog.*
-
-Directory Management
-~~~~~~~~~~~~~~~~~~~~~~
-
-.. toctree::
-   :glob:
-   :maxdepth: 1
-
-   api/es_sfgtools.data_mgmt.directorymgmt.*
-
-Ingestion
-~~~~~~~~~
-
-.. toctree::
-   :glob:
-   :maxdepth: 1
-
-   api/es_sfgtools.data_mgmt.ingestion.*
-
-Shared Utilities
-~~~~~~~~~~~~~~~~
-
-.. toctree::
-   :glob:
-   :maxdepth: 1
-
-   api/es_sfgtools.data_mgmt.utils
-
-----
-
-Data models
------------
-
-Pydantic models and schemas used across the project.
-
-Metadata Models
-~~~~~~~~~~~~~~~~
-
-.. toctree::
-   :glob:
-   :maxdepth: 1
-
-   api/es_sfgtools.data_models.metadata.*
-
-Other Data Models
-~~~~~~~~~~~~~~~~~
-
-.. toctree::
-   :glob:
-   :maxdepth: 1
-
-   api/es_sfgtools.data_models.community_standards
-   api/es_sfgtools.data_models.constants
-   api/es_sfgtools.data_models.log_models
-   api/es_sfgtools.data_models.observables
-   api/es_sfgtools.data_models.sv3_models
-
-----
-
-NovAtel & Sonardyne
---------------------
-
-Driver and processing helpers for NovAtel and Sonardyne devices.
-
-NovAtel Tools
-~~~~~~~~~~~~~~
-.. toctree::
-   :glob:
-   :maxdepth: 1
-
-   api/es_sfgtools.novatel_tools.*
+   api/earthscope_sfg.novatel_tools.*
 
 Sonardyne Tools
 ~~~~~~~~~~~~~~~
@@ -178,25 +39,16 @@ Sonardyne Tools
    :glob:
    :maxdepth: 1
 
-   api/es_sfgtools.sonardyne_tools.*
-
-----
+   api/earthscope_sfg.sonardyne_tools.*
 
 TileDB Schemas
---------------
-
-TileDB array schemas and array helpers.
+~~~~~~~~~~~~~~
 
 .. toctree::
    :glob:
    :maxdepth: 1
 
-   api/es_sfgtools.tiledb_schemas.*
-
-----
-
-Seafloor Site Tools & Prefiltering
-----------------------------------
+   api/earthscope_sfg.tiledb_schemas.*
 
 Seafloor Site Tools
 ~~~~~~~~~~~~~~~~~~~
@@ -205,21 +57,7 @@ Seafloor Site Tools
    :glob:
    :maxdepth: 1
 
-   api/es_sfgtools.seafloor_site_tools.*
-
-Prefiltering
-~~~~~~~~~~~~
-
-.. toctree::
-   :glob:
-   :maxdepth: 1
-
-   api/es_sfgtools.prefiltering.*
-
-----
-
-Utilities, config, logging
---------------------------
+   api/earthscope_sfg.seafloor_site_tools.*
 
 Utilities
 ~~~~~~~~~
@@ -228,21 +66,132 @@ Utilities
    :glob:
    :maxdepth: 1
 
-   api/es_sfgtools.utils.*
-
-Configuration Management
-~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. toctree::
-   :glob:
-   :maxdepth: 1
-
-   api/es_sfgtools.config.*
+   api/earthscope_sfg.utils.*
 
 Logging
 ~~~~~~~
+
 .. toctree::
    :glob:
    :maxdepth: 1
 
-   api/es_sfgtools.logging.*
+   api/earthscope_sfg.logging.*
+
+----
+
+earthscope_sfg_workflows
+========================
+
+Workflow orchestration, data management, modeling, and configuration.
+
+Workflows & Pipelines
+~~~~~~~~~~~~~~~~~~~~~
+
+Workflow Handler
+
+.. toctree::
+   :glob:
+   :maxdepth: 1
+
+   api/earthscope_sfg_workflows.workflows.workflow_handler
+
+Pre-Processing
+
+.. toctree::
+   :glob:
+   :maxdepth: 1
+
+   api/earthscope_sfg_workflows.workflows.preprocess_ingest.*
+
+Intermediate Processing
+
+.. toctree::
+   :glob:
+   :maxdepth: 1
+
+   api/earthscope_sfg_workflows.workflows.midprocess.*
+
+Modeling (Workflows)
+
+.. toctree::
+   :glob:
+   :maxdepth: 1
+
+   api/earthscope_sfg_workflows.workflows.modeling.*
+
+Pipelines
+
+.. toctree::
+   :glob:
+   :maxdepth: 1
+
+   api/earthscope_sfg_workflows.workflows.pipelines.*
+
+Workflow Utils
+
+.. toctree::
+   :glob:
+   :maxdepth: 1
+
+   api/earthscope_sfg_workflows.workflows.utils.*
+
+Modeling
+~~~~~~~~
+
+.. toctree::
+   :glob:
+   :maxdepth: 1
+
+   api/earthscope_sfg_workflows.modeling.garpos_tools.*
+
+Data Management
+~~~~~~~~~~~~~~~
+
+.. toctree::
+   :glob:
+   :maxdepth: 1
+
+   api/earthscope_sfg_workflows.data_mgmt.assetcatalog.*
+   api/earthscope_sfg_workflows.data_mgmt.directorymgmt.*
+   api/earthscope_sfg_workflows.data_mgmt.ingestion.*
+   api/earthscope_sfg_workflows.data_mgmt.utils
+
+Metadata Models
+~~~~~~~~~~~~~~~
+
+.. toctree::
+   :glob:
+   :maxdepth: 1
+
+   api/earthscope_sfg_workflows.data_models.metadata.*
+
+Configuration
+~~~~~~~~~~~~~
+
+.. toctree::
+   :glob:
+   :maxdepth: 1
+
+   api/earthscope_sfg_workflows.config.*
+
+Prefiltering
+~~~~~~~~~~~~
+
+.. toctree::
+   :glob:
+   :maxdepth: 1
+
+   api/earthscope_sfg_workflows.prefiltering.*
+
+----
+
+earthscope_sfg_cli
+==================
+
+Command-line interface for manifest-driven pipeline execution.
+
+.. toctree::
+   :glob:
+   :maxdepth: 1
+
+   api/earthscope_sfg_cli.*

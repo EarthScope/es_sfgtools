@@ -29,15 +29,10 @@ dist
 # Project-specific
 notebooks/.ipynb_checkpoints
 *.log
-src/garpos_tools/garpos/
-src/garpos_tools/build/
 sso_tokens.json
-src/es_sfgtools/_version.py
 docs/build
 external/*
 !external/README.md
-
-src/golangtools/build/*
 
 .github/skills/*
 packages/earthscope-sfg/go/build/*

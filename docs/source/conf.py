@@ -3,22 +3,6 @@ Sphinx configuration for the es-sfgtools monorepo documentation.
 """
 
 import os
-import sys
-
-# ---------------------------------------------------------------------------
-# sys.path — add all three package src directories so autodoc can import
-# modules even when the packages are not installed (e.g. local builds).
-# When installed (pixi env / ReadTheDocs), these paths are harmless duplicates.
-# ---------------------------------------------------------------------------
-_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-for _pkg_src in [
-    "packages/earthscope-sfg/src",
-    "packages/earthscope-sfg-workflows/src",
-    "packages/cli/src",
-]:
-    _p = os.path.join(_root, _pkg_src)
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
 
 # -- Project information -----------------------------------------------------
 

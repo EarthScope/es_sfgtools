@@ -6,7 +6,6 @@ from pathlib import Path
 import julian
 import numpy as np
 import pandera.pandas as pa
-from earthscope_sfg.logging import GarposLogger as logger
 from pandera.typing import Series
 from pydantic import (
     AliasChoices,
@@ -15,6 +14,8 @@ from pydantic import (
     field_serializer,
     model_validator,
 )
+
+from earthscope_sfg.logging import GarposLogger as logger
 
 from .load_utils import load_lib
 

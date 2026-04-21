@@ -3,9 +3,10 @@ from typing import (
     Literal,
 )
 
+from pride_ppp.specifications.cli import PrideCLIConfig
+
 from earthscope_sfg.logging import ProcessLogger as logger
 from earthscope_sfg.utils.model_update import validate_and_merge_config
-from pride_ppp.specifications.cli import PrideCLIConfig
 
 from ..config.file_config import (
     DEFAULT_FILE_TYPES_TO_DOWNLOAD,

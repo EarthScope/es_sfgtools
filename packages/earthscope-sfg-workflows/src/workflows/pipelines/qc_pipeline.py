@@ -9,6 +9,9 @@ from collections import deque
 from functools import partial
 from pathlib import Path
 
+from pride_ppp import PrideProcessor, ProcessingMode, kin_to_kin_position_df, rinex_get_time_range
+from tqdm.auto import tqdm
+
 # Local Imports
 from earthscope_sfg.logging import ProcessLogger, change_all_logger_dirs
 from earthscope_sfg.novatel_tools.novatel_to_rinex_operations import tile2rinex
@@ -22,8 +25,6 @@ from earthscope_sfg.tiledb_schemas import (
     TDBKinPositionArray,
     TDBShotDataArray,
 )
-from pride_ppp import PrideProcessor, ProcessingMode, kin_to_kin_position_df, rinex_get_time_range
-from tqdm.auto import tqdm
 
 from ...config.workspace import Workspace
 from ...data_mgmt.assetcatalog.handler import PreProcessCatalogHandler

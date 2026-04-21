@@ -3,6 +3,7 @@ from collections import defaultdict
 
 import matplotlib.pyplot as plt
 import numpy as np
+
 from earthscope_sfg.tiledb_schemas import TDBKinPositionArray
 
 from ...data_mgmt.assetcatalog import AssetEntry

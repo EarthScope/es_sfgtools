@@ -6,13 +6,18 @@ It provides Pydantic and Pandera models for representing seafloor acoustic data
 and site metadata in a standardized format.
 """
 
+from __future__ import annotations
+
 import datetime
+from typing import TYPE_CHECKING
 
 import pandera.pandas as pa
 import pymap3d as pm
-from earthscope_sfg_workflows.data_models.metadata import Site, Vessel
 from pandera.typing import Series
 from pydantic import BaseModel
+
+if TYPE_CHECKING:
+    from earthscope_sfg_workflows.data_models.metadata import Site, Vessel
 
 
 class SFGDSTFSeafloorAcousticData(pa.DataFrameModel):
@@ -168,7 +173,7 @@ class SFGDTSFSite(BaseModel):
     ]  # Antenna to transponder offset [m] with [forward,rightward,downward]
 
     @classmethod
-    def from_site_vessel(cls, site: Site, vessel: Vessel, campaign_id: str) -> "SFGDTSFSite":
+    def from_site_vessel(cls, site: Site, vessel: Vessel, campaign_id: str) -> SFGDTSFSite:
         """
         Create a SFGDTSFSite object from internal Site and Vessel objects.
 
