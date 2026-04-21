@@ -7,7 +7,7 @@ from pathlib import Path
 
 from earthscope_sfg.logging import ProcessLogger, change_all_logger_dirs
 from earthscope_sfg.novatel_tools import novatel_binary_operations as novb_ops
-from earthscope_sfg.novatel_tools.novatel_to_rinex_operations import tile2rinex
+from earthscope_sfg.novatel_tools.novatel_to_rinex_operations import rinex_qc, tile2rinex
 from earthscope_sfg.novatel_tools.utils import get_metadata, get_metadatav2
 from earthscope_sfg.seafloor_site_tools.soundspeed_operations import (
     CTD_to_svp_v1,
@@ -491,6 +491,7 @@ class SV3Pipeline(WorkflowABC):
                 for rinex_path in rinex_paths:
                     # Get the start and end time from the RINEX file for metadata
                     rinex_time_start, rinex_time_end = rinex_get_time_range(rinex_path)
+                    rinex_qc(rinex_path)
                     rinex_entry = AssetEntry(
                         local_path=rinex_path,
                         network=self.current_network_name,

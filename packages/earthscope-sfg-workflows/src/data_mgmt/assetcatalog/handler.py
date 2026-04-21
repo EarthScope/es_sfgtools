@@ -316,8 +316,11 @@ class PreProcessCatalogHandler:
             parent_id_map = {
                 id: entry for id, entry in parent_id_map.items() if entry.local_path is not None
             }
-
-        return list(parent_id_map.values())
+        
+        # TODO: figure out why there are so many duplicate entries in the database and remove this deduplication step if possible
+        to_return = {entry.local_path: entry for entry in parent_id_map.values()}
+        
+        return list(to_return.values())
 
     def find_entry(self, entry: AssetEntry) -> AssetEntry | None:
         """Finds an entry in the database.

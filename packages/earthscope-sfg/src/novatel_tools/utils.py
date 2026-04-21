@@ -61,6 +61,13 @@ TDB2RNX_BIN_PATH = {
     "linux_arm64": GOLANG_BINARY_BUILD_DIR / "tdb2rnx_linux_arm64",
 }
 
+RNXQC_BIN_PATH = {
+    "darwin_amd64": GOLANG_BINARY_BUILD_DIR / "rnxqc_darwin_amd64",
+    "darwin_arm64": GOLANG_BINARY_BUILD_DIR / "rnxqc_darwin_arm64",
+    "linux_amd64": GOLANG_BINARY_BUILD_DIR / "rnxqc_linux_amd64",
+    "linux_arm64": GOLANG_BINARY_BUILD_DIR / "rnxqc_linux_arm64",
+}
+
 
 def get_nova2rnx_binary_path() -> Path:
     """Get the path to the nova2rnxo golang binary based on the current platform."""
@@ -95,6 +102,11 @@ def get_nov_000_tile_binary_path() -> Path:
 def get_tdb2rnx_binary_path() -> Path:
     """Get the path to the tdb2rnx golang binary based on the current platform."""
     return get_binary_path(TDB2RNX_BIN_PATH, "TDB2RNX")
+
+
+def get_rnxqc_binary_path() -> Path:
+    """Get the path to the rnxqc golang binary based on the current platform."""
+    return get_binary_path(RNXQC_BIN_PATH, "RNXQC")
 
 
 """

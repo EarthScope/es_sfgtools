@@ -619,7 +619,7 @@ func main() {
 	report := formatReport(obs.Header, es, mp, snr, ionObs, slipCount, gaps)
 	fmt.Print(report)
 
-	reportPath := strings.TrimSuffix(obsPath, filepath.Ext(obsPath)) + ".qc_report.txt"
+	reportPath := obsPath + ".S"
 	if err := os.WriteFile(reportPath, []byte(report), 0o644); err != nil {
 		fmt.Fprintf(os.Stderr, "error writing report: %v\n", err)
 		os.Exit(1)

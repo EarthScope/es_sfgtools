@@ -76,7 +76,7 @@
     "rinex_config": {
       "n_processes": 5,
       "time_interval": 24,
-      "override": true
+      "override": false
     }
   }
 }

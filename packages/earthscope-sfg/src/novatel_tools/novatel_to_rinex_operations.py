@@ -7,6 +7,10 @@ import tempfile
 import uuid
 from collections import defaultdict
 from pathlib import Path
+import subprocess
+
+from ..logging import ProcessLogger as _logger
+from .utils import get_rnxqc_binary_path
 
 from colorama import Fore, Style
 
@@ -438,3 +442,42 @@ def tile2rinex(
             rinex_files.append(dest)
             _logger.loginfo(f"Generated RINEX file {dest}")
     return rinex_files
+
+
+def rinex_qc(rinex_path: Path) -> Path | None:
+    """Run the rnxqc Go binary to generate a teqc-style sidecar report.
+
+    The report is written to ``<rinex_path>.S`` by the binary itself.
+
+    Parameters
+    ----------
+    rinex_path : Path
+        Path to the RINEX observation file.
+
+    Returns
+    -------
+    Path | None
+        Path to the generated ``.S`` report file, or ``None`` if the binary
+        failed or is not available.
+    """
+
+    try:
+        binary_path = get_rnxqc_binary_path()
+    except FileNotFoundError as exc:
+        _logger.logwarn(f"rnxqc binary not available, skipping QC sidecar: {exc}")
+        return None
+
+    sidecar_path = rinex_path.parent / (rinex_path.name + ".S")
+    try:
+        subprocess.run(
+            [str(binary_path), str(rinex_path)],
+            check=True,
+            capture_output=True,
+        )
+        _logger.logdebug(f"Generated RINEX QC sidecar {sidecar_path}")
+        return sidecar_path
+    except subprocess.CalledProcessError as exc:
+        _logger.logwarn(
+            f"rnxqc failed for {rinex_path}: {exc.stderr.decode('utf-8', errors='replace').strip()}"
+        )
+        return None
