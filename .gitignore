@@ -11,9 +11,8 @@ build/*
 dist
 
 # Virtual environments
-venv/
 .venv/
-.pixi
+.pixi/*
 
 # IDE
 .vscode

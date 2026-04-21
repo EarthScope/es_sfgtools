@@ -51,9 +51,7 @@ class TestGarposInstallation:
         try:
             drive_garpos()
         except Exception as e:
-            assert isinstance(e, TypeError), (
-                f"drive_garpos raised an unexpected exception: {e}"
-            )
+            assert isinstance(e, TypeError), f"drive_garpos raised an unexpected exception: {e}"
 
     def test_garpos_run(self, capsys):
         # navigate to the garpos directory to run the test

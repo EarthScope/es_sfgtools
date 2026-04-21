@@ -73,8 +73,6 @@ rinex_paths = novatel_2rinex(
     num_routines=NUM_ROUTINES,
 )
 
-print(
-    f"{'=' * 40}\nGenerated {len(rinex_paths)} RINEX files from {len(all_files)} NovAtel files:"
-)
+print(f"{'=' * 40}\nGenerated {len(rinex_paths)} RINEX files from {len(all_files)} NovAtel files:")
 for path in rinex_paths:
     print(f" - {path}")

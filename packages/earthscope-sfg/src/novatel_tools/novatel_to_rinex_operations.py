@@ -7,12 +7,11 @@ import tempfile
 import uuid
 from collections import defaultdict
 from pathlib import Path
-import subprocess
+
+from colorama import Fore, Style
 
 from ..logging import ProcessLogger as _logger
 from .utils import get_rnxqc_binary_path
-
-from colorama import Fore, Style
 
 # Don't use basicConfig as it configures the root logger with default format
 # This interferes with the es_sfgtools logging setup

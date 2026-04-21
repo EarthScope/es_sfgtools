@@ -87,9 +87,7 @@ def test_rangea_to_rinex_equivalence(qcpin_files=qc_pinfiles):
         arr1_df = arr1.df[:]
         arr2_df = arr2.df[:]
 
-        assert (
-            arr1_df.head(10).values.round(5) == arr2_df.head(10).values.round(5)
-        ).all(), (
+        assert (arr1_df.head(10).values.round(5) == arr2_df.head(10).values.round(5)).all(), (
             "First 10 rows from both TileDB arrays do not match, indicating a discrepancy between write_epochs and novatel_ascii_2tile"
         )
         arr1.close()
@@ -109,9 +107,7 @@ def test_rangea_to_rinex_equivalence(qcpin_files=qc_pinfiles):
         # match files by comparing 4th throuhg last characters of the filename (to ignore site name differences)
         matches = defaultdict(list)
         for path in rinex_paths + rinex_paths_ascii:
-            key = path.stem[
-                4:
-            ]  # Get the part of the filename after the first 4 characters
+            key = path.stem[4:]  # Get the part of the filename after the first 4 characters
             matches[key].append(path)
         for key, paths in matches.items():
             if len(paths) == 2:
@@ -133,9 +129,7 @@ def test_rangea_to_rinex_equivalence(qcpin_files=qc_pinfiles):
                 print(epoch2)
                 # assert epoch1 == epoch2, f"Epoch data in RINEX files {path1} and {path2} do not match"
             else:
-                raise ValueError(
-                    f"Expected 2 files for key {key}, but found {len(paths)}: {paths}"
-                )
+                raise ValueError(f"Expected 2 files for key {key}, but found {len(paths)}: {paths}")
 
 
 test_rangea_to_rinex_equivalence()
