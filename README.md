@@ -1,64 +1,79 @@
 # EarthScope Seafloor Geodesy Tools
 [![Read the Docs](https://readthedocs.org/projects/es-sfgtools/badge/?version=latest)](https://es-sfgtools.readthedocs.io/en/latest/)
 
-`es_sfgtools` is a Python library designed to support preprocessing and GNSS-A processing workflows for Seafloor Geodesy using data from Liquid Robotics SV2/SV3 Wave Gliders.
+`es_sfgtools` is a Python library designed to support preprocessing and GNSS-A processing workflows for Seafloor Geodesy using data from Liquid Robotics SV2/SV3 Wave Gliders.  
 
 The toolkit also integrates with the [**GARPOS**](https://github.com/s-watanabe-jhod/garpos) GNSS-A processing.
 
-## Monorepo Structure
+Due to a dependency of GARPOS, the library currently is only installable via conda.  Also GARPOS installation requires gfortran, which (if you dont already have it) can be installed on a mac with the command
+> brew install gfortran
 
-This repository is organized as a monorepo with the following packages:
+## Installation  
 
-| Package | Path | Description |
-|---------|------|-------------|
-| **earthscope-sfg** | `packages/earthscope-sfg/` | Core parsing library — NovaTel, Sonardyne, data models, TileDB schemas |
-| **es-sfgtools-workflows** | `packages/earthscope-sfg-workflows/` | Workflow orchestration — pipelines, data management, modeling |
-| **es-sfgtools-cli** | `packages/cli/` | CLI for manifest-driven pipeline execution |
+1. Clone the repository
 
-All three packages share the `es_sfgtools` namespace and are installed together via [pixi](https://pixi.sh).
+    ```bash
+    git clone https://github.com/EarthScope/es_sfgtools.git
+    cd es_sfgtools
+    ```
 
-## Installation
+2. Create and activate a Conda environment
 
-### Prerequisites
+    Choose the environment file appropriate for your operating system.
 
-- [pixi](https://pixi.sh) (recommended) or conda/mamba
-- gfortran (for GARPOS — on macOS: `brew install gfortran`)
+    **macOS**
 
-### Quick Start
+    ```bash
+    conda env create -f mac_environment.yml
+    conda activate seafloor_geodesy_mac
+    ```
 
-```bash
-git clone https://github.com/EarthScope/es_sfgtools.git
-cd es_sfgtools
+    **linux**
 
-# Install environment and all packages
-pixi install
+    ```bash
+    conda env create -f linux_environment.yml
+    conda activate seafloor_geodesy_mac
+    ```
 
-# Build external dependencies (GARPOS, PRIDE-PPPAR, Go binaries)
-pixi run setup
+    These environment files provide all required scientific and compiler dependencies.
 
-# Verify the setup
-pixi run test-setup
-```
+    **macOS TileDB Note (DYLD path)**
 
-### Development
+    In order to run parts of the library dependent on TileDB, you may also need to set the following environmental variable (use the correct path to your conda environment lib folder)
 
-```bash
-# Lint and format
-pixi run lint
-pixi run format
+    `export DYLD_LIBRARY_PATH="/path/to/conda/env/lib"`
 
-# Run tests
-pixi run pytest tests/ -v
-
-# Build documentation
-pixi run docs
-```
+    For example:
+    `export DYLD_LIBRARY_PATH="$HOME/miniconda3/envs/seafloor_geodesy_mac/lib"`
 
 ## Documentation
 
 Documentation (in development) is available on ReadTheDocs:
 
 [ReadTheDocs](https://es-sfgtools.readthedocs.io/en/latest/)
+
+## Repository Files & Dependency Notes
+
+* `linux_environment.yml`
+  * Conda environment specification for Linux.
+
+* `mac_environment.yml`
+  * Conda environment specification for macOS.
+  * Includes macOS compiler toolchain (clang, gfortran).
+
+* `pyproject.toml`
+  * Defines Python package metadata for PyPI distribution.
+  * Conda environment installs from this.
+
+* `requirements-dev.txt`
+  * dev requirements pointed to by pyproj.toml
+
+* `docs/requirements.txt`
+  * Documentation build dependencies (Sphinx, RTD theme, myst-parser).
+
+## Versioning
+
+This project uses setuptools_scm for automatic versioning from git tags. Version information is generated at build time.
 
 ---
 

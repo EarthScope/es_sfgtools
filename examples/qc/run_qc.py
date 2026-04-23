@@ -21,7 +21,7 @@ Steps:
 """
 
 from pathlib import Path
-from earthscope_sfg_workflows.workflows.workflow_handler import WorkflowHandler
+from es_sfgtools.workflows.workflow_handler import WorkflowHandler
 
 
 def main():

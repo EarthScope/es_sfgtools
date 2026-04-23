@@ -7,7 +7,9 @@ if __name__ == "__main__":
     network = "cascadia-gorda"
     station = "NCC1"
     campaign = "2025_A_1126"
-    wfh.set_network_station_campaign(network_id=network, station_id=station, campaign_id=campaign)
+    wfh.set_network_station_campaign(
+        network_id=network, station_id=station, campaign_id=campaign
+    )
     # wfh.preprocess_run_pipeline_sv3(job='process_dfop00',primary_config={
     #     'dfop00_config': {'override': True}
     # })

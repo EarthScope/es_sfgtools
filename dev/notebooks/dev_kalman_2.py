@@ -80,15 +80,25 @@ def prepare_positions_data(positions_data):
     positions_data["up"] = positions_data.upVelocity
 
     positions_data_copy = positions_data.copy()
-    positions_data_copy["ant_sigx"] = positions_data_copy["latitude_std"].bfill().ffill()
-    positions_data_copy["ant_sigy"] = positions_data_copy["longitude_std"].bfill().ffill()
+    positions_data_copy["ant_sigx"] = (
+        positions_data_copy["latitude_std"].bfill().ffill()
+    )
+    positions_data_copy["ant_sigy"] = (
+        positions_data_copy["longitude_std"].bfill().ffill()
+    )
     positions_data_copy["ant_sigz"] = positions_data_copy["height_std"].bfill().ffill()
     positions_data_copy["rho_xy"] = 0
     positions_data_copy["rho_xz"] = 0
     positions_data_copy["rho_yz"] = 0
-    positions_data_copy["east_sig"] = positions_data_copy["eastVelocity_std"].bfill().ffill()
-    positions_data_copy["north_sig"] = positions_data_copy["northVelocity_std"].bfill().ffill()
-    positions_data_copy["up_sig"] = positions_data_copy["upVelocity_std"].bfill().ffill()
+    positions_data_copy["east_sig"] = (
+        positions_data_copy["eastVelocity_std"].bfill().ffill()
+    )
+    positions_data_copy["north_sig"] = (
+        positions_data_copy["northVelocity_std"].bfill().ffill()
+    )
+    positions_data_copy["up_sig"] = (
+        positions_data_copy["upVelocity_std"].bfill().ffill()
+    )
 
     positions_data_copy["v_sden"] = 0
     positions_data_copy["v_sdeu"] = 0
@@ -248,14 +258,18 @@ def run_kalman_filter_and_smooth(df_all, start_dt, gnss_pos_psd, vel_psd, cov_er
     if df_all.empty:
         return pd.DataFrame()
 
-    x, P, _, _ = run_filter_simulation(df_all.to_numpy(), start_dt, gnss_pos_psd, vel_psd, cov_err)
+    x, P, _, _ = run_filter_simulation(
+        df_all.to_numpy(), start_dt, gnss_pos_psd, vel_psd, cov_err
+    )
     print(
         f"Filter Parameters - Start DT: {start_dt}, GNSS_POS_PSD: {gnss_pos_psd}, VEL_PSD: {vel_psd}, COV_ERR: {cov_err}"
     )
 
     # Process positions covariance
     ant_cov = P[:, :3, :3]
-    ant_cov_df = pd.DataFrame(ant_cov.reshape(ant_cov.shape[0], -1), columns=constants.ANT_GPS_COV)
+    ant_cov_df = pd.DataFrame(
+        ant_cov.reshape(ant_cov.shape[0], -1), columns=constants.ANT_GPS_COV
+    )
     ant_cov_df[[*constants.ANT_GPS_GEOCENTRIC_STD]] = ant_cov_df[
         [*constants.ANT_GPS_COV_DIAG]
     ].apply(np.sqrt)
@@ -382,7 +396,11 @@ def filter_spatial_outliers(df, radius=5000):
     original_len = len(df)
     position_filters = (
         (df.ant_x.between(MEDIAN_EAST_POSITION - radius, MEDIAN_EAST_POSITION + radius))
-        & (df.ant_y.between(MEDIAN_NORTH_POSITION - radius, MEDIAN_NORTH_POSITION + radius))
+        & (
+            df.ant_y.between(
+                MEDIAN_NORTH_POSITION - radius, MEDIAN_NORTH_POSITION + radius
+            )
+        )
         & (df.ant_z.between(MEDIAN_UP_POSITION - radius, MEDIAN_UP_POSITION + radius))
     )
     df_filtered = df[position_filters]
@@ -423,7 +441,9 @@ def main():
     kin_data_prepared = prepare_kinematic_data(kin_positions)
 
     # Filter out rows where the positions are greater than 5km from median
-    positions_data_prepared = filter_spatial_outliers(positions_data_prepared, radius=5000)
+    positions_data_prepared = filter_spatial_outliers(
+        positions_data_prepared, radius=5000
+    )
     kin_data_prepared = filter_spatial_outliers(kin_data_prepared, radius=5000)
 
     df_all = combine_data(positions_data_prepared, kin_data_prepared)
@@ -493,10 +513,16 @@ def main():
     print("----Results vs Kinematic Positions----")
     analyze_offsets(merged_positions_kinematic)
 
-    updated_shotdata = update_shotdata_with_smoothed_positions(shotdata, smoothed_results)
+    updated_shotdata = update_shotdata_with_smoothed_positions(
+        shotdata, smoothed_results
+    )
 
-    ant_east0_offset = (updated_shotdata["ant_e0"] - updated_shotdata["east0"]).describe()
-    ant_north0_offset = (updated_shotdata["ant_n0"] - updated_shotdata["north0"]).describe()
+    ant_east0_offset = (
+        updated_shotdata["ant_e0"] - updated_shotdata["east0"]
+    ).describe()
+    ant_north0_offset = (
+        updated_shotdata["ant_n0"] - updated_shotdata["north0"]
+    ).describe()
     ant_up0_offset = (updated_shotdata["ant_u0"] - updated_shotdata["up0"]).describe()
 
     print("\n--- Shotdata Antenna Position Offsets ---")

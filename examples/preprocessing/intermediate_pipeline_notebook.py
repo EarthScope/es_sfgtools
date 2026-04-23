@@ -3,7 +3,7 @@ import json
 import os
 from pathlib import Path
 
-from earthscope_sfg_workflows.workflows.workflow_handler import WorkflowHandler
+from es_sfgtools.workflows.workflow_handler import WorkflowHandler
 
 
 def build_global_config(
@@ -26,7 +26,7 @@ def build_global_config(
     """Build the primary configuration dictionary for the pipeline."""
     if pride_frequency is None:
         pride_frequency = ["G12", "R12", "E15", "C26", "J12"]
-
+    
     return {
         "dfop00_config": {"override": dfop00_override},
         "novatel_config": {"n_processes": novatel_n_processes, "override": novatel_override},
@@ -57,7 +57,6 @@ def build_global_config(
         },
     }
 
-
 def run_intermediate_pipeline(
     data_dir,
     network_id,
@@ -68,7 +67,7 @@ def run_intermediate_pipeline(
 ):
     """
     Run the intermediate processing pipeline.
-
+    
     Parameters
     ----------
     data_dir : str or Path
@@ -85,14 +84,14 @@ def run_intermediate_pipeline(
         Primary configuration dictionary. If None, uses defaults from build_global_config()
     """
     data_dir = Path(data_dir)
-
+    
     # Use default configs if not provided
     if primary_config_dict is None:
         primary_config_dict = build_global_config()
 
     # Create directories
     os.makedirs(data_dir, exist_ok=True)
-
+    
     # Initialize workflow
     workflow = WorkflowHandler(directory=data_dir)
     workflow.set_network_station_campaign(
@@ -100,7 +99,7 @@ def run_intermediate_pipeline(
         station_id=station_id,
         campaign_id=campaign_id,
     )
-
+    
     # Run the pipeline
     workflow.preprocess_run_pipeline_sv3(
         job=job,
@@ -110,7 +109,7 @@ def run_intermediate_pipeline(
 
 def main():
     """Command-line interface for running the intermediate processing pipeline."""
-
+    
     parser = argparse.ArgumentParser(
         description="Run intermediate processing pipeline for SV3 seafloor geodesy data",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -130,9 +129,9 @@ def main():
     python intermediate_processing.py --data-dir ~/data/sfg_march13 \\
         --network cascadia-gorda --station NCC1 --campaign 2025_A_1126 \\
         --ingest --verbose
-        """,
+        """
     )
-
+    
     # Required arguments
     parser.add_argument(
         "--data-dir",
@@ -154,25 +153,15 @@ def main():
         required=True,
         help="Campaign identifier (e.g., '2025_A_1126')",
     )
-
+    
     # Optional arguments - Job type
     parser.add_argument(
         "--job",
         default="intermediate",
-        choices=[
-            "intermediate",
-            "all",
-            "process_novatel",
-            "build_rinex",
-            "run_pride",
-            "process_kinematic",
-            "process_dfop00",
-            "refine_shotdata",
-            "process_svp",
-        ],
+        choices=["intermediate", "all", "process_novatel", "build_rinex", "run_pride", "process_kinematic", "process_dfop00", "refine_shotdata", "process_svp"],
         help="Job type to run (default: intermediate)",
     )
-
+    
     # Optional arguments - Config files
     parser.add_argument(
         "--primary-config",
@@ -180,21 +169,19 @@ def main():
         default=None,
         help="Path to JSON file with primary configuration. If not provided, uses defaults.",
     )
-
+    
     # Optional arguments - General
-    parser.add_argument(
-        "--rinex-1hz", action="store_true", help="Download 1Hz RINEX data (if ingesting)"
-    )
-
+    parser.add_argument("--rinex-1hz", action="store_true", help="Download 1Hz RINEX data (if ingesting)")
+    
     args = parser.parse_args()
-
+    
     # Load config files or use defaults
     if args.primary_config:
         with open(args.primary_config, "r") as f:
             primary_config = json.load(f)
     else:
         primary_config = build_global_config()
-
+    
     # Run the pipeline
     run_intermediate_pipeline(
         data_dir=args.data_dir,

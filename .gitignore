@@ -1,38 +1,46 @@
-# Python
+venv/
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
-*.egg-info
-*.egg
 
-# Build artifacts
-build/*
-dist
-
-# Virtual environments
-.venv/
-.pixi/*
-
-# IDE
-.vscode
-.idea
-
-# OS
 .DS_Store
 
-# Caches
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
+__pycache__/
+*.pyc
 
-# Project-specific
+.pytest_cache/
+.idea
+
+
+.DS_Store
+
+__pycache__/
+*.pyc
+
+.pytest_cache/
+.idea
+
 notebooks/.ipynb_checkpoints
 *.log
-sso_tokens.json
+
+src/garpos_tools/garpos/
+src/garpos_tools/build/
+*.egg-info
+build/*
+.vscode/
+
+.vscode
 docs/build
+sso_tokens.json
+dist
+src/es_sfgtools/_version.py
+
+
+.pixi
 external/*
 !external/README.md
 
+src/golangtools/build/*
+
 .github/skills/*
-packages/earthscope-sfg/go/build/*
