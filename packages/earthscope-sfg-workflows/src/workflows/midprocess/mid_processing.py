@@ -2,13 +2,17 @@
 This module defines the IntermediateDataProcessor class, which is responsible for post-processing of data.
 """
 
+from concurrent.futures import ThreadPoolExecutor
 import datetime
 import json
 import shutil
 from pathlib import Path
 
+import concurrent
+
 import numpy as np
 import pandas as pd
+import hatanaka
 
 from earthscope_sfg.logging import GarposLogger as logger
 from earthscope_sfg.tiledb_schemas import (
@@ -18,12 +22,12 @@ from earthscope_sfg.tiledb_schemas import (
 )
 from earthscope_sfg.utils.model_update import validate_and_merge_config
 
+from ...config.env_config import Environment
 from ...config.loadconfigs import (
     GarposSiteConfig,
     get_garpos_site_config,
     get_survey_filter_config,
 )
-from ...config.workspace import Workspace
 from ...data_mgmt.directorymgmt import GARPOSSurveyDir
 from ...data_models.metadata.campaign import Survey
 from ...data_models.metadata.site import Site
@@ -41,6 +45,7 @@ from ...modeling.garpos_tools.schemas import GarposFixed, GarposInput
 from ...prefiltering import filter_shotdata
 from ..utils.protocols import (
     WorkflowABC,
+    validate_network_station,
     validate_network_station_campaign,
 )
 
@@ -55,7 +60,8 @@ class IntermediateDataProcessor(WorkflowABC):
     def __init__(
         self,
         station_metadata: Site,
-        workspace: Workspace,
+        directory: Path | str = None,
+        s3_sync_bucket: str | None = None,
     ):
         """Initializes the IntermediateDataProcessor.
 
@@ -63,11 +69,14 @@ class IntermediateDataProcessor(WorkflowABC):
         ----------
         station_metadata : Site
             The station metadata.
-        workspace : Workspace
-            Unified workspace config and directory handler.
+        directory : Path | str, optional
+            Root path of the data tree.
+        s3_sync_bucket : str, optional
+            S3 bucket name/URI for sync operations.
         """
         super().__init__(
-            workspace=workspace,
+            directory=directory,
+            s3_sync_bucket=s3_sync_bucket,
             station_metadata=station_metadata,
         )
 
@@ -377,6 +386,123 @@ class IntermediateDataProcessor(WorkflowABC):
             garpos_input_configured.to_datafile(garposDir.default_obsfile)
 
         self.directory_handler.save()
+    
+    @validate_network_station
+    def midprocess_sync_station_data_s3(self,overwrite:bool=False):
+        """Uploads the current station directory to S3 for synchronization.
+
+        SFGMain/cascadia-gorda/NCC1/2025_A_1126 -->
+        s3://<bucket_name>/cascadia-gorda/NCC1/2025_A_1126
+
+        """
+        if Environment.s3_sync_bucket() is None:
+            logger.logwarn("S3 synchronization skipped: s3_sync_bucket not configured")
+            return
+
+        s3_bucket = Environment.s3_sync_bucket()
+        if not s3_bucket.startswith("s3://"):
+            s3_bucket = f"s3://{s3_bucket}"
+        s3_directory_handler = self.directory_handler.point_to_s3(s3_bucket)
+        s3_station_dir = s3_directory_handler.networks[self.current_network_name].stations[
+            self.current_station_name
+        ]
+
+        # map the current station directory to s3
+        local_tdb = self.current_station_dir.tiledb_directory
+        s3_tdb = s3_station_dir.tiledb_directory
+
+        tdb_arrays = [
+            "shot_data",
+            "kin_position_data",
+            "imu_position_data",
+            "gnss_obs_data",
+        ]
+
+        for tdb_array in tdb_arrays:
+            upload_counter = 0
+            local_tdb_array = getattr(local_tdb, tdb_array)
+            s3_tdb_array = getattr(s3_tdb, tdb_array)
+            print(f"Syncing {str(local_tdb_array)} to {str(s3_tdb_array)}")
+            for tdb_file in local_tdb_array.rglob("*"):
+                relative_path = tdb_file.relative_to(local_tdb_array)
+                s3_file_path = s3_tdb_array / relative_path
+                try:
+                    if not s3_file_path.exists() or overwrite:
+                        s3_file_path.upload_from(tdb_file, force_overwrite_to_cloud=overwrite)
+                        upload_counter += 1
+                except Exception as e:
+                    logger.logerr(f"Failed to upload {tdb_file} to S3: {e}")
+            print(f"Uploaded {upload_counter} files to {str(s3_tdb_array)}")
+
+
+    @validate_network_station_campaign
+    def midprocess_sync_campaign_data_s3(self, overwrite: bool = False):
+        """Uploads the current campaign directory to S3 for synchronization.
+
+        SFGMain/cascadia-gorda/NCC1/2025_A_1126 -->
+        s3://<bucket_name>/cascadia-gorda/NCC1/2025_A_1126
+
+        """
+        if Environment.s3_sync_bucket() is None:
+            logger.logwarn("S3 synchronization skipped: s3_sync_bucket not configured")
+            return
+
+        s3_bucket = Environment.s3_sync_bucket()
+        if not s3_bucket.startswith("s3://"):
+            s3_bucket = f"s3://{s3_bucket}"
+        s3_directory_handler = self.directory_handler.point_to_s3(s3_bucket)
+        s3_campaign_dir = s3_directory_handler.networks[self.current_network_name].stations[
+            self.current_station_name
+        ].campaigns[self.current_campaign_name]
+
+        local_campaign_dir = self.current_campaign_dir
+
+        # upload svp file
+        local_svp = local_campaign_dir.svp_file
+        s3_svp = s3_campaign_dir.svp_file
+        try:
+            if local_svp.exists() and not s3_svp.exists():
+                s3_svp.upload_from(local_svp, force_overwrite_to_cloud=overwrite)
+        except Exception as e:
+            logger.logerr(f"Failed to upload {local_svp} to S3: {e}")
+
+        # Sync rinex files in the intermediate directory
+
+        local_intermediate_dir = local_campaign_dir.intermediate
+        s3_rinex_dest_dir = s3_campaign_dir.processed / "rinex"
+        
+        def upload_rinex_file(rinex_file: Path,
+                              local_intermediate_dir: Path=local_intermediate_dir, 
+                              s3_rinex_dest_dir: Path=s3_rinex_dest_dir, 
+                              overwrite: bool = overwrite):
+            
+            if ".crx" in rinex_file.suffix:
+                # Skip already compressed files
+                return
+            if "S" not in rinex_file.suffix:
+                # Compress the rinex file using hatanaka compression via georinex.
+                old_suffix = rinex_file.suffix
+                new_suffix = old_suffix[:-1] + "d" + ".gz"
+                source = rinex_file.with_suffix(new_suffix)
+                source.write_bytes(hatanaka.compress(rinex_file))
+            else:
+                # Teq style qc files
+                source = rinex_file 
+            relative_path = source.relative_to(local_intermediate_dir)
+            s3_rinex_file = s3_rinex_dest_dir / relative_path
+            try:
+                if not s3_rinex_file.exists() or overwrite:
+                    s3_rinex_file.upload_from(source, force_overwrite_to_cloud=overwrite)
+                    print(f"Uploaded {source} to {s3_rinex_file}")
+            except Exception as e:
+                logger.logerr(f"Failed to upload {source} to S3: {e}")
+        
+        if local_intermediate_dir.exists():
+            print(f"Syncing intermediate Rinex files from {local_intermediate_dir} to {s3_rinex_dest_dir}...")
+            rinex_files = list(local_intermediate_dir.rglob(f"*{self.current_station_name}*"))
+            with ThreadPoolExecutor(max_workers=15) as executor:
+                executor.map(upload_rinex_file, rinex_files)
+
 
     @validate_network_station_campaign
     def midprocess_sync_s3(self, overwrite: bool = False):
@@ -387,11 +513,13 @@ class IntermediateDataProcessor(WorkflowABC):
         s3://<bucket_name>/cascadia-gorda/NCC1/2025_A_1126
 
         """
-        if not self.workspace.syncs_with_s3:
-            logger.logwarn("S3 synchronization skipped: workspace not configured for S3 sync")
+        if Environment.s3_sync_bucket() is None:
+            logger.logwarn("S3 synchronization skipped: s3_sync_bucket not configured")
             return
 
-        s3_bucket = self.workspace.s3_sync_bucket_uri
+        s3_bucket = Environment.s3_sync_bucket()
+        if not s3_bucket.startswith("s3://"):
+            s3_bucket = f"s3://{s3_bucket}"
         s3_directory_handler = self.directory_handler.point_to_s3(s3_bucket)
         s3_station_dir = s3_directory_handler.networks[self.current_network_name].stations[
             self.current_station_name

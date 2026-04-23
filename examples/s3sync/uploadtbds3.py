@@ -11,34 +11,46 @@ This demo shows the steps to sync TileDB arrays with preprocessed data to an S3 
 # or via 'aws sso login'
 # =============================================================================
 
+import os
+from pathlib import Path
+from typing import List
+from earthscope_sfg_workflows.config.env_config import Environment
+from earthscope_sfg_workflows.workflows.workflow_handler import WorkflowHandler
+
+S3_SYNC_BUCKET = "seafloor-public-bucket-bucket83908e77-gprctmuztrim"
+HOME_DIR = "/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain"
+
 DEFAULT_CONFIG = {
     # The destination S3 bucket for syncing TileDB arrays
     "S3_SYNC_BUCKET": "seafloor-public-bucket-bucket83908e77-gprctmuztrim",
 }
-import os
+
+NETWORK = "cascadia-gorda"
+STATIONS = [ "NBR1", "GCC1", "NCL1", "NDP1"]
 
 for key, value in DEFAULT_CONFIG.items():
     os.environ[key] = value
 
-from earthscope_sfg_workflows.config.env_config import Environment
 
-# This will read the environment variables set above
 Environment.load_working_environment()
 
-from earthscope_sfg_workflows.workflows.workflow_handler import WorkflowHandler
-
-
-NETWORK = "cascadia-gorda"
-CAMPAIGN = "2025_A_1126"  # Note: The specific campaign does not matter as it's station centric.
-STATIONS = ["NTH1", "NCC1", "NBR1", "GCC1", "NCL1", "NDP1"]
-HOME_DIR = "/path/to/SeafloorGeodesy/SFGMain"
-workflow = WorkflowHandler(directory=HOME_DIR)
+workflow = WorkflowHandler(HOME_DIR)
 
 for station in STATIONS:
     workflow.set_network_station_campaign(
-        network_id=NETWORK,
-        station_id=station,  # The specific station to process
-        campaign_id=CAMPAIGN,
-    )
-    # Sync TileDB arrays to S3
-    workflow.midprocess_upload_s3(overwrite=False, override_metadata_require=True)
+        network_id=NETWORK, 
+        station_id=station, 
+        campaign_id=None)
+    print(f"Syncing station {station} data to S3")
+    workflow.midprocess_sync_station_data_s3(overwrite=True)
+
+    campaigns:List[Path] = workflow.list_campaign_directories()
+    for campaign in campaigns:
+        print(f"Syncing campaign {campaign.name} data to S3...")
+        workflow.set_network_station_campaign(
+            network_id=NETWORK, 
+            station_id=station, 
+            campaign_id=campaign.name)
+        print(f"Syncing campaign {campaign.name} data to S3...")
+        workflow.midprocess_sync_campaign_data_s3()
+    print(f"Finished syncing station {station} data to S3\n")

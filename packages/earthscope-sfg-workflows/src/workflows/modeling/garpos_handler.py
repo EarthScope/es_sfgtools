@@ -17,7 +17,6 @@ from matplotlib.colors import Normalize
 
 sns.set_theme(style="whitegrid")
 
-from ...config.workspace import Workspace  # noqa: E402
 from ...data_mgmt.directorymgmt import GARPOSSurveyDir  # noqa: E402
 from ...data_models.metadata.site import Site  # noqa: E402
 from ...modeling.garpos_tools.schemas import (  # noqa: E402
@@ -83,18 +82,20 @@ class GarposHandler(WorkflowABC):
 
     mid_process_workflow = True
 
-    def __init__(self, workspace: "Workspace", station_metadata: Site):
+    def __init__(self, directory: Path | str = None, station_metadata: Site = None, s3_sync_bucket: str | None = None):
         """Initializes the GarposHandler.
 
         Parameters
         ----------
-        workspace : Workspace
-            The unified workspace config and directory handler.
+        directory : Path | str, optional
+            Root path of the data tree.
         station_metadata : Site
             The site metadata.
+        s3_sync_bucket : str, optional
+            S3 bucket name/URI for sync operations.
         """
 
-        super().__init__(station_metadata=station_metadata, workspace=workspace)
+        super().__init__(directory=directory, station_metadata=station_metadata, s3_sync_bucket=s3_sync_bucket)
 
         self.garpos_fixed = GarposFixed()
 

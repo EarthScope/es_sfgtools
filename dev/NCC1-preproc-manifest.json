@@ -1,30 +1,214 @@
 {
-  "projectDir": "/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain",
+  "projectDir": "/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain2",
   "operations": [
     {
       "network": "cascadia-gorda",
       "station": "NCC1",
       "campaign": "2022_A_1065",
-      "jobs": [{"type":"ingestion","directory":"/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain/cascadia-gorda/NCC1/2022_A_1065/raw"}, {"type": "preprocessing" }]
+      "jobs": [
+        {
+          "type": "ingestion",
+          "directory": "/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain/cascadia-gorda/NCC1/2022_A_1065"
+        },
+        {
+          "type": "preprocessing"
+        }
+      ]
+    },
+    {
+      "network": "cascadia-gorda",
+      "station": "NCC1",
+      "campaign": "2023_A_1063",
+      "jobs": [
+        {
+          "type": "ingestion",
+          "directory": "/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain/cascadia-gorda/NCC1/2023_A_1063"
+        },
+        {
+          "type": "preprocessing"
+        }
+      ]
+    },
+    {
+      "network": "cascadia-gorda",
+      "station": "NCC1",
+      "campaign": "2024_A_1126",
+      "jobs": [
+        {
+          "type": "ingestion",
+          "directory": "/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain/cascadia-gorda/NCC1/2024_A_1126"
+        },
+        {
+          "type": "preprocessing"
+        }
+      ]
+    },
+    {
+      "network": "cascadia-gorda",
+      "station": "NCC1",
+      "campaign": "2025_A_1126",
+      "jobs": [
+        {
+          "type": "ingestion",
+          "directory": "/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain/cascadia-gorda/NCC1/2025_A_1126"
+        },
+        {
+          "type": "preprocessing"
+        }
+      ]
+    },
+    {
+      "network": "cascadia-gorda",
+      "station": "NBR1",
+      "campaign": "2023_A_1063",
+      "jobs": [
+        {
+          "type": "ingestion",
+          "directory": "/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain/cascadia-gorda/NBR1/2023_A_1063"
+        },
+        {
+          "type": "preprocessing"
+        }
+      ]
+    },
+    {
+      "network": "cascadia-gorda",
+      "station": "NBR1",
+      "campaign": "2025_A_1126",
+      "jobs": [
+        {
+          "type": "ingestion",
+          "directory": "/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain/cascadia-gorda/NBR1/2025_A_1126"
+        },
+        {
+          "type": "preprocessing"
+        }
+      ]
+    },
+    {
+      "network": "cascadia-gorda",
+      "station": "GCC1",
+      "campaign": "2022_A_1065",
+      "jobs": [
+        {
+          "type": "ingestion",
+          "directory": "/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain/cascadia-gorda/GCC1/2022_A_1065"
+        },
+        {
+          "type": "preprocessing"
+        }
+      ]
+    },
+    {
+      "network": "cascadia-gorda",
+      "station": "GCC1",
+      "campaign": "2023_A_1063",
+      "jobs": [
+        {
+          "type": "ingestion",
+          "directory": "/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain/cascadia-gorda/GCC1/2023_A_1063"
+        },
+        {
+          "type": "preprocessing"
+        }
+      ]
+    },
+    {
+      "network": "cascadia-gorda",
+      "station": "GCC1",
+      "campaign": "2024_A_1126",
+      "jobs": [
+        {
+          "type": "ingestion",
+          "directory": "/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain/cascadia-gorda/GCC1/2024_A_1126"
+        },
+        {
+          "type": "preprocessing"
+        }
+      ]
+    },
+    {
+      "network": "cascadia-gorda",
+      "station": "GCC1",
+      "campaign": "2025_A_1126",
+      "jobs": [
+        {
+          "type": "ingestion",
+          "directory": "/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain/cascadia-gorda/GCC1/2025_A_1126"
+        },
+        {
+          "type": "preprocessing"
+        }
+      ]
+    },
+    {
+      "network": "cascadia-gorda",
+      "station": "NCL1",
+      "campaign": "2023_A_1063",
+      "jobs": [
+        {
+          "type": "ingestion",
+          "directory": "/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain/cascadia-gorda/NCL1/2023_A_1063"
+        },
+        {
+          "type": "preprocessing"
+        }
+      ]
+    },
+    {
+      "network": "cascadia-gorda",
+      "station": "NDP1",
+      "campaign": "2023_A_1063",
+      "jobs": [
+        {
+          "type": "ingestion",
+          "directory": "/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain/cascadia-gorda/NDP1/2023_A_1063"
+        },
+        {
+          "type": "preprocessing"
+        }
+      ]
+    },
+    {
+      "network": "cascadia-gorda",
+      "station": "NTH1",
+      "campaign": "2025_A_1126",
+      "jobs": [
+        {
+          "type": "ingestion",
+          "directory": "/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain/cascadia-gorda/NTH1/2025_A_1126"
+        },
+        {
+          "type": "preprocessing"
+        }
+      ]
     }
   ],
-
   "garposConfig": {
-
     "run_id": "tojohn",
     "override": true,
     "inversion_params": {
       "spline_degree": 3,
-      "log_lambda": [0],
+      "log_lambda": [
+        0
+      ],
       "log_gradlambda": -1,
-      "mu_t": [0.0],
-      "mu_mt": [0.5],
+      "mu_t": [
+        0.0
+      ],
+      "mu_mt": [
+        0.5
+      ],
       "knotint0": 5,
       "knotint1": 0,
       "knotint2": 0,
       "rejectcriteria": 2.5,
       "inversiontype": 0,
-      "positionalOffset": [0.0, 0.0, 0.0],
+      "positionalOffset": [
+        0.0,
+        0.0,
+        0.0
+      ],
       "traveltimescale": 0.0001,
       "maxloop": 200,
       "convcriteria": 0.005,
@@ -43,13 +227,12 @@
       }
     }
   },
-
   "globalConfig": {
     "dfop00_config": {
       "override": false
     },
     "novatel_config": {
-      "n_processes": 5,
+      "n_processes": 14,
       "override": false
     },
     "position_update_config": {
@@ -60,7 +243,13 @@
     "pride_config": {
       "cutoff_elevation": 7,
       "end": null,
-      "frequency": ["G12", "R12", "E15", "C26", "J12"],
+      "frequency": [
+        "G12",
+        "R12",
+        "E15",
+        "C26",
+        "J12"
+      ],
       "high_ion": null,
       "interval": null,
       "local_pdp3_path": null,
@@ -70,8 +259,8 @@
       "system": "GREC23J",
       "tides": "SOP",
       "override_products_download": false,
-      "override": true,
-        "n_processes": 15
+      "override": false,
+      "n_processes":20
     },
     "rinex_config": {
       "n_processes": 5,

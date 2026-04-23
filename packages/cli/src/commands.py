@@ -28,8 +28,7 @@ def run_manifest(manifest_object):
 
     display_pipelinemanifest(manifest_object)
     load_lib()
-    workspace = manifest_object.build_workspace()
-    wfh = WorkflowHandler(workspace=workspace)
+    wfh = WorkflowHandler(directory=manifest_object.main_directory)
 
     for ingest_job in manifest_object.ingestion_jobs:
         wfh.set_network_station_campaign(
@@ -90,19 +89,19 @@ def run_manifest(manifest_object):
             )
 
 
-def run_preprocessing(workspace, network_id: str, campaign_id: str, stations: list):
+def run_preprocessing(directory, network_id: str, campaign_id: str, stations: list):
     """
     Initializes and runs the preprocessing workflow for a set of stations.
 
     Args:
-        workspace: The configured Workspace instance.
+        directory: Root path of the data tree.
         network_id: The network identifier.
         campaign_id: The campaign identifier.
         stations: A list of station identifiers.
     """
     from earthscope_sfg_workflows.workflows.workflow_handler import WorkflowHandler
 
-    wfh = WorkflowHandler(workspace=workspace)
+    wfh = WorkflowHandler(directory=directory)
     for station_id in stations:
         wfh.set_network_station_campaign(
             network_id=network_id,

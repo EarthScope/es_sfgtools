@@ -101,6 +101,7 @@ scikit-sparse = { version = ">=0.4.16, <0.5" }
 earthscope-sfg = { path = "packages/earthscope-sfg", editable = true }
 earthscope-sfg-workflows = { path = "packages/earthscope-sfg-workflows", editable = true }
 earthscope-sfg-cli = { path = "packages/cli", editable = true }
+hatanaka = ">=2.8.1, <3"
 
 # =============================================================================
 # Feature: dev (adds dev tools)
@@ -123,10 +124,9 @@ jupyterlab = "*"
 # Environments
 # =============================================================================
 [environments]
-default = { solve-group = "default" }
 dev = { features = ["dev"], solve-group = "default" }
 notebook = { features = ["notebook"], solve-group = "default" }
-full = { features = ["dev", "notebook"], solve-group = "default" }
+default = { features = ["dev", "notebook"], solve-group = "default" }
 
 # =============================================================================
 # Activation - environment variables

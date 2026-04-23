@@ -7,8 +7,8 @@ from pathlib import Path
 
 if __name__ == "__main__":
     from earthscope_sfg.logging import ProcessLogger
-    from earthscope_sfg_cli.cli.commands import run_manifest
-    from earthscope_sfg_cli.cli.manifest import PipelineManifest
+    from earthscope_sfg_cli.commands import run_manifest
+    from earthscope_sfg_cli.manifest import PipelineManifest
     from earthscope_sfg_workflows.config.env_config import Environment
 
     Environment.load_working_environment()

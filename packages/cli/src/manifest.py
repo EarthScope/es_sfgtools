@@ -13,66 +13,9 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel, Field, field_serializer, field_validator
 
-from earthscope_sfg_workflows.config.workspace import Workspace, WorkspaceType
 from earthscope_sfg_workflows.modeling.garpos_tools.schemas import InversionParams
 from earthscope_sfg_workflows.prefiltering.schemas import FilterConfig
 from earthscope_sfg_workflows.workflows.pipelines.config import SV3PipelineConfig
-
-
-class ManifestWorkspaceConfig(BaseModel):
-    """Workspace configuration section of the pipeline manifest.
-
-    Controls which deployment environment is used and how cloud credentials
-    are supplied.  Maps directly onto the ``Workspace`` factory classmethods.
-    """
-
-    type: str = Field("local", description="Workspace type: 'local', 'geolab', or 'ecs'")
-    s3_sync_bucket: str | None = Field(
-        None, alias="s3SyncBucket", description="S3 bucket for sync (geolab/ecs)"
-    )
-    aws_profile: str | None = Field(None, alias="awsProfile")
-    aws_access_key_id: str | None = Field(None, alias="awsAccessKeyId")
-    aws_secret_access_key: str | None = Field(None, alias="awsSecretAccessKey")
-    aws_session_token: str | None = Field(None, alias="awsSessionToken")
-    pride_dir: Path | None = Field(None, alias="prideDir")
-
-    model_config = {"populate_by_name": True}
-
-    def build(self, root_directory: Path) -> Workspace:
-        """Instantiate a ``Workspace`` for *root_directory* using this config."""
-        wtype = WorkspaceType(self.type.lower())
-        match wtype:
-            case WorkspaceType.LOCAL:
-                return Workspace.local(
-                    root_directory,
-                    pride_binary_dir=self.pride_dir,
-                    aws_profile=self.aws_profile,
-                    s3_sync_bucket=self.s3_sync_bucket,
-                )
-            case WorkspaceType.GEOLAB:
-                if not self.s3_sync_bucket:
-                    raise ValueError("s3SyncBucket is required for geolab workspaces")
-                return Workspace.geolab(
-                    root_directory,
-                    self.s3_sync_bucket,
-                    aws_profile=self.aws_profile,
-                    aws_access_key_id=self.aws_access_key_id,
-                    aws_secret_access_key=self.aws_secret_access_key,
-                    aws_session_token=self.aws_session_token,
-                    pride_binary_dir=self.pride_dir,
-                )
-            case WorkspaceType.ECS:
-                if not self.s3_sync_bucket:
-                    raise ValueError("s3SyncBucket is required for ecs workspaces")
-                return Workspace.ecs(
-                    root_directory,
-                    self.s3_sync_bucket,
-                    aws_profile=self.aws_profile,
-                    aws_access_key_id=self.aws_access_key_id,
-                    aws_secret_access_key=self.aws_secret_access_key,
-                    aws_session_token=self.aws_session_token,
-                    pride_binary_dir=self.pride_dir,
-                )
 
 
 class PipelineJobType(StrEnum):
@@ -224,9 +167,6 @@ class PipelineManifest(BaseModel):
     """
 
     main_directory: Path = Field(..., title="Main Directory")
-    workspace_config: ManifestWorkspaceConfig = Field(
-        default_factory=ManifestWorkspaceConfig, title="Workspace Configuration"
-    )
 
     ingestion_jobs: list[PipelineIngestJob] = Field(
         default_factory=list, title="List of Pipeline Ingestion Jobs"
@@ -244,10 +184,6 @@ class PipelineManifest(BaseModel):
 
     class Config:
         arbitrary_types_allowed = True
-
-    def build_workspace(self) -> Workspace:
-        """Build and return a ``Workspace`` for this manifest's project directory."""
-        return self.workspace_config.build(self.main_directory)
 
     @classmethod
     def _load(cls, data: dict) -> "PipelineManifest":
@@ -273,11 +209,6 @@ class PipelineManifest(BaseModel):
             garpos_config = GARPOSConfig(**garpos_config_data)
         else:
             garpos_config = GARPOSConfig()
-
-        if (workspace_config_data := data.get("workspaceConfig")) is not None:
-            workspace_config = ManifestWorkspaceConfig(**workspace_config_data)
-        else:
-            workspace_config = ManifestWorkspaceConfig()
 
         # Initialize lists for jobs
         process_jobs = []
@@ -343,7 +274,6 @@ class PipelineManifest(BaseModel):
         # Instantiate the PipelineManifest
         return cls(
             main_directory=Path(data["projectDir"]),
-            workspace_config=workspace_config,
             ingestion_jobs=ingestion_jobs,
             process_jobs=process_jobs,
             download_jobs=download_jobs,

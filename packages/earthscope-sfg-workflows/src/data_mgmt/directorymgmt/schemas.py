@@ -2,10 +2,8 @@ from __future__ import annotations
 
 import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-if TYPE_CHECKING:
-    from earthscope_sfg_workflows.config.workspace import Workspace
 from cloudpathlib import S3Path
 from pydantic import BaseModel, Field, PrivateAttr, model_serializer
 
@@ -283,11 +281,11 @@ class TileDBDir(_Base):
 
     station: Path | S3Path = Field(..., description="The station directory path")
 
-    def build(self, workspace: Workspace) -> None:
+    def build(self) -> None:
         """Creates the directory structure for the TileDB arrays."""
         if not self.location:
             self.location = self.station / TILEDB_DIR
-            if workspace.creates_local_dirs:
+            if isinstance(self.location, Path):
                 self.location.mkdir(parents=True, exist_ok=True)
         if not self.shot_data:
             self.shot_data = self.location / SHOTDATA_TDB
@@ -419,11 +417,11 @@ class SurveyDir(_Base):
     name: str = Field(..., description="The survey name")
     campaign: Path | S3Path = Field(..., description="The campaign directory path")
 
-    def build(self, workspace: Workspace) -> None:
+    def build(self) -> None:
         """Creates the directory structure for the survey."""
         if not self.location:
             self.location = self.campaign / self.name
-        if workspace.creates_local_dirs and isinstance(self.location, Path):
+        if isinstance(self.location, Path):
             self.location.mkdir(parents=True, exist_ok=True)
 
         if not self.metadata:
@@ -536,16 +534,18 @@ class CampaignDir(_Base):
     station: Path | S3Path = Field(..., description="The station directory path")
     name: str
 
-    def build(self, workspace: Workspace) -> None:
+    def build(self) -> None:
         """Creates the directory structure for the campaign."""
+        local = isinstance(self.location if self.location else self.station, Path)
+
         if not self.location:
             self.location = self.station / self.name
-            if workspace.creates_local_dirs:
+            if local:
                 self.location.mkdir(parents=True, exist_ok=True)
 
         if not self.metadata_directory:
             self.metadata_directory = self.location / "metadata"
-            if workspace.creates_local_dirs:
+            if local:
                 self.metadata_directory.mkdir(parents=True, exist_ok=True)
 
         if not self.campaign_metadata:
@@ -553,41 +553,39 @@ class CampaignDir(_Base):
 
         if not self.raw:
             self.raw = self.location / RAW_DATA_DIR
-            if workspace.creates_local_dirs:
+            if local:
                 self.raw.mkdir(parents=True, exist_ok=True)
 
         if not self.processed:
             self.processed = self.location / PROCESSED_DATA_DIR
-            if workspace.creates_local_dirs:
+            if local:
                 self.processed.mkdir(parents=True, exist_ok=True)
 
         if not self.intermediate:
             self.intermediate = self.location / INTERMEDIATE_DATA_DIR
-            if workspace.creates_local_dirs:
+            if local:
                 self.intermediate.mkdir(parents=True, exist_ok=True)
 
         if not self.log_directory:
             self.log_directory = self.location / LOGS_DIR
-            if workspace.creates_local_dirs:
+            if local:
                 self.log_directory.mkdir(parents=True, exist_ok=True)
 
         if not self.qc:
             self.qc = self.location / QC_DIR
-            if workspace.creates_local_dirs:
+            if local:
                 self.qc.mkdir(parents=True, exist_ok=True)
 
         if not self.svp_file:
             self.svp_file = self.processed / SVP_FILE_NAME
 
-    def add_survey(self, name: str, workspace: Workspace) -> SurveyDir:
+    def add_survey(self, name: str) -> SurveyDir:
         """Adds a new survey to the campaign.
 
         Parameters
         ----------
         name : str
             The name of the survey to add.
-        workspace : Workspace
-            Active workspace configuration.
 
         Returns
         -------
@@ -598,7 +596,7 @@ class CampaignDir(_Base):
             print(f"Survey {name} already exists in campaign {self.name}")
             return self.surveys[name]
         new_survey = SurveyDir(name=name, campaign=self.location)
-        new_survey.build(workspace)
+        new_survey.build()
         self.surveys[name] = new_survey
         return self.surveys[name]
 
@@ -720,20 +718,22 @@ class StationDir(_Base):
     name: str = Field(..., description="The station name")
     network: Path | S3Path = Field(..., description="The network directory path")
 
-    def build(self, workspace: Workspace) -> None:
+    def build(self) -> None:
         """Creates the directory structure for the station."""
+        local = isinstance(self.location if self.location else self.network, Path)
+
         if not self.location:
             self.location = self.network / self.name
-            if workspace.creates_local_dirs:
+            if local:
                 self.location.mkdir(parents=True, exist_ok=True)
 
         if not self.tiledb_directory:
             self.tiledb_directory = TileDBDir(station=self.location)
-            self.tiledb_directory.build(workspace)
+            self.tiledb_directory.build()
 
         if not self.metadata_directory:
             self.metadata_directory = self.location / "metadata"
-            if workspace.creates_local_dirs:
+            if local:
                 self.metadata_directory.mkdir(parents=True, exist_ok=True)
 
         if not self.site_metadata:
@@ -741,7 +741,7 @@ class StationDir(_Base):
         # Build each campaign directory
         for campaign in self.campaigns.values():
             campaign.station = self.location
-            campaign.build(workspace)
+            campaign.build()
 
     def __getitem__(self, key: str) -> CampaignDir | None:
         """Gets a campaign by name.
@@ -762,15 +762,13 @@ class StationDir(_Base):
             print(f"Campaign {key} not found in station {self.name}")
             return None
 
-    def add_campaign(self, name: str, workspace: Workspace) -> CampaignDir:
+    def add_campaign(self, name: str) -> CampaignDir:
         """Adds a new campaign to the station.
 
         Parameters
         ----------
         name : str
             The name of the campaign to add.
-        workspace : Workspace
-            Active workspace configuration.
 
         Returns
         -------
@@ -781,7 +779,7 @@ class StationDir(_Base):
             print(f"Campaign {name} already exists in station {self.name}")
             return self.campaigns[name]
         new_campaign = CampaignDir(name=name, station=self.location)
-        new_campaign.build(workspace)
+        new_campaign.build()
         self.campaigns[name] = new_campaign
         return self.campaigns[name]
 
@@ -868,16 +866,16 @@ class NetworkDir(_Base):
     name: str = Field(..., description="The network name")
     main_directory: Path | S3Path = Field(..., description="The main directory path")
 
-    def build(self, workspace: Workspace) -> None:
+    def build(self) -> None:
         """Creates the directory structure for the network."""
         if not self.location:
             self.location = self.main_directory / self.name
         # Create network directory if it doesn't exist
-        if workspace.creates_local_dirs and not self.location.exists():
+        if isinstance(self.location, Path) and not self.location.exists():
             self.location.mkdir(parents=True, exist_ok=True)
         # Build each station directory
         for station in self.stations.values():
-            station.build(workspace)
+            station.build()
 
     def __getitem__(self, key: str) -> StationDir | None:
         """Gets a station by name.
@@ -898,15 +896,13 @@ class NetworkDir(_Base):
             print(f"Station {key} not found in network {self.name}")
             return None
 
-    def add_station(self, name: str, workspace: Workspace) -> StationDir:
+    def add_station(self, name: str) -> StationDir:
         """Adds a new station to the network.
 
         Parameters
         ----------
         name : str
             The name of the station to add.
-        workspace : Workspace
-            Active workspace configuration.
 
         Returns
         -------
@@ -917,7 +913,7 @@ class NetworkDir(_Base):
             print(f"Station {name} already exists in network {self.name}")
             return self.stations[name]
         new_station = StationDir(name=name, network=self.location)
-        new_station.build(workspace)
+        new_station.build()
         self.stations[name] = new_station
         return self.stations[name]
 

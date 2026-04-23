@@ -11,4 +11,3 @@ from .loadconfigs import (  # noqa: F401
     get_garpos_site_config,
     get_survey_filter_config,
 )
-from .workspace import Workspace, WorkspaceType  # noqa: F401

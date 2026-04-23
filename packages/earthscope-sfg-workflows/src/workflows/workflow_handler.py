@@ -1,5 +1,7 @@
+import re
 from pathlib import Path
 from typing import (
+    List,
     Literal,
 )
 
@@ -12,7 +14,6 @@ from ..config.file_config import (
     DEFAULT_FILE_TYPES_TO_DOWNLOAD,
     DEFAULT_INTERMEDIATE_FILE_TYPES_TO_DOWNLOAD,
 )
-from ..config.workspace import Workspace
 from ..data_mgmt.assetcatalog.schemas import AssetType
 from ..data_models.metadata.site import Site
 from ..modeling.garpos_tools.schemas import InversionParams
@@ -33,6 +34,7 @@ from .pipelines.sv3_pipeline import SV3Pipeline
 from .preprocess_ingest.data_handler import DataHandler
 from .utils.protocols import (
     WorkflowABC,
+    validate_network_station,
     validate_network_station_campaign,
 )
 
@@ -69,34 +71,29 @@ class WorkflowHandler(WorkflowABC):
 
     def __init__(
         self,
-        workspace: Workspace | None = None,
         directory: Path | str = None,
+        s3_sync_bucket: str | None = None,
     ) -> None:
         """
         Parameters
         ----------
-        workspace : Workspace, optional
-            Workspace configuration that controls file-system behaviour, S3
-            sync settings, and AWS credentials.  If *None* the config is
-            auto-detected from environment variables.
         directory : Path | str, optional
-            Convenience shortcut: builds a LOCAL workspace rooted at this path.
-            Ignored when *workspace* is supplied.
+            Root path of the data tree. Auto-detected from environment when omitted.
+        s3_sync_bucket : str, optional
+            S3 bucket name/URI for sync operations.
         """
-        if workspace is None:
-            if directory is not None:
-                workspace = Workspace.local(directory)
-            else:
-                workspace = Workspace.from_environment()
+        self.data_handler = DataHandler(
+            directory=directory, s3_sync_bucket=s3_sync_bucket
+        )
+        super().__init__(directory=directory, s3_sync_bucket=s3_sync_bucket)
 
-        # Create DataHandler instance for data operations
-        self.data_handler = DataHandler(workspace=workspace)
-
-        # Initialize parent WorkflowABC with workspace
-        super().__init__(workspace=workspace)
-
-    def set_network_station_campaign(self, network_id: str, station_id: str, campaign_id: str):
-        """Sets the current network, station, and campaign.
+    def set_network_station_campaign(
+        self,
+        network_id: str,
+        station_id: str | None = None,
+        campaign_id: str | None = None,
+    ):
+        """Sets the current network, and optionally station and campaign.
 
         Delegates to DataHandler which handles both its own setup and parent
         context switching. Then syncs WorkflowHandler-specific state.
@@ -105,19 +102,65 @@ class WorkflowHandler(WorkflowABC):
         ----------
         network_id : str
             The ID of the network to set.
-        station_id : str
-            The ID of the station to set.
-        campaign_id : str
-            The ID of the campaign to set.
+        station_id : str, optional
+            The ID of the station to set. If None, only network context is set.
+        campaign_id : str, optional
+            The ID of the campaign to set. If None, campaign context is not set.
         """
-        # DataHandler handles both its setup AND parent context switching
-        self.data_handler.set_network_station_campaign(network_id, station_id, campaign_id)
+        # Call only the levels that changed, using data_handler's state as the
+        # reference so cascading resets (e.g. network change clearing station)
+        # are detected correctly.
+        if network_id != self.data_handler.current_network_name:
+            self.data_handler.set_network(network_id)
+        if (
+            station_id is not None
+            and station_id != self.data_handler.current_station_name
+        ):
+            self.data_handler.set_station(station_id)
+        if (
+            campaign_id is not None
+            and campaign_id != self.data_handler.current_campaign_name
+        ):
+            self.data_handler.set_campaign(campaign_id)
 
         # Sync WorkflowHandler state from DataHandler
         for key, value in self.data_handler.__dict__.items():
             if value is not None and hasattr(self, key):
                 setattr(self, key, value)
                 logger.logdebug(f"WorkflowHandler state updated: {key} = {value}")
+
+    @validate_network_station
+    def list_campaign_directories(self) -> list[str]:
+        """Lists the campaign directories available for the current station.
+
+        Returns
+        -------
+        list[str]
+            A list of campaign directory names.
+
+        Raises
+        ------
+        ValueError
+            If station metadata is not loaded.
+
+        Examples
+        --------
+        >>> workflow = WorkflowHandler("/path/to/data")
+        >>> workflow.set_network_station_campaign("network", "station", "campaign")
+        >>> campaigns = workflow.list_campaign_directories()
+        ['2022_A_1065','2023_A_1063','2025_A_1126']
+        """
+        if self.current_station_metadata is None:
+            raise ValueError(
+                "Station metadata not loaded, cannot list campaign directories"
+            )
+
+        campaign_dirs: List[Path] = [
+            x
+            for x in self.current_station_dir.location.iterdir()
+            if x.is_dir() and re.match(r"^\d{4}", x.name)
+        ]
+        return campaign_dirs
 
     @validate_network_station_campaign
     def ingest_add_local_data(self, directory_path: Path) -> None:
@@ -161,9 +204,9 @@ class WorkflowHandler(WorkflowABC):
     @validate_network_station_campaign
     def ingest_download_intermediate_archive_data(
         self,
-        file_types: list[AssetType]
-        | list[str]
-        | None = DEFAULT_INTERMEDIATE_FILE_TYPES_TO_DOWNLOAD,
+        file_types: (
+            list[AssetType] | list[str] | None
+        ) = DEFAULT_INTERMEDIATE_FILE_TYPES_TO_DOWNLOAD,
         rinex_1Hz: bool = False,
     ) -> None:
         """
@@ -178,22 +221,26 @@ class WorkflowHandler(WorkflowABC):
     @validate_network_station_campaign
     def preprocess_get_pipeline_sv3(
         self,
-        primary_config: SV3PipelineConfig
-        | PrideCLIConfig
-        | NovatelConfig
-        | RinexConfig
-        | DFOP00Config
-        | PositionUpdateConfig
-        | dict
-        | None = None,
-        secondary_config: SV3PipelineConfig
-        | PrideCLIConfig
-        | NovatelConfig
-        | RinexConfig
-        | DFOP00Config
-        | PositionUpdateConfig
-        | dict
-        | None = None,
+        primary_config: (
+            SV3PipelineConfig
+            | PrideCLIConfig
+            | NovatelConfig
+            | RinexConfig
+            | DFOP00Config
+            | PositionUpdateConfig
+            | dict
+            | None
+        ) = None,
+        secondary_config: (
+            SV3PipelineConfig
+            | PrideCLIConfig
+            | NovatelConfig
+            | RinexConfig
+            | DFOP00Config
+            | PositionUpdateConfig
+            | dict
+            | None
+        ) = None,
     ) -> SV3Pipeline:
         """Creates and configures an SV3 processing pipeline.
 
@@ -261,7 +308,8 @@ class WorkflowHandler(WorkflowABC):
             )
 
         pipeline = SV3Pipeline(
-            workspace=self.data_handler.workspace,
+            directory=self.data_handler.directory,
+            s3_sync_bucket=self.data_handler.s3_sync_bucket,
             config=base_config_updated,
         )
         pipeline.set_network_station_campaign(
@@ -285,22 +333,26 @@ class WorkflowHandler(WorkflowABC):
             "refine_shotdata",
             "process_svp",
         ] = "all",
-        primary_config: SV3PipelineConfig
-        | PrideCLIConfig
-        | NovatelConfig
-        | RinexConfig
-        | DFOP00Config
-        | PositionUpdateConfig
-        | dict
-        | None = None,
-        secondary_config: SV3PipelineConfig
-        | PrideCLIConfig
-        | NovatelConfig
-        | RinexConfig
-        | DFOP00Config
-        | PositionUpdateConfig
-        | dict
-        | None = None,
+        primary_config: (
+            SV3PipelineConfig
+            | PrideCLIConfig
+            | NovatelConfig
+            | RinexConfig
+            | DFOP00Config
+            | PositionUpdateConfig
+            | dict
+            | None
+        ) = None,
+        secondary_config: (
+            SV3PipelineConfig
+            | PrideCLIConfig
+            | NovatelConfig
+            | RinexConfig
+            | DFOP00Config
+            | PositionUpdateConfig
+            | dict
+            | None
+        ) = None,
     ) -> None:
         """Runs the SV3 processing pipeline with optional configuration overrides.
 
@@ -355,15 +407,11 @@ class WorkflowHandler(WorkflowABC):
                 assert isinstance(
                     primary_config,
                     (type(None), dict, SV3PipelineConfig, NovatelConfig),
-                ), (
-                    "Primary config must be provided and be of type None, dict, SV3PipelineConfig, or NovatelConfig when running process_novatel"
-                )
+                ), "Primary config must be provided and be of type None, dict, SV3PipelineConfig, or NovatelConfig when running process_novatel"
                 assert isinstance(
                     secondary_config,
                     (type(None), dict, SV3PipelineConfig, NovatelConfig),
-                ), (
-                    "Secondary config must be of type None, dict, SV3PipelineConfig, or NovatelConfig when running process_novatel"
-                )
+                ), "Secondary config must be of type None, dict, SV3PipelineConfig, or NovatelConfig when running process_novatel"
                 try:
                     pipeline.pre_process_novatel()
                 except Exception as e:
@@ -373,14 +421,10 @@ class WorkflowHandler(WorkflowABC):
             case "build_rinex":
                 assert isinstance(
                     primary_config, (type(None), dict, SV3PipelineConfig, RinexConfig)
-                ), (
-                    "Primary config must be provided and be of type None, dict, SV3PipelineConfig, or RinexConfig when running build_rinex"
-                )
+                ), "Primary config must be provided and be of type None, dict, SV3PipelineConfig, or RinexConfig when running build_rinex"
                 assert isinstance(
                     secondary_config, (type(None), dict, SV3PipelineConfig, RinexConfig)
-                ), (
-                    "Secondary config must be of type None, dict, SV3PipelineConfig, or RinexConfig when running build_rinex"
-                )
+                ), "Secondary config must be of type None, dict, SV3PipelineConfig, or RinexConfig when running build_rinex"
                 try:
                     pipeline.get_rinex_files()
                 except Exception as e:
@@ -391,15 +435,11 @@ class WorkflowHandler(WorkflowABC):
                 assert isinstance(
                     primary_config,
                     (type(None), dict, SV3PipelineConfig, PrideCLIConfig),
-                ), (
-                    "Primary config must be provided and be of type None, dict, SV3PipelineConfig, or PrideCLIConfig when running run_pride"
-                )
+                ), "Primary config must be provided and be of type None, dict, SV3PipelineConfig, or PrideCLIConfig when running run_pride"
                 assert isinstance(
                     secondary_config,
                     (type(None), dict, SV3PipelineConfig, PrideCLIConfig),
-                ), (
-                    "Secondary config must be of type None, dict, SV3PipelineConfig, or PrideCLIConfig when running run_pride"
-                )
+                ), "Secondary config must be of type None, dict, SV3PipelineConfig, or PrideCLIConfig when running run_pride"
                 try:
                     pipeline.process_rinex()
                 except Exception as e:
@@ -407,12 +447,12 @@ class WorkflowHandler(WorkflowABC):
                     raise e
 
             case "process_kinematic":
-                assert isinstance(primary_config, (type(None), dict, RinexConfig)), (
-                    "Primary config must be provided and be of type None, dict, or RinexConfig when running process_kinematic"
-                )
-                assert isinstance(secondary_config, (type(None), dict, RinexConfig)), (
-                    "Secondary config must be of type None, dict, or RinexConfig when running process_kinematic"
-                )
+                assert isinstance(
+                    primary_config, (type(None), dict, RinexConfig)
+                ), "Primary config must be provided and be of type None, dict, or RinexConfig when running process_kinematic"
+                assert isinstance(
+                    secondary_config, (type(None), dict, RinexConfig)
+                ), "Secondary config must be of type None, dict, or RinexConfig when running process_kinematic"
                 try:
                     pipeline.process_kin()
                 except Exception as e:
@@ -420,12 +460,12 @@ class WorkflowHandler(WorkflowABC):
                     raise e
 
             case "process_dfop00":
-                assert isinstance(primary_config, (type(None), dict, DFOP00Config)), (
-                    "Primary config must be provided and be of type None, dict, or DFOP00Config when running process_dfop00"
-                )
-                assert isinstance(secondary_config, (type(None), dict, DFOP00Config)), (
-                    "Secondary config must be of type None, dict, or DFOP00Config when running process_dfop00"
-                )
+                assert isinstance(
+                    primary_config, (type(None), dict, DFOP00Config)
+                ), "Primary config must be provided and be of type None, dict, or DFOP00Config when running process_dfop00"
+                assert isinstance(
+                    secondary_config, (type(None), dict, DFOP00Config)
+                ), "Secondary config must be of type None, dict, or DFOP00Config when running process_dfop00"
                 try:
                     pipeline.process_dfop00()
                 except Exception as e:
@@ -433,12 +473,12 @@ class WorkflowHandler(WorkflowABC):
                     raise e
 
             case "refine_shotdata":
-                assert isinstance(primary_config, (type(None), dict, PositionUpdateConfig)), (
-                    "Primary config must be provided and be of type None, dict, or PositionUpdateConfig when running refine_shotdata"
-                )
-                assert isinstance(secondary_config, (type(None), dict, PositionUpdateConfig)), (
-                    "Secondary config must be of type None, dict, or PositionUpdateConfig when running refine_shotdata"
-                )
+                assert isinstance(
+                    primary_config, (type(None), dict, PositionUpdateConfig)
+                ), "Primary config must be provided and be of type None, dict, or PositionUpdateConfig when running refine_shotdata"
+                assert isinstance(
+                    secondary_config, (type(None), dict, PositionUpdateConfig)
+                ), "Secondary config must be of type None, dict, or PositionUpdateConfig when running refine_shotdata"
                 try:
                     pipeline.update_shotdata()
                 except Exception as e:
@@ -446,12 +486,12 @@ class WorkflowHandler(WorkflowABC):
                     raise e
 
             case "process_svp":
-                assert isinstance(primary_config, (type(None), dict, SV3PipelineConfig)), (
-                    "Primary config must be provided and be of type None, dict, or SV3PipelineConfig when running process_svp"
-                )
-                assert isinstance(secondary_config, (type(None), dict, SV3PipelineConfig)), (
-                    "Secondary config must be of type None, dict, or SV3PipelineConfig when running process_svp"
-                )
+                assert isinstance(
+                    primary_config, (type(None), dict, SV3PipelineConfig)
+                ), "Primary config must be provided and be of type None, dict, or SV3PipelineConfig when running process_svp"
+                assert isinstance(
+                    secondary_config, (type(None), dict, SV3PipelineConfig)
+                ), "Secondary config must be of type None, dict, or SV3PipelineConfig when running process_svp"
                 try:
                     pipeline.process_svp()
                 except Exception as e:
@@ -464,20 +504,24 @@ class WorkflowHandler(WorkflowABC):
     @validate_network_station_campaign
     def preprocess_get_pipeline_qc(
         self,
-        primary_config: QCPipelineConfig
-        | PrideCLIConfig
-        | RinexConfig
-        | PositionUpdateConfig
-        | QCPinConfig
-        | dict
-        | None = None,
-        secondary_config: QCPipelineConfig
-        | PrideCLIConfig
-        | RinexConfig
-        | PositionUpdateConfig
-        | QCPinConfig
-        | dict
-        | None = None,
+        primary_config: (
+            QCPipelineConfig
+            | PrideCLIConfig
+            | RinexConfig
+            | PositionUpdateConfig
+            | QCPinConfig
+            | dict
+            | None
+        ) = None,
+        secondary_config: (
+            QCPipelineConfig
+            | PrideCLIConfig
+            | RinexConfig
+            | PositionUpdateConfig
+            | QCPinConfig
+            | dict
+            | None
+        ) = None,
     ) -> QCPipeline:
         """Creates and configures a QC processing pipeline.
 
@@ -543,7 +587,8 @@ class WorkflowHandler(WorkflowABC):
             )
 
         pipeline = QCPipeline(
-            workspace=self.data_handler.workspace,
+            directory=self.data_handler.directory,
+            s3_sync_bucket=self.data_handler.s3_sync_bucket,
             config=base_config_updated,
         )
         pipeline.set_network_station_campaign(
@@ -564,20 +609,24 @@ class WorkflowHandler(WorkflowABC):
             "process_kinematic",
             "refine_shotdata",
         ] = "all",
-        primary_config: QCPipelineConfig
-        | PrideCLIConfig
-        | RinexConfig
-        | PositionUpdateConfig
-        | QCPinConfig
-        | dict
-        | None = None,
-        secondary_config: QCPipelineConfig
-        | PrideCLIConfig
-        | RinexConfig
-        | PositionUpdateConfig
-        | QCPinConfig
-        | dict
-        | None = None,
+        primary_config: (
+            QCPipelineConfig
+            | PrideCLIConfig
+            | RinexConfig
+            | PositionUpdateConfig
+            | QCPinConfig
+            | dict
+            | None
+        ) = None,
+        secondary_config: (
+            QCPipelineConfig
+            | PrideCLIConfig
+            | RinexConfig
+            | PositionUpdateConfig
+            | QCPinConfig
+            | dict
+            | None
+        ) = None,
     ) -> None:
         """Runs the QC processing pipeline with optional configuration overrides.
 
@@ -663,7 +712,7 @@ class WorkflowHandler(WorkflowABC):
             case _:
                 pipeline.run_pipeline()
 
-    @validate_network_station_campaign
+    @validate_network_station
     def midprocess_get_sitemeta(self, site_metadata: Site | str | None = None) -> Site:
         """Loads and returns the site metadata for the current station. Sets the current_station_metadata attribute.
 
@@ -698,9 +747,9 @@ class WorkflowHandler(WorkflowABC):
             site_metadata = Site.from_json(site_metadata)
 
         else:
-            assert isinstance(site_metadata, Site), (
-                "site_metadata must be of type Site if not a str or Path"
-            )
+            assert isinstance(
+                site_metadata, Site
+            ), "site_metadata must be of type Site if not a str or Path"
 
         if site_metadata is None:
             raise ValueError("Site metadata not loaded or provided, cannot proceed")
@@ -708,7 +757,7 @@ class WorkflowHandler(WorkflowABC):
         self.current_station_metadata = site_metadata
         return self.current_station_metadata
 
-    @validate_network_station_campaign
+    @validate_network_station
     def midprocess_get_processor(
         self,
         site_metadata: Site | str | None = None,
@@ -743,12 +792,14 @@ class WorkflowHandler(WorkflowABC):
             )
         dataPostProcessor = IntermediateDataProcessor(
             station_metadata=self.current_station_metadata,
-            workspace=self.data_handler.workspace,
+            directory=self.directory,
+            s3_sync_bucket=self.s3_sync_bucket,
         )
         dataPostProcessor.mid_process_workflow = not override_metadata_require
         dataPostProcessor.set_network(network_id=self.current_network_name)
         dataPostProcessor.set_station(station_id=self.current_station_name)
-        dataPostProcessor.set_campaign(campaign_id=self.current_campaign_name)
+        if self.current_campaign_name is not None:
+            dataPostProcessor.set_campaign(campaign_id=self.current_campaign_name)
 
         return dataPostProcessor
 
@@ -778,7 +829,7 @@ class WorkflowHandler(WorkflowABC):
         ValueError
             If site metadata is not loaded.
         """
-        if self.workspace.syncs_with_s3:
+        if self.s3_sync_bucket is not None:
             self.data_handler.sync_from_s3(overwrite=override)
             for key, value in self.data_handler.__dict__.items():
                 if value is not None and hasattr(self, key):
@@ -837,8 +888,8 @@ class WorkflowHandler(WorkflowABC):
             overwrite=override,
         )
 
-    @validate_network_station_campaign
-    def midprocess_upload_s3(
+    @validate_network_station
+    def midprocess_sync_station_data_s3(
         self, overwrite: bool = False, override_metadata_require: bool = False
     ) -> None:
         """Uploads intermediate processed data to S3 for the current station.
@@ -858,7 +909,31 @@ class WorkflowHandler(WorkflowABC):
             self.current_station_metadata,
             override_metadata_require=override_metadata_require,
         )
-        dataPostProcessor.midprocess_sync_s3(overwrite=overwrite)
+        dataPostProcessor.midprocess_sync_station_data_s3(overwrite=overwrite)
+
+    @validate_network_station_campaign
+    def midprocess_sync_campaign_data_s3(
+        self, overwrite: bool = False, override_metadata_require: bool = False
+    ) -> None:
+        """Uploads intermediate processed data to S3 for the current campaign.
+
+        Parameters
+        ----------
+        overwrite : bool, optional
+            If True, overwrites existing data on S3, by default False.
+        override_metadata_require : bool, optional
+            If True, bypasses the requirement for loaded site metadata, by default False.
+
+        Raises
+        ------
+        ValueError
+            If site metadata is not loaded and ``override_metadata_require`` is False.
+        """
+        dataPostProcessor: IntermediateDataProcessor = self.midprocess_get_processor(
+            self.current_station_metadata,
+            override_metadata_require=override_metadata_require,
+        )
+        dataPostProcessor.midprocess_sync_campaign_data_s3(overwrite=overwrite)
 
     @validate_network_station_campaign
     def modeling_get_garpos_handler(self) -> GarposHandler:
@@ -878,8 +953,9 @@ class WorkflowHandler(WorkflowABC):
             raise ValueError("Site metadata not loaded, cannot get GarposHandler")
 
         gp_handler = GarposHandler(
-            workspace=self.data_handler.workspace,
+            directory=self.directory,
             station_metadata=self.current_station_metadata,
+            s3_sync_bucket=self.s3_sync_bucket,
         )
         gp_handler.set_network_station_campaign(
             network_id=self.current_network_name,
@@ -1031,7 +1107,8 @@ class WorkflowHandler(WorkflowABC):
         """
 
         qc_pipeline: QCPipeline = QCPipeline(
-            workspace=self.workspace,
+            directory=self.directory,
+            s3_sync_bucket=self.s3_sync_bucket,
             asset_catalog=self.asset_catalog,
             config=config,
         )
@@ -1080,7 +1157,9 @@ class WorkflowHandler(WorkflowABC):
 
         # Get the intermediate data processor and parse QC surveys
         try:
-            qc_mid_processor = self.midprocess_get_processor(site_metadata=site_metadata)
+            qc_mid_processor = self.midprocess_get_processor(
+                site_metadata=site_metadata
+            )
         except ValueError as e:
             raise e  # for visibility
 
@@ -1090,7 +1169,9 @@ class WorkflowHandler(WorkflowABC):
 
         # Get the GARPOS handler and run GARPOS
         qc_garpos_handler = self.modeling_get_garpos_handler()
-        qc_garpos_handler.current_campaign_dir.location = qc_garpos_handler.current_campaign_dir.qc
+        qc_garpos_handler.current_campaign_dir.location = (
+            qc_garpos_handler.current_campaign_dir.qc
+        )
         qc_garpos_handler.current_campaign_dir.build()
         qc_garpos_handler.run_garpos(
             surveys=gp_dir_list,

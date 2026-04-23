@@ -24,7 +24,6 @@ from earthscope_sfg.tiledb_schemas import (
     TDBShotDataArray,
 )
 
-from ...config.workspace import Workspace
 
 # Local imports
 from ...data_mgmt.assetcatalog.handler import PreProcessCatalogHandler
@@ -151,17 +150,19 @@ class SV3Pipeline(WorkflowABC):
 
     def __init__(
         self,
-        workspace: Workspace | None = None,
+        directory: Path | str = None,
+        s3_sync_bucket: str | None = None,
         asset_catalog: PreProcessCatalogHandler | None = None,
         config: SV3PipelineConfig = None,
     ):
-        """Initializes the SV3Pipeline with workspace and configuration.
+        """Initializes the SV3Pipeline with a directory and configuration.
 
         Parameters
         ----------
-        workspace : Workspace, optional
-            Unified workspace config and directory handler. Must be provided
-            and should already be built.
+        directory : Path | str, optional
+            Root path of the data tree.
+        s3_sync_bucket : str, optional
+            S3 bucket name/URI for sync operations.
         asset_catalog : Optional[PreProcessCatalogHandler], optional
             Pre-configured asset catalog. If None, created automatically.
         config : Optional[SV3PipelineConfig], optional
@@ -169,7 +170,8 @@ class SV3Pipeline(WorkflowABC):
             configuration. Defaults to None.
         """
         super().__init__(
-            workspace=workspace,
+            directory=directory,
+            s3_sync_bucket=s3_sync_bucket,
             asset_catalog=asset_catalog,
         )
 
@@ -555,7 +557,7 @@ class SV3Pipeline(WorkflowABC):
         ProcessLogger.loginfo(response)
 
         # Get the PRIDE directory and intermediate directory
-        prideDir = self.workspace.pride_directory
+        prideDir = self.directory_handler.pride_directory
         intermediateDir = self.current_campaign_dir.intermediate
 
         # Get the Rinex files to process

@@ -5,7 +5,6 @@ from functools import wraps
 from pathlib import Path
 from typing import Concatenate, ParamSpec, Protocol, TypeVar
 
-from ...config.workspace import Workspace
 from ...data_mgmt.assetcatalog.handler import PreProcessCatalogHandler
 from ...data_mgmt.directorymgmt import (
     CampaignDir,
@@ -13,6 +12,7 @@ from ...data_mgmt.directorymgmt import (
     StationDir,
     SurveyDir,
 )
+from ...data_mgmt.directorymgmt.handler import DirectoryHandler
 from ...data_models.metadata import Campaign, Site, Survey
 
 P = ParamSpec("P")
@@ -92,6 +92,18 @@ def validate_network_station_campaign(
 
     return wrapper
 
+def validate_network_station(
+    func: Callable[Concatenate[HasNetworkStationCampaign, P], R],
+) -> Callable[Concatenate[HasNetworkStationCampaign, P], R]:
+    @wraps(func)
+    def wrapper(self: HasNetworkStationCampaign, *args: P.args, **kwargs: P.kwargs) -> R:
+        if self.current_network_name is None:
+            raise ValueError("Network name not set, use change_working_station")
+        if self.current_station_name is None:
+            raise ValueError("Station name not set, use change_working_station")
+        return func(self, *args, **kwargs)
+
+    return wrapper
 
 class WorkflowABC(ABC):
     """
@@ -115,7 +127,7 @@ class WorkflowABC(ABC):
         metadata validation and loading.
     directory : Path
         Root directory for the workflow data structure.
-    directory_handler : Workspace (see workspace attribute)
+    directory_handler : DirectoryHandler
         Handler for managing the hierarchical directory structure.
     asset_catalog : PreProcessCatalogHandler
         Handler for managing data asset catalogs and metadata.
@@ -165,43 +177,41 @@ class WorkflowABC(ABC):
 
     def __init__(
         self,
-        workspace: Workspace | None = None,
-        directory: Path = None,
+        directory: Path | str = None,
+        s3_sync_bucket: str | None = None,
         asset_catalog: PreProcessCatalogHandler | None = None,
         station_metadata: Site | None = None,
     ):
-        """Initialize the workflow with a workspace and asset catalog.
+        """Initialize the workflow with a directory handler and asset catalog.
 
         Parameters
         ----------
-        workspace : Workspace, optional
-            Unified config + directory-tree object.  When *None* it is
-            inferred from *directory* (LOCAL workspace) or auto-detected
-            from environment variables.
-        directory : Path, optional
-            Convenience shortcut that builds a LOCAL workspace rooted here.
-            Ignored when *workspace* is supplied.
+        directory : Path | str, optional
+            Root path of the data tree. Auto-detected from environment when omitted.
+        s3_sync_bucket : str, optional
+            S3 bucket name/URI for sync operations.
         asset_catalog : PreProcessCatalogHandler, optional
-            Pre-configured asset catalog.  Created automatically from
-            :attr:`workspace.asset_catalog_db_path` when omitted.
+            Pre-configured asset catalog. Created automatically when omitted.
         station_metadata : Site, optional
             Pre-loaded station metadata for mid-process workflows.
         """
-        # Resolve workspace
-        if workspace is None:
-            if directory is not None:
-                workspace = Workspace.local(directory)
-            else:
-                workspace = Workspace.from_environment()
+        if directory is None:
+            import os
+            directory = os.environ.get("MAIN_DIRECTORY", ".")
 
-        if not workspace.asset_catalog_db_path:
-            workspace.build()
+        self.directory_handler: DirectoryHandler = DirectoryHandler.load_from_path(directory)
+        if self.directory_handler is None:
+            self.directory_handler = DirectoryHandler(location=Path(directory))
+            self.directory_handler.build()
+
+        self.directory: Path = self.directory_handler.location
+        self.s3_sync_bucket: str | None = s3_sync_bucket
 
         if asset_catalog is None:
-            asset_catalog = PreProcessCatalogHandler(db_path=workspace.asset_catalog_db_path)
+            asset_catalog = PreProcessCatalogHandler(
+                db_path=self.directory_handler.asset_catalog_db_path
+            )
 
-        self.workspace: Workspace = workspace
-        self.directory: Path = workspace.location
         self.asset_catalog = asset_catalog
 
         # Consolidated hierarchical context
@@ -370,9 +380,9 @@ class WorkflowABC(ABC):
         self.current_network_name = network_id
 
         if (
-            current_network_dir := self.workspace.networks.get(self.current_network_name, None)
+            current_network_dir := self.directory_handler.networks.get(self.current_network_name, None)
         ) is None:
-            current_network_dir = self.workspace.add_network(name=self.current_network_name)
+            current_network_dir = self.directory_handler.add_network(name=self.current_network_name)
         self.current_network_dir = current_network_dir
 
     def set_station(self, station_id: str):
@@ -440,11 +450,11 @@ class WorkflowABC(ABC):
             )
         ) is None:
             current_station_dir = self.current_network_dir.add_station(
-                name=self.current_station_name, workspace=self.workspace
+                name=self.current_station_name
             )
 
         self.current_station_dir = current_station_dir
-        self.current_station_dir.build(self.workspace)
+        self.current_station_dir.build()
 
         if self.current_station_dir.site_metadata.exists():
             self.current_station_metadata = Site.from_json(self.current_station_dir.site_metadata)
@@ -532,74 +542,58 @@ class WorkflowABC(ABC):
             )
         ) is None:
             current_campaign_dir = self.current_station_dir.add_campaign(
-                name=campaign_id, workspace=self.workspace
+                name=campaign_id
             )
         self.current_campaign_dir = current_campaign_dir
-        self.current_campaign_dir.build(self.workspace)
+        self.current_campaign_dir.build()
 
-    def set_network_station_campaign(self, network_id: str, station_id: str, campaign_id: str):
+    def set_network_station_campaign(
+        self,
+        network_id: str,
+        station_id: str | None = None,
+        campaign_id: str | None = None,
+    ):
         """
-        Set the current network, station, and campaign contexts in sequence.
+        Set the current network, and optionally station and campaign contexts.
 
-        Convenience method that establishes the complete hierarchical context
-        (network → station → campaign) in a single call. This is equivalent to
-        calling set_network(), set_station(), and set_campaign() in sequence,
-        but with parameter validation to ensure all are strings.
+        Convenience method that establishes hierarchical context up to whichever
+        level is provided. Omitted levels are left unchanged (or cleared if a
+        higher-level context changes).
 
         Parameters
         ----------
         network_id : str
-            The identifier for the network to activate. This should match the
-            expected directory name and serve as a unique network identifier.
-        station_id : str
-            The identifier for the station to activate. This should match both
-            the directory name and station identifier in metadata files.
-        campaign_id : str
-            The identifier for the campaign to activate. This should match both
-            the directory name and campaign identifier in station metadata.
+            The identifier for the network to activate.
+        station_id : str, optional
+            The identifier for the station to activate. If None, only the
+            network context is set.
+        campaign_id : str, optional
+            The identifier for the campaign to activate. If None, campaign
+            context is not set. Ignored when station_id is also None.
 
         Raises
         ------
         AssertionError
-            If any of the input parameters are not strings.
+            If any provided parameter is not a string.
 
         ValueError
-            If any of the individual context setting operations fail. Error
-            messages will indicate which specific context failed to set.
-
-        Notes
-        -----
-        The method performs parameter validation before calling the individual
-        context setting methods:
-
-        1. Validate all parameters are strings
-        2. Call set_network(network_id)
-        3. Call set_station(station_id)
-        4. Call set_campaign(campaign_id)
-
-        This method is particularly useful for workflows that need to establish
-        a known hierarchical context at startup, such as processing workflows
-        that operate on specific campaign data.
-
-        All the same rules and behaviors of the individual set_* methods apply,
-        including metadata loading for mid-process workflows and directory
-        creation for setup workflows.
+            If any of the individual context setting operations fail.
 
         See Also
         --------
-        set_network : First step in the sequence
-        set_station : Second step in the sequence
-        set_campaign : Third step in the sequence
+        set_network : Set only the network context
+        set_station : Set only the station context
+        set_campaign : Set only the campaign context
         """
         assert isinstance(network_id, str), "network_id must be a string"
-        assert isinstance(station_id, str), "station_id must be a string"
-        assert isinstance(campaign_id, str), "campaign_id must be a string"
+        assert station_id is None or isinstance(station_id, str), "station_id must be a string or None"
+        assert campaign_id is None or isinstance(campaign_id, str), "campaign_id must be a string or None"
 
         if network_id != self.current_network_name:
             self.set_network(network_id=network_id)
-        if station_id != self.current_station_name:
+        if station_id is not None and station_id != self.current_station_name:
             self.set_station(station_id=station_id)
-        if campaign_id != self.current_campaign_name:
+        if campaign_id is not None and campaign_id != self.current_campaign_name:
             self.set_campaign(campaign_id=campaign_id)
 
     @validate_network_station_campaign
@@ -674,8 +668,6 @@ class WorkflowABC(ABC):
             )
 
         if (current_survey_dir := self.current_campaign_dir.surveys.get(survey_id, None)) is None:
-            current_survey_dir = self.current_campaign_dir.add_survey(
-                name=survey_id, workspace=self.workspace
-            )
+            current_survey_dir = self.current_campaign_dir.add_survey(name=survey_id)
         self.current_survey_dir = current_survey_dir
-        self.current_survey_dir.build(self.workspace)
+        self.current_survey_dir.build()

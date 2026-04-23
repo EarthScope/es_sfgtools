@@ -25,7 +25,7 @@ from ...config.file_config import (
     REMOTE_TYPE,
     AssetType,
 )
-from ...config.workspace import Workspace
+from ...data_mgmt.directorymgmt.handler import DirectoryHandler
 from ...data_mgmt.assetcatalog.schemas import AssetEntry
 from ...data_mgmt.ingestion.archive_pull import (
     download_file_from_archive,
@@ -53,15 +53,11 @@ class DataHandler(WorkflowABC):
 
     def __init__(
         self,
-        workspace: Workspace | None = None,
         directory: Path | str = None,
+        s3_sync_bucket: str | None = None,
     ) -> None:
-        if workspace is None:
-            if directory is not None:
-                workspace = Workspace.local(directory)
-            else:
-                workspace = Workspace.from_environment()
-        super().__init__(workspace=workspace)
+
+        super().__init__(directory=directory, s3_sync_bucket=s3_sync_bucket)
 
         self.acoustic_tdb: TDBAcousticArray | None = None
         self.kin_position_tdb: TDBKinPositionArray | None = None
@@ -70,7 +66,7 @@ class DataHandler(WorkflowABC):
         self.shotdata_tdb_pre: TDBShotDataArray | None = None
         self.gnss_obs_tdb: TDBGNSSObsArray | None = None
         self.gnss_obs_secondary_tdb: TDBGNSSObsArray | None = None
-        self.s3_directory_handler: Workspace | None = None
+        self.s3_directory_handler: DirectoryHandler | None = None
 
     def _build_station_dir_structure(self, network_id: str, station_id: str, campaign_id: str):
         """
@@ -157,38 +153,45 @@ class DataHandler(WorkflowABC):
         self.gnss_obs_tdb.consolidate()
         self.gnss_obs_secondary_tdb.consolidate()
 
+    def set_campaign(self, campaign_id: str):
+        """Set campaign context and run campaign-specific setup.
+
+        Overrides the parent to redirect log output and initialise TileDB
+        arrays whenever the campaign actually changes.
+
+        Parameters
+        ----------
+        campaign_id : str
+            The campaign identifier.
+        """
+        super().set_campaign(campaign_id)
+
+        log_dir = self.current_campaign_dir.log_directory
+        change_all_logger_dirs(log_dir)
+        os.environ["LOG_FILE_PATH"] = str(log_dir)
+
+        if isinstance(self.directory, Path):
+            self._build_tileDB_arrays()
+
     def set_network_station_campaign(
         self,
         network_id: str,
-        station_id: str,
-        campaign_id: str,
+        station_id: str | None = None,
+        campaign_id: str | None = None,
     ):
-        """
-        Changes the operational context to a specific network, station, and campaign.
-
-        Overrides the parent method to add DataHandler-specific setup including
-        TileDB array initialization and logging configuration.
+        """Changes the operational context to a specific network, and optionally
+        station and campaign.
 
         Parameters
         ----------
         network_id : str
             The network identifier.
-        station_id : str
-            The station identifier.
-        campaign_id : str
-            The campaign identifier.
+        station_id : str, optional
+            The station identifier. If None, only network context is set.
+        campaign_id : str, optional
+            The campaign identifier. If None, campaign-specific setup is skipped.
         """
-        # Call parent method to handle context switching
         super().set_network_station_campaign(network_id, station_id, campaign_id)
-
-        # Build the campaign directory structure and TileDB arrays, this changes the logger directory as well
-        log_dir = self.current_campaign_dir.log_directory
-        change_all_logger_dirs(log_dir)
-        os.environ["LOG_FILE_PATH"] = str(log_dir)
-
-        if self.workspace.builds_tiledb_locally:
-            self._build_tileDB_arrays()
-
         logger.loginfo(f"Changed working station to {network_id} {station_id} {campaign_id}")
 
     def set_network_station_campaign_with_metadata(
@@ -746,18 +749,18 @@ class DataHandler(WorkflowABC):
             overwrite: If True, re-downloads files that already exist locally.
         """
 
-        if not self.workspace.syncs_with_s3:
+        if self.s3_sync_bucket is None:
             raise RuntimeError(
-                "sync_from_s3 requires a workspace with syncs_with_s3=True "
-                "and a configured s3_sync_bucket. "
-                f"Current workspace: {self.workspace}"
+                "sync_from_s3 requires s3_sync_bucket to be configured."
             )
 
-        s3_bucket = self.workspace.s3_sync_bucket_uri
+        s3_bucket = self.s3_sync_bucket
+        if not s3_bucket.startswith("s3://"):
+            s3_bucket = f"s3://{s3_bucket}"
 
         # Check if we have a cached remote catalog file
         if self.s3_directory_handler is None or overwrite:
-            self.s3_directory_handler = Workspace.load_from_path(s3_bucket)
+            self.s3_directory_handler = DirectoryHandler.load_from_path(s3_bucket)
         if self.s3_directory_handler is None:
             raise ValueError(
                 f"Failed to load or create S3 directory catalog from bucket: {s3_bucket}"
@@ -784,7 +787,7 @@ class DataHandler(WorkflowABC):
 
                 # Create or get the corresponding local station directory
                 local_station_dir = local_network_dir.add_station(
-                    station_name, workspace=self.workspace
+                    station_name
                 )
 
                 # Synchronize TileDB directory reference (array storage location)
@@ -801,7 +804,7 @@ class DataHandler(WorkflowABC):
                 ) in remote_station_dir.campaigns.items():
                     # Create or get the corresponding local campaign directory
                     local_campaign_dir = local_station_dir.add_campaign(
-                        campaign_id, workspace=self.workspace
+                        campaign_id
                     )
 
                     # Download all files within this campaign from S3

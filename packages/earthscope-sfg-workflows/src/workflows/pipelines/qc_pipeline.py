@@ -26,7 +26,6 @@ from earthscope_sfg.tiledb_schemas import (
     TDBShotDataArray,
 )
 
-from ...config.workspace import Workspace
 from ...data_mgmt.assetcatalog.handler import PreProcessCatalogHandler
 from ...data_mgmt.assetcatalog.schemas import AssetEntry, AssetType
 from ...data_mgmt.utils import get_merge_signature_shotdata
@@ -153,17 +152,19 @@ class QCPipeline(WorkflowABC):
 
     def __init__(
         self,
-        workspace: Workspace | None = None,
+        directory: Path | str = None,
+        s3_sync_bucket: str | None = None,
         asset_catalog: PreProcessCatalogHandler | None = None,
         config: QCPipelineConfig = None,
     ):
-        """Initialize the QCPipeline with workspace and configuration.
+        """Initialize the QCPipeline with a directory and configuration.
 
         Parameters
         ----------
-        workspace : Workspace, optional
-            Unified workspace config and directory handler. Must be provided
-            and should already be built.
+        directory : Path | str, optional
+            Root path of the data tree.
+        s3_sync_bucket : str, optional
+            S3 bucket name/URI for sync operations.
         asset_catalog : PreProcessCatalogHandler, optional
             Pre-configured asset catalog handler. If not provided, will be
             created automatically.
@@ -172,7 +173,8 @@ class QCPipeline(WorkflowABC):
             configuration.
         """
         super().__init__(
-            workspace=workspace,
+            directory=directory,
+            s3_sync_bucket=s3_sync_bucket,
             asset_catalog=asset_catalog,
         )
 
@@ -460,7 +462,7 @@ class QCPipeline(WorkflowABC):
         response = f"Running PRIDE-PPPAR on QC Rinex Data for {self.current_network_name} {self.current_station_name} {self.current_campaign_name}. This may take a few minutes..."
         ProcessLogger.loginfo(response)
 
-        prideDir = self.workspace.pride_directory
+        prideDir = self.directory_handler.pride_directory
         intermediateDir = self.current_campaign_dir.intermediate
 
         rinex_entries: list[AssetEntry] = self.asset_catalog.get_single_entries_to_process(
