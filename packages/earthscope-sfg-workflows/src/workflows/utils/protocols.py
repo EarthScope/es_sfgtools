@@ -200,9 +200,7 @@ class WorkflowABC(ABC):
             directory = os.environ.get("MAIN_DIRECTORY", ".")
 
         self.directory_handler: DirectoryHandler = DirectoryHandler.load_from_path(directory)
-        if self.directory_handler is None:
-            self.directory_handler = DirectoryHandler(location=Path(directory))
-            self.directory_handler.build()
+        self.directory_handler.build()
 
         self.directory: Path = self.directory_handler.location
         self.s3_sync_bucket: str | None = s3_sync_bucket

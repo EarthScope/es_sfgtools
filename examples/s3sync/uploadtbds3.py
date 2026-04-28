@@ -18,7 +18,7 @@ from earthscope_sfg_workflows.config.env_config import Environment
 from earthscope_sfg_workflows.workflows.workflow_handler import WorkflowHandler
 
 S3_SYNC_BUCKET = "seafloor-public-bucket-bucket83908e77-gprctmuztrim"
-HOME_DIR = "/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain"
+HOME_DIR = "/Volumes/DunbarSSD/Project/SeafloorGeodesy/SFGMain2"
 
 DEFAULT_CONFIG = {
     # The destination S3 bucket for syncing TileDB arrays
@@ -52,5 +52,5 @@ for station in STATIONS:
             station_id=station, 
             campaign_id=campaign.name)
         print(f"Syncing campaign {campaign.name} data to S3...")
-        workflow.midprocess_sync_campaign_data_s3()
+        workflow.midprocess_sync_campaign_data_s3(overwrite=True)
     print(f"Finished syncing station {station} data to S3\n")

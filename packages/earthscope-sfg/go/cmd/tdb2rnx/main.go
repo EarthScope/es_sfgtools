@@ -9,6 +9,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/EarthScope/es_sfgtools/src/golangtools/pkg/sfg_utils"
@@ -273,9 +274,17 @@ func main() {
 		log.Warnf("Error Filtering Day Slices: %s", err)
 		return
 	}
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, 10) // Limit to 10 concurrent goroutines
 
 	for _, daySlice := range daySlices {
-
-		ProcessDaySlice(ctx, client, daySlice, *tdbPathPtr, *timeIntervals, settings, *moduloPtr)
-	}
+		wg.Add(1)
+		go func(daySlice gnsstiledb.TimeRange) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			ProcessDaySlice(ctx, client, daySlice, *tdbPathPtr, *timeIntervals, settings, *moduloPtr)
+	}	(daySlice)
+}
+	wg.Wait()
 }

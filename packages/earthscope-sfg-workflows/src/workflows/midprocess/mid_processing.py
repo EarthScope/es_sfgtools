@@ -9,6 +9,7 @@ import shutil
 from pathlib import Path
 
 import concurrent
+import subprocess
 
 import numpy as np
 import pandas as pd
@@ -386,7 +387,7 @@ class IntermediateDataProcessor(WorkflowABC):
             garpos_input_configured.to_datafile(garposDir.default_obsfile)
 
         self.directory_handler.save()
-    
+
     @validate_network_station
     def midprocess_sync_station_data_s3(self,overwrite:bool=False):
         """Uploads the current station directory to S3 for synchronization.
@@ -434,7 +435,6 @@ class IntermediateDataProcessor(WorkflowABC):
                     logger.logerr(f"Failed to upload {tdb_file} to S3: {e}")
             print(f"Uploaded {upload_counter} files to {str(s3_tdb_array)}")
 
-
     @validate_network_station_campaign
     def midprocess_sync_campaign_data_s3(self, overwrite: bool = False):
         """Uploads the current campaign directory to S3 for synchronization.
@@ -470,21 +470,25 @@ class IntermediateDataProcessor(WorkflowABC):
 
         local_intermediate_dir = local_campaign_dir.intermediate
         s3_rinex_dest_dir = s3_campaign_dir.processed / "rinex"
-        
+
         def upload_rinex_file(rinex_file: Path,
                               local_intermediate_dir: Path=local_intermediate_dir, 
                               s3_rinex_dest_dir: Path=s3_rinex_dest_dir, 
                               overwrite: bool = overwrite):
-            
+
             if ".crx" in rinex_file.suffix:
                 # Skip already compressed files
                 return
             if "S" not in rinex_file.suffix:
                 # Compress the rinex file using hatanaka compression via georinex.
                 old_suffix = rinex_file.suffix
-                new_suffix = old_suffix[:-1] + "d" + ".gz"
-                source = rinex_file.with_suffix(new_suffix)
-                source.write_bytes(hatanaka.compress(rinex_file))
+                new_suffix = old_suffix[:-1] + "d"
+                hatanaka_source = rinex_file.with_suffix(new_suffix)
+                subprocess.run(["/Users/franklyndunbar/Project/SeaFloorGeodesy/RNX2CRX",str(rinex_file)])
+                assert hatanaka_source.exists(), f"Hatanaka compression failed for {rinex_file}"
+                source = hatanaka_source.with_suffix(hatanaka_source.suffix + ".gz")
+                # Now we gzip the hatanaka compressed file to save space
+                source.write_bytes(hatanaka.compress(hatanaka_source))
             else:
                 # Teq style qc files
                 source = rinex_file 
@@ -496,13 +500,12 @@ class IntermediateDataProcessor(WorkflowABC):
                     print(f"Uploaded {source} to {s3_rinex_file}")
             except Exception as e:
                 logger.logerr(f"Failed to upload {source} to S3: {e}")
-        
+
         if local_intermediate_dir.exists():
             print(f"Syncing intermediate Rinex files from {local_intermediate_dir} to {s3_rinex_dest_dir}...")
             rinex_files = list(local_intermediate_dir.rglob(f"*{self.current_station_name}*"))
             with ThreadPoolExecutor(max_workers=15) as executor:
                 executor.map(upload_rinex_file, rinex_files)
-
 
     @validate_network_station_campaign
     def midprocess_sync_s3(self, overwrite: bool = False):

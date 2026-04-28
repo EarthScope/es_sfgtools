@@ -40,6 +40,7 @@ from ...data_mgmt.ingestion.datadiscovery import (
 from ...data_models.metadata.site import Site
 from ..utils.protocols import (
     WorkflowABC,
+    validate_network_station,
     validate_network_station_campaign,
 )
 
@@ -146,12 +147,12 @@ class DataHandler(WorkflowABC):
         )
 
         logger.loginfo(f"Consolidating existing TileDB arrays for {self.current_station_name}")
-        self.acoustic_tdb.consolidate()
-        self.kin_position_tdb.consolidate()
-        self.imu_position_tdb.consolidate()
-        self.shotdata_tdb.consolidate()
-        self.gnss_obs_tdb.consolidate()
-        self.gnss_obs_secondary_tdb.consolidate()
+        # self.acoustic_tdb.consolidate()
+        # self.kin_position_tdb.consolidate()
+        # self.imu_position_tdb.consolidate()
+        # self.shotdata_tdb.consolidate()
+        # self.gnss_obs_tdb.consolidate()
+        # self.gnss_obs_secondary_tdb.consolidate()
 
     def set_campaign(self, campaign_id: str):
         """Set campaign context and run campaign-specific setup.
@@ -658,7 +659,7 @@ class DataHandler(WorkflowABC):
         )
         self.add_data_remote(remote_filepaths=remote_filepaths, remote_type=REMOTE_TYPE.HTTP)
 
-    @validate_network_station_campaign
+    @validate_network_station
     def get_site_metadata(self, site_metadata: Site | Path | None = None) -> Site | None:
         """
         Loads or validates site metadata for the current station.
